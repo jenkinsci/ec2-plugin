@@ -19,20 +19,25 @@ function findPrevious(src,filter) {
     return null;
 }
 function findPreviousFormItem(src,name) {
-    return findPrevious(src,function(e){ return e.tagName=="INPUT" && e.name==name; });
+    var name2 = "_."+name; // handles <textbox field="..." /> notation silently
+    return findPrevious(src,function(e){ return e.tagName=="INPUT" && (e.name==name || e.name==name2); });
 }
 
 function testEC2(rootURL,button) {
   button = button._button;
 
-  var pwd = findPreviousFormItem(button,"_.secretKey");
-  var uid = findPreviousFormItem(pwd,"_.accessId");
+  var pwd = findPreviousFormItem(button,"secretKey");
+  var uid = findPreviousFormItem(pwd,"accessId");
+
+  var spinner = Element.up(button,"DIV").nextSibling;
+  var target = spinner.nextSibling;
+  spinner.style.display="block";
 
   new Ajax.Request(rootURL+"/descriptor/hudson.plugins.ec2.EC2Cloud/testConnection", {
       method: "post",
       parameters: { uid:uid.value, pwd:pwd.value },
       onComplete: function(rsp) {
-          var target = Element.up(button,"DIV").nextSibling;
+          spinner.style.display="none";
           target.innerHTML = rsp.responseText;
       }
   });
