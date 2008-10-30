@@ -4,8 +4,6 @@ import hudson.model.Descriptor;
 import hudson.slaves.Cloud;
 import hudson.util.FormFieldValidator;
 import hudson.util.Secret;
-import hudson.Util;
-import hudson.Functions;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -66,11 +64,11 @@ public class EC2Cloud extends Cloud {
         }
 
         public void doTestConnection(StaplerRequest req, StaplerResponse rsp,
-                                     @QueryParameter("uid") final String uid, @QueryParameter("pwd") final String pwd) throws IOException, ServletException {
+                                     @QueryParameter("accessId") final String accessId, @QueryParameter("secretKey") final String secretKey) throws IOException, ServletException {
             new FormFieldValidator(req,rsp,true) {
                 protected void check() throws IOException, ServletException {
                     try {
-                        Jec2 jec2 = new Jec2(uid,Secret.fromString(pwd).toString());
+                        Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
                         jec2.describeInstances(Collections.<String>emptyList());
                         ok();
                     } catch (EC2Exception e) {

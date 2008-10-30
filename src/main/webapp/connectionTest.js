@@ -23,19 +23,24 @@ function findPreviousFormItem(src,name) {
     return findPrevious(src,function(e){ return e.tagName=="INPUT" && (e.name==name || e.name==name2); });
 }
 
-function testEC2(rootURL,button) {
+function testEC2(checkUrl,paramList,button) {
   button = button._button;
 
-  var pwd = findPreviousFormItem(button,"secretKey");
-  var uid = findPreviousFormItem(pwd,"accessId");
+  var parameters = {};
+
+  paramList.split(',').each(function(name) {
+      var p = findPreviousFormItem(button,name);
+      if(p!=null)
+        parameters[name] = p.value;
+  });
 
   var spinner = Element.up(button,"DIV").nextSibling;
   var target = spinner.nextSibling;
   spinner.style.display="block";
 
-  new Ajax.Request(rootURL+"/descriptor/hudson.plugins.ec2.EC2Cloud/testConnection", {
+  new Ajax.Request(checkUrl, {
       method: "post",
-      parameters: { uid:uid.value, pwd:pwd.value },
+      parameters: parameters,
       onComplete: function(rsp) {
           spinner.style.display="none";
           target.innerHTML = rsp.responseText;

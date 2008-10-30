@@ -1,18 +1,24 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <d:taglib uri="local">
+    <d:tag name="validateButton">
+      <f:nested>
+        <div style="float:right">
+          <input type="button" value="${title}" class="yui-button" onclick="testEC2('${rootURL}/descriptor/${descriptor.clazz.name}/${method}','${with}',this)" />
+        </div>
+        <div style="display:none;">
+          <img src="${imagesURL}/spinner.gif" /> ${%Testing...}
+        </div>
+        <div><!-- this is where the error message goes --></div>
+        <script src="${rootURL}/plugin/ec2/connectionTest.js" type="text/javascript"></script>
+      </f:nested>
+    </d:tag>
+  </d:taglib>
   <f:entry title="${%Access Key ID}" help="/plugin/ec2/accessKeyId.html">
     <f:textbox field="accessId" />
   </f:entry>
   <f:entry title="${%Secret Access Key}" help="/plugin/ec2/secretAccessKey.html">
     <f:password field="secretKey" />
   </f:entry>
-  <f:nested>
-    <div style="float:right">
-      <input type="button" value="${%Test Connection}" class="yui-button" onclick="testEC2('${rootURL}',this)" />
-    </div>
-    <div style="display:none;">
-      <img src="${imagesURL}/spinner.gif" /> ${%Testing...}
-    </div>
-    <div><!-- this is where the error message goes --></div>
-    <script src="${rootURL}/plugin/ec2/connectionTest.js" type="text/javascript"></script>
-  </f:nested>
+
+  <local:validateButton title="${%Test Connection}" method="testConnection" with="secretKey,accessId" xmlns:local="local"/>
 </j:jelly>
