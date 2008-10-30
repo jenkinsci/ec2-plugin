@@ -12,24 +12,30 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
 import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.EC2Exception;
+import com.xerox.amazonws.ec2.InstanceType;
 
 /**
+ * Hudson's view of EC2. 
+ *
  * @author Kohsuke Kawaguchi
  */
 public class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
+    private final List<SlaveTemplate> templates;
 
     @DataBoundConstructor
-    public EC2Cloud(String name, String accessId, String secretKey) {
+    public EC2Cloud(String name, String accessId, String secretKey, List<SlaveTemplate> templates) {
         super(name);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
+        this.templates = templates;
     }
 
     public String getAccessId() {
@@ -38,6 +44,10 @@ public class EC2Cloud extends Cloud {
 
     public String getSecretKey() {
         return secretKey.getEncryptedValue();
+    }
+
+    public List<SlaveTemplate> getTemplates() {
+        return Collections.unmodifiableList(templates);
     }
 
     public DescriptorImpl getDescriptor() {
@@ -53,6 +63,10 @@ public class EC2Cloud extends Cloud {
 
         public String getDisplayName() {
             return "Amazon EC2";
+        }
+
+        public InstanceType[] getInstanceTypes() {
+            return InstanceType.values();
         }
 
         public void doCheckAccessId(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {

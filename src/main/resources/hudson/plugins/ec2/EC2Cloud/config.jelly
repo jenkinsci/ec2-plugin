@@ -6,4 +6,31 @@
     <f:password field="secretKey" />
   </f:entry>
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId" />
+  <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
+    <f:repeatable field="templates">
+      <table width="100%">
+        <f:entry title="${%AMI ID}">
+          <f:textbox field="ami" />
+        </f:entry>
+        <f:entry title="${%Instance Type}" help="/plugin/ec2/help/instanceType.html">
+          <f:enum field="type">${it.name()}</f:enum>
+        </f:entry>
+        <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html">
+          <f:textbox field="description" />
+        </f:entry>
+        <f:entry title="${%Remote FS root}" help="/help/system-config/master-slave/remoteFS.html">
+          <f:textbox field="remoteFS" />
+        </f:entry>
+        <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html">
+          <f:textbox field="label" />
+        </f:entry>
+
+        <f:entry title="">
+          <div align="right">
+            <f:repeatableDeleteButton />
+          </div>
+        </f:entry>
+      </table>
+    </f:repeatable>
+  </f:entry>
 </j:jelly>

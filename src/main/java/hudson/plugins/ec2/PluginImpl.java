@@ -11,5 +11,6 @@ import hudson.slaves.Cloud;
 public class PluginImpl extends Plugin {
     public void start() throws Exception {
         Cloud.ALL.load(EC2Cloud.class);
+        SlaveTemplate.DescriptorImpl.INSTANCE.getDisplayName(); // make sure descriptor is registered
     }
 }
