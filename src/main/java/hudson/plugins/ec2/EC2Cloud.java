@@ -64,7 +64,7 @@ public class EC2Cloud extends Cloud {
         }
 
         public void doTestConnection(StaplerRequest req, StaplerResponse rsp,
-                                     @QueryParameter("accessId") final String accessId, @QueryParameter("secretKey") final String secretKey) throws IOException, ServletException {
+                                     @QueryParameter final String accessId, @QueryParameter final String secretKey) throws IOException, ServletException {
             new FormFieldValidator(req,rsp,true) {
                 protected void check() throws IOException, ServletException {
                     try {
