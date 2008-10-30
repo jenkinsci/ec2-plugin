@@ -53,8 +53,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return null;
         }
 
-        public void doCheckAmi(StaplerRequest req, StaplerResponse rsp, final @QueryParameter String value) throws IOException, ServletException {
-            new FormFieldValidator(req,rsp,true) {
+        public void doCheckAmi(final @QueryParameter String value) throws IOException, ServletException {
+            new FormFieldValidator(null) {
                 protected void check() throws IOException, ServletException {
                     EC2Cloud cloud = EC2Cloud.get();
                     if(cloud!=null) {
