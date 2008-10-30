@@ -4,12 +4,21 @@ import hudson.model.Descriptor;
 import hudson.slaves.Cloud;
 import hudson.util.FormFieldValidator;
 import hudson.util.Secret;
+import hudson.Util;
+import hudson.Functions;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.QueryParameter;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+import com.xerox.amazonws.ec2.Jec2;
+import com.xerox.amazonws.ec2.EC2Exception;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -55,11 +64,27 @@ public class EC2Cloud extends Cloud {
         public void doCheckSecretKey(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
             new FormFieldValidator.Base64(req,rsp,false,false,"Invalid AWS secret access key").process();
         }
+
+        public void doTestConnection(StaplerRequest req, StaplerResponse rsp,
+                                     @QueryParameter("uid") final String uid, @QueryParameter("pwd") final String pwd) throws IOException, ServletException {
+            new FormFieldValidator(req,rsp,true) {
+                protected void check() throws IOException, ServletException {
+                    try {
+                        Jec2 jec2 = new Jec2(uid,Secret.fromString(pwd).toString());
+                        jec2.describeInstances(Collections.<String>emptyList());
+                        ok();
+                    } catch (EC2Exception e) {
+                        LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
+                        error(e.getMessage());
+                    }
+                }
+            }.process();
+        }
     }
 
     static {
         ALL.add(DescriptorImpl.INSTANCE);
     }
 
-    
+    private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
 }

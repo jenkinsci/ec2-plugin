@@ -5,4 +5,11 @@
   <f:entry title="${%Secret Access Key}" help="/plugin/ec2/secretAccessKey.html">
     <f:password field="secretKey" />
   </f:entry>
+  <f:block>
+    <div style="float:right">
+      <input type="button" value="${%Test Connection}" class="yui-button" onclick="testEC2('${rootURL}',this)" />
+    </div>
+    <div><!-- this is where the error message goes --></div>
+    <script src="${rootURL}/plugin/ec2/connectionTest.js" type="text/javascript"></script>
+  </f:block>
 </j:jelly>
