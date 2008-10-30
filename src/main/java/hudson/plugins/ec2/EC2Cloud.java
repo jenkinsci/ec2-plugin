@@ -56,11 +56,11 @@ public class EC2Cloud extends Cloud {
         }
 
         public void doCheckAccessId(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
-            new FormFieldValidator.Base64(req,rsp,false,false,"Invalid AWS access key ID").process();
+            new FormFieldValidator.Base64(req,rsp,false,false,Messages.EC2Cloud_InvalidAccessId()).process();
         }
 
         public void doCheckSecretKey(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
-            new FormFieldValidator.Base64(req,rsp,false,false,"Invalid AWS secret access key").process();
+            new FormFieldValidator.Base64(req,rsp,false,false,Messages.EC2Cloud_InvalidSecretKey()).process();
         }
 
         public void doTestConnection(StaplerRequest req, StaplerResponse rsp,
@@ -70,7 +70,7 @@ public class EC2Cloud extends Cloud {
                     try {
                         Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
                         jec2.describeInstances(Collections.<String>emptyList());
-                        ok();
+                        ok(Messages.EC2Cloud_Success());
                     } catch (EC2Exception e) {
                         LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
                         error(e.getMessage());
