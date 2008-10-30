@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import hudson.model.Descriptor;
+import hudson.model.Hudson;
 import hudson.slaves.Cloud;
 import hudson.util.FormFieldValidator;
 import hudson.util.Secret;
@@ -52,6 +53,20 @@ public class EC2Cloud extends Cloud {
 
     public DescriptorImpl getDescriptor() {
         return DescriptorImpl.INSTANCE;
+    }
+
+    /**
+     * Gets the first {@link EC2Cloud} instance configured in the current Hudson, or null if no such thing exists.
+     */
+    public static EC2Cloud get() {
+        return (EC2Cloud)Hudson.getInstance().clouds.get(DescriptorImpl.INSTANCE);
+    }
+
+    /**
+     * Connects to EC2 and returns {@link Jec2}, which can then be used to communicate with EC2.
+     */
+    public Jec2 connect() {
+        return new Jec2(accessId,secretKey.toString());
     }
 
     public static final class DescriptorImpl extends Descriptor<Cloud> {
