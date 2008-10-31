@@ -3,9 +3,11 @@ package hudson.plugins.ec2;
 import com.xerox.amazonws.ec2.InstanceType;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
+import hudson.model.Computer;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.NodeDescriptor;
 import hudson.slaves.RetentionStrategy;
+import hudson.slaves.SlaveComputer;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class EC2Slave extends Slave {
     public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, ComputerLauncher launcher) throws FormException {
         // TODO: retention policy for Amazon
-        super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, launcher, RetentionStrategy.NOOP);
+        super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, launcher, new EC2RetentionStrategy());
     }
 
     /**
@@ -33,6 +35,11 @@ public final class EC2Slave extends Slave {
         case XLARGE_HCPU:   return 20;
         default:            throw new AssertionError();
         }
+    }
+
+    @Override
+    public Computer createComputer() {
+        return new EC2Computer(this);
     }
 
     public NodeDescriptor getDescriptor() {
