@@ -1,0 +1,10 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <tr>
+    <td />
+    <td colspan="${monitors.size()+1}">
+      <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
+        <f:submit value="${%submit}" />
+      </f:form>
+    </td>
+  </tr>
+</j:jelly>

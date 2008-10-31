@@ -23,7 +23,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
             if (idleMilliseconds > TimeUnit.MINUTES.toMillis(30)) {
                 LOGGER.info("Disconnecting "+c.getName());
-                c.disconnect();
+                c.getNode().terminate();
             }
         }
         return 1;
