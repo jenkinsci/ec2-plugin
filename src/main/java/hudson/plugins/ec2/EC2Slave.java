@@ -8,13 +8,14 @@ import hudson.slaves.NodeDescriptor;
 import hudson.slaves.RetentionStrategy;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Slave running on EC2.
  * 
  * @author Kohsuke Kawaguchi
  */
 public final class EC2Slave extends Slave {
-    @DataBoundConstructor
     public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, ComputerLauncher launcher) throws FormException {
         // TODO: retention policy for Amazon
         super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, launcher, RetentionStrategy.NOOP);

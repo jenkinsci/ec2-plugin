@@ -5,6 +5,7 @@ import hudson.model.Hudson;
 import hudson.slaves.Cloud;
 import hudson.util.FormFieldValidator;
 import hudson.util.Secret;
+import hudson.scheduler.CronTabList;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -12,6 +13,8 @@ import org.kohsuke.stapler.QueryParameter;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.io.ObjectStreamException;
+import java.io.InvalidObjectException;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
@@ -20,6 +23,7 @@ import java.util.logging.Level;
 import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.InstanceType;
+import antlr.ANTLRException;
 
 /**
  * Hudson's view of EC2. 
@@ -37,6 +41,13 @@ public class EC2Cloud extends Cloud {
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.templates = templates;
+        readResolve(); // set parents
+    }
+
+    protected Object readResolve() {
+        for (SlaveTemplate t : templates)
+            t.parent = this;
+        return this;
     }
 
     public String getAccessId() {
