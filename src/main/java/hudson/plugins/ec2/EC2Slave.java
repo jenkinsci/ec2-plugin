@@ -1,23 +1,19 @@
 package hudson.plugins.ec2;
 
+import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.InstanceType;
 import com.xerox.amazonws.ec2.Jec2;
-import com.xerox.amazonws.ec2.EC2Exception;
-import hudson.model.Descriptor.FormException;
-import hudson.model.Slave;
 import hudson.model.Computer;
+import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
-import hudson.slaves.ComputerLauncher;
+import hudson.model.Slave;
+import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeDescriptor;
-import hudson.slaves.RetentionStrategy;
-import hudson.slaves.SlaveComputer;
-import org.kohsuke.stapler.DataBoundConstructor;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.Collections;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Slave running on EC2.
@@ -25,15 +21,21 @@ import java.io.IOException;
  * @author Kohsuke Kawaguchi
  */
 public final class EC2Slave extends Slave {
-    public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, ComputerLauncher launcher) throws FormException {
+    /**
+     * Comes from {@link SlaveTemplate#initScript}.
+     */
+    public final String initScript;
+
+    public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, String initScript) throws FormException {
         // TODO: retention policy for Amazon
-        super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, launcher, new EC2RetentionStrategy());
+        super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, new EC2UnixLauncher(), new EC2RetentionStrategy());
+        this.initScript  = initScript;
     }
 
     /**
      * See http://aws.amazon.com/ec2/instance-types/
      */
-    private static int toNumExecutors(InstanceType it) {
+    /*package*/ static int toNumExecutors(InstanceType it) {
         switch (it) {
         case DEFAULT:       return 1;
         case MEDIUM_HCPU:   return 5;
@@ -57,7 +59,7 @@ public final class EC2Slave extends Slave {
     }
 
     /**
-     * Terminates the instance in EC2.
+     * Terminates the instance in EC2.f
      */
     public void terminate() {
         Jec2 ec2 = EC2Cloud.get().connect();

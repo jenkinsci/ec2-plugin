@@ -1,29 +1,37 @@
 package hudson.plugins.ec2;
 
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.slaves.Cloud;
-import hudson.util.FormFieldValidator;
-import hudson.util.Secret;
-import hudson.scheduler.CronTabList;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.QueryParameter;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.io.ObjectStreamException;
-import java.io.InvalidObjectException;
-import java.util.Collections;
-import java.util.List;
-import java.util.logging.Logger;
-import java.util.logging.Level;
-
-import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.InstanceType;
-import antlr.ANTLRException;
+import com.xerox.amazonws.ec2.Jec2;
+import com.xerox.amazonws.ec2.KeyPairInfo;
+import hudson.model.Descriptor;
+import hudson.model.Hudson;
+import hudson.model.Computer;
+import hudson.model.Node;
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormFieldValidator;
+import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
+import org.apache.commons.io.FileUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+
+import javax.servlet.ServletException;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.Collection;
+import java.util.ArrayList;
+import java.util.concurrent.Callable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Hudson's view of EC2. 
@@ -34,10 +42,11 @@ public class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
     private final List<SlaveTemplate> templates;
+    private transient KeyPairInfo usableKeyPair;
 
     @DataBoundConstructor
-    public EC2Cloud(String name, String accessId, String secretKey, List<SlaveTemplate> templates) {
-        super(name);
+    public EC2Cloud(String accessId, String secretKey, List<SlaveTemplate> templates) {
+        super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.templates = templates;
@@ -60,6 +69,95 @@ public class EC2Cloud extends Cloud {
 
     public List<SlaveTemplate> getTemplates() {
         return Collections.unmodifiableList(templates);
+    }
+
+    public SlaveTemplate getTemplate(String ami) {
+        for (SlaveTemplate t : templates)
+            if(t.ami.equals(ami))
+                return t;
+        return null;
+    }
+
+    /**
+     * Gets or creates a new key such that Hudson knows both the private and
+     * the public key. The key can be then used to launch an instance and
+     * connect to it.
+     */
+    public synchronized KeyPairInfo getUsableKeyPair() throws EC2Exception, IOException {
+        if(usableKeyPair!=null) return usableKeyPair;
+
+        // check the current key list and find one that we know the private key 
+        Jec2 ec2 = connect();
+        Set<String> keyNames = new HashSet<String>();
+        for( KeyPairInfo kpi : ec2.describeKeyPairs(Collections.<String>emptyList())) {
+            keyNames.add(kpi.getKeyName());
+            File privateKey = getKeyFileName(kpi);
+            if(privateKey.exists()) {
+                usableKeyPair = new KeyPairInfo(kpi.getKeyName(),kpi.getKeyFingerprint(),
+                    FileUtils.readFileToString(privateKey));
+                return usableKeyPair;
+            }
+        }
+
+        // none available, so create a new key
+        for( int i=0; ; i++ ) {
+            if(keyNames.contains("hudson-"+i))  continue;
+
+            KeyPairInfo r = ec2.createKeyPair("hudson-"+i);
+            FileUtils.writeStringToFile(getKeyFileName(r),r.getKeyMaterial());
+            usableKeyPair = r;
+
+            return usableKeyPair;
+        }
+    }
+
+    private File getKeyFileName(KeyPairInfo kpi) {
+        return new File(Hudson.getInstance().getRootDir(),"ec2-"+kpi.getKeyName()+".privateKey");
+    }
+
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String ami) throws ServletException, IOException {
+        checkPermission(PROVISION);
+        if(ami==null) {
+            sendError("The 'ami' query parameter is missing",req,rsp);
+            return;
+        }
+        SlaveTemplate t = getTemplate(ami);
+        if(t==null) {
+            sendError("No such AMI: "+ami,req,rsp);
+            return;
+        }
+
+        StringWriter sw = new StringWriter();
+        StreamTaskListener listener = new StreamTaskListener(sw);
+        try {
+            EC2Slave node = t.provision(listener);
+            Hudson.getInstance().addNode(node);
+
+            rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
+        } catch (EC2Exception e) {
+            e.printStackTrace(listener.error(e.getMessage()));
+            sendError(sw.toString(),req,rsp);
+        }
+    }
+
+    @Override
+    public Collection<PlannedNode> provision(int i) {
+        // TODO: when we support labels, we can make more intelligent decisions about which AMI to start
+        // for a given provisioning request.
+        final SlaveTemplate t = templates.get(0);
+        
+        List<PlannedNode> r = new ArrayList<PlannedNode>();
+        for( ; i>0; i-- ) {
+            r.add(new PlannedNode(t.getDisplayName(),
+                    Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                        public Node call() throws Exception {
+                            // TODO: record the output somewhere
+                            return t.provision(new StreamTaskListener());
+                        }
+                    })
+                    ,t.getNumExecutors()));
+        }
+        return r;
     }
 
     public DescriptorImpl getDescriptor() {

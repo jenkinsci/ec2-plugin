@@ -24,6 +24,9 @@
         <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html">
           <f:textbox field="label" />
         </f:entry>
+        <f:entry title="${%Init Script}" help="/plugin/ec2/help/init-script.html">
+          <f:textarea field="initScript" />
+        </f:entry>
 
         <f:entry title="">
           <div align="right">

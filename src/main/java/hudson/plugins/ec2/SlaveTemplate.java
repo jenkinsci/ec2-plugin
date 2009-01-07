@@ -11,7 +11,6 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.TaskListener;
-import hudson.slaves.ComputerLauncher;
 import hudson.util.FormFieldValidator;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -33,21 +32,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String remoteFS;
     public final InstanceType type;
     public final String label;
-    public final ComputerLauncher launcher;
+    public final String initScript;
     protected transient EC2Cloud parent;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String label, ComputerLauncher launcher, String description) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String label, String description, String initScript) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
         this.label = label;
-        this.launcher = launcher;
         this.description = description;
+        this.initScript = initScript;
     }
     
     public EC2Cloud getParent() {
         return parent;
+    }
+
+    public String getDisplayName() {
+        return description+" ("+ami+")";
+    }
+
+    public int getNumExecutors() {
+        return EC2Slave.toNumExecutors(type);
     }
 
     /**
@@ -56,7 +63,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     public EC2Slave provision(TaskListener listener) throws EC2Exception {
-        // TODO: key handling
         PrintStream logger = listener.getLogger();
         Jec2 ec2 = getParent().connect();
 
@@ -64,7 +70,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logger.println("Launching "+ami);
             Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), null, "thekey", type).getInstances().get(0);
 
-            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type,label,launcher);
+            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type,label,initScript);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
