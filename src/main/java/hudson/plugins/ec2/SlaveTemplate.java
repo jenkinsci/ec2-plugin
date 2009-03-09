@@ -11,9 +11,10 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.model.Label;
 import hudson.util.FormFieldValidator;
 import hudson.Extension;
-import hudson.slaves.RetentionStrategy;
+import hudson.Util;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -33,16 +34,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String description;
     public final String remoteFS;
     public final InstanceType type;
-    public final String label;
+    public final String labels;
     public final String initScript;
     protected transient EC2Cloud parent;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String label, String description, String initScript) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
-        this.label = label;
+        this.labels = Util.fixNull(labels);
         this.description = description;
         this.initScript = initScript;
     }
@@ -60,6 +61,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
+     * Does this contain the given label?
+     */
+    public boolean containsLabel(Label l) {
+        for(String t : labels.split("\\s+"))
+            if(t.equals(l.getName()))
+                return true;
+        return false;
+    }
+
+    /**
      * Provisions a new EC2 slave.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
@@ -72,7 +83,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logger.println("Launching "+ami);
             Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), null, "thekey", type).getInstances().get(0);
 
-            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type,label,initScript);
+            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type, labels,initScript);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }

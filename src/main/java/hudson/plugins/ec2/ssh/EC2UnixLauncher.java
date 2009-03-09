@@ -4,9 +4,11 @@ import com.trilead.ssh2.Connection;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.Session;
 import com.xerox.amazonws.ec2.EC2Exception;
+import com.xerox.amazonws.ec2.KeyPairInfo;
 import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
+import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.remoting.Channel;
@@ -14,7 +16,6 @@ import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
 import org.apache.commons.io.IOUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -29,8 +30,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         final Connection conn = new Connection(inst.getDnsName());
         conn.connect(new HostKeyVerifierImpl(computer.getConsoleOutput()));
 
-        // TODO: where do we store the private key?
-        boolean isAuthenticated = conn.authenticateWithPublicKey("root", new File("/home/kohsuke/.ec2/thekey.private"), "");
+        KeyPairInfo key = EC2Cloud.get().getUsableKeyPair();
+        boolean isAuthenticated = conn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "");
 
         if (!isAuthenticated) {
             logger.println("Authentication failed");

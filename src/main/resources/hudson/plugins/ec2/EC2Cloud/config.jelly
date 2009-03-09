@@ -6,9 +6,6 @@
     <f:password />
   </f:entry>
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId" />
-  <f:entry title="${%Instance Cap}" field="instanceCap">
-    <f:password />
-  </f:entry>
   <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
     <f:repeatable field="templates">
       <table width="100%">
@@ -24,7 +21,7 @@
         <f:entry title="${%Remote FS root}" help="/help/system-config/master-slave/remoteFS.html" field="remoteFS">
           <f:textbox />
         </f:entry>
-        <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html" field="label">
+        <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html" field="labels">
           <f:textbox />
         </f:entry>
         <f:entry title="${%Init Script}" field="initScript">
@@ -39,4 +36,9 @@
       </table>
     </f:repeatable>
   </f:entry>
+  <f:advanced>
+    <f:entry title="${%Instance Cap}" field="instanceCap">
+      <f:password />
+    </f:entry>
+  </f:advanced>
 </j:jelly>

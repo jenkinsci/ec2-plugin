@@ -86,9 +86,22 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
+     * Gets {@link SlaveTemplate} that has the matching {@link Label}.
+     */
+    public SlaveTemplate getTemplate(Label label) {
+        for (SlaveTemplate t : templates)
+            if(t.containsLabel(label))
+                return t;
+        return null;
+    }
+
+    /**
      * Gets or creates a new key such that Hudson knows both the private and
      * the public key. The key can be then used to launch an instance and
      * connect to it.
+     *
+     * <p>
+     * TODO: also allow the user to set a key that he created by himself.
      */
     public synchronized KeyPairInfo getUsableKeyPair() throws EC2Exception, IOException {
         if(usableKeyPair!=null) return usableKeyPair;
@@ -106,7 +119,7 @@ public class EC2Cloud extends Cloud {
             }
         }
 
-        // none available, so create a new key
+        // None available. Create a new key
         for( int i=0; ; i++ ) {
             if(keyNames.contains("hudson-"+i))  continue;
 
@@ -159,9 +172,7 @@ public class EC2Cloud extends Cloud {
     }
 
     public Collection<PlannedNode> provision(Label label, int excessWorkload) {
-        // TODO: when we support labels, we can make more intelligent decisions about which AMI to start
-        // for a given provisioning request.
-        final SlaveTemplate t = templates.get(0);
+        final SlaveTemplate t = getTemplate(label);
         
         List<PlannedNode> r = new ArrayList<PlannedNode>();
         for( ; excessWorkload>0; excessWorkload-- ) {
@@ -181,8 +192,7 @@ public class EC2Cloud extends Cloud {
     }
 
     public boolean canProvision(Label label) {
-        // TODO
-        return true;
+        return getTemplate(label)!=null;
     }
 
     /**
