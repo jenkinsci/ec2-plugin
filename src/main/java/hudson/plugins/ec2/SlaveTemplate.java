@@ -12,6 +12,8 @@ import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.util.FormFieldValidator;
+import hudson.Extension;
+import hudson.slaves.RetentionStrategy;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -76,16 +78,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    public DescriptorImpl getDescriptor() {
-        return DescriptorImpl.INSTANCE;
+    public Descriptor<SlaveTemplate> getDescriptor() {
+        return Hudson.getInstance().getDescriptor(getClass());
     }
 
+    @Extension
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
-        public static final DescriptorImpl INSTANCE = new DescriptorImpl();
-        private DescriptorImpl() {
-            super(SlaveTemplate.class);
-        }
-
         public String getDisplayName() {
             return null;
         }

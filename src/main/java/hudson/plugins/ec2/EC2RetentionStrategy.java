@@ -2,6 +2,7 @@ package hudson.plugins.ec2;
 
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
+import hudson.Extension;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.concurrent.TimeUnit;
@@ -29,22 +30,10 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         return 1;
     }
 
-    public Descriptor<RetentionStrategy<?>> getDescriptor() {
-        return DescriptorImpl.INSTANCE;
-    }
-
+    @Extension
     public static class DescriptorImpl extends Descriptor<RetentionStrategy<?>> {
-        public static final DescriptorImpl INSTANCE = new DescriptorImpl();
-
-        private DescriptorImpl() {
-            super(EC2RetentionStrategy.class);
-        }
-
         public String getDisplayName() {
             return hudson.slaves.Messages.RetentionStrategy_Demand_displayName();
-        }
-
-        static {
         }
     }
 

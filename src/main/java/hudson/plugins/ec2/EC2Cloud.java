@@ -8,11 +8,13 @@ import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.model.Computer;
 import hudson.model.Node;
+import hudson.model.Label;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormFieldValidator;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import hudson.Extension;
 import org.apache.commons.io.FileUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -140,14 +142,13 @@ public class EC2Cloud extends Cloud {
         }
     }
 
-    @Override
-    public Collection<PlannedNode> provision(int i) {
+    public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         // TODO: when we support labels, we can make more intelligent decisions about which AMI to start
         // for a given provisioning request.
         final SlaveTemplate t = templates.get(0);
         
         List<PlannedNode> r = new ArrayList<PlannedNode>();
-        for( ; i>0; i-- ) {
+        for( ; excessWorkload>0; excessWorkload-- ) {
             r.add(new PlannedNode(t.getDisplayName(),
                     Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                         public Node call() throws Exception {
@@ -160,15 +161,16 @@ public class EC2Cloud extends Cloud {
         return r;
     }
 
-    public DescriptorImpl getDescriptor() {
-        return DescriptorImpl.INSTANCE;
+    public boolean canProvision(Label label) {
+        // TODO
+        return true;
     }
 
     /**
      * Gets the first {@link EC2Cloud} instance configured in the current Hudson, or null if no such thing exists.
      */
     public static EC2Cloud get() {
-        return (EC2Cloud)Hudson.getInstance().clouds.get(DescriptorImpl.INSTANCE);
+        return Hudson.getInstance().clouds.get(EC2Cloud.class);
     }
 
     /**
@@ -178,13 +180,8 @@ public class EC2Cloud extends Cloud {
         return new Jec2(accessId,secretKey.toString());
     }
 
+    @Extension
     public static final class DescriptorImpl extends Descriptor<Cloud> {
-        public static final DescriptorImpl INSTANCE = new DescriptorImpl();
-
-        private DescriptorImpl() {
-            super(EC2Cloud.class);
-        }
-
         public String getDisplayName() {
             return "Amazon EC2";
         }
@@ -216,10 +213,6 @@ public class EC2Cloud extends Cloud {
                 }
             }.process();
         }
-    }
-
-    static {
-        ALL.add(DescriptorImpl.INSTANCE);
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
