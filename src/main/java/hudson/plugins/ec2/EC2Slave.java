@@ -58,7 +58,7 @@ public final class EC2Slave extends Slave {
     }
 
     /**
-     * Terminates the instance in EC2.f
+     * Terminates the instance in EC2.
      */
     public void terminate() {
         Jec2 ec2 = EC2Cloud.get().connect();

@@ -62,8 +62,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Does this contain the given label?
+     *
+     * @param l
+     *      can be null to indicate "don't care".
      */
     public boolean containsLabel(Label l) {
+        if(l==null) return true;
+
         for(String t : labels.split("\\s+"))
             if(t.equals(l.getName()))
                 return true;

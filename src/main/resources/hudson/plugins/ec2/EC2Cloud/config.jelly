@@ -6,6 +6,11 @@
     <f:password />
   </f:entry>
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId" />
+  <f:advanced>
+    <f:entry title="${%Instance Cap}" field="instanceCapStr">
+      <f:textbox />
+    </f:entry>
+  </f:advanced>
   <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
     <f:repeatable field="templates">
       <table width="100%">
@@ -36,9 +41,4 @@
       </table>
     </f:repeatable>
   </f:entry>
-  <f:advanced>
-    <f:entry title="${%Instance Cap}" field="instanceCap">
-      <f:password />
-    </f:entry>
-  </f:advanced>
 </j:jelly>

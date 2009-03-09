@@ -30,10 +30,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         return 1;
     }
 
-    @Extension
+    // no registration since this retention strategy is used only for EC2 nodes that we provision automatically.
+    // @Extension
     public static class DescriptorImpl extends Descriptor<RetentionStrategy<?>> {
         public String getDisplayName() {
-            return hudson.slaves.Messages.RetentionStrategy_Demand_displayName();
+            return "EC2";
         }
     }
 

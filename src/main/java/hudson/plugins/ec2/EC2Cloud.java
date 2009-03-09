@@ -51,11 +51,14 @@ public class EC2Cloud extends Cloud {
     private transient KeyPairInfo usableKeyPair;
 
     @DataBoundConstructor
-    public EC2Cloud(String accessId, String secretKey, int instanceCap, List<SlaveTemplate> templates) {
+    public EC2Cloud(String accessId, String secretKey, String instanceCapStr, List<SlaveTemplate> templates) {
         super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
-        this.instanceCap = instanceCap;
+        if(instanceCapStr.equals(""))
+            this.instanceCap = Integer.MAX_VALUE;
+        else
+            this.instanceCap = Integer.parseInt(instanceCapStr);
         this.templates = templates;
         readResolve(); // set parents
     }
@@ -72,6 +75,13 @@ public class EC2Cloud extends Cloud {
 
     public String getSecretKey() {
         return secretKey.getEncryptedValue();
+    }
+
+    public String getInstanceCapStr() {
+        if(instanceCap==Integer.MAX_VALUE)
+            return "";
+        else
+            return String.valueOf(instanceCap);
     }
 
     public List<SlaveTemplate> getTemplates() {
