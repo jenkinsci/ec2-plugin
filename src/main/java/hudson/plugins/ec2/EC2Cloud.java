@@ -43,14 +43,19 @@ import java.util.logging.Logger;
 public class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
+    /**
+     * Upper bound on how many instances we may provision.
+     */
+    public final int instanceCap;
     private final List<SlaveTemplate> templates;
     private transient KeyPairInfo usableKeyPair;
 
     @DataBoundConstructor
-    public EC2Cloud(String accessId, String secretKey, List<SlaveTemplate> templates) {
+    public EC2Cloud(String accessId, String secretKey, int instanceCap, List<SlaveTemplate> templates) {
         super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
+        this.instanceCap = instanceCap;
         this.templates = templates;
         readResolve(); // set parents
     }
@@ -113,6 +118,17 @@ public class EC2Cloud extends Cloud {
         }
     }
 
+    /**
+     * Counts the number of {@link EC2Slave}s currently provisioned.
+     */
+    public int countCurrentEC2Slaves() {
+        int r=0;
+        for(Node n : Hudson.getInstance().getNodes())
+            if (n instanceof EC2Slave)
+                r++;
+        return r;
+    }
+
     private File getKeyFileName(KeyPairInfo kpi) {
         return new File(Hudson.getInstance().getRootDir(),"ec2-"+kpi.getKeyName()+".privateKey");
     }
@@ -149,6 +165,9 @@ public class EC2Cloud extends Cloud {
         
         List<PlannedNode> r = new ArrayList<PlannedNode>();
         for( ; excessWorkload>0; excessWorkload-- ) {
+            if(countCurrentEC2Slaves()>=instanceCap)
+                break;      // maxed out
+
             r.add(new PlannedNode(t.getDisplayName(),
                     Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                         public Node call() throws Exception {

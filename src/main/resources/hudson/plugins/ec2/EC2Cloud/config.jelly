@@ -1,31 +1,34 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <f:entry title="${%Access Key ID}" help="/plugin/ec2/accessKeyId.html">
-    <f:textbox field="accessId" />
+  <f:entry title="${%Access Key ID}" field="accessId">
+    <f:textbox />
   </f:entry>
-  <f:entry title="${%Secret Access Key}" help="/plugin/ec2/secretAccessKey.html">
-    <f:password field="secretKey" />
+  <f:entry title="${%Secret Access Key}" field="secretKey">
+    <f:password />
   </f:entry>
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId" />
+  <f:entry title="${%Instance Cap}" field="instanceCap">
+    <f:password />
+  </f:entry>
   <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
     <f:repeatable field="templates">
       <table width="100%">
-        <f:entry title="${%AMI ID}">
-          <f:textbox field="ami" />
+        <f:entry title="${%AMI ID}" field="ami">
+          <f:textbox />
         </f:entry>
         <f:entry title="${%Instance Type}" help="/plugin/ec2/help/instanceType.html">
           <f:enum field="type">${it.name()}</f:enum>
         </f:entry>
-        <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html">
-          <f:textbox field="description" />
+        <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html" field="description">
+          <f:textbox />
         </f:entry>
-        <f:entry title="${%Remote FS root}" help="/help/system-config/master-slave/remoteFS.html">
-          <f:textbox field="remoteFS" />
+        <f:entry title="${%Remote FS root}" help="/help/system-config/master-slave/remoteFS.html" field="remoteFS">
+          <f:textbox />
         </f:entry>
-        <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html">
-          <f:textbox field="label" />
+        <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html" field="label">
+          <f:textbox />
         </f:entry>
-        <f:entry title="${%Init Script}" help="/plugin/ec2/help/init-script.html">
-          <f:textarea field="initScript" />
+        <f:entry title="${%Init Script}" field="initScript">
+          <f:textarea />
         </f:entry>
 
         <f:entry title="">

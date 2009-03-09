@@ -26,7 +26,7 @@ public final class EC2Slave extends Slave {
      */
     public final String initScript;
 
-    public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, String initScript) throws FormException {
+    public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, String initScript) throws FormException, IOException {
         // TODO: retention policy for Amazon
         super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, new EC2UnixLauncher(), new EC2RetentionStrategy());
         this.initScript  = initScript;
@@ -74,17 +74,7 @@ public final class EC2Slave extends Slave {
         }
     }
 
-    public NodeDescriptor getDescriptor() {
-        return DescriptorImpl.INSTANCE;
-    }
-
     public static final class DescriptorImpl extends NodeDescriptor {
-        public static final DescriptorImpl INSTANCE = new DescriptorImpl();
-
-        private DescriptorImpl() {
-            super(EC2Slave.class);
-        }
-
         public String getDisplayName() {
             return "Amazon EC2";
         }
