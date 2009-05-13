@@ -301,6 +301,13 @@ public class EC2Cloud extends Cloud {
                 Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
                 jec2.describeInstances(Collections.<String>emptyList());
 
+                if(accessId==null)
+                    return FormValidation.error("Access ID is not specified");
+                if(secretKey==null)
+                    return FormValidation.error("Secret key is not specified");
+                if(privateKey==null)
+                    return FormValidation.error("Private key is not specified. Click 'Generate Key' to generate one.");
+
                 if(privateKey.trim().length()>0) {
                     // check if this key exists
                     if(new EC2PrivateKey(privateKey).find(jec2)==null)

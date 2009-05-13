@@ -44,7 +44,9 @@ final class EC2PrivateKey {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         Reader r = new BufferedReader(new StringReader(privateKey.toString()));
         PEMReader pem = new PEMReader(r);
-        PrivateKey key = ((KeyPair) pem.readObject()).getPrivate();
+        KeyPair pair = (KeyPair) pem.readObject();
+        if(pair==null)  return null;
+        PrivateKey key = pair.getPrivate();
         return digest(key);
     }
 
