@@ -4,33 +4,38 @@ import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.InstanceType;
 import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.KeyPairInfo;
+import hudson.Extension;
+import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
-import hudson.model.Computer;
-import hudson.model.Node;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormFieldValidator;
+import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
-import hudson.Extension;
-import org.apache.commons.io.FileUtils;
+import org.jets3t.service.S3Service;
+import org.jets3t.service.S3ServiceException;
+import org.jets3t.service.impl.rest.httpclient.RestS3Service;
+import org.jets3t.service.security.AWSCredentials;
+import org.jets3t.service.utils.ServiceUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
 import javax.servlet.ServletException;
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.Collection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -43,6 +48,8 @@ import java.util.logging.Logger;
 public class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
+    private final EC2PrivateKey privateKey;
+
     /**
      * Upper bound on how many instances we may provision.
      */
@@ -51,10 +58,11 @@ public class EC2Cloud extends Cloud {
     private transient KeyPairInfo usableKeyPair;
 
     @DataBoundConstructor
-    public EC2Cloud(String accessId, String secretKey, String instanceCapStr, List<SlaveTemplate> templates) {
+    public EC2Cloud(String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
         super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
+        this.privateKey = new EC2PrivateKey(privateKey);
         if(instanceCapStr.equals(""))
             this.instanceCap = Integer.MAX_VALUE;
         else
@@ -75,6 +83,10 @@ public class EC2Cloud extends Cloud {
 
     public String getSecretKey() {
         return secretKey.getEncryptedValue();
+    }
+
+    public EC2PrivateKey getPrivateKey() {
+        return privateKey;
     }
 
     public String getInstanceCapStr() {
@@ -106,39 +118,12 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
-     * Gets or creates a new key such that Hudson knows both the private and
-     * the public key. The key can be then used to launch an instance and
-     * connect to it.
-     *
-     * <p>
-     * TODO: also allow the user to set a key that he created by himself.
+     * Gets the {@lin KeyPairInfo} used for the launch.
      */
-    public synchronized KeyPairInfo getUsableKeyPair() throws EC2Exception, IOException {
-        if(usableKeyPair!=null) return usableKeyPair;
-
-        // check the current key list and find one that we know the private key 
-        Jec2 ec2 = connect();
-        Set<String> keyNames = new HashSet<String>();
-        for( KeyPairInfo kpi : ec2.describeKeyPairs(Collections.<String>emptyList())) {
-            keyNames.add(kpi.getKeyName());
-            File privateKey = getKeyFileName(kpi);
-            if(privateKey.exists()) {
-                usableKeyPair = new KeyPairInfo(kpi.getKeyName(),kpi.getKeyFingerprint(),
-                    FileUtils.readFileToString(privateKey));
-                return usableKeyPair;
-            }
-        }
-
-        // None available. Create a new key
-        for( int i=0; ; i++ ) {
-            if(keyNames.contains("hudson-"+i))  continue;
-
-            KeyPairInfo r = ec2.createKeyPair("hudson-"+i);
-            FileUtils.writeStringToFile(getKeyFileName(r),r.getKeyMaterial());
-            usableKeyPair = r;
-
-            return usableKeyPair;
-        }
+    public synchronized KeyPairInfo getKeyPair() throws EC2Exception, IOException {
+        if(usableKeyPair==null)
+            usableKeyPair = privateKey.find(connect());
+        return usableKeyPair;
     }
 
     /**
@@ -152,8 +137,19 @@ public class EC2Cloud extends Cloud {
         return r;
     }
 
-    private File getKeyFileName(KeyPairInfo kpi) {
-        return new File(Hudson.getInstance().getRootDir(),"ec2-"+kpi.getKeyName()+".privateKey");
+    /**
+     * Debug command to attach to a running instance.
+     */
+    public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id) throws ServletException, IOException, EC2Exception {
+        checkPermission(PROVISION);
+        SlaveTemplate t = getTemplates().get(0);
+
+        StringWriter sw = new StringWriter();
+        StreamTaskListener listener = new StreamTaskListener(sw);
+        EC2Slave node = t.attach(id,listener);
+        Hudson.getInstance().addNode(node);
+
+        rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
 
     public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String ami) throws ServletException, IOException {
@@ -219,6 +215,29 @@ public class EC2Cloud extends Cloud {
         return new Jec2(accessId,secretKey.toString());
     }
 
+    /**
+     * Connects to S3 and returns {@link S3Service}.
+     */
+    public S3Service connectS3() throws S3ServiceException {
+        return new RestS3Service(new AWSCredentials(accessId,secretKey.toString()));
+    }
+
+    /**
+     * Computes the presigned URL for the given S3 resource.
+     *
+     * @param path
+     *      String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
+     */
+    public URL buildPresignedURL(String path) throws IOException, S3ServiceException {
+        long expires = System.currentTimeMillis()/1000+60*60;
+        String token = "GET\n\n\n" + expires + "\n" + path;
+
+        String url = "http://s3.amazonaws.com"+path+"?AWSAccessKeyId="+accessId+"&Expires="+expires+"&Signature="+
+                URLEncoder.encode(
+                        ServiceUtils.signWithHmacSha1(secretKey.toString(),token),"UTF-8");
+        return new URL(url);
+    }
+
     @Extension
     public static final class DescriptorImpl extends Descriptor<Cloud> {
         public String getDisplayName() {
@@ -229,28 +248,100 @@ public class EC2Cloud extends Cloud {
             return InstanceType.values();
         }
 
-        public void doCheckAccessId(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
-            new FormFieldValidator.Base64(req,rsp,false,false,Messages.EC2Cloud_InvalidAccessId()).process();
-        }
-
-        public void doCheckSecretKey(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
-            new FormFieldValidator.Base64(req,rsp,false,false,Messages.EC2Cloud_InvalidSecretKey()).process();
-        }
-
-        public void doTestConnection(StaplerRequest req, StaplerResponse rsp,
-                                     @QueryParameter final String accessId, @QueryParameter final String secretKey) throws IOException, ServletException {
-            new FormFieldValidator(req,rsp,true) {
-                protected void check() throws IOException, ServletException {
-                    try {
-                        Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
-                        jec2.describeInstances(Collections.<String>emptyList());
-                        ok(Messages.EC2Cloud_Success());
-                    } catch (EC2Exception e) {
-                        LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
-                        error(e.getMessage());
-                    }
+        /**
+         * TODO: once 1.304 is released, revert to FormValidation.validateBase64
+         */
+        private FormValidation validateBase64(String value, boolean allowWhitespace, boolean allowEmpty, String errorMessage) {
+            try {
+                String v = value;
+                if(!allowWhitespace) {
+                    if(v.indexOf(' ')>=0 || v.indexOf('\n')>=0)
+                        return FormValidation.error(errorMessage);
                 }
-            }.process();
+                v=v.trim();
+                if(!allowEmpty && v.length()==0)
+                    return FormValidation.error(errorMessage);
+
+                com.trilead.ssh2.crypto.Base64.decode(v.toCharArray());
+                return FormValidation.ok();
+            } catch (IOException e) {
+                return FormValidation.error(errorMessage);
+            }
+        }
+
+        public FormValidation doCheckAccessId(@QueryParameter String value) throws IOException, ServletException {
+            return validateBase64(value,false,false,Messages.EC2Cloud_InvalidAccessId());
+        }
+
+        public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
+            return validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
+        }
+
+        public FormValidation doCheckPrivateKey(@QueryParameter String value) throws IOException, ServletException {
+            boolean hasStart=false,hasEnd=false;
+            BufferedReader br = new BufferedReader(new StringReader(value));
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
+                    hasStart=true;
+                if (line.equals("-----END RSA PRIVATE KEY-----"))
+                    hasEnd=true;
+            }
+            if(!hasStart)
+                return FormValidation.error("This doesn't look like a private key at all");
+            if(!hasEnd)
+                return FormValidation.error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
+            return FormValidation.ok();
+        }
+
+        public FormValidation doTestConnection(
+                                     @QueryParameter String accessId, @QueryParameter String secretKey,
+                                     @QueryParameter String privateKey) throws IOException, ServletException {
+            try {
+                Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
+                jec2.describeInstances(Collections.<String>emptyList());
+
+                if(privateKey.trim().length()>0) {
+                    // check if this key exists
+                    if(new EC2PrivateKey(privateKey).find(jec2)==null)
+                        return FormValidation.error("The private key entered below isn't registred to EC2");
+                }
+
+                return FormValidation.ok(Messages.EC2Cloud_Success());
+            } catch (EC2Exception e) {
+                LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
+                return FormValidation.error(e.getMessage());
+            }
+        }
+
+        public FormValidation doGenerateKey(StaplerResponse rsp,
+                                     @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
+            try {
+                Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
+                List<KeyPairInfo> existingKeys = jec2.describeKeyPairs(Collections.<String>emptyList());
+
+                int n = 0;
+                while(true) {
+                    boolean found = false;
+                    for (KeyPairInfo k : existingKeys) {
+                        if(k.getKeyName().equals("hudson-"+n))
+                            found=true;
+                    }
+                    if(!found)
+                        break;
+                    n++;
+                }
+
+                KeyPairInfo key = jec2.createKeyPair("hudson-" + n);
+
+
+                rsp.addHeader("script","findPreviousFormItem(button,'privateKey').value='"+key.getKeyMaterial().replace("\n","\\n")+"'");
+
+                return FormValidation.ok(Messages.EC2Cloud_Success());
+            } catch (EC2Exception e) {
+                LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
+                return FormValidation.error(e.getMessage());
+            }
         }
     }
 

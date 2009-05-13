@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.jvnet.hudson.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.258</version>
+    <version>1.303</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   
@@ -21,23 +21,24 @@
       <version>1.4.1</version>
     </dependency>
     <dependency>
-        <groupId>org.jvnet.hudson.main</groupId>
-        <artifactId>hudson-war</artifactId>
-        <type>war</type>
-        <version>1.290-SNAPSHOT</version>
-        <scope>test</scope>
+      <groupId>net.java.dev.jets3t</groupId>
+      <artifactId>jets3t</artifactId>
+      <version>0.6.1</version>
     </dependency>
     <dependency>
-        <groupId>org.jvnet.hudson.main</groupId>
-        <artifactId>hudson-core</artifactId>
-        <version>1.290-SNAPSHOT</version>
-        <scope>provided</scope>
+      <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->
+      <groupId>bouncycastle</groupId>
+      <artifactId>bcprov-jdk15</artifactId>
+      <version>135</version>
     </dependency>
     <dependency>
-        <groupId>org.jvnet.hudson.main</groupId>
-        <artifactId>hudson-test-harness</artifactId>
-        <version>1.290-SNAPSHOT</version>
-        <scope>test</scope>
+      <groupId>org.jvnet.libzfs</groupId>
+      <artifactId>libzfs</artifactId>
+      <version>0.5-SNAPSHOT</version>
     </dependency>
   </dependencies>
+  
+  <properties>
+    <hudson.version>1.303</hudson.version>
+  </properties>
 </project>

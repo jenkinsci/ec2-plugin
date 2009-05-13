@@ -4,8 +4,11 @@ import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.ReservationDescription;
 import com.xerox.amazonws.ec2.ReservationDescription.Instance;
+import hudson.Util;
 import hudson.slaves.SlaveComputer;
+import org.kohsuke.stapler.StaplerResponse;
 
+import java.io.IOException;
 import java.util.Collections;
 
 /**
@@ -58,10 +61,35 @@ public class EC2Computer extends SlaveComputer {
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
     public InstanceState getState() throws EC2Exception {
-        return InstanceState.find(_describeInstance().getState());
+        ec2InstanceDescription=_describeInstance();
+        return InstanceState.find(ec2InstanceDescription.getState());
+    }
+
+    /**
+     * Number of milli-secs since the instance was started.
+     */
+    public long getUptime() throws EC2Exception {
+        return System.currentTimeMillis()-describeInstance().getLaunchTime().getTimeInMillis();
+    }
+
+    /**
+     * Returns uptime in the human readable form.
+     */
+    public String getUptimeString() throws EC2Exception {
+        return Util.getTimeSpanString(getUptime());
     }
 
     private ReservationDescription.Instance _describeInstance() throws EC2Exception {
         return EC2Cloud.get().connect().describeInstances(Collections.<String>singletonList(getNode().getInstanceId())).get(0).getInstances().get(0);
+    }
+
+    /**
+     * When the slave is deleted, terminate the instance.
+     */
+    @Override
+    public void doDoDelete(StaplerResponse rsp) throws IOException {
+        checkPermission(DELETE);
+        getNode().terminate();
+        rsp.sendRedirect("..");
     }
 }

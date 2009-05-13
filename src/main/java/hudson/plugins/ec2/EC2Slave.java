@@ -9,11 +9,15 @@ import hudson.model.Hudson;
 import hudson.model.Slave;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeDescriptor;
+import hudson.slaves.NodeProperty;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * Slave running on EC2.
@@ -27,7 +31,12 @@ public final class EC2Slave extends Slave {
     public final String initScript;
 
     public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, String initScript) throws FormException, IOException {
-        super(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, new EC2UnixLauncher(), new EC2RetentionStrategy());
+        this(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, initScript, Collections.<NodeProperty<?>>emptyList());
+    }
+
+    @DataBoundConstructor
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String label, String initScript, List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
+        super(instanceId, description, remoteFS, numExecutors, mode, label, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
     }
 

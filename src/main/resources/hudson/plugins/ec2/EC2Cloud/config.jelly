@@ -5,7 +5,11 @@
   <f:entry title="${%Secret Access Key}" field="secretKey">
     <f:password />
   </f:entry>
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey" />
+  <f:entry title="${%EC2 RSA Private Key}" field="privateKey">
+    <f:textarea />
+  </f:entry>
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId" />
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />

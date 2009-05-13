@@ -4,6 +4,7 @@ import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.ImageDescription;
 import com.xerox.amazonws.ec2.InstanceType;
 import com.xerox.amazonws.ec2.Jec2;
+import com.xerox.amazonws.ec2.KeyPairInfo;
 import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
@@ -86,7 +87,28 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         try {
             logger.println("Launching "+ami);
-            Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), null, "thekey", type).getInstances().get(0);
+            KeyPairInfo keyPair = parent.getPrivateKey().find(ec2);
+            if(keyPair==null)
+                throw new EC2Exception("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+            Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), null, keyPair.getKeyName(), type).getInstances().get(0);
+
+            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type, labels,initScript);
+        } catch (FormException e) {
+            throw new AssertionError(); // we should have discovered all configuration issues upfront
+        }
+    }
+
+    /**
+     * Provisions a new EC2 slave based on the currently running instance on EC2,
+     * instead of starting a new one.
+     */
+    public EC2Slave attach(String instanceId, TaskListener listener) throws EC2Exception, IOException {
+        PrintStream logger = listener.getLogger();
+        Jec2 ec2 = getParent().connect();
+
+        try {
+            logger.println("Attaching to "+instanceId);
+            Instance inst = ec2.describeInstances(Collections.singletonList(instanceId)).get(0).getInstances().get(0);
 
             return new EC2Slave(inst.getInstanceId(),description,remoteFS,type, labels,initScript);
         } catch (FormException e) {
