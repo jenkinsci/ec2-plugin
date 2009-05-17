@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.jvnet.hudson.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.303</version>
+    <version>1.306</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   
@@ -53,11 +53,11 @@
     <dependency>
       <groupId>org.jvnet.libzfs</groupId>
       <artifactId>libzfs</artifactId>
-      <version>0.5-SNAPSHOT</version>
+      <version>0.5</version>
     </dependency>
   </dependencies>
   
   <properties>
-    <hudson.version>1.304-SNAPSHOT</hudson.version>
+    <hudson.version>1.306</hudson.version>
   </properties>
 </project>
