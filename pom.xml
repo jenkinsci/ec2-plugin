@@ -9,7 +9,7 @@
   </parent>
   
   <artifactId>ec2</artifactId>
-  <version>1.0</version>
+  <version>1.1-SNAPSHOT</version>
   <packaging>hpi</packaging>
   <name>Hudson Amazon EC2 plugin</name>
   <url>http://wiki.hudson-ci.org/display/HUDSON/Amazon+EC2+Plugin</url>
@@ -60,10 +60,4 @@
   <properties>
     <hudson.version>1.306</hudson.version>
   </properties>
-
-  <scm>
-    <connection>scm:svn:https://guest@svn.dev.java.net/svn/hudson/tags/ec2-1.0</connection>
-    <developerConnection>scm:svn:https://svn.dev.java.net/svn/hudson/tags/ec2-1.0</developerConnection>
-    <url>https://hudson.dev.java.net/source/browse/hudson/hudson/plugins/ec2/tags/ec2-1.0</url>
-  </scm>
 </project>
