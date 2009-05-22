@@ -19,6 +19,8 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Logger;
+import static java.util.logging.Level.INFO;
 
 /**
  * View of the Hudson storage list configured for the current account.
@@ -41,8 +43,13 @@ public class StorageList implements Iterable<Storage> {
         // load the storage list from S3
         S3Bucket b = s3.getBucket(getBucketName());
         if(b!=null) {
-            StorageList src = (StorageList) JAXB.createUnmarshaller().unmarshal(s3.getObject(b, "storages.xml").getDataInputStream());
-            storages.addAll(src.storages);
+            try {
+                StorageList src = (StorageList) JAXB.createUnmarshaller().unmarshal(s3.getObject(b, "storages.xml").getDataInputStream());
+                storages.addAll(src.storages);
+            } catch (S3ServiceException e) {
+                // no storages.xml found. nothing to load
+                LOGGER.log(INFO,"No storages.xml. Assuming there's no storage",e);
+            }
         }
 
         // TODO: use ec2.describeVolumes and remove storages that no longer exist
@@ -128,4 +135,6 @@ public class StorageList implements Iterable<Storage> {
             throw new AssertionError(e); // impossible
         }
     }
+
+    private static final Logger LOGGER = Logger.getLogger(StorageList.class.getName());
 }

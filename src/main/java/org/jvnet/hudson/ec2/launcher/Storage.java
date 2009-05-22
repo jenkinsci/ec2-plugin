@@ -73,12 +73,16 @@ public class Storage {
         }
         // block until they are all attached
         boolean attached;
+        int cnt=0;
         do {
             attached = true;
+            cnt++;
             Thread.sleep(1000);
             for(VolumeInfo vi : ec2.describeVolumes(volumes)) {
                 List<AttachmentInfo> ai = vi.getAttachmentInfo();
                 if(ai==null || ai.size()==0) {
+                    if(cnt>20)
+                        throw new OperatorErrorException("EBS volume "+vi.getVolumeId()+" appears to have failed to attach");
                     attached = false;
                     break;
                 }

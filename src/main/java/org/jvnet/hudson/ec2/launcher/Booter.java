@@ -18,7 +18,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -35,12 +34,14 @@ public class Booter extends Thread {
      * This is where the output of the boot is sent.
      */
     private final PrintStream console;
+    private final OutputStream src;
 
     public Booter(Page owner, OutputStream console) {
         super("boot thread");
         this.owner = owner;
         this.launcher = owner.launcher;
-        this.console = new PrintStream(console,true);
+        this.src = console;
+        this.console = new PrintStream(new NoCloseOutputStream(console),true);
     }
 
     @Override
@@ -78,14 +79,23 @@ public class Booter extends Thread {
             }
 
             reportStatus("Connecting to "+inst.getDnsName());
-            ssh = new Connection(inst.getDnsName(),22);
-            // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
-            // hoping that no man-in-the-middle attack is going on.
-            ssh.connect(new ServerHostKeyVerifier() {
-                public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
-                    return true;
+            while(true) {
+                try {
+                    ssh = new Connection(inst.getDnsName(),22);
+                    // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
+                    // hoping that no man-in-the-middle attack is going on.
+                    ssh.connect(new ServerHostKeyVerifier() {
+                        public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+                            return true;
+                        }
+                    });
+                    break; // successfully connected
+                } catch (IOException e) {
+                    // keep retrying until SSH comes up
+                    Thread.sleep(5000);
+                    continue;
                 }
-            });
+            }
 
             reportStatus("Authenticating");
             if(!ssh.authenticateWithPublicKey("root",launcher.getPrivateKey().file,null))
@@ -189,15 +199,7 @@ public class Booter extends Thread {
                     owner.setComplete(true);
                 }
             });
-        } catch (IOException e) {
-            handleException(e);
-        } catch (OperatorErrorException e) {
-            handleException(e);
-        } catch (EC2Exception e) {
-            handleException(e);
-        } catch (InterruptedException e) {
-            handleException(e);
-        } catch (URISyntaxException e) {
+        } catch (Exception e) {
             handleException(e);
         } finally {
             if(ssh!=null)
@@ -207,7 +209,11 @@ public class Booter extends Thread {
                     owner.setBusy(false);
                 }
             });
-            console.close();
+            try {
+                src.close();
+            } catch (IOException e) {
+                // ignore
+            }
             onEnd();
         }
     }
