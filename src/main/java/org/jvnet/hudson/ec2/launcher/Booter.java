@@ -118,7 +118,7 @@ public class Booter extends Thread {
             if(ssh.exec("test -f /hudson/hudson.war", console) !=0) {
                 reportStatus("Installing hudson.war");
                 // TODO: install via IPS or launch through SMF?
-                if(ssh.exec("wget --no-check-certificate --no-verbose -O /hudson/hudson.wget http://hudson.gotdns.com/latest/hudson.war", console) !=0) {
+                if(ssh.exec("wget --no-check-certificate --no-verbose -O /hudson/hudson.wget http://hudson-ci.org/latest/hudson.war", console) !=0) {
                     reportError("Failed to download hudson.war");
                     return;
                 }
