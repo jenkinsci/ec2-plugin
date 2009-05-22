@@ -16,6 +16,7 @@
     <plugins>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.2-beta-3</version>
         <executions>
           <execution>
             <goals>
@@ -31,6 +32,14 @@
               <mainClass>org.jvnet.hudson.ec2.launcher.gui.App</mainClass>
             </manifest>
           </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>2.0-beta-9</version>
+        <configuration>
+          <!-- enable release profile during the release and sign bits. -->
+          <prepareVerifyArgs>-P release,sign</prepareVerifyArgs>
         </configuration>
       </plugin>
     </plugins>
@@ -79,6 +88,53 @@
       <version>1.4</version>
     </dependency>
   </dependencies>
+
+  <profiles>
+    <profile>
+      <!-- sign war -->
+      <id>sign</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <!-- sign the war -->
+              <execution>
+                <id>signWar</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <tasks>
+                    <!--
+                      during the development, debug profile defined in ../pom.xml will cause
+                      the jars to be signed by a self-certified dummy public key.
+
+                      For release, you should define the real values in ~/.m2/settings.xml
+                    -->
+                    <signjar jar="target/${project.artifactId}-${project.version}-jar-with-dependencies.jar" alias="${hudson.sign.alias}" keystore="${hudson.sign.keystore}" storepass="${hudson.sign.storepass}" />
+                  </tasks>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>debug</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <hudson.sign.alias>hudson</hudson.sign.alias>
+        <hudson.sign.keystore>../../main/dummy.keystore</hudson.sign.keystore>
+        <hudson.sign.storepass>hudson</hudson.sign.storepass>
+      </properties>
+    </profile>
+  </profiles>
 
   <repositories>
     <repository>
