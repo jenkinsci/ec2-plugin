@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="org.jvnet.hudson.ec2.launcher.gui.SelectEBSPage">
+  <grid id="27dc6" binding="panel" layout-manager="GridBagLayout">
+    <constraints>
+      <xy x="20" y="20" width="500" height="400"/>
+    </constraints>
+    <properties/>
+    <border type="none"/>
+    <children>
+      <component id="1b5aa" class="javax.swing.JRadioButton" binding="runWithExistingDatasetRadioButton" default-binding="true">
+        <constraints>
+          <grid row="0" column="0" row-span="1" col-span="3" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <selected value="true"/>
+          <text value="Run with existing data storage"/>
+        </properties>
+      </component>
+      <vspacer id="b07d">
+        <constraints>
+          <grid row="7" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="999.0"/>
+        </constraints>
+      </vspacer>
+      <component id="424cb" class="javax.swing.JRadioButton" binding="createANewDataRadioButton" default-binding="true">
+        <constraints>
+          <grid row="2" column="0" row-span="1" col-span="3" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="Create a new data storage"/>
+        </properties>
+      </component>
+      <component id="2d24e" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0" ipadx="32"/>
+        </constraints>
+        <properties>
+          <text value=""/>
+        </properties>
+      </component>
+      <scrollpane id="43fa7">
+        <constraints>
+          <grid row="1" column="1" row-span="1" col-span="2" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties/>
+        <border type="none"/>
+        <children>
+          <component id="69d5" class="javax.swing.JList" binding="storageList">
+            <constraints/>
+            <properties>
+              <selectionMode value="0"/>
+            </properties>
+          </component>
+        </children>
+      </scrollpane>
+      <component id="d3be3" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="4" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="name: "/>
+        </properties>
+      </component>
+      <component id="5e5a3" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="5" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="4" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="size: "/>
+        </properties>
+      </component>
+      <grid id="dca81" layout-manager="FlowLayout" hgap="0" vgap="0" flow-align="0">
+        <constraints>
+          <grid row="5" column="2" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties/>
+        <border type="none"/>
+        <children>
+          <component id="2842" class="javax.swing.JTextField" binding="storageSize" default-binding="true">
+            <constraints/>
+            <properties>
+              <columns value="4"/>
+              <horizontalAlignment value="4"/>
+              <text value=""/>
+            </properties>
+          </component>
+          <component id="24bb6" class="javax.swing.JLabel">
+            <constraints/>
+            <properties>
+              <text value="GB"/>
+            </properties>
+          </component>
+        </children>
+      </grid>
+      <component id="18142" class="javax.swing.JTextField" binding="storageName">
+        <constraints>
+          <grid row="4" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <columns value="20"/>
+          <editable value="true"/>
+        </properties>
+      </component>
+      <component id="9b494" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="6" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="(the size can be expanded later)"/>
+        </properties>
+      </component>
+      <hspacer id="d74bc">
+        <constraints>
+          <grid row="7" column="2" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="999.0" weighty="0.0"/>
+        </constraints>
+      </hspacer>
+    </children>
+  </grid>
+  <buttonGroups>
+    <group name="mode">
+      <member id="1b5aa"/>
+      <member id="424cb"/>
+    </group>
+  </buttonGroups>
+</form>

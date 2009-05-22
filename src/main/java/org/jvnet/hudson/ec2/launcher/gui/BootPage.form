@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="org.jvnet.hudson.ec2.launcher.gui.BootPage">
+  <grid id="27dc6" binding="panel" layout-manager="GridBagLayout">
+    <constraints>
+      <xy x="20" y="20" width="500" height="400"/>
+    </constraints>
+    <properties/>
+    <border type="empty">
+      <size top="8" left="8" bottom="8" right="8"/>
+    </border>
+    <children>
+      <scrollpane id="4898f" binding="scrollPane">
+        <constraints>
+          <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties/>
+        <border type="none"/>
+        <children>
+          <component id="71a94" class="javax.swing.JTextArea" binding="console">
+            <constraints/>
+            <properties>
+              <columns value="40"/>
+              <rows value="10"/>
+            </properties>
+          </component>
+        </children>
+      </scrollpane>
+      <component id="4e44d" class="javax.swing.JLabel" binding="status">
+        <constraints>
+          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value="Starting..."/>
+        </properties>
+      </component>
+      <component id="7bc0e" class="javax.swing.JProgressBar" binding="progressBar">
+        <constraints>
+          <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <indeterminate value="true"/>
+        </properties>
+      </component>
+      <hspacer id="226d1">
+        <constraints>
+          <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="999.0" weighty="0.0"/>
+        </constraints>
+      </hspacer>
+      <vspacer id="9fde9">
+        <constraints>
+          <grid row="3" column="1" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="999.0"/>
+        </constraints>
+      </vspacer>
+      <component id="58748" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+          <gridbag weightx="0.0" weighty="0.0"/>
+        </constraints>
+        <properties>
+          <text value=" "/>
+        </properties>
+      </component>
+    </children>
+  </grid>
+</form>
