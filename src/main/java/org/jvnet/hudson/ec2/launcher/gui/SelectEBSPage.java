@@ -1,6 +1,5 @@
 package org.jvnet.hudson.ec2.launcher.gui;
 
-import org.jvnet.hudson.ec2.launcher.gui.CompletionUpdater;
 import org.jvnet.hudson.ec2.launcher.Storage;
 import org.jvnet.hudson.ec2.launcher.StorageList;
 import com.xerox.amazonws.ec2.EC2Exception;
@@ -31,6 +30,7 @@ public class SelectEBSPage extends Page {
 
         $$$setupUI$$$();
 
+        storageList.setVisibleRowCount(5);
         add(panel);
     }
 
