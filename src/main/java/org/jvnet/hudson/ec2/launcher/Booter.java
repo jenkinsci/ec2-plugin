@@ -142,6 +142,16 @@ public class Booter extends Thread {
                 scp.put(IOUtils.toByteArray(Booter.class.getResourceAsStream("init.groovy")),"init.groovy","/hudson","0600");
             }
 
+            // install EC2 plugin
+            if(ssh.exec("test -f /hudson/plugins/ec2.hpi", console) !=0) {
+                reportStatus("Installing EC2 plugin");
+                ssh.exec("mkdir /hudson/plugins", console);
+                if(ssh.exec("wget --no-check-certificate --no-verbose -O /hudson/plugins/ec2.hpi http://hudson-ci.org/latest/ec2.hpi", console) !=0) {
+                    reportError("Failed to download ec2.hpi");
+                    return;
+                }
+            }
+
             if(ssh.exec("test -f /hudson/hudson.xml", console) !=0) {
                 reportStatus("Copying SMF manifest");
                 scp.put(IOUtils.toByteArray(Booter.class.getResourceAsStream("smf.xml")),"hudson.xml","/hudson");
