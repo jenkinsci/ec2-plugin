@@ -8,8 +8,8 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Slave;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
-import hudson.slaves.NodeDescriptor;
 import hudson.slaves.NodeProperty;
+import hudson.Extension;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,6 +38,13 @@ public final class EC2Slave extends Slave {
     public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String label, String initScript, List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
         super(instanceId, description, remoteFS, numExecutors, mode, label, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
+    }
+
+    /**
+     * Constructor for debugging.
+     */
+    public EC2Slave(String instanceId) throws FormException, IOException {
+        this(instanceId,"debug","/tmp/hudson",1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList());
     }
 
     /**
@@ -82,9 +89,15 @@ public final class EC2Slave extends Slave {
         }
     }
 
-    public static final class DescriptorImpl extends NodeDescriptor {
+    @Extension
+    public static final class DescriptorImpl extends SlaveDescriptor {
         public String getDisplayName() {
             return "Amazon EC2";
+        }
+
+        @Override
+        public boolean isInstantiable() {
+            return false;
         }
     }
 
