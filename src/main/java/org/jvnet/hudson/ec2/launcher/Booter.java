@@ -58,7 +58,7 @@ public class Booter extends Thread {
 
             // 2009/03/18 I noticed that the Instance object EC2 gives us on a new start no longer contains full fields.
 
-            reportStatus("Waiting for the boot");
+            reportStatus("Waiting for the instance to boot");
             InstanceState state;
             do {
                 Thread.sleep(5000);
