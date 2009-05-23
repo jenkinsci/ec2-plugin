@@ -29,10 +29,6 @@ import java.io.*;
  * than its equivalent. It doesn't rely on polling. Instead it uses proper
  * synchronization with its counterpart {@link FastPipedOutputStream}.
  *
- * Multiple readers can read from this stream concurrently. The block asked for
- * by a reader is delivered completely, or until the end of the stream if less
- * is available. Other readers can't come in between.
- *
  * @author WD
  * @link http://developer.java.sun.com/developer/bugParade/bugs/4404700.html
  * @see FastPipedOutputStream
@@ -51,7 +47,6 @@ public class FastPipedInputStream extends InputStream {
      * Creates an unconnected PipedInputStream with a default buffer size.
      */
     FastPipedInputStream() {
-        super();
         this.buffer = new byte[0x10000];
     }
 
@@ -70,7 +65,6 @@ public class FastPipedInputStream extends InputStream {
      * @exception IOException It was already connected.
      */
     public FastPipedInputStream(FastPipedOutputStream source, int bufferSize) throws IOException {
-        super();
         if(source != null) {
             connect(source);
         }
@@ -82,13 +76,15 @@ public class FastPipedInputStream extends InputStream {
         /* The circular buffer is inspected to see where the reader and the writer
          * are located.
          */
-        return writePosition > readPosition /* The writer is in the same lap. */? writePosition
-                - readPosition
-                : (writePosition < readPosition /* The writer is in the next lap. */? buffer.length
-                        - readPosition + 1 + writePosition
-                        :
-                        /* The writer is at the same position or a complete lap ahead. */
-                        (writeLaps > readLaps ? buffer.length : 0));
+        synchronized (buffer) {
+            return writePosition > readPosition /* The writer is in the same lap. */? writePosition
+                    - readPosition
+                    : (writePosition < readPosition /* The writer is in the next lap. */? buffer.length
+                            - readPosition + 1 + writePosition
+                            :
+                            /* The writer is at the same position or a complete lap ahead. */
+                            (writeLaps > readLaps ? buffer.length : 0));
+        }
     }
 
     /**
@@ -151,45 +147,39 @@ public class FastPipedInputStream extends InputStream {
             throw new IOException("Unconnected pipe");
         }
 
-        synchronized(buffer) {
-            if(writePosition == readPosition && writeLaps == readLaps) {
-                if(closed) {
-                    return -1;
+        while (true) {
+            synchronized(buffer) {
+                if(writePosition == readPosition && writeLaps == readLaps) {
+                    if(closed) {
+                        return -1;
+                    }
+                    // Wait for any writer to put something in the circular buffer.
+                    try {
+                        buffer.wait();
+                    } catch (InterruptedException e) {
+                        throw new IOException(e.getMessage());
+                    }
+                    // Try again.
+                    continue;
                 }
-                // Wait for any writer to put something in the circular buffer.
-                try {
-                    buffer.wait();
-                } catch (InterruptedException e) {
-                    throw new IOException(e.getMessage());
+
+                // Don't read more than the capacity indicated by len or what's available
+                // in the circular buffer.
+                int amount = Math.min(len, (writePosition > readPosition ? writePosition
+                        : buffer.length)
+                        - readPosition);
+                System.arraycopy(buffer, readPosition, b, off, amount);
+                readPosition += amount;
+
+                if(readPosition == buffer.length) // A lap was completed, so go back.
+                {
+                    readPosition = 0;
+                    ++readLaps;
                 }
-                // Try again.
-                return read(b, off, len);
-            }
 
-            // Don't read more than the capacity indicated by len or what's available
-            // in the circular buffer.
-            int amount = Math.min(len, (writePosition > readPosition ? writePosition
-                    : buffer.length)
-                    - readPosition);
-            System.arraycopy(buffer, readPosition, b, off, amount);
-            readPosition += amount;
-
-            if(readPosition == buffer.length) // A lap was completed, so go back.
-            {
-                readPosition = 0;
-                ++readLaps;
-            }
-
-            // The buffer is only released when the complete desired block was
-            // obtained.
-            if(amount < len) {
-                int second = read(b, off + amount, len - amount);
-
-                return second == -1 ? amount : amount + second;
-            } else {
                 buffer.notifyAll();
+                return amount;
             }
-            return amount;
         }
     }
 

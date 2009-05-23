@@ -30,9 +30,6 @@ import java.io.OutputStream;
  * than its equivalent. It doesn't rely on polling. Instead it uses proper
  * synchronization with its counterpart {@link FastPipedInputStream}.
  *
- * Multiple writers can write in this stream concurrently. The block written
- * by a writer is put in completely. Other writers can't come in between.
- *
  * @author WD
  * @link http://developer.java.sun.com/developer/bugParade/bugs/4404700.html
  * @see FastPipedOutputStream
@@ -131,42 +128,39 @@ public class FastPipedOutputStream extends OutputStream {
             throw new IOException("Broken pipe");
         }
 
-        synchronized(sink.buffer) {
-            if(sink.writePosition == sink.readPosition && sink.writeLaps > sink.readLaps) {
-                // The circular buffer is full, so wait for some reader to consume
-                // something.
-                try {
-                    sink.buffer.wait();
-                } catch (InterruptedException e) {
-                    throw new IOException(e.getMessage());
+        while (len>0) {
+            synchronized(sink.buffer) {
+                if(sink.writePosition == sink.readPosition && sink.writeLaps > sink.readLaps) {
+                    // The circular buffer is full, so wait for some reader to consume
+                    // something.
+                    try {
+                        sink.buffer.wait();
+                    } catch (InterruptedException e) {
+                        throw new IOException(e.getMessage());
+                    }
+                    // Try again.
+                    continue;
                 }
-                // Try again.
-                write(b, off, len);
-                return;
-            }
 
-            // Don't write more than the capacity indicated by len or the space
-            // available in the circular buffer.
-            int amount = Math.min(len, (sink.writePosition < sink.readPosition ? sink.readPosition
-                    : sink.buffer.length)
-                    - sink.writePosition);
-            System.arraycopy(b, off, sink.buffer, sink.writePosition, amount);
-            sink.writePosition += amount;
+                // Don't write more than the capacity indicated by len or the space
+                // available in the circular buffer.
+                int amount = Math.min(len, (sink.writePosition < sink.readPosition ? sink.readPosition
+                        : sink.buffer.length)
+                        - sink.writePosition);
+                System.arraycopy(b, off, sink.buffer, sink.writePosition, amount);
+                sink.writePosition += amount;
 
-            if(sink.writePosition == sink.buffer.length) {
-                sink.writePosition = 0;
-                ++sink.writeLaps;
-            }
+                if(sink.writePosition == sink.buffer.length) {
+                    sink.writePosition = 0;
+                    ++sink.writeLaps;
+                }
 
-            // The buffer is only released when the complete desired block was
-            // written.
-            if(amount < len) {
-                write(b, off + amount, len - amount);
-            } else {
+                off += amount;
+                len -= amount;
+
                 sink.buffer.notifyAll();
             }
         }
     }
-
 }
 
