@@ -1,6 +1,5 @@
 package org.jvnet.hudson.ec2.launcher.gui;
 
-import org.jvnet.hudson.ec2.launcher.gui.GuiExceptionHandler;
 import org.pietschy.wizard.Wizard;
 import org.pietschy.wizard.WizardEvent;
 import org.pietschy.wizard.WizardListener;

@@ -2,6 +2,7 @@ package org.jvnet.hudson.ec2.launcher;
 
 import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.VolumeInfo;
+import com.xerox.amazonws.ec2.Jec2;
 import org.jets3t.service.S3ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Bucket;
@@ -19,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Collections;
 import java.util.logging.Logger;
 import static java.util.logging.Level.INFO;
 
@@ -36,7 +38,7 @@ public class StorageList implements Iterable<Storage> {
 
     private transient String accessId;
 
-    public StorageList(String accessId, String secretKey) throws S3ServiceException, JAXBException {
+    public StorageList(String accessId, String secretKey) throws S3ServiceException, JAXBException, EC2Exception {
         s3 = new RestS3Service(new AWSCredentials(accessId,secretKey));
         this.accessId = accessId;
 
@@ -52,7 +54,14 @@ public class StorageList implements Iterable<Storage> {
             }
         }
 
-        // TODO: use ec2.describeVolumes and remove storages that no longer exist
+        // remove storages that no longer exist
+        Jec2 ec2 = new Jec2(accessId,secretKey);
+        List<VolumeInfo> volInfos = ec2.describeVolumes(Collections.<String>emptyList());
+        for (Iterator<Storage> itr = storages.iterator(); itr.hasNext();) {
+            Storage s =  itr.next();
+            if(!s.isAllVolumesPresent(volInfos))
+                itr.remove();
+        }
     }
 
     // for persistence

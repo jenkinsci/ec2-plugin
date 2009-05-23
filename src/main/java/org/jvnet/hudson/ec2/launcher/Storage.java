@@ -99,4 +99,19 @@ public class Storage {
         
         return r;
     }
+
+    /**
+     * Does the specified list contain all the volumes needed by this {@link Storage}?
+     */
+    public boolean isAllVolumesPresent(List<VolumeInfo> infos) {
+        OUTER:
+        for (String vol : volumes) {
+            for (VolumeInfo info : infos) {
+                if(info.getVolumeId().equals(vol))
+                    continue OUTER;
+            }
+            return false;
+        }
+        return true;
+    }
 }
