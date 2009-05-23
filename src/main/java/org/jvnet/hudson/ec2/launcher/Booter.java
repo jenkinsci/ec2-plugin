@@ -10,6 +10,7 @@ import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.ReservationDescription;
 import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.NullOutputStream;
 
 import javax.swing.*;
 import static javax.swing.JOptionPane.ERROR_MESSAGE;
@@ -192,7 +193,17 @@ public class Booter extends Thread {
             }
 
             // again give a bit of time for Hudson to start listening on 80
-            Thread.sleep(2000);
+            reportStatus("Waiting for the webapp to start");
+            while(true) {
+                try {
+                    URL url = new URL("http://" + inst.getDnsName() + "/");
+                    IOUtils.copy(url.openStream(),new NullOutputStream());
+                    break;
+                } catch (IOException e) {
+                    Thread.sleep(2000);
+                    // repeat until we get 200
+                }
+            }
 
             reportStatus("Hudson started successfully");
 
