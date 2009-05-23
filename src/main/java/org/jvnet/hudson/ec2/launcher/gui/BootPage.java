@@ -1,6 +1,8 @@
 package org.jvnet.hudson.ec2.launcher.gui;
 
 import org.jvnet.hudson.ec2.launcher.Booter;
+import org.jvnet.hudson.ec2.launcher.FastPipedInputStream;
+import org.jvnet.hudson.ec2.launcher.FastPipedOutputStream;
 
 import javax.swing.*;
 import java.awt.*;
@@ -41,10 +43,12 @@ public class BootPage extends Page {
         console.setText(""); // reset the console
         progressBar.setIndeterminate(true);
 
-        PipedOutputStream out = new PipedOutputStream();
-        final PipedInputStream in;
+        // use a different implementation of PipedIS/OS because the one in JDK doesn't allow
+        // multiple writer threads --- it confuses the "writer end dead" detection.
+        FastPipedOutputStream out = new FastPipedOutputStream();
+        final FastPipedInputStream in;
         try {
-            in = new PipedInputStream(out);
+            in = new FastPipedInputStream(out);
         } catch (IOException e) {
             throw new AssertionError(e);
         }

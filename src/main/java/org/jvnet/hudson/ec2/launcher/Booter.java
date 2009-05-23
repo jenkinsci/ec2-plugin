@@ -35,14 +35,12 @@ public class Booter extends Thread {
      * This is where the output of the boot is sent.
      */
     private final PrintStream console;
-    private final OutputStream src;
 
     public Booter(Page owner, OutputStream console) {
         super("boot thread");
         this.owner = owner;
         this.launcher = owner.launcher;
-        this.src = console;
-        this.console = new PrintStream(new NoCloseOutputStream(console),true);
+        this.console = new PrintStream(console,true);
     }
 
     @Override
@@ -230,11 +228,7 @@ public class Booter extends Thread {
                     owner.setBusy(false);
                 }
             });
-            try {
-                src.close();
-            } catch (IOException e) {
-                // ignore
-            }
+            console.close();
             onEnd();
         }
     }
