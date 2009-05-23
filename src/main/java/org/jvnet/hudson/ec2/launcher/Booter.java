@@ -139,12 +139,12 @@ public class Booter extends Thread {
                 }
 
                 // create the init script, to run Hudson in a secured state
-                scp.put(IOUtils.toByteArray(getClass().getResourceAsStream("init.groovy")),"init.groovy","/hudson","0600");
+                scp.put(IOUtils.toByteArray(Booter.class.getResourceAsStream("init.groovy")),"init.groovy","/hudson","0600");
             }
 
             if(ssh.exec("test -f /hudson/hudson.xml", console) !=0) {
                 reportStatus("Copying SMF manifest");
-                scp.put(IOUtils.toByteArray(getClass().getResourceAsStream("smf.xml")),"hudson.xml","/hudson");
+                scp.put(IOUtils.toByteArray(Booter.class.getResourceAsStream("smf.xml")),"hudson.xml","/hudson");
             }
 
             reportStatus("Registering the service");
