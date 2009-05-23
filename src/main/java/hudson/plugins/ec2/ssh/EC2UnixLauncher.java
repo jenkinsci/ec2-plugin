@@ -144,7 +144,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             // I noticed that the exit status delivery often gets delayed. Wait up to 1 sec.
             for( int i=0; i<10; i++ ) {
                 Integer r = session.getExitStatus();
-                if(r!=null) return r.intValue();
+                if(r!=null) return r;
                 Thread.sleep(100);
             }
             return -1;
