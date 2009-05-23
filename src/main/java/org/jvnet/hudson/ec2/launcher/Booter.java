@@ -19,7 +19,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.Collections;
 import java.util.List;
 
@@ -208,7 +210,7 @@ public class Booter extends Thread {
             try {
                 // hit the login URL to automatically logs this user.
                 Desktop.getDesktop().browse(new URL("http://"+inst.getDnsName()+"/j_acegi_security_check"
-                        +"?remember_me=true&j_username="+launcher.getAccessId()+"&j_password="+launcher.getSecretKey()).toURI());
+                        +"?remember_me=true&j_username="+encode(launcher.getAccessId())+"&j_password="+encode(launcher.getSecretKey())).toURI());
             } catch (LinkageError e) {
                 // ignore if we failed to start a browser
             }
@@ -231,6 +233,10 @@ public class Booter extends Thread {
             console.close();
             onEnd();
         }
+    }
+
+    private String encode(String s) throws UnsupportedEncodingException {
+        return URLEncoder.encode(s,"UTF-8");
     }
 
     protected void onEnd() {
