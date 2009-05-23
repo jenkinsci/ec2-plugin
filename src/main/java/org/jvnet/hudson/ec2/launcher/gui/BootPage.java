@@ -53,17 +53,15 @@ public class BootPage extends Page {
 
             public void run() {
                 try {
-                    while (true) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            final String text = line;
-                            SwingUtilities.invokeLater(new Runnable() {
-                                public void run() {
-                                    console.append(text + '\n');
-                                    scrollDown();
-                                }
-                            });
-                        }
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        final String text = line;
+                        SwingUtilities.invokeLater(new Runnable() {
+                            public void run() {
+                                console.append(text + '\n');
+                                scrollDown();
+                            }
+                        });
                     }
                 } catch (IOException e) {
                     throw new Error(e);
