@@ -13,9 +13,10 @@ import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.Label;
-import hudson.util.FormFieldValidator;
 import hudson.Extension;
 import hudson.Util;
+import hudson.util.FormValidation;
+import static hudson.Util.fixNull;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -24,6 +25,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * Template of {@link EC2Slave} to launch.
@@ -39,6 +42,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String initScript;
     protected transient EC2Cloud parent;
 
+    private transient /*almost final*/ Set<Label> labelSet;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript) {
         this.ami = ami;
@@ -47,6 +52,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.labels = Util.fixNull(labels);
         this.description = description;
         this.initScript = initScript;
+        readResolve(); // initialize
     }
     
     public EC2Cloud getParent() {
@@ -68,12 +74,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      *      can be null to indicate "don't care".
      */
     public boolean containsLabel(Label l) {
-        if(l==null) return true;
-
-        for(String t : labels.split("\\s+"))
-            if(t.equals(l.getName()))
-                return true;
-        return false;
+        return l==null || labelSet.contains(l);
     }
 
     /**
@@ -116,6 +117,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    /**
+     * Initializes data structure that we don't persist.
+     */
+    protected Object readResolve() {
+        labelSet = parse(labels);
+        return this;
+    }
+
     public Descriptor<SlaveTemplate> getDescriptor() {
         return Hudson.getInstance().getDescriptor(getClass());
     }
@@ -126,21 +135,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return null;
         }
 
-        public void doCheckAmi(final @QueryParameter String value) throws IOException, ServletException {
-            new FormFieldValidator(null) {
-                protected void check() throws IOException, ServletException {
-                    EC2Cloud cloud = EC2Cloud.get();
-                    if(cloud!=null) {
-                        try {
-                            List<ImageDescription> img = cloud.connect().describeImages(new String[]{value});
-                            ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
-                        } catch (EC2Exception e) {
-                            error(e.getMessage());
-                        }
-                    } else
-                        ok();   // can't test
+        public FormValidation doCheckAmi(final @QueryParameter String value) throws IOException, ServletException {
+            EC2Cloud cloud = EC2Cloud.get();
+            if(cloud!=null) {
+                try {
+                    List<ImageDescription> img = cloud.connect().describeImages(new String[]{value});
+                    return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
+                } catch (EC2Exception e) {
+                    return FormValidation.error(e.getMessage());
                 }
-            }.process();
+            } else
+                return FormValidation.ok();   // can't test
         }
+    }
+
+    /**
+     * @deprecated
+     *      Use Label.parse once 1.308 is released
+     */
+    private Set<Label> parse(String labels) {
+        Set<Label> r = new HashSet<Label>();
+        labels = fixNull(labels);
+        if(labels.length()>0)
+            for( String l : labels.split(" +"))
+                r.add(Hudson.getInstance().getLabel(l));
+        return r;
     }
 }

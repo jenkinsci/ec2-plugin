@@ -58,6 +58,6 @@
   </dependencies>
   
   <properties>
-    <hudson.version>1.306</hudson.version>
+    <hudson.version>1.307</hudson.version>
   </properties>
 </project>
