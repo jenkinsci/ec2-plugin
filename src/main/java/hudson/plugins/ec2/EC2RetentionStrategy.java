@@ -18,7 +18,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     public synchronized long check(EC2Computer c) {
-        if (c.isIdle()) {
+        if (c.isIdle() && !disabled) {
             // TODO: really think about the right strategy here
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
             if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(30)) {
@@ -46,4 +46,6 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
+
+    public static boolean disabled = Boolean.getBoolean(EC2RetentionStrategy.class.getName()+".disabled");
 }
