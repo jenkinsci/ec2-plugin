@@ -35,6 +35,17 @@
       <groupId>net.java.dev.jets3t</groupId>
       <artifactId>jets3t</artifactId>
       <version>0.6.1</version>
+      <exclusions>
+        <!-- they come from core -->
+        <exclusion>
+          <groupId>commons-httpclient</groupId>
+          <artifactId>commons-httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->
