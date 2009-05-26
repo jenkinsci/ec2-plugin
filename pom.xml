@@ -19,6 +19,17 @@
       <groupId>org.jvnet.hudson</groupId>
       <artifactId>typica</artifactId>
       <version>1.4.1</version>
+      <exclusions>
+        <!-- they come from core -->
+        <exclusion>
+          <groupId>commons-httpclient</groupId>
+          <artifactId>commons-httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>net.java.dev.jets3t</groupId>
@@ -54,10 +65,16 @@
       <groupId>org.jvnet.libzfs</groupId>
       <artifactId>libzfs</artifactId>
       <version>0.5</version>
+      <exclusions>
+        <exclusion>
+          <groupId>net.java.dev.jna</groupId>
+          <artifactId>jna</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
   
   <properties>
-    <hudson.version>1.307</hudson.version>
+    <hudson.version>1.307-SNAPSHOT</hudson.version>
   </properties>
 </project>
