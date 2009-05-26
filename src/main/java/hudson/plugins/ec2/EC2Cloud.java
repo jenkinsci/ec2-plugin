@@ -67,6 +67,7 @@ public class EC2Cloud extends Cloud {
             this.instanceCap = Integer.MAX_VALUE;
         else
             this.instanceCap = Integer.parseInt(instanceCapStr);
+        if(templates==null)     templates=Collections.emptyList();
         this.templates = templates;
         readResolve(); // set parents
     }
