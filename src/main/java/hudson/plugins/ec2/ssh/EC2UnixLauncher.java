@@ -101,6 +101,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
             }
 
+            // TODO: on Windows with ec2-sshd, this scp command ends up just putting slave.jar as c:\tmp
+            // bug in ec2-sshd?
 
             logger.println("Copying slave.jar");
             scp.put(Hudson.getInstance().getJnlpJars("slave.jar").readFully(),
