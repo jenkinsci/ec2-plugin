@@ -4,6 +4,8 @@ import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.InstanceType;
 import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.KeyPairInfo;
+import com.xerox.amazonws.ec2.ReservationDescription;
+import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -134,7 +136,14 @@ public class EC2Cloud extends Cloud {
      * This includes those instances that may be started outside Hudson.
      */
     public int countCurrentEC2Slaves() throws EC2Exception {
-        return connect().describeInstances(Collections.<String>emptyList()).size();
+        int n=0;
+        for (ReservationDescription r : connect().describeInstances(Collections.<String>emptyList())) {
+            for (Instance i : r.getInstances()) {
+                if(!i.isTerminated())
+                    n++;
+            }
+        }
+        return n;
     }
 
     /**
