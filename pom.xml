@@ -86,6 +86,6 @@
   </dependencies>
   
   <properties>
-    <hudson.version>1.307-SNAPSHOT</hudson.version>
+    <hudson.version>1.308-SNAPSHOT</hudson.version>
   </properties>
 </project>
