@@ -37,8 +37,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+import static java.util.logging.Level.WARNING;
 
 /**
  * Hudson's view of EC2. 
@@ -128,14 +128,13 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of {@link EC2Slave}s currently provisioned.
+     * Counts the number of instances in EC2 currently running.
+     *
+     * <p>
+     * This includes those instances that may be started outside Hudson.
      */
-    public int countCurrentEC2Slaves() {
-        int r=0;
-        for(Node n : Hudson.getInstance().getNodes())
-            if (n instanceof EC2Slave)
-                r++;
-        return r;
+    public int countCurrentEC2Slaves() throws EC2Exception {
+        return connect().describeInstances(Collections.<String>emptyList()).size();
     }
 
     /**
@@ -179,23 +178,28 @@ public class EC2Cloud extends Cloud {
     }
 
     public Collection<PlannedNode> provision(Label label, int excessWorkload) {
-        final SlaveTemplate t = getTemplate(label);
-        
-        List<PlannedNode> r = new ArrayList<PlannedNode>();
-        for( ; excessWorkload>0; excessWorkload-- ) {
-            if(countCurrentEC2Slaves()>=instanceCap)
-                break;      // maxed out
+        try {
+            final SlaveTemplate t = getTemplate(label);
 
-            r.add(new PlannedNode(t.getDisplayName(),
-                    Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-                        public Node call() throws Exception {
-                            // TODO: record the output somewhere
-                            return t.provision(new StreamTaskListener());
-                        }
-                    })
-                    ,t.getNumExecutors()));
+            List<PlannedNode> r = new ArrayList<PlannedNode>();
+            for( ; excessWorkload>0; excessWorkload-- ) {
+                if(countCurrentEC2Slaves()>=instanceCap)
+                    break;      // maxed out
+
+                r.add(new PlannedNode(t.getDisplayName(),
+                        Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                            public Node call() throws Exception {
+                                // TODO: record the output somewhere
+                                return t.provision(new StreamTaskListener());
+                            }
+                        })
+                        ,t.getNumExecutors()));
+            }
+            return r;
+        } catch (EC2Exception e) {
+            LOGGER.log(WARNING,"Failed to count the # of live instances on EC2",e);
+            return Collections.emptyList();
         }
-        return r;
     }
 
     public boolean canProvision(Label label) {
@@ -317,7 +321,7 @@ public class EC2Cloud extends Cloud {
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
             } catch (EC2Exception e) {
-                LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
+                LOGGER.log(WARNING, "Failed to check EC2 credential",e);
                 return FormValidation.error(e.getMessage());
             }
         }
@@ -347,7 +351,7 @@ public class EC2Cloud extends Cloud {
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
             } catch (EC2Exception e) {
-                LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
+                LOGGER.log(WARNING, "Failed to check EC2 credential",e);
                 return FormValidation.error(e.getMessage());
             }
         }

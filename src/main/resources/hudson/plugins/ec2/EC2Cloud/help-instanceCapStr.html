@@ -3,7 +3,13 @@
     This is useful for avoiding surprises in the billing statement.
 
     <P>
-    For example, if this field is 3, Hudson will only launch at most 3 EC2 instances,
-    even if it noticed that the demand is much higher. Leave this field empty to remove a cap
-    (note that EC2 appears to have its own instance cap.)
+    For example, if this field is 3, Hudson will only launch a new instance
+    as long as total number of instances you run on EC2 (regardless of whether that is
+    for Hudson or for other purposes) doesn't exceed this number. In this way,
+    even in the worst case of Hudson starting instances and forgetting about them,
+    you have an upper bound in the number of instances that are concurrently executed.
+
+    <p>
+    Leave this field empty to remove a cap
+    (note that EC2 appears to have its own instance cap at 20.)
 </div>
