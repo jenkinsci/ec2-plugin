@@ -140,6 +140,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if(cloud!=null) {
                 try {
                     List<ImageDescription> img = cloud.connect().describeImages(new String[]{value});
+                    if(img==null || img.isEmpty())
+                        // de-registered AMI causes an empty list to be returned. so be defensive
+                        // against other possibilityies
+                        return FormValidation.error("No such AMI: "+value);
                     return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
                 } catch (EC2Exception e) {
                     return FormValidation.error(e.getMessage());
