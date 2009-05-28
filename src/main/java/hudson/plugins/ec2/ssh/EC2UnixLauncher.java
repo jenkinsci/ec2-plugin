@@ -32,19 +32,10 @@ import java.net.URL;
 public class EC2UnixLauncher extends EC2ComputerLauncher {
     protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, EC2Exception, InterruptedException, S3ServiceException {
         logger.println("Connecting to "+inst.getDnsName());
-        final Connection conn = new Connection(inst.getDnsName());
+        final Connection conn = connectToSsh(inst);
         boolean successful = false;
 
         try {
-            // the way the host key is reported is different from AMI to AMI,
-            // so there's no reliabele way to do this.
-            // conn.connect(new HostKeyVerifierImpl(computer.getConsoleOutput()));
-            conn.connect(new ServerHostKeyVerifier() {
-                public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
-                    return true;
-                }
-            });
-
             KeyPairInfo key = EC2Cloud.get().getKeyPair();
             boolean isAuthenticated = conn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "");
 
@@ -56,7 +47,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
 
-            if(initScript!=null && initScript.trim().length()>0) {
+            if(initScript!=null && initScript.trim().length()>0 && exec(conn,"test -e /.hudson-run-init",logger)!=0) {
                 logger.println("Executing init script");
                 scp.put(initScript.getBytes("UTF-8"),"init.sh","/tmp","0700");
                 Session sess = conn.openSession();
@@ -74,6 +65,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     logger.println("init script failed: exit code="+exitStatus);
                     return;
                 }
+
+                // leave the completion marker
+                scp.put(new byte[0],".hudson-run-init","/","0600");
+
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
@@ -121,6 +116,25 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         } finally {
             if(!successful)
                 conn.close();
+        }
+    }
+
+    private Connection connectToSsh(Instance inst) throws InterruptedException {
+        while(true) {
+            try {
+                Connection conn = new Connection(inst.getDnsName(),22);
+                // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
+                // hoping that no man-in-the-middle attack is going on.
+                conn.connect(new ServerHostKeyVerifier() {
+                    public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+                        return true;
+                    }
+                });
+                return conn; // successfully connected
+            } catch (IOException e) {
+                // keep retrying until SSH comes up
+                Thread.sleep(5000);
+            }
         }
     }
 

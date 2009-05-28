@@ -199,7 +199,7 @@ public class EC2Cloud extends Cloud {
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
-                                return t.provision(new StreamTaskListener());
+                                return t.provision(new StreamTaskListener(System.out));
                             }
                         })
                         ,t.getNumExecutors()));

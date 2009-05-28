@@ -23,22 +23,13 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             EC2Computer computer = (EC2Computer)_computer;
             PrintStream logger = listener.getLogger();
 
-            // wait until EC2 instance comes up and post console output
-            boolean reportedWaiting = false;
             OUTER:
             while(true) {
                 switch (computer.getState()) {
                     case PENDING:
+                        Thread.sleep(5000); // check every 5 secs
+                        continue OUTER;
                     case RUNNING:
-                        String console = computer.getConsoleOutput();
-                        if(console==null || console.length()==0) {
-                            if(!reportedWaiting) {
-                                reportedWaiting = true;
-                                logger.println("Waiting for the EC2 instance to boot up");
-                            }
-                            Thread.sleep(5000); // check every 5 secs
-                            continue OUTER;
-                        }
                         break OUTER;
                     case SHUTTING_DOWN:
                     case TERMINATED:
