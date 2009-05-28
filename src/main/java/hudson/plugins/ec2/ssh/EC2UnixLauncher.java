@@ -58,10 +58,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 sess.getStderr().close();   // we are not supposed to get anything from stderr
                 IOUtils.copy(sess.getStdout(),logger);
 
-                int exitStatus = sess.getExitStatus();
-                sess.close();
-
-                if(exitStatus !=0) {
+                int exitStatus = waitCompletion(sess);
+                if (exitStatus!=0) {
                     logger.println("init script failed: exit code="+exitStatus);
                     return;
                 }
@@ -157,16 +155,21 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             session.getStdin().close();
             t1.join();
             t2.join();
-            // I noticed that the exit status delivery often gets delayed. Wait up to 1 sec.
-            for( int i=0; i<10; i++ ) {
-                Integer r = session.getExitStatus();
-                if(r!=null) return r;
-                Thread.sleep(100);
-            }
-            return -1;
+            return waitCompletion(session);
+
         } finally {
             session.close();
         }
+    }
+
+    private int waitCompletion(Session session) throws InterruptedException {
+        // I noticed that the exit status delivery often gets delayed. Wait up to 1 sec.
+        for( int i=0; i<10; i++ ) {
+            Integer r = session.getExitStatus();
+            if(r!=null) return r;
+            Thread.sleep(100);
+        }
+        return -1;
     }
 
     /**
