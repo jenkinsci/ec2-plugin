@@ -199,7 +199,19 @@ public class EC2Cloud extends Cloud {
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
-                                return t.provision(new StreamTaskListener(System.out));
+                                EC2Slave s = t.provision(new StreamTaskListener(System.out));
+                                Hudson.getInstance().addNode(s);
+                                // EC2 instances may have a long init script. If we declare
+                                // the provisioning complete by returning without the connect
+                                // operation, NodeProvisioner may decide that it still wants
+                                // one more instance, because it sees that (1) all the slaves
+                                // are offline (because it's still being launched) and
+                                // (2) there's no capacity provisioned yet.
+                                //
+                                // deferring the completion of provisioning until the launch
+                                // goes successful prevents this problem.
+                                s.toComputer().connect(false).get();
+                                return s;
                             }
                         })
                         ,t.getNumExecutors()));
