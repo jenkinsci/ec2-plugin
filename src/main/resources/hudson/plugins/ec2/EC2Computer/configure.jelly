@@ -56,6 +56,10 @@ THE SOFTWARE.
           <f:textbox name="label" value="${it.labelString}"/>
         </f:entry>
 
+        <f:entry title="${%Init Script}" field="initScript">
+          <f:textarea />
+        </f:entry>
+
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
         <f:block>
