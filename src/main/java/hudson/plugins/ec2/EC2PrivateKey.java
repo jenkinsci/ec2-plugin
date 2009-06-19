@@ -69,7 +69,7 @@ final class EC2PrivateKey {
     public KeyPairInfo find(Jec2 ec2) throws IOException, EC2Exception {
         String fp = getFingerprint();
         for(KeyPairInfo kp : ec2.describeKeyPairs(new String[0])) {
-            if(kp.getKeyFingerprint().equals(fp))
+            if(kp.getKeyFingerprint().equalsIgnoreCase(fp))
                 return new KeyPairInfo(kp.getKeyName(),fp,privateKey.toString());
         }
         return null;
