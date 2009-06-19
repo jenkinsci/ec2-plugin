@@ -121,7 +121,7 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
-     * Gets the {@lin KeyPairInfo} used for the launch.
+     * Gets the {@link KeyPairInfo} used for the launch.
      */
     public synchronized KeyPairInfo getKeyPair() throws EC2Exception, IOException {
         if(usableKeyPair==null)
