@@ -24,9 +24,6 @@
         <f:entry title="${%Instance Type}" help="/plugin/ec2/help/instanceType.html">
           <f:enum field="type">${it.name()}</f:enum>
         </f:entry>
-        <f:entry title="${%User Data}" help="/help/system-config/master-slave/userData.html" field="userData">
-          <f:textbox />
-        </f:entry>
         <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html" field="description">
           <f:textbox />
         </f:entry>
@@ -39,6 +36,14 @@
         <f:entry title="${%Init Script}" field="initScript">
           <f:textarea />
         </f:entry>
+        <f:advanced>
+          <f:entry title="${%User Data}" field="userData">
+            <f:textbox />
+          </f:entry>
+          <f:entry title="${%Number of Executors}" field="numExecutors">
+            <f:textbox />
+          </f:entry>
+        </f:advanced>
 
         <f:entry title="">
           <div align="right">

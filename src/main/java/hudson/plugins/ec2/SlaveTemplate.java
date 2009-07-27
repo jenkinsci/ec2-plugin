@@ -41,12 +41,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String labels;
     public final String initScript;
     public final String userData;
+    public final String numExecutors;
     protected transient EC2Cloud parent;
 
     private transient /*almost final*/ Set<Label> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript, String userData) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript, String userData, String numExecutors) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
@@ -54,6 +55,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.description = description;
         this.initScript = initScript;
         this.userData = userData;
+        this.numExecutors = Util.fixNull(numExecutors).trim();
         readResolve(); // initialize
     }
     
@@ -66,7 +68,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public int getNumExecutors() {
-        return EC2Slave.toNumExecutors(type);
+        try {
+            return Integer.parseInt(numExecutors);
+        } catch (NumberFormatException e) {
+            return EC2Slave.toNumExecutors(type);
+        }
     }
 
     /**
