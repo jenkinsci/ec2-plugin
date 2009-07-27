@@ -40,18 +40,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final InstanceType type;
     public final String labels;
     public final String initScript;
+    public final String userData;
     protected transient EC2Cloud parent;
 
     private transient /*almost final*/ Set<Label> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript, String userData) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
         this.labels = Util.fixNull(labels);
         this.description = description;
         this.initScript = initScript;
+        this.userData = userData;
         readResolve(); // initialize
     }
     
@@ -91,7 +93,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             KeyPairInfo keyPair = parent.getPrivateKey().find(ec2);
             if(keyPair==null)
                 throw new EC2Exception("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-            Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), null, keyPair.getKeyName(), type).getInstances().get(0);
+            Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), userData, keyPair.getKeyName(), type).getInstances().get(0);
 
             return new EC2Slave(inst.getInstanceId(),description,remoteFS,type, labels,initScript);
         } catch (FormException e) {
