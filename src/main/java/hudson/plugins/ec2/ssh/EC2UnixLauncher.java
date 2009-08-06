@@ -36,8 +36,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         boolean successful = false;
 
         try {
+            int tries = 20;
+            boolean isAuthenticated = false;
             KeyPairInfo key = EC2Cloud.get().getKeyPair();
-            boolean isAuthenticated = conn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "");
+
+            while (tries-- > 0) {
+                isAuthenticated = conn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "");
+
+                if (isAuthenticated)
+                    break;
+
+                logger.println("Authentication failed. Trying again...");
+                Thread.currentThread().sleep(10000);
+            }
 
             if (!isAuthenticated) {
                 logger.println("Authentication failed");
