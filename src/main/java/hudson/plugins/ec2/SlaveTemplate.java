@@ -10,13 +10,11 @@ import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.model.Label;
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.FormValidation;
-import static hudson.Util.fixNull;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -26,7 +24,6 @@ import java.io.PrintStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.HashSet;
 
 /**
  * Template of {@link EC2Slave} to launch.
@@ -129,7 +126,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
-        labelSet = parse(labels);
+        labelSet = Label.parse(labels);
         return this;
     }
 
@@ -159,18 +156,5 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else
                 return FormValidation.ok();   // can't test
         }
-    }
-
-    /**
-     * @deprecated
-     *      Use Label.parse once 1.308 is released
-     */
-    private Set<Label> parse(String labels) {
-        Set<Label> r = new HashSet<Label>();
-        labels = fixNull(labels);
-        if(labels.length()>0)
-            for( String l : labels.split(" +"))
-                r.add(Hudson.getInstance().getLabel(l));
-        return r;
     }
 }

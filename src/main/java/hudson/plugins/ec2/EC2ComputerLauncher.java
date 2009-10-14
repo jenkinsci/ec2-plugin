@@ -2,9 +2,9 @@ package hudson.plugins.ec2;
 
 import com.xerox.amazonws.ec2.EC2Exception;
 import com.xerox.amazonws.ec2.ReservationDescription.Instance;
+import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
-import hudson.util.StreamTaskListener;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -18,7 +18,8 @@ import org.jets3t.service.S3ServiceException;
  * @author Kohsuke Kawaguchi
  */
 public abstract class EC2ComputerLauncher extends ComputerLauncher {
-    public void launch(SlaveComputer _computer, StreamTaskListener listener) {
+    @Override
+    public void launch(SlaveComputer _computer, TaskListener listener) {
         try {
             EC2Computer computer = (EC2Computer)_computer;
             PrintStream logger = listener.getLogger();
