@@ -12,6 +12,7 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.TaskListener;
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.Extension;
 import hudson.Util;
 import hudson.util.FormValidation;
@@ -98,7 +99,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 throw new EC2Exception("No matching keypair found on EC2. Is the EC2 private key a valid one?");
             Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), userData, keyPair.getKeyName(), type).getInstances().get(0);
 
-            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type, labels,initScript);
+            return new EC2Slave(inst.getInstanceId(),description,remoteFS, getNumExecutors(),labels,initScript);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
@@ -116,7 +117,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logger.println("Attaching to "+instanceId);
             Instance inst = ec2.describeInstances(Collections.singletonList(instanceId)).get(0).getInstances().get(0);
 
-            return new EC2Slave(inst.getInstanceId(),description,remoteFS,type, labels,initScript);
+            return new EC2Slave(inst.getInstanceId(),description,remoteFS, getNumExecutors(),labels,initScript);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }

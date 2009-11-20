@@ -30,8 +30,8 @@ public final class EC2Slave extends Slave {
      */
     public final String initScript;
 
-    public EC2Slave(String instanceId, String description, String remoteFS, InstanceType type, String label, String initScript) throws FormException, IOException {
-        this(instanceId, description, remoteFS, toNumExecutors(type), Mode.NORMAL, label, initScript, Collections.<NodeProperty<?>>emptyList());
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String label, String initScript) throws FormException, IOException {
+        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, label, initScript, Collections.<NodeProperty<?>>emptyList());
     }
 
     @DataBoundConstructor
