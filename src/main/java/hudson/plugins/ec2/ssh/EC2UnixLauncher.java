@@ -19,8 +19,6 @@ import org.apache.commons.io.IOUtils;
 import org.jets3t.service.S3ServiceException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URL;
 
@@ -58,7 +56,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
 
-            if(initScript!=null && initScript.trim().length()>0 && exec(conn,"test -e /.hudson-run-init",logger)!=0) {
+            if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e /.hudson-run-init", logger) !=0) {
                 logger.println("Executing init script");
                 scp.put(initScript.getBytes("UTF-8"),"init.sh","/tmp","0700");
                 Session sess = conn.openSession();
@@ -82,24 +80,24 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             // TODO: parse the version number. maven-enforcer-plugin might help
             logger.println("Verifying that java exists");
-            if(exec(conn,"java -fullversion",logger)!=0) {
+            if(conn.exec("java -fullversion", logger) !=0) {
                 logger.println("Installing Java");
 
                 String jdk = "java1.6.0_12";
                 String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
 
                 URL url = EC2Cloud.get().buildPresignedURL(path);
-                if(exec(conn,"wget -nv -O /usr/"+jdk+".tgz '"+url+"'",logger)!=0) {
+                if(conn.exec("wget -nv -O /usr/" + jdk + ".tgz '" + url + "'", logger) !=0) {
                     logger.println("Failed to download Java");
                     return;
                 }
 
-                if(exec(conn,"tar xz -C /usr -f /usr/"+jdk+".tgz",logger)!=0) {
+                if(conn.exec("tar xz -C /usr -f /usr/" + jdk + ".tgz", logger) !=0) {
                     logger.println("Failed to install Java");
                     return;
                 }
 
-                if(exec(conn,"ln -s /usr/"+jdk+"/bin/java /bin/java",logger)!=0) {
+                if(conn.exec("ln -s /usr/" + jdk + "/bin/java /bin/java", logger) !=0) {
                     logger.println("Failed to symlink Java");
                     return;
                 }
@@ -147,32 +145,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    /**
-     * Executes a process remotely and blocks until its completion.
-     *
-     * TODO: update to a new version that has thsi as a convenience method in it.
-     *
-     * @param output
-     *      The stdout/stderr will be sent to this stream.
-     */
-    public int exec(Connection ssh, String command, OutputStream output) throws IOException, InterruptedException {
-        Session session = ssh.openSession();
-        try {
-            session.execCommand(command);
-            PumpThread t1 = new PumpThread(session.getStdout(), output);
-            t1.start();
-            PumpThread t2 = new PumpThread(session.getStderr(), output);
-            t2.start();
-            session.getStdin().close();
-            t1.join();
-            t2.join();
-            return waitCompletion(session);
-
-        } finally {
-            session.close();
-        }
-    }
-
     private int waitCompletion(Session session) throws InterruptedException {
         // I noticed that the exit status delivery often gets delayed. Wait up to 1 sec.
         for( int i=0; i<10; i++ ) {
@@ -181,38 +153,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             Thread.sleep(100);
         }
         return -1;
-    }
-
-    /**
-     * Pumps {@link InputStream} to {@link OutputStream}.
-     *
-     * @author Kohsuke Kawaguchi
-     */
-    private static final class PumpThread extends Thread {
-        private final InputStream in;
-        private final OutputStream out;
-
-        public PumpThread(InputStream in, OutputStream out) {
-            super("pump thread");
-            this.in = in;
-            this.out = out;
-        }
-
-        public void run() {
-            byte[] buf = new byte[1024];
-            try {
-                while(true) {
-                    int len = in.read(buf);
-                    if(len<0) {
-                        in.close();
-                        return;
-                    }
-                    out.write(buf,0,len);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     public Descriptor<ComputerLauncher> getDescriptor() {
