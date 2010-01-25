@@ -80,7 +80,7 @@ final class EC2PrivateKey {
         return privateKey.toString();
     }
 
-    private static String digest(PrivateKey k) throws IOException {
+    /*package*/ static String digest(PrivateKey k) throws IOException {
         try {
             MessageDigest md5 = MessageDigest.getInstance("SHA1");
 
