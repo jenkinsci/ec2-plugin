@@ -6,6 +6,8 @@ import com.xerox.amazonws.ec2.ReservationDescription;
 import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.Util;
 import hudson.slaves.SlaveComputer;
+import org.kohsuke.stapler.HttpRedirect;
+import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.StaplerResponse;
 
 import java.io.IOException;
@@ -87,9 +89,9 @@ public class EC2Computer extends SlaveComputer {
      * When the slave is deleted, terminate the instance.
      */
     @Override
-    public void doDoDelete(StaplerResponse rsp) throws IOException {
+    public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
         getNode().terminate();
-        rsp.sendRedirect("..");
+        return new HttpRedirect("..");
     }
 }
