@@ -1,3 +1,5 @@
 <div>
-  This plugin integrates Hudson with <a href="http://aws.amazon.com/ec2/">Amazon EC2</a>.
+  This plugin integrates Hudson with 
+  <a href="http://aws.amazon.com/ec2/">Amazon EC2</a> or anything implementing
+  the EC2 API's such as an Ubuntu.
 </div>

@@ -51,6 +51,7 @@ public class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
+    private final String hostName;
 
     /**
      * Upper bound on how many instances we may provision.
@@ -60,11 +61,12 @@ public class EC2Cloud extends Cloud {
     private transient KeyPairInfo usableKeyPair;
 
     @DataBoundConstructor
-    public EC2Cloud(String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
+    public EC2Cloud(String accessId, String secretKey, String privateKey, String hostName, String instanceCapStr, List<SlaveTemplate> templates) {
         super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
+	this.hostName = hostName;
         if(instanceCapStr.equals(""))
             this.instanceCap = Integer.MAX_VALUE;
         else
@@ -90,6 +92,10 @@ public class EC2Cloud extends Cloud {
 
     public EC2PrivateKey getPrivateKey() {
         return privateKey;
+    }
+
+    public String getHostName() {
+        return hostName;
     }
 
     public String getInstanceCapStr() {
@@ -238,13 +244,42 @@ public class EC2Cloud extends Cloud {
      * Connects to EC2 and returns {@link Jec2}, which can then be used to communicate with EC2.
      */
     public Jec2 connect() {
-        return new Jec2(accessId,secretKey.toString());
+        /* TODO: Permit port selection as well */
+        return connect(accessId, secretKey, hostName);
+    }
+
+    /***
+     * Connect to an EC2 instance.
+     * @return Jec2
+     */
+    public static Jec2 connect(String accessId, String secretKey, String hostName) {
+        return connect(accessId, Secret.fromString(secretKey), hostName);
+    }
+
+    /***
+     * Connect to an EC2 instance.
+     * @return Jec2
+     */
+    public static Jec2 connect(String accessId, Secret secretKey, String hostName) {
+        return new Jec2(accessId, secretKey.toString(), true, convertHostName(hostName));
+    }
+
+    /***
+     *
+     */
+    public static String convertHostName(String hostName) {
+        if (hostName == null || hostName.length()==0)
+            hostName = "us-east-1";
+        if (!hostName.contains("."))
+            hostName = hostName + ".ec2.amazonaws.com";
+	return hostName;
     }
 
     /**
      * Connects to S3 and returns {@link S3Service}.
      */
     public S3Service connectS3() throws S3ServiceException {
+        /* XXX: TODO: Connect to the S3 for the endpoint. */
         return new RestS3Service(new AWSCredentials(accessId,secretKey.toString()));
     }
 
@@ -322,9 +357,10 @@ public class EC2Cloud extends Cloud {
 
         public FormValidation doTestConnection(
                                      @QueryParameter String accessId, @QueryParameter String secretKey,
-                                     @QueryParameter String privateKey) throws IOException, ServletException {
+                                     @QueryParameter String privateKey,
+                                     @QueryParameter String hostName) throws IOException, ServletException {
             try {
-                Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
+                Jec2 jec2 = connect(accessId, secretKey, hostName);
                 jec2.describeInstances(Collections.<String>emptyList());
 
                 if(accessId==null)
@@ -349,9 +385,11 @@ public class EC2Cloud extends Cloud {
         }
 
         public FormValidation doGenerateKey(StaplerResponse rsp,
-                                     @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
+                                     @QueryParameter String accessId,
+                                     @QueryParameter String secretKey,
+                                     @QueryParameter String hostName) throws IOException, ServletException {
             try {
-                Jec2 jec2 = new Jec2(accessId,Secret.fromString(secretKey).toString());
+                Jec2 jec2 = connect(accessId, secretKey, hostName);
                 List<KeyPairInfo> existingKeys = jec2.describeKeyPairs(Collections.<String>emptyList());
 
                 int n = 0;
