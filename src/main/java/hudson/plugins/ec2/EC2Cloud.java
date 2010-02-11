@@ -17,6 +17,8 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import java.net.MalformedURLException;
+import java.util.logging.Level;
 import org.jets3t.service.Constants;
 import org.jets3t.service.S3Service;
 import org.jets3t.service.S3ServiceException;
@@ -51,16 +53,24 @@ import static java.util.logging.Level.WARNING;
  * @author Kohsuke Kawaguchi
  */
 public class EC2Cloud extends Cloud {
+
+    private static Boolean SSLFromURL(URL endpoint) {
+        Boolean SSL = endpoint.getProtocol().equals("https");
+        return SSL;
+    }
+
+    private static int portFromURL(URL endpoint) {
+        int ec2Port = endpoint.getPort();
+        if (ec2Port == -1) {
+            ec2Port = endpoint.getDefaultPort();
+        }
+        return ec2Port;
+    }
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
-    private final String ec2HostName; // host to send EC2 requests to
-    private final Integer ec2Port; // port number to send EC2 requests to (-1 for auto)
-    private final String ec2UrlBase; // if API requests are not rooted at /
-    private final String s3HostName; // host to send S3 requests to
-    private final Integer s3Port; // port number to send S3 requests to (-1 for auto)
-    private final String s3UrlBase; // if API requests are not rooted at /
-    private final boolean SSL; // use ssl to talk to API's.
+    private final URL ec2EndpointUrl; // url to send EC2 requests to.
+    private final URL s3EndpointUrl; // url to send EC2 requests to.
 
     /**
      * Upper bound on how many instances we may provision.
@@ -71,21 +81,15 @@ public class EC2Cloud extends Cloud {
 
     @DataBoundConstructor
     public EC2Cloud(String accessId, String secretKey, String privateKey,
-            String ec2HostName, String ec2UrlBase, String ec2Port,
-            String s3HostName, String s3UrlBase, String s3Port,
-            String instanceCapStr, boolean SSL, List<SlaveTemplate> templates) {
+            String ec2EndpointUrl,
+            String s3EndpointUrl,
+            String instanceCapStr, List<SlaveTemplate> templates) {
         super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
-        // converted just-in-time so we don't save aliases to the config file. see convert*HostName
-	this.ec2HostName = ec2HostName;
-        this.s3HostName = s3HostName;
-        this.ec2UrlBase = convertUrlBase(ec2UrlBase);
-        this.s3UrlBase = convertUrlBase(s3UrlBase);
-        this.ec2Port = convertPort(ec2Port);
-        this.s3Port = convertPort(s3Port);
-        this.SSL = SSL;
+        this.ec2EndpointUrl = safeParseURLDefault(ec2EndpointUrl, "https://us-east-1.ec2.amazonaws.com/");
+        this.s3EndpointUrl = safeParseURLDefault(s3EndpointUrl, "https://s3.amazonaws.com/");
         if(instanceCapStr.equals(""))
             this.instanceCap = Integer.MAX_VALUE;
         else
@@ -93,6 +97,24 @@ public class EC2Cloud extends Cloud {
         if(templates==null)     templates=Collections.emptyList();
         this.templates = templates;
         readResolve(); // set parents
+    }
+
+    private URL safeParseURLDefault(String endpointUrl, String defaultValue) {
+        if (endpointUrl == null || endpointUrl.length()==0)
+            endpointUrl = defaultValue;
+        URL ec2EndpointUrlinstance = null;
+        try {
+            ec2EndpointUrlinstance = new URL(endpointUrl);
+        } catch (MalformedURLException ex) {
+            try {
+                ec2EndpointUrlinstance = new URL(defaultValue);
+            } catch (MalformedURLException ex1) {
+                // Should never happen!
+                Logger.getLogger(EC2Cloud.class.getName()).log(Level.SEVERE, null, ex1);
+            }
+            Logger.getLogger(EC2Cloud.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return ec2EndpointUrlinstance;
     }
 
     private String convertUrlBase(String ec2UrlBase) {
@@ -120,32 +142,12 @@ public class EC2Cloud extends Cloud {
         return privateKey;
     }
 
-    public String getec2HostName() {
-        return ec2HostName;
+    public String getec2EndpointUrl() {
+        return ec2EndpointUrl.toString();
     }
 
-    public Integer getec2Port() {
-        return ec2Port;
-    }
-
-    public String getec2UrlBase() {
-        return ec2UrlBase;
-    }
-
-    public String gets3HostName() {
-        return s3HostName;
-    }
-
-    public Integer gets3Port() {
-        return s3Port;
-    }
-
-    public String gets3UrlBase() {
-        return s3UrlBase;
-    }
-
-    public boolean getSSL() {
-        return SSL;
+    public String gets3EndpointUrl() {
+        return s3EndpointUrl.toString();
     }
 
     public String getInstanceCapStr() {
@@ -295,30 +297,28 @@ public class EC2Cloud extends Cloud {
      * Connects to EC2 and returns {@link Jec2}, which can then be used to communicate with EC2.
      */
     public Jec2 connect() {
-        /* TODO: Permit port selection as well */
-        return connect(accessId, secretKey, ec2HostName, ec2Port, ec2UrlBase, SSL);
+        return connect(accessId, secretKey, ec2EndpointUrl);
     }
 
     /***
      * Connect to an EC2 instance.
      * @return Jec2
      */
-    public static Jec2 connect(String accessId, String secretKey,
-            String ec2HostName, Integer ec2Port, String ec2UrlBase, boolean SSL) {
-        return connect(accessId, Secret.fromString(secretKey), ec2HostName,
-                ec2Port, ec2UrlBase, SSL);
+    public static Jec2 connect(String accessId, String secretKey, URL endpoint) {
+        return connect(accessId, Secret.fromString(secretKey), endpoint);
     }
 
     /***
      * Connect to an EC2 instance.
      * @return Jec2
      */
-    public static Jec2 connect(String accessId, Secret secretKey,
-            String ec2HostName, Integer ec2Port, String ec2UrlBase, boolean SSL) {
-        if (ec2Port == -1)
-            ec2Port = SSL ? 443 : 80;
-        Jec2 result = new Jec2(accessId, secretKey.toString(), SSL, convertHostName(ec2HostName), ec2Port);
-        result.setResourcePrefix(ec2UrlBase);
+    public static Jec2 connect(String accessId, Secret secretKey, URL endpoint) {
+        int ec2Port = portFromURL(endpoint);
+        boolean SSL = SSLFromURL(endpoint);
+        Jec2 result = new Jec2(accessId, secretKey.toString(), SSL, endpoint.getHost(), ec2Port);
+        String path = endpoint.getPath();
+        if (path.length() != 0) /* '/' is the default, not '' */
+            result.setResourcePrefix(path);
         return result;
     }
 
@@ -360,14 +360,15 @@ public class EC2Cloud extends Cloud {
      */
     public S3Service connectS3() throws S3ServiceException {
         Jets3tProperties props = Jets3tProperties.getInstance(Constants.JETS3T_PROPERTIES_FILENAME);
-        final String s3Host = convertS3HostName(s3HostName);
+        final String s3Host = s3EndpointUrl.getHost();
         if (!s3Host.equals("s3.amazonaws.com"))
-            props.setProperty("s3service.s3-endpoint", s3HostName);
+            props.setProperty("s3service.s3-endpoint", s3Host);
+        Integer s3Port = portFromURL(s3EndpointUrl);
         if (s3Port != -1)
             props.setProperty("s3service.s3-endpoint-http-port", s3Port.toString());
-        if (!s3UrlBase.equals("/"))
-            props.setProperty("s3service.s3-endpoint-virtual-path", s3UrlBase);
-        props.setProperty("s3service.https-only", new Boolean(SSL).toString());
+        if (s3EndpointUrl.getPath().length() > 1)
+            props.setProperty("s3service.s3-endpoint-virtual-path", s3EndpointUrl.getPath());
+        props.setProperty("s3service.https-only", SSLFromURL(s3EndpointUrl).toString());
         if (!s3Host.endsWith(".amazonaws.com"))
             /* For eucalyptus as of 1.6.0 */
             props.setProperty("s3service.disable-dns-buckets", "true");
@@ -390,6 +391,18 @@ public class EC2Cloud extends Cloud {
                         ServiceUtils.signWithHmacSha1(secretKey.toString(),token),"UTF-8");
         return new URL(url);
     }
+
+    /* Parse a url or return a sensible error */
+    public static Object checkEndPoint(String ec2EndpointUrl) {
+        URL endpoint;
+        try {
+            return new URL(ec2EndpointUrl);
+        } catch (MalformedURLException ex) {
+            return FormValidation.error("Endpoint URL is not a valid URL");
+        }
+    }
+
+
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<Cloud> {
@@ -450,12 +463,13 @@ public class EC2Cloud extends Cloud {
         public FormValidation doTestConnection(
                                      @QueryParameter String accessId, @QueryParameter String secretKey,
                                      @QueryParameter String privateKey,
-                                     @QueryParameter String ec2HostName,
-                                     @QueryParameter String ec2Port,
-                                     @QueryParameter String ec2UrlBase,
-                                     @QueryParameter boolean SSL) throws IOException, ServletException {
+                                     @QueryParameter String ec2EndpointUrl) throws IOException, ServletException {
             try {
-                Jec2 jec2 = connect(accessId, secretKey, ec2HostName, convertPort(ec2Port), ec2UrlBase, SSL);
+                Object maybeEndpoint = checkEndPoint(ec2EndpointUrl);
+                if (FormValidation.class.isInstance(maybeEndpoint))
+                    return (FormValidation) maybeEndpoint;
+                URL endpoint = (URL) maybeEndpoint;
+                Jec2 jec2 = connect(accessId, secretKey, endpoint);
                 jec2.describeInstances(Collections.<String>emptyList());
 
                 if(accessId==null)
@@ -482,12 +496,13 @@ public class EC2Cloud extends Cloud {
         public FormValidation doGenerateKey(StaplerResponse rsp,
                                      @QueryParameter String accessId,
                                      @QueryParameter String secretKey,
-                                     @QueryParameter String ec2HostName,
-                                     @QueryParameter String ec2Port,
-                                     @QueryParameter String ec2UrlBase,
-                                     @QueryParameter boolean SSL) throws IOException, ServletException {
+                                     @QueryParameter String ec2EndpointUrl) throws IOException, ServletException {
             try {
-                Jec2 jec2 = connect(accessId, secretKey, ec2HostName, convertPort(ec2Port), ec2UrlBase, SSL);
+                Object maybeEndpoint = checkEndPoint(ec2EndpointUrl);
+                if (FormValidation.class.isInstance(maybeEndpoint))
+                    return (FormValidation) maybeEndpoint;
+                URL endpoint = (URL) maybeEndpoint;
+                Jec2 jec2 = connect(accessId, secretKey, endpoint);
                 List<KeyPairInfo> existingKeys = jec2.describeKeyPairs(Collections.<String>emptyList());
 
                 int n = 0;

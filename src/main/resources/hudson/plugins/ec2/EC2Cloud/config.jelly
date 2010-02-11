@@ -9,40 +9,25 @@
     <f:textarea />
   </f:entry>
   <f:advanced>
-    <f:entry title="${%EC2 Endpoint hostname}" field="ec2HostName">
-      <f:textbox />
+    <f:entry title="${%EC2 Endpoint}" field="ec2EndpointUrl">
+      <f:textbox default="https://us-east-1.ec2.amazonaws.com/" />
     </f:entry>
-    <f:entry title="${%EC2 Endpoint port}" field="ec2Port">
-      <f:textbox />
-    </f:entry>
-    <f:entry title="${%EC2 Endpoint base URL}" field="ec2UrlBase">
-      <f:textbox />
-    </f:entry>
-<f:entry title="${%S3 Endpoint hostname}" field="s3HostName">
-      <f:textbox />
-    </f:entry>
-    <f:entry title="${%S3 Endpoint port}" field="s3Port">
-      <f:textbox />
-    </f:entry>
-    <f:entry title="${%S3 Endpoint base URL}" field="s3UrlBase">
-      <f:textbox />
-    </f:entry>
-    <f:entry title="${%Use SSL}" field="SSL">
-      <f:checkbox default="true"/>
+    <f:entry title="${%S3 Endpoint}" field="s3EndpointUrl">
+      <f:textbox default="https://s3.amazonaws.com/" />
     </f:entry>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId,ec2HostName,ec2Port,ec2UrlBase,SSL" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey,ec2HostName,ec2Port,ec2UrlBase,SSL" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId,ec2EndpointUrl" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey,ec2EndpointUrl" />
     <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
     <f:repeatable field="templates">
       <table width="100%">
         <f:entry title="${%AMI ID}" field="ami">
           <f:textbox />
         </f:entry>
-        <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,ec2HostName,ec2Port,ec2UrlBase,SSL,ami" />
+        <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,ec2EndpointUrl,ami" />
         <f:entry title="${%Instance Type}" help="/plugin/ec2/help/instanceType.html">
           <f:enum field="type">${it.name()}</f:enum>
         </f:entry>
@@ -52,9 +37,6 @@
         <f:entry title="${%Remote FS root}" field="remoteFS">
           <f:textbox />
         </f:entry>
-        <!-- NB: the help for these local fields doesn't show.
-             including numExecutors which already existed and had a help file.
-             -->
         <f:entry title="${%Remote user}" field="remoteAdmin">
           <f:textbox />
         </f:entry>

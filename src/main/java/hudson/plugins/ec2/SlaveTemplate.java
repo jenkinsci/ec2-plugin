@@ -22,6 +22,7 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -175,12 +176,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         public FormValidation doValidateAmi(
                 @QueryParameter String accessId, @QueryParameter String secretKey,
-                @QueryParameter String ec2HostName,
-                @QueryParameter String ec2Port,
-                @QueryParameter String ec2UrlBase,
-                @QueryParameter boolean SSL,
+                @QueryParameter String ec2EndpointUrl,
                 final @QueryParameter String ami) throws IOException, ServletException {
-            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, ec2HostName, EC2Cloud.convertPort(ec2Port), ec2UrlBase, SSL);
+            Object maybeEndpoint = EC2Cloud.checkEndPoint(ec2EndpointUrl);
+            if (FormValidation.class.isInstance(maybeEndpoint))
+                return (FormValidation) maybeEndpoint;
+            URL endpoint = (URL) maybeEndpoint;
+            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, endpoint);
             if(jec2!=null) {
                 try {
                     List<String> images = new LinkedList<String>();
