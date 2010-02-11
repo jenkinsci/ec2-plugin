@@ -94,4 +94,15 @@ public class EC2Computer extends SlaveComputer {
         getNode().terminate();
         return new HttpRedirect("..");
     }
+
+    /** What username to use to run root-like commands
+     *
+     */
+    public String getRemoteAdmin() {
+        return getNode().getRemoteAdmin();
+    }
+
+    public String getRootCommandPrefix() {
+        return getNode().getRootCommandPrefix();
+    }
 }

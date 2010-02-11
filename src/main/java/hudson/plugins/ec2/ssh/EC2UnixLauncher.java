@@ -28,30 +28,35 @@ import java.net.URL;
  * @author Kohsuke Kawaguchi
  */
 public class EC2UnixLauncher extends EC2ComputerLauncher {
+
+    private final int FAILED=-1;
+    private final int SAMEUSER=0;
+    private final int RECONNECT=-2;
+
     protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, EC2Exception, InterruptedException, S3ServiceException {
         logger.println("Connecting to "+inst.getDnsName());
-        final Connection conn = connectToSsh(inst);
+        final Connection bootstrapConn;
+        final Connection conn;
+        Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
         boolean successful = false;
-
+        
         try {
-            int tries = 20;
-            boolean isAuthenticated = false;
-            KeyPairInfo key = EC2Cloud.get().getKeyPair();
-
-            while (tries-- > 0) {
-                isAuthenticated = conn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "");
-
-                if (isAuthenticated)
-                    break;
-
-                logger.println("Authentication failed. Trying again...");
-                Thread.currentThread().sleep(10000);
+            bootstrapConn = connectToSsh(inst);
+            int bootstrapResult = bootstrap(bootstrapConn, computer, logger);
+            if (bootstrapResult == FAILED)
+                return; // bootstrap closed for us.
+            else if (bootstrapResult == SAMEUSER)
+                cleanupConn = bootstrapConn; // take over the connection
+            else {
+                // connect fresh as ROOT
+                cleanupConn = connectToSsh(inst);
+                KeyPairInfo key = EC2Cloud.get().getKeyPair();
+                if (!cleanupConn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "")) {
+                    logger.println("Authentication failed");
+                    return; // failed to connect as root.
+                }
             }
-
-            if (!isAuthenticated) {
-                logger.println("Authentication failed");
-                return;
-            }
+            conn = cleanupConn;
 
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
@@ -61,7 +66,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 scp.put(initScript.getBytes("UTF-8"),"init.sh","/tmp","0700");
                 Session sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
-                sess.execCommand("/tmp/init.sh");
+                sess.execCommand(computer.getRootCommandPrefix() + "/tmp/init.sh");
 
                 sess.getStdin().close();    // nothing to write here
                 sess.getStderr().close();   // we are not supposed to get anything from stderr
@@ -121,8 +126,50 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             });
             successful = true;
         } finally {
-            if(!successful)
-                conn.close();
+            if(cleanupConn != null && !successful)
+                cleanupConn.close();
+        }
+    }
+
+    private int bootstrap(Connection bootstrapConn, EC2Computer computer, PrintStream logger) throws IOException, InterruptedException, EC2Exception {
+        boolean closeBootstrap = true;
+        try {
+            int tries = 20;
+            boolean isAuthenticated = false;
+            KeyPairInfo key = EC2Cloud.get().getKeyPair();
+            while (tries-- > 0) {
+                isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                if (isAuthenticated) {
+                    break;
+                }
+                logger.println("Authentication failed. Trying again...");
+                Thread.currentThread().sleep(10000);
+            }
+            if (!isAuthenticated) {
+                logger.println("Authentication failed");
+                return FAILED;
+            }
+            if (!computer.getRemoteAdmin().equals("root")) {
+                // Get root working, so we can scp in etc.
+                Session sess = bootstrapConn.openSession();
+                sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
+                sess.execCommand(computer.getRootCommandPrefix() + "cp ~/.ssh/authorized_keys /root/.ssh/");
+                sess.getStdin().close(); // nothing to write here
+                sess.getStderr().close(); // we are not supposed to get anything from stderr
+                IOUtils.copy(sess.getStdout(), logger);
+                int exitStatus = waitCompletion(sess);
+                if (exitStatus != 0) {
+                    logger.println("init script failed: exit code=" + exitStatus);
+                    return FAILED;
+                }
+                return RECONNECT;
+            } else {
+                closeBootstrap = false;
+                return SAMEUSER;
+            }
+        } finally {
+            if (closeBootstrap)
+                bootstrapConn.close();
         }
     }
 

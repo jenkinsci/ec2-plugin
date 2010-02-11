@@ -29,22 +29,26 @@ public final class EC2Slave extends Slave {
      * Comes from {@link SlaveTemplate#initScript}.
      */
     public final String initScript;
+    public final String remoteAdmin; // e.g. 'ubuntu'
+    public final String rootCommandPrefix; // e.g. 'sudo'
 
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String label, String initScript) throws FormException, IOException {
-        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, label, initScript, Collections.<NodeProperty<?>>emptyList());
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String label, String initScript, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
+        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, label, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix);
     }
 
     @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String label, String initScript, List<? extends NodeProperty<?>> nodeProperties) throws FormException, IOException {
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String label, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
         super(instanceId, description, remoteFS, numExecutors, mode, label, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
+        this.remoteAdmin = remoteAdmin;
+        this.rootCommandPrefix = rootCommandPrefix;
     }
 
     /**
      * Constructor for debugging.
      */
     public EC2Slave(String instanceId) throws FormException, IOException {
-        this(instanceId,"debug","/tmp/hudson",1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList());
+        this(instanceId,"debug","/tmp/hudson",1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null);
     }
 
     /**
@@ -87,6 +91,18 @@ public final class EC2Slave extends Slave {
         } catch (IOException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
         }
+    }
+
+    String getRemoteAdmin() {
+        if (remoteAdmin == null || remoteAdmin.length() == 0)
+            return "root";
+        return remoteAdmin;
+    }
+
+    String getRootCommandPrefix() {
+        if (rootCommandPrefix == null || rootCommandPrefix.length() == 0)
+            return "";
+        return rootCommandPrefix + " ";
     }
 
     @Extension

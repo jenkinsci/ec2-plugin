@@ -62,6 +62,14 @@ THE SOFTWARE.
 
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
+        <f:entry title="${%Remote user}" field="remoteAdmin">
+          <f:textbox />
+        </f:entry>
+        
+        <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
+          <f:textbox />
+        </f:entry>
+
         <f:block>
           <f:submit value="${%Save}"/>
         </f:block>

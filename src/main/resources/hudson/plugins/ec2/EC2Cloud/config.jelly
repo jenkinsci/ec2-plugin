@@ -8,22 +8,41 @@
   <f:entry title="${%EC2 RSA Private Key}" field="privateKey">
     <f:textarea />
   </f:entry>
-  <f:entry title="${%Host name}" field="hostName">
-    <f:textbox />
-  </f:entry>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId,hostName" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey,hostName" />
   <f:advanced>
+    <f:entry title="${%EC2 Endpoint hostname}" field="ec2HostName">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%EC2 Endpoint port}" field="ec2Port">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%EC2 Endpoint base URL}" field="ec2UrlBase">
+      <f:textbox />
+    </f:entry>
+<f:entry title="${%S3 Endpoint hostname}" field="s3HostName">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%S3 Endpoint port}" field="s3Port">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%S3 Endpoint base URL}" field="s3UrlBase">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Use SSL}" field="SSL">
+      <f:checkbox default="true"/>
+    </f:entry>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId,ec2HostName,ec2Port,ec2UrlBase,SSL" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey,ec2HostName,ec2Port,ec2UrlBase,SSL" />
+    <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
     <f:repeatable field="templates">
       <table width="100%">
         <f:entry title="${%AMI ID}" field="ami">
           <f:textbox />
         </f:entry>
+        <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,ec2HostName,ec2Port,ec2UrlBase,SSL,ami" />
         <f:entry title="${%Instance Type}" help="/plugin/ec2/help/instanceType.html">
           <f:enum field="type">${it.name()}</f:enum>
         </f:entry>
@@ -31,6 +50,15 @@
           <f:textbox />
         </f:entry>
         <f:entry title="${%Remote FS root}" help="/help/system-config/master-slave/remoteFS.html" field="remoteFS">
+          <f:textbox />
+        </f:entry>
+        <!-- NB: the help for these local fields doesn't show.
+             including numExecutors which already existed and had a help file.
+             -->
+        <f:entry title="${%Remote user}" field="remoteAdmin">
+          <f:textbox />
+        </f:entry>
+        <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
           <f:textbox />
         </f:entry>
         <f:entry title="${%Labels}" help="/help/system-config/master-slave/label.html" field="labels">

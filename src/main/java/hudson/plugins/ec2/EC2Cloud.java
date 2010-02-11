@@ -17,6 +17,7 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import org.jets3t.service.Constants;
 import org.jets3t.service.S3Service;
 import org.jets3t.service.S3ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
@@ -40,6 +41,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Logger;
+import org.apache.commons.httpclient.HostConfiguration;
+import org.jets3t.service.Jets3tProperties;
 import static java.util.logging.Level.WARNING;
 
 /**
@@ -51,7 +54,13 @@ public class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
-    private final String hostName;
+    private final String ec2HostName; // host to send EC2 requests to
+    private final Integer ec2Port; // port number to send EC2 requests to (-1 for auto)
+    private final String ec2UrlBase; // if API requests are not rooted at /
+    private final String s3HostName; // host to send S3 requests to
+    private final Integer s3Port; // port number to send S3 requests to (-1 for auto)
+    private final String s3UrlBase; // if API requests are not rooted at /
+    private final boolean SSL; // use ssl to talk to API's.
 
     /**
      * Upper bound on how many instances we may provision.
@@ -61,12 +70,22 @@ public class EC2Cloud extends Cloud {
     private transient KeyPairInfo usableKeyPair;
 
     @DataBoundConstructor
-    public EC2Cloud(String accessId, String secretKey, String privateKey, String hostName, String instanceCapStr, List<SlaveTemplate> templates) {
+    public EC2Cloud(String accessId, String secretKey, String privateKey,
+            String ec2HostName, String ec2UrlBase, String ec2Port,
+            String s3HostName, String s3UrlBase, String s3Port,
+            String instanceCapStr, boolean SSL, List<SlaveTemplate> templates) {
         super("ec2");
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
-	this.hostName = hostName;
+        // converted just-in-time so we don't save aliases to the config file. see convert*HostName
+	this.ec2HostName = ec2HostName;
+        this.s3HostName = s3HostName;
+        this.ec2UrlBase = convertUrlBase(ec2UrlBase);
+        this.s3UrlBase = convertUrlBase(s3UrlBase);
+        this.ec2Port = convertPort(ec2Port);
+        this.s3Port = convertPort(s3Port);
+        this.SSL = SSL;
         if(instanceCapStr.equals(""))
             this.instanceCap = Integer.MAX_VALUE;
         else
@@ -74,6 +93,13 @@ public class EC2Cloud extends Cloud {
         if(templates==null)     templates=Collections.emptyList();
         this.templates = templates;
         readResolve(); // set parents
+    }
+
+    private String convertUrlBase(String ec2UrlBase) {
+        if (ec2UrlBase == null || ec2UrlBase.length() == 0)
+            return "/";
+        else
+            return ec2UrlBase;
     }
 
     protected Object readResolve() {
@@ -94,8 +120,32 @@ public class EC2Cloud extends Cloud {
         return privateKey;
     }
 
-    public String getHostName() {
-        return hostName;
+    public String getec2HostName() {
+        return ec2HostName;
+    }
+
+    public Integer getec2Port() {
+        return ec2Port;
+    }
+
+    public String getec2UrlBase() {
+        return ec2UrlBase;
+    }
+
+    public String gets3HostName() {
+        return s3HostName;
+    }
+
+    public Integer gets3Port() {
+        return s3Port;
+    }
+
+    public String gets3UrlBase() {
+        return s3UrlBase;
+    }
+
+    public boolean getSSL() {
+        return SSL;
     }
 
     public String getInstanceCapStr() {
@@ -194,6 +244,7 @@ public class EC2Cloud extends Cloud {
 
     public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
+
             final SlaveTemplate t = getTemplate(label);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
@@ -245,42 +296,83 @@ public class EC2Cloud extends Cloud {
      */
     public Jec2 connect() {
         /* TODO: Permit port selection as well */
-        return connect(accessId, secretKey, hostName);
+        return connect(accessId, secretKey, ec2HostName, ec2Port, ec2UrlBase, SSL);
     }
 
     /***
      * Connect to an EC2 instance.
      * @return Jec2
      */
-    public static Jec2 connect(String accessId, String secretKey, String hostName) {
-        return connect(accessId, Secret.fromString(secretKey), hostName);
+    public static Jec2 connect(String accessId, String secretKey,
+            String ec2HostName, Integer ec2Port, String ec2UrlBase, boolean SSL) {
+        return connect(accessId, Secret.fromString(secretKey), ec2HostName,
+                ec2Port, ec2UrlBase, SSL);
     }
 
     /***
      * Connect to an EC2 instance.
      * @return Jec2
      */
-    public static Jec2 connect(String accessId, Secret secretKey, String hostName) {
-        return new Jec2(accessId, secretKey.toString(), true, convertHostName(hostName));
+    public static Jec2 connect(String accessId, Secret secretKey,
+            String ec2HostName, Integer ec2Port, String ec2UrlBase, boolean SSL) {
+        if (ec2Port == -1)
+            ec2Port = SSL ? 443 : 80;
+        Jec2 result = new Jec2(accessId, secretKey.toString(), SSL, convertHostName(ec2HostName), ec2Port);
+        result.setResourcePrefix(ec2UrlBase);
+        return result;
     }
 
     /***
-     *
+     * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
-    public static String convertHostName(String hostName) {
-        if (hostName == null || hostName.length()==0)
-            hostName = "us-east-1";
-        if (!hostName.contains("."))
-            hostName = hostName + ".ec2.amazonaws.com";
-	return hostName;
+    public static String convertHostName(String ec2HostName) {
+        if (ec2HostName == null || ec2HostName.length()==0)
+            ec2HostName = "us-east-1";
+        if (!ec2HostName.contains("."))
+            ec2HostName = ec2HostName + ".ec2.amazonaws.com";
+	return ec2HostName;
+    }
+
+    /***
+     * Convert a configured s3 endpoint to a FQDN or ip address
+     */
+    public static String convertS3HostName(String s3HostName) {
+        if (s3HostName == null || s3HostName.length()==0)
+            s3HostName = "s3";
+        if (!s3HostName.contains("."))
+            s3HostName = s3HostName + ".amazonaws.com";
+	return s3HostName;
+    }
+
+    /***
+     * Convert a user entered string into a port number
+     * "" -> -1 to indicate default based on SSL setting
+     */
+    public static Integer convertPort(String ec2Port) {
+        if (ec2Port == null || ec2Port.length() == 0)
+            return -1;
+        else
+            return Integer.parseInt(ec2Port);
     }
 
     /**
      * Connects to S3 and returns {@link S3Service}.
      */
     public S3Service connectS3() throws S3ServiceException {
-        /* XXX: TODO: Connect to the S3 for the endpoint. */
-        return new RestS3Service(new AWSCredentials(accessId,secretKey.toString()));
+        Jets3tProperties props = Jets3tProperties.getInstance(Constants.JETS3T_PROPERTIES_FILENAME);
+        final String s3Host = convertS3HostName(s3HostName);
+        if (!s3Host.equals("s3.amazonaws.com"))
+            props.setProperty("s3service.s3-endpoint", s3HostName);
+        if (s3Port != -1)
+            props.setProperty("s3service.s3-endpoint-http-port", s3Port.toString());
+        if (!s3UrlBase.equals("/"))
+            props.setProperty("s3service.s3-endpoint-virtual-path", s3UrlBase);
+        props.setProperty("s3service.https-only", new Boolean(SSL).toString());
+        if (!s3Host.endsWith(".amazonaws.com"))
+            /* For eucalyptus as of 1.6.0 */
+            props.setProperty("s3service.disable-dns-buckets", "true");
+        return new RestS3Service(new AWSCredentials(accessId,secretKey.toString()),
+            null, null, props);
     }
 
     /**
@@ -358,9 +450,12 @@ public class EC2Cloud extends Cloud {
         public FormValidation doTestConnection(
                                      @QueryParameter String accessId, @QueryParameter String secretKey,
                                      @QueryParameter String privateKey,
-                                     @QueryParameter String hostName) throws IOException, ServletException {
+                                     @QueryParameter String ec2HostName,
+                                     @QueryParameter String ec2Port,
+                                     @QueryParameter String ec2UrlBase,
+                                     @QueryParameter boolean SSL) throws IOException, ServletException {
             try {
-                Jec2 jec2 = connect(accessId, secretKey, hostName);
+                Jec2 jec2 = connect(accessId, secretKey, ec2HostName, convertPort(ec2Port), ec2UrlBase, SSL);
                 jec2.describeInstances(Collections.<String>emptyList());
 
                 if(accessId==null)
@@ -387,9 +482,12 @@ public class EC2Cloud extends Cloud {
         public FormValidation doGenerateKey(StaplerResponse rsp,
                                      @QueryParameter String accessId,
                                      @QueryParameter String secretKey,
-                                     @QueryParameter String hostName) throws IOException, ServletException {
+                                     @QueryParameter String ec2HostName,
+                                     @QueryParameter String ec2Port,
+                                     @QueryParameter String ec2UrlBase,
+                                     @QueryParameter boolean SSL) throws IOException, ServletException {
             try {
-                Jec2 jec2 = connect(accessId, secretKey, hostName);
+                Jec2 jec2 = connect(accessId, secretKey, ec2HostName, convertPort(ec2Port), ec2UrlBase, SSL);
                 List<KeyPairInfo> existingKeys = jec2.describeKeyPairs(Collections.<String>emptyList());
 
                 int n = 0;

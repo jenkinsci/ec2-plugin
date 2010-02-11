@@ -23,6 +23,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -40,12 +41,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String initScript;
     public final String userData;
     public final String numExecutors;
+    public final String remoteAdmin;
+    public final String rootCommandPrefix;
     protected transient EC2Cloud parent;
 
     private transient /*almost final*/ Set<Label> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript, String userData, String numExecutors) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
@@ -54,6 +57,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.initScript = initScript;
         this.userData = userData;
         this.numExecutors = Util.fixNull(numExecutors).trim();
+        this.remoteAdmin = remoteAdmin;
+        this.rootCommandPrefix = rootCommandPrefix;
         readResolve(); // initialize
     }
     
@@ -73,6 +78,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    public String getRemoteAdmin() {
+        return remoteAdmin;
+    }
+
+    public String getRootCommandPrefix() {
+        return rootCommandPrefix;
+    }
+    
     /**
      * Does this contain the given label?
      *
@@ -98,11 +111,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if(keyPair==null)
                 throw new EC2Exception("No matching keypair found on EC2. Is the EC2 private key a valid one?");
             Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), userData, keyPair.getKeyName(), type).getInstances().get(0);
-
-            return new EC2Slave(inst.getInstanceId(),description,remoteFS, getNumExecutors(),labels,initScript);
+            return newSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
+    }
+
+    private EC2Slave newSlave(Instance inst) throws FormException, IOException {
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix);
     }
 
     /**
@@ -116,8 +132,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             logger.println("Attaching to "+instanceId);
             Instance inst = ec2.describeInstances(Collections.singletonList(instanceId)).get(0).getInstances().get(0);
-
-            return new EC2Slave(inst.getInstanceId(),description,remoteFS, getNumExecutors(),labels,initScript);
+            return newSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
@@ -141,15 +156,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return null;
         }
 
-        public FormValidation doCheckAmi(final @QueryParameter String value) throws IOException, ServletException {
-            EC2Cloud cloud = EC2Cloud.get();
-            if(cloud!=null) {
+        /***
+         * Check that the AMI requested is available in the cloud and can be used.
+         */
+        public FormValidation doValidateAmi(
+                @QueryParameter String accessId, @QueryParameter String secretKey,
+                @QueryParameter String ec2HostName,
+                @QueryParameter String ec2Port,
+                @QueryParameter String ec2UrlBase,
+                @QueryParameter boolean SSL,
+                final @QueryParameter String ami) throws IOException, ServletException {
+            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, ec2HostName, EC2Cloud.convertPort(ec2Port), ec2UrlBase, SSL);
+            if(jec2!=null) {
                 try {
-                    List<ImageDescription> img = cloud.connect().describeImages(new String[]{value});
+                    List<String> images = new LinkedList<String>();
+                    images.add(ami);
+                    List<String> owners = new LinkedList<String>();
+                    List<String> users = new LinkedList<String>();
+                    users.add("self"); // if we can't run it its not useful.
+                    List<ImageDescription> img = jec2.describeImages(
+                            images, owners, users, null);
                     if(img==null || img.isEmpty())
                         // de-registered AMI causes an empty list to be returned. so be defensive
                         // against other possibilityies
-                        return FormValidation.error("No such AMI: "+value);
+                        return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
                     return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
                 } catch (EC2Exception e) {
                     return FormValidation.error(e.getMessage());
