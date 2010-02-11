@@ -48,11 +48,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private transient /*almost final*/ Set<Label> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labels, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
-        this.labels = Util.fixNull(labels);
+        this.labels = Util.fixNull(labelString);
         this.description = description;
         this.initScript = initScript;
         this.userData = userData;
@@ -64,6 +64,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     
     public EC2Cloud getParent() {
         return parent;
+    }
+
+    public String getLabelString() {
+        return labels;
     }
 
     public String getDisplayName() {
@@ -154,6 +158,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
         public String getDisplayName() {
             return null;
+        }
+
+        /**
+         * Since this shares much of the configuration with {@link EC2Computer}, check its help page, too.
+         */
+        @Override
+        public String getHelpFile(String fieldName) {
+            String p = super.getHelpFile(fieldName);
+            if (p==null)        p = Hudson.getInstance().getDescriptor(EC2Slave.class).getHelpFile(fieldName);
+            return p;
         }
 
         /***

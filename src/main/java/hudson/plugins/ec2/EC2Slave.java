@@ -32,13 +32,13 @@ public final class EC2Slave extends Slave {
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
 
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String label, String initScript, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
-        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, label, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix);
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
+        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix);
     }
 
     @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String label, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
-        super(instanceId, description, remoteFS, numExecutors, mode, label, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
+        super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
