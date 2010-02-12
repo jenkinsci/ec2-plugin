@@ -7,27 +7,6 @@
     <version>1.345</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
-  <!-- needs 1.347 -->
-  <dependency>
-    <groupId>org.jvnet.hudson.main</groupId>
-    <artifactId>hudson-war</artifactId>
-    <type>war</type>
-    <version>1.347-SNAPSHOT</version>
-    <scope>test</scope>
-  </dependency>
-  <dependency>
-    <groupId>org.jvnet.hudson.main</groupId>
-    <artifactId>hudson-core</artifactId>
-    <version>1.347-SNAPSHOT</version>
-    <scope>provided</scope>
-  </dependency>
-  <dependency>
-    <groupId>org.jvnet.hudson.main</groupId>
-    <artifactId>hudson-test-harness</artifactId>
-    <version>1.347-SNAPSHOT</version>
-    <scope>test</scope>
-  </dependency>
-  <!-- end 1.347 -->
   
   <artifactId>ec2</artifactId>
   <version>1.6-SNAPSHOT</version>
@@ -36,6 +15,32 @@
   <url>http://wiki.hudson-ci.org/display/HUDSON/Amazon+EC2+Plugin</url>
 
   <dependencies>
+  <!-- needs 1.346 -->
+  <dependency>
+    <groupId>org.jvnet.hudson.main</groupId>
+    <artifactId>maven-plugin</artifactId>
+    <version>1.346-SNAPSHOT</version>
+  </dependency>
+  <dependency>
+    <groupId>org.jvnet.hudson.main</groupId>
+    <artifactId>hudson-war</artifactId>
+    <type>war</type>
+    <version>1.346-SNAPSHOT</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.jvnet.hudson.main</groupId>
+    <artifactId>hudson-core</artifactId>
+    <version>1.346-SNAPSHOT</version>
+    <scope>provided</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.jvnet.hudson.main</groupId>
+    <artifactId>hudson-test-harness</artifactId>
+    <version>1.346-SNAPSHOT</version>
+    <scope>test</scope>
+  </dependency>
+  <!-- end 1.347 -->
     <dependency>
       <groupId>net.java.dev.jets3t</groupId>
       <artifactId>jets3t</artifactId>
