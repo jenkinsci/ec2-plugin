@@ -81,8 +81,8 @@ public final class EC2Slave extends Slave {
      * Terminates the instance in EC2.
      */
     public void terminate() {
-        Jec2 ec2 = EC2Cloud.get().connect();
         try {
+            Jec2 ec2 = EC2Cloud.get().connect();
             ec2.terminateInstances(Collections.singletonList(getInstanceId()));
             LOGGER.info("Terminated EC2 instance: "+getInstanceId());
             Hudson.getInstance().removeNode(this);

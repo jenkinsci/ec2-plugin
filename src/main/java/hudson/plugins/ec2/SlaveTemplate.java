@@ -22,7 +22,6 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -178,11 +177,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 @QueryParameter String accessId, @QueryParameter String secretKey,
                 @QueryParameter String ec2EndpointUrl,
                 final @QueryParameter String ami) throws IOException, ServletException {
-            Object maybeEndpoint = EC2Cloud.checkEndPoint(ec2EndpointUrl);
-            if (FormValidation.class.isInstance(maybeEndpoint))
-                return (FormValidation) maybeEndpoint;
-            URL endpoint = (URL) maybeEndpoint;
-            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, endpoint);
+            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, EC2Cloud.checkEndPoint(ec2EndpointUrl));
             if(jec2!=null) {
                 try {
                     List<String> images = new LinkedList<String>();
@@ -194,7 +189,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             images, owners, users, null);
                     if(img==null || img.isEmpty())
                         // de-registered AMI causes an empty list to be returned. so be defensive
-                        // against other possibilityies
+                        // against other possibilities
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
                     return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
                 } catch (EC2Exception e) {

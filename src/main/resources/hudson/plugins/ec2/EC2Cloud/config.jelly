@@ -1,27 +1,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <f:entry title="${%Access Key ID}" field="accessId">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="${%Secret Access Key}" field="secretKey">
-    <f:password />
-  </f:entry>
-  <f:entry title="${%EC2 RSA Private Key}" field="privateKey">
-    <f:textarea />
-  </f:entry>
-  <f:advanced>
-    <f:entry title="${%EC2 Endpoint}" field="ec2EndpointUrl">
-      <f:textbox default="https://us-east-1.ec2.amazonaws.com/" />
-    </f:entry>
-    <f:entry title="${%S3 Endpoint}" field="s3EndpointUrl">
-      <f:textbox default="https://s3.amazonaws.com/" />
-    </f:entry>
-    <f:entry title="${%Instance Cap}" field="instanceCapStr">
-      <f:textbox />
-    </f:entry>
-  </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId,ec2EndpointUrl" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey,ec2EndpointUrl" />
-    <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
+  <st:include class="${descriptor.clazz}" page="config-entries.jelly" />
+
+  <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as slaves}">
     <f:repeatable field="templates">
       <table width="100%">
         <f:entry title="${%AMI ID}" field="ami">

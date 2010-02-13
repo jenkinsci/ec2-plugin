@@ -1,0 +1,21 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <f:entry title="${%Eucalyptus URL}" field="url">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Query ID}" field="accessId">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Secret Key}" field="secretKey">
+    <f:password />
+  </f:entry>
+  <f:entry title="${%EC2 RSA Private Key}" field="privateKey">
+    <f:textarea />
+  </f:entry>
+  <f:advanced>
+    <f:entry title="${%Instance Cap}" field="instanceCapStr">
+      <f:textbox />
+    </f:entry>
+  </f:advanced>
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="url,secretKey,accessId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="url,secretKey,accessId,privateKey" />
+</j:jelly>
