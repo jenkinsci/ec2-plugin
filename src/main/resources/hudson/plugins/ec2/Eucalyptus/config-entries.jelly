@@ -2,7 +2,7 @@
   <f:entry title="${%Eucalyptus URL}" field="url">
     <f:textbox />
   </f:entry>
-  <f:entry title="${%Query ID}" field="accessId">
+  <f:entry title="${%Access ID}" field="accessId">
     <f:textbox />
   </f:entry>
   <f:entry title="${%Secret Key}" field="secretKey">
