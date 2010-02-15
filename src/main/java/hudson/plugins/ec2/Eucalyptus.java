@@ -43,7 +43,6 @@ public class Eucalyptus extends EC2Cloud {
     public Eucalyptus(URL url, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) throws IOException {
         super("eucalyptus", accessId, secretKey, privateKey, instanceCapStr, templates);
         this.url = url;
-        this.metadata = new Metadata(url);
     }
 
     private Metadata getMetadata() throws IOException {
