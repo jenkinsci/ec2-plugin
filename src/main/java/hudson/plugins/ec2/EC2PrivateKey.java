@@ -76,6 +76,16 @@ final class EC2PrivateKey {
     }
 
     @Override
+    public int hashCode() {
+        return privateKey.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+        return that instanceof EC2PrivateKey && this.privateKey.equals(((EC2PrivateKey)that).privateKey);
+    }
+
+    @Override
     public String toString() {
         return privateKey.toString();
     }
