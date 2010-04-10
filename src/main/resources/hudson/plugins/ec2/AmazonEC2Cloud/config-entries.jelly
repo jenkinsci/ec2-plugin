@@ -17,5 +17,5 @@
     </f:entry>
   </f:advanced>
   <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="secretKey,accessId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="secretKey,accessId,privateKey" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,secretKey,accessId,privateKey" />
 </j:jelly>

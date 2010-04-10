@@ -1,6 +1,10 @@
 package hudson.plugins.ec2;
 
 import org.jvnet.localizer.Localizable;
+import org.kohsuke.stapler.Stapler;
+
+import hudson.model.Node.Mode;
+import hudson.util.EnumConverter;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -37,5 +41,9 @@ public enum AwsRegion {
     @Override
     public String toString() {
         return displayName.toString();
+    }
+    
+    static {
+        Stapler.CONVERT_UTILS.register(new EnumConverter(), AwsRegion.class);
     }
 }
