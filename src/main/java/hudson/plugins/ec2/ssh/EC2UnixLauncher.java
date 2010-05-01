@@ -117,7 +117,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             logger.println("Launching slave agent");
             final Session sess = conn.openSession();
-            sess.execCommand("java -jar /tmp/slave.jar");
+            sess.execCommand("java " + computer.getNode().jvmopts + " -jar /tmp/slave.jar");
             computer.setChannel(sess.getStdout(),sess.getStdin(),logger,new Listener() {
                 public void onClosed(Channel channel, IOException cause) {
                     sess.close();

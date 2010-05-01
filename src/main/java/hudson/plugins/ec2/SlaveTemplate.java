@@ -43,12 +43,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String numExecutors;
     public final String remoteAdmin;
     public final String rootCommandPrefix;
+    public final String jvmopts;
     protected transient EC2Cloud parent;
 
     private transient /*almost final*/ Set<Label> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix) {
+    public SlaveTemplate(String ami, String remoteFS, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.type = type;
@@ -59,6 +60,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
+        this.jvmopts = jvmopts;
         readResolve(); // initialize
     }
     
@@ -122,7 +124,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts);
     }
 
     /**

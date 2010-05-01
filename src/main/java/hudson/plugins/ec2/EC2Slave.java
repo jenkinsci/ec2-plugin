@@ -10,6 +10,7 @@ import hudson.model.Slave;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.Extension;
+import hudson.Util;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -31,24 +32,26 @@ public final class EC2Slave extends Slave {
     public final String initScript;
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
+    public final String jvmopts; //e.g. -Xmx1g
 
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
-        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix);
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
+        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
     }
 
     @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix) throws FormException, IOException {
+    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
         super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
+        this.jvmopts = jvmopts;
     }
 
     /**
      * Constructor for debugging.
      */
     public EC2Slave(String instanceId) throws FormException, IOException {
-        this(instanceId,"debug","/tmp/hudson",1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null);
+        this(instanceId,"debug","/tmp/hudson",1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null);
     }
 
     /**
@@ -103,6 +106,10 @@ public final class EC2Slave extends Slave {
         if (rootCommandPrefix == null || rootCommandPrefix.length() == 0)
             return "";
         return rootCommandPrefix + " ";
+    }
+
+    String getJvmopts() {
+        return Util.fixNull(jvmopts);
     }
 
     @Extension
