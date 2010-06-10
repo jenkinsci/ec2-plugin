@@ -4,15 +4,21 @@
       <td />
       <td colspan="${monitors.size()+1}">
         <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
-          <input type="submit" id="ec2btn" value="${%Provision via EC2}" />
-          <select id="ec2options" name="ami">
+          <input type="submit" class="ec2-provision-button" value="${%Provision via EC2}" />
+          <select name="ami">
             <j:forEach var="t" items="${it.templates}">
               <option value="${t.ami}">${t.displayName}</option>
             </j:forEach>
           </select>
-          <script>
-            new YAHOO.widget.Button("ec2btn", { type: "menu", menu: "ec2options" });
-          </script>
+          <st:once>
+            <script>
+              Behaviour.register({
+                ".ec2-provision-button" : function (e) {
+                  new YAHOO.widget.Button(e, { type: "menu", menu: e.nextSibling });
+                }
+              });
+            </script>
+          </st:once>
         </f:form>
       </td>
     </tr>
