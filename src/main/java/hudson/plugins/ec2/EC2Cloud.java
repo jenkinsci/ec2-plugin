@@ -482,9 +482,4 @@ public abstract class EC2Cloud extends Cloud {
         }
         return ec2Port;
     }
-
-    static {
-        // backward compatibility. EC2Cloud used to be a concrete class that represents AmazonEC2Cloud
-        Hudson.XSTREAM.alias(EC2Cloud.class.getName(),AmazonEC2Cloud.class);
-    }
 }
