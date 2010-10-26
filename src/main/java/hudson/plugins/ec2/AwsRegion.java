@@ -18,7 +18,8 @@ import java.util.Locale;
 public enum AwsRegion {
     US_EAST_1(Messages._AwsRegion_UsEast()),
     US_WEST_1(Messages._AwsRegion_UsWest()),
-    EU_WEST_1(Messages._AwsRegion_EuWest());
+    EU_WEST_1(Messages._AwsRegion_EuWest()),
+    AP_SOUTHEAST_1(Messages._AwsRegion_ApSouthEast());
 
     public final URL ec2Endpoint,s3Endpoint;
 
