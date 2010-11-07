@@ -43,6 +43,15 @@
       <version>1.6</version>
     </dependency>
   </dependencies>
+
+  <developers>
+    <developer>
+      <id>kohsuke</id>
+      <name>Kohsuke Kawaguchi</name>
+      <email>kohsuke@infradna.com</email>
+    </developer>
+  </developers>
+
 </project>
 
 
