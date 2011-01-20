@@ -33,7 +33,11 @@ public final class EC2Slave extends Slave {
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
     public final String jvmopts; //e.g. -Xmx1g
-    public final int sshPort;
+
+    /**
+     * For data read from old Hudson, this is 0, so we use that to indicate 22.
+     */
+    private final int sshPort;
 
     public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
         this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
@@ -115,7 +119,7 @@ public final class EC2Slave extends Slave {
     }
 
     public int getSshPort() {
-        return sshPort;
+        return sshPort!=0 ? sshPort : 22;
     }
 
     @Extension
