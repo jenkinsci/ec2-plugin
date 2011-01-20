@@ -14,6 +14,29 @@
   <name>Hudson Amazon EC2 plugin</name>
   <url>http://wiki.hudson-ci.org/display/HUDSON/Amazon+EC2+Plugin</url>
 
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-release-plugin</artifactId>
+        <configuration>
+          <goals>deploy</goals>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <scm>
+    <connection       >scm:git:git://github.com/hudson/ec2-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:hudson/ec2-plugin.git</developerConnection>
+  </scm>
+
+  <distributionManagement>
+    <repository>
+      <id>java.net-m2-repository</id>
+      <url>http://maven.hudson-labs.org:8081/content/repositories/releases/</url>
+    </repository>
+  </distributionManagement>
+    
   <dependencies>
     <dependency>
       <groupId>net.java.dev.jets3t</groupId>
