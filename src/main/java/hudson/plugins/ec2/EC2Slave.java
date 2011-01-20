@@ -34,24 +34,30 @@ public final class EC2Slave extends Slave {
     public final String rootCommandPrefix; // e.g. 'sudo'
     public final String jvmopts; //e.g. -Xmx1g
 
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
-        this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
+    /**
+     * For data read from old Hudson, this is 0, so we use that to indicate 22.
+     */
+    private final int sshPort;
+
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
+        this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
     }
 
     @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
         super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
+        this.sshPort = sshPort;
     }
 
     /**
      * Constructor for debugging.
      */
     public EC2Slave(String instanceId) throws FormException, IOException {
-        this(instanceId,"debug","/tmp/hudson",1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null);
+        this(instanceId,"debug","/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null);
     }
 
     /**
@@ -110,6 +116,10 @@ public final class EC2Slave extends Slave {
 
     String getJvmopts() {
         return Util.fixNull(jvmopts);
+    }
+
+    public int getSshPort() {
+        return sshPort!=0 ? sshPort : 22;
     }
 
     @Extension

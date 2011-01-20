@@ -102,6 +102,10 @@ public class EC2Computer extends SlaveComputer {
         return getNode().getRemoteAdmin();
     }
 
+    public int getSshPort() {
+         return getNode().getSshPort();
+     }
+
     public String getRootCommandPrefix() {
         return getNode().getRootCommandPrefix();
     }

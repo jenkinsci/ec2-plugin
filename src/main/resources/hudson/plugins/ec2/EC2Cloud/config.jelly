@@ -28,7 +28,7 @@
         </f:entry>
         <f:advanced>
           <f:entry title="${%User Data}" field="userData">
-            <f:textbox />
+            <f:textarea />
           </f:entry>
           <f:entry title="${%Number of Executors}" field="numExecutors">
             <f:textbox />
@@ -38,6 +38,9 @@
           </f:entry>
           <f:entry title="${%JVM Options}" field="jvmopts">
             <f:textbox/>
+          </f:entry>
+          <f:entry title="${%Remote ssh port}" field="sshPort">
+            <f:textbox />
           </f:entry>
         </f:advanced>
 

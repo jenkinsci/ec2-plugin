@@ -34,14 +34,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private final int RECONNECT=-2;
 
     protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, EC2Exception, InterruptedException, S3ServiceException {
-        logger.println("Connecting to "+inst.getDnsName());
+        logger.println("Connecting to "+inst.getDnsName() + " on port " + computer.getSshPort());
         final Connection bootstrapConn;
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
         boolean successful = false;
         
         try {
-            bootstrapConn = connectToSsh(inst);
+            bootstrapConn = connectToSsh(inst, computer.getSshPort(), logger);
             int bootstrapResult = bootstrap(bootstrapConn, computer, logger);
             if (bootstrapResult == FAILED)
                 return; // bootstrap closed for us.
@@ -49,7 +49,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 cleanupConn = bootstrapConn; // take over the connection
             else {
                 // connect fresh as ROOT
-                cleanupConn = connectToSsh(inst);
+                cleanupConn = connectToSsh(inst, computer.getSshPort(), logger);
                 KeyPairInfo key = EC2Cloud.get().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "")) {
                     logger.println("Authentication failed");
@@ -138,6 +138,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             boolean isAuthenticated = false;
             KeyPairInfo key = EC2Cloud.get().getKeyPair();
             while (tries-- > 0) {
+                logger.println("Authenticating as " + computer.getRemoteAdmin());
                 isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
                 if (isAuthenticated) {
                     break;
@@ -173,10 +174,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private Connection connectToSsh(Instance inst) throws InterruptedException {
+    private Connection connectToSsh(Instance inst, int sshPort, PrintStream logger) throws InterruptedException {
         while(true) {
             try {
-                Connection conn = new Connection(inst.getDnsName(),22);
+                Connection conn = new Connection(inst.getDnsName(),sshPort);
                 // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
                 // hoping that no man-in-the-middle attack is going on.
                 conn.connect(new ServerHostKeyVerifier() {
@@ -184,9 +185,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                         return true;
                     }
                 });
+                logger.println("Connected via SSH.");
                 return conn; // successfully connected
             } catch (IOException e) {
                 // keep retrying until SSH comes up
+                logger.println("Waiting for SSH to come up. Sleeping 5.");
                 Thread.sleep(5000);
             }
         }
