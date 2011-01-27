@@ -244,9 +244,12 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Connects to EC2 and returns {@link Jec2}, which can then be used to communicate with EC2.
      */
-    public Jec2 connect() throws EC2Exception {
+    public synchronized Jec2 connect() throws EC2Exception {
         try {
-            return connect(accessId, secretKey, getEc2EndpointUrl());
+            if (connection != null) {
+                connection = connect(accessId, secretKey, getEc2EndpointUrl());
+            }
+            return connection;
         } catch (IOException e) {
             throw new EC2Exception("Failed to retrieve the endpoint",e);
         }
@@ -470,6 +473,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
+    private Jec2 connection;
 
     private static boolean isSSL(URL endpoint) {
         return endpoint.getProtocol().equals("https");
