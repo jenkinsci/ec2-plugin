@@ -196,8 +196,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     List<String> owners = new LinkedList<String>();
                     List<String> users = new LinkedList<String>();
                     users.add("self"); // if we can't run it its not useful.
-                    List<ImageDescription> img = jec2.describeImages(
-                            images, owners, users, null);
+                    List<ImageDescription> img = jec2.describeImages(images, owners, users);
                     if(img==null || img.isEmpty())
                         // de-registered AMI causes an empty list to be returned. so be defensive
                         // against other possibilities
