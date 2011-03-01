@@ -188,7 +188,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 @QueryParameter String accessId, @QueryParameter String secretKey,
                 @QueryParameter AwsRegion region,
                 final @QueryParameter String ami) throws IOException, ServletException {
-	    Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, region.ec2Endpoint);
+            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, region.ec2Endpoint);
             if(jec2!=null) {
                 try {
                     List<String> images = new LinkedList<String>();
