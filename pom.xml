@@ -2,41 +2,22 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.jvnet.hudson.plugins</groupId>
+    <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.346</version>
-    <relativePath>../pom.xml</relativePath>
+    <version>1.396</version>
   </parent>
   
   <artifactId>ec2</artifactId>
   <version>1.11-SNAPSHOT</version>
   <packaging>hpi</packaging>
   <name>Hudson Amazon EC2 plugin</name>
-  <url>http://wiki.hudson-ci.org/display/HUDSON/Amazon+EC2+Plugin</url>
-
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-release-plugin</artifactId>
-        <configuration>
-          <goals>deploy</goals>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
+  <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
 
   <scm>
-    <connection       >scm:git:git://github.com/hudson/ec2-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:hudson/ec2-plugin.git</developerConnection>
+    <connection       >scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:jenkinsci/ec2-plugin.git</developerConnection>
   </scm>
 
-  <distributionManagement>
-    <repository>
-      <id>java.net-m2-repository</id>
-      <url>http://maven.hudson-labs.org:8081/content/repositories/releases/</url>
-    </repository>
-  </distributionManagement>
-    
   <dependencies>
     <dependency>
       <groupId>net.java.dev.jets3t</groupId>
@@ -71,7 +52,7 @@
     <developer>
       <id>kohsuke</id>
       <name>Kohsuke Kawaguchi</name>
-      <email>kohsuke@infradna.com</email>
+      <email>kkawaguchi@cloudbees.com</email>
     </developer>
   </developers>
 
