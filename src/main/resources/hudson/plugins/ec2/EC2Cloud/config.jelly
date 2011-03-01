@@ -7,7 +7,7 @@
         <f:entry title="${%AMI ID}" field="ami">
           <f:textbox />
         </f:entry>
-        <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,ec2EndpointUrl,ami" />
+        <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,region,ami" />
         <f:entry title="${%Instance Type}" help="/plugin/ec2/help/instanceType.html">
           <f:enum field="type">${it.name()}</f:enum>
         </f:entry>

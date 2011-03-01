@@ -186,9 +186,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         public FormValidation doValidateAmi(
                 @QueryParameter String accessId, @QueryParameter String secretKey,
-                @QueryParameter String ec2EndpointUrl,
+                @QueryParameter AwsRegion region,
                 final @QueryParameter String ami) throws IOException, ServletException {
-            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, EC2Cloud.checkEndPoint(ec2EndpointUrl));
+	    Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, region.ec2Endpoint);
             if(jec2!=null) {
                 try {
                     List<String> images = new LinkedList<String>();
@@ -203,7 +203,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
                     return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
                 } catch (EC2Exception e) {
-                    return FormValidation.error(e.getMessage());
+                    return FormValidation.error(region.toString() + e.getMessage());
                 }
             } else
                 return FormValidation.ok();   // can't test
