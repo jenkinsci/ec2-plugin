@@ -15,6 +15,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -47,7 +48,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String jvmopts;
     protected transient EC2Cloud parent;
 
-    private transient /*almost final*/ Set<Label> labelSet;
+    private transient /*almost final*/ Set<LabelAtom> labelSet;
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts) {
