@@ -203,7 +203,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
                     return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
                 } catch (EC2Exception e) {
-                    return FormValidation.error(region.toString() + e.getMessage());
+                    return FormValidation.error(e.getMessage());
                 }
             } else
                 return FormValidation.ok();   // can't test
