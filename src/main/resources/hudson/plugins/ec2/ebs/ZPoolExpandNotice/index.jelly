@@ -25,10 +25,10 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
 	<l:layout title="HUDSON_HOME is almost full">
 		<l:main-panel>
-      <h1>HUDSON_HOME is almost full</h1>
+      <h1>JENKINS_HOME is almost full</h1>
 
       <p>
-        Your <tt>HUDSON_HOME</tt> (${app.rootDir}) is almost full.
+        Your <tt>JENKINS_HOME</tt> (${app.rootDir}) is almost full.
         When this directory completely fills up, it'll wrec havoc
         because Hudson can't store any more data.
       </p><p>
