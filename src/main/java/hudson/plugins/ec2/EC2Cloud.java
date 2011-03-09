@@ -63,6 +63,8 @@ public abstract class EC2Cloud extends Cloud {
     private final List<SlaveTemplate> templates;
     private transient KeyPairInfo usableKeyPair;
 
+    private transient Jec2 connection;
+    
     protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
         super(id);
         this.accessId = accessId.trim();
@@ -246,7 +248,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized Jec2 connect() throws EC2Exception {
         try {
-            if (connection != null) {
+            if (connection == null) {
                 connection = connect(accessId, secretKey, getEc2EndpointUrl());
             }
             return connection;
@@ -473,7 +475,6 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
-    private Jec2 connection;
 
     private static boolean isSSL(URL endpoint) {
         return endpoint.getProtocol().equals("https");
