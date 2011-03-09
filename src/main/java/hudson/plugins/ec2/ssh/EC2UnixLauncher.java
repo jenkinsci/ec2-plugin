@@ -34,14 +34,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private final int RECONNECT=-2;
 
     protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, EC2Exception, InterruptedException, S3ServiceException {
-        logger.println("Connecting to "+inst.getDnsName() + " on port " + computer.getSshPort());
+
         final Connection bootstrapConn;
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
         boolean successful = false;
         
         try {
-            bootstrapConn = connectToSsh(inst, computer.getSshPort(), logger);
+            bootstrapConn = connectToSsh(computer, logger);
             int bootstrapResult = bootstrap(bootstrapConn, computer, logger);
             if (bootstrapResult == FAILED)
                 return; // bootstrap closed for us.
@@ -49,7 +49,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 cleanupConn = bootstrapConn; // take over the connection
             else {
                 // connect fresh as ROOT
-                cleanupConn = connectToSsh(inst, computer.getSshPort(), logger);
+                cleanupConn = connectToSsh(computer, logger);
                 KeyPairInfo key = EC2Cloud.get().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "")) {
                     logger.println("Authentication failed");
@@ -174,10 +174,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private Connection connectToSsh(Instance inst, int sshPort, PrintStream logger) throws InterruptedException {
+    private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws EC2Exception, InterruptedException {
         while(true) {
             try {
-                Connection conn = new Connection(inst.getDnsName(),sshPort);
+                String host = computer.updateInstanceDescription().getDnsName();
+                int port = computer.getSshPort();
+                logger.println("Connecting to " + host + " on port " + port + ". ");
+                Connection conn = new Connection(host, port);
                 // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
                 // hoping that no man-in-the-middle attack is going on.
                 conn.connect(new ServerHostKeyVerifier() {

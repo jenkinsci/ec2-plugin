@@ -49,11 +49,20 @@ public class EC2Computer extends SlaveComputer {
      * <p>
      * This method returns a cached state, so it's not suitable to check {@link Instance#getState()}
      * and {@link Instance#getStateCode()} from the returned instance (but all the other fields are valid as it won't change.)
+     *
+     * The cache can be flushed using {@link #updateInstanceDescription()}
      */
     public Instance describeInstance() throws EC2Exception {
         if(ec2InstanceDescription==null)
             ec2InstanceDescription = _describeInstance();
         return ec2InstanceDescription;
+    }
+
+    /**
+     * This will flush any cached description held by {@link #describeInstance()}.
+     */
+    public Instance updateInstanceDescription() throws EC2Exception {
+        return ec2InstanceDescription = _describeInstance();
     }
 
     /**
