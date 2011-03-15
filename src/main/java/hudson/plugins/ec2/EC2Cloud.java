@@ -43,7 +43,8 @@ import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 
 import org.jets3t.service.Jets3tProperties;
-import static java.util.logging.Level.WARNING;
+import java.util.logging.Level;
+
 
 /**
  * Hudson's view of EC2. 
@@ -199,8 +200,10 @@ public abstract class EC2Cloud extends Cloud {
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
             for( ; excessWorkload>0; excessWorkload-- ) {
-                if(countCurrentEC2Slaves()>=instanceCap)
+                if(countCurrentEC2Slaves()>=instanceCap) {
+                    LOGGER.log(Level.INFO, "Instance cap reached, not provisioning.");
                     break;      // maxed out
+                }
 
                 r.add(new PlannedNode(t.getDisplayName(),
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
@@ -225,7 +228,7 @@ public abstract class EC2Cloud extends Cloud {
             }
             return r;
         } catch (EC2Exception e) {
-            LOGGER.log(WARNING,"Failed to count the # of live instances on EC2",e);
+            LOGGER.log(Level.WARNING,"Failed to count the # of live instances on EC2",e);
             return Collections.emptyList();
         }
     }
@@ -433,7 +436,7 @@ public abstract class EC2Cloud extends Cloud {
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
             } catch (EC2Exception e) {
-                LOGGER.log(WARNING, "Failed to check EC2 credential",e);
+                LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
                 return FormValidation.error(e.getMessage());
             }
         }
@@ -463,7 +466,7 @@ public abstract class EC2Cloud extends Cloud {
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
             } catch (EC2Exception e) {
-                LOGGER.log(WARNING, "Failed to check EC2 credential",e);
+                LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
                 return FormValidation.error(e.getMessage());
             }
         }
