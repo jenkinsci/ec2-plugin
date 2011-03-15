@@ -178,6 +178,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         while(true) {
             try {
                 String host = computer.updateInstanceDescription().getDnsName();
+                if ("0.0.0.0".equals(host)) {
+                    logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
+                    throw new IOException("goto sleep");
+                }
                 int port = computer.getSshPort();
                 logger.println("Connecting to " + host + " on port " + port + ". ");
                 Connection conn = new Connection(host, port);
