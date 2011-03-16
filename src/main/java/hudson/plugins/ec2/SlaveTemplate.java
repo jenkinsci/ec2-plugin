@@ -163,7 +163,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     protected Object readResolve() {
         labelSet = Label.parse(labels);
-        secGroupSet = Arrays.asList(secGroups.split("\\s+"));
+        secGroupSet = Arrays.asList(Util.fixNull(secGroups).split("\\s+"));
         return this;
     }
 
