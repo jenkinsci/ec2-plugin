@@ -50,6 +50,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     protected transient EC2Cloud parent;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
+    private transient List<String> secGroupSet;
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, String secGroups) {
@@ -65,7 +66,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
-        this.secGroups = secGroups;
+        this.secGroups = Util.fixNull(secGroups);
         readResolve(); // initialize
     }
     
@@ -128,7 +129,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             KeyPairInfo keyPair = parent.getPrivateKey().find(ec2);
             if(keyPair==null)
                 throw new EC2Exception("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-            Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), userData, keyPair.getKeyName(), type).getInstances().get(0);
+            Instance inst = ec2.runInstances(ami, 1, 1, secGroupSet, userData, keyPair.getKeyName(), type).getInstances().get(0);
             return newSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -161,6 +162,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     protected Object readResolve() {
         labelSet = Label.parse(labels);
+        secGroupSet = Collections.<String>emptyList();
         return this;
     }
 
