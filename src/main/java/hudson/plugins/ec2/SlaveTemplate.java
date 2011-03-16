@@ -23,6 +23,7 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -162,7 +163,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     protected Object readResolve() {
         labelSet = Label.parse(labels);
-        secGroupSet = Collections.<String>emptyList();
+        secGroupSet = Arrays.asList(secGroups.split("\\s+"));
         return this;
     }
 
