@@ -46,12 +46,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String remoteAdmin;
     public final String rootCommandPrefix;
     public final String jvmopts;
+    public final String secGroups;
     protected transient EC2Cloud parent;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts) {
+    public SlaveTemplate(String ami, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, String secGroups) {
         this.ami = ami;
         this.remoteFS = remoteFS;
         this.sshPort = sshPort;
@@ -64,6 +65,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
+        this.secGroups = secGroups;
         readResolve(); // initialize
     }
     
