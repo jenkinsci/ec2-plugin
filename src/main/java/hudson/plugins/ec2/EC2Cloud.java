@@ -436,7 +436,7 @@ public abstract class EC2Cloud extends Cloud {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if(pk.find(jec2)==null)
-                        return FormValidation.error("The private key entered below isn't registered to EC2 (fingerprint is "+pk.getFingerprint()+")");
+                        return FormValidation.error("The private key entered below isn't registered to this EC2 region (fingerprint is "+pk.getFingerprint()+")");
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
