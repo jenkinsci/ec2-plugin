@@ -19,6 +19,7 @@ import java.security.Security;
 import com.xerox.amazonws.ec2.KeyPairInfo;
 import com.xerox.amazonws.ec2.Jec2;
 import com.xerox.amazonws.ec2.EC2Exception;
+import org.bouncycastle.openssl.PasswordFinder;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -43,11 +44,22 @@ final class EC2PrivateKey {
     public String getFingerprint() throws IOException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         Reader r = new BufferedReader(new StringReader(privateKey.toString()));
-        PEMReader pem = new PEMReader(r);
-        KeyPair pair = (KeyPair) pem.readObject();
-        if(pair==null)  return null;
-        PrivateKey key = pair.getPrivate();
-        return digest(key);
+        PEMReader pem = new PEMReader(r,new PasswordFinder() {
+            public char[] getPassword() {
+                throw PRIVATE_KEY_WITH_PASSWORD;
+            }
+        });
+
+        try {
+            KeyPair pair = (KeyPair) pem.readObject();
+            if(pair==null)  return null;
+            PrivateKey key = pair.getPrivate();
+            return digest(key);
+        } catch (RuntimeException e) {
+            if (e==PRIVATE_KEY_WITH_PASSWORD)
+                throw new IOException("This private key is password protected, which isn't supported yet");
+            throw e;
+        }
     }
 
     /**
@@ -112,4 +124,6 @@ final class EC2PrivateKey {
             throw new AssertionError(e);
         }
     }
+
+    private static final RuntimeException PRIVATE_KEY_WITH_PASSWORD = new RuntimeException();
 }

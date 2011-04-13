@@ -39,7 +39,7 @@
       <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->
       <groupId>bouncycastle</groupId>
       <artifactId>bcprov-jdk15</artifactId>
-      <version>135</version>
+      <version>140</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.typica</groupId>
