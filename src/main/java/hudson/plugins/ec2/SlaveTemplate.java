@@ -102,6 +102,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return rootCommandPrefix;
     }
     
+    public Set getLabelSet(){
+    	return labelSet;
+    }
+    
     /**
      * Does this contain the given label?
      *
