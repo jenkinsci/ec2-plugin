@@ -124,7 +124,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     public SlaveTemplate getTemplate(Label label) {
         for (SlaveTemplate t : templates)
-            if(t.containsLabel(label))
+        	if(label.matches(t.getLabelSet()))
                 return t;
         return null;
     }
