@@ -39,5 +39,14 @@ public class TemplateLabelsTest extends HudsonTestCase{
         assertEquals(false, ac.canProvision(Label.parseExpression("aaa || bbb")));
         assertEquals(false, ac.canProvision(Label.parseExpression("aaa || bbb")));
     }
+        
+        public void testEmptyLabel() throws Exception{
+            SlaveTemplate temp = new SlaveTemplate("ami", "foo", "22", InstanceType.LARGE, "", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g");
+            List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+            templates.add(temp);
+            ac = new AmazonEC2Cloud(AwsRegion.US_EAST_1, "abc", "def", "ghi", "3", templates);
+            
+            assertEquals(true, ac.canProvision(null));
+        }
 
 }
