@@ -1,17 +1,19 @@
 package hudson.plugins.ec2;
 
-import com.xerox.amazonws.ec2.EC2Exception;
-import com.xerox.amazonws.ec2.Jec2;
-import com.xerox.amazonws.ec2.ReservationDescription;
-import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.Util;
 import hudson.slaves.SlaveComputer;
-import org.kohsuke.stapler.HttpRedirect;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.StaplerResponse;
 
 import java.io.IOException;
 import java.util.Collections;
+
+import org.kohsuke.stapler.HttpRedirect;
+import org.kohsuke.stapler.HttpResponse;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
+import com.amazonaws.services.ec2.model.Instance;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -38,9 +40,10 @@ public class EC2Computer extends SlaveComputer {
     /**
      * Gets the EC2 console output.
      */
-    public String getConsoleOutput() throws EC2Exception {
-        Jec2 ec2 = EC2Cloud.get().connect();
-        return ec2.getConsoleOutput(getInstanceId()).getOutput();
+    public String getConsoleOutput() throws AmazonClientException {
+        AmazonEC2 ec2 = EC2Cloud.get().connect();
+        GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
+        return ec2.getConsoleOutput(request).getOutput();
     }
 
     /**
@@ -52,7 +55,7 @@ public class EC2Computer extends SlaveComputer {
      *
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
-    public Instance describeInstance() throws EC2Exception {
+    public Instance describeInstance() throws AmazonClientException {
         if(ec2InstanceDescription==null)
             ec2InstanceDescription = _describeInstance();
         return ec2InstanceDescription;
@@ -61,7 +64,7 @@ public class EC2Computer extends SlaveComputer {
     /**
      * This will flush any cached description held by {@link #describeInstance()}.
      */
-    public Instance updateInstanceDescription() throws EC2Exception {
+    public Instance updateInstanceDescription() throws AmazonClientException {
         return ec2InstanceDescription = _describeInstance();
     }
 
@@ -71,27 +74,29 @@ public class EC2Computer extends SlaveComputer {
      * <p>
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
-    public InstanceState getState() throws EC2Exception {
+    public InstanceState getState() throws AmazonClientException {
         ec2InstanceDescription=_describeInstance();
-        return InstanceState.find(ec2InstanceDescription.getState());
+        return InstanceState.find(ec2InstanceDescription.getState().getName());
     }
 
     /**
      * Number of milli-secs since the instance was started.
      */
-    public long getUptime() throws EC2Exception {
-        return System.currentTimeMillis()-describeInstance().getLaunchTime().getTimeInMillis();
+    public long getUptime() throws AmazonClientException {
+        return System.currentTimeMillis()-describeInstance().getLaunchTime().getTime();
     }
 
     /**
      * Returns uptime in the human readable form.
      */
-    public String getUptimeString() throws EC2Exception {
+    public String getUptimeString() throws AmazonClientException {
         return Util.getTimeSpanString(getUptime());
     }
 
-    private ReservationDescription.Instance _describeInstance() throws EC2Exception {
-        return EC2Cloud.get().connect().describeInstances(Collections.<String>singletonList(getNode().getInstanceId())).get(0).getInstances().get(0);
+    private Instance _describeInstance() throws AmazonClientException {
+    	DescribeInstancesRequest request = new DescribeInstancesRequest();
+    	request.setInstanceIds(Collections.<String>singletonList(getNode().getInstanceId()));
+        return EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
     }
 
     /**

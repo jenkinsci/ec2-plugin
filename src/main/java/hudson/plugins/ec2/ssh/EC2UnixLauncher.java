@@ -1,26 +1,27 @@
 package hudson.plugins.ec2.ssh;
 
-import com.trilead.ssh2.Connection;
-import com.trilead.ssh2.SCPClient;
-import com.trilead.ssh2.ServerHostKeyVerifier;
-import com.trilead.ssh2.Session;
-import com.xerox.amazonws.ec2.EC2Exception;
-import com.xerox.amazonws.ec2.KeyPairInfo;
-import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
+import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
-import org.apache.commons.io.IOUtils;
-import org.jets3t.service.S3ServiceException;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
+
+import org.apache.commons.io.IOUtils;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.trilead.ssh2.Connection;
+import com.trilead.ssh2.SCPClient;
+import com.trilead.ssh2.ServerHostKeyVerifier;
+import com.trilead.ssh2.Session;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -33,7 +34,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private final int SAMEUSER=0;
     private final int RECONNECT=-2;
 
-    protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, EC2Exception, InterruptedException, S3ServiceException {
+    protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException, InterruptedException {
 
         final Connection bootstrapConn;
         final Connection conn;
@@ -50,7 +51,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             else {
                 // connect fresh as ROOT
                 cleanupConn = connectToSsh(computer, logger);
-                KeyPairInfo key = EC2Cloud.get().getKeyPair();
+                KeyPair key = EC2Cloud.get().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey("root", key.getKeyMaterial().toCharArray(), "")) {
                     logger.println("Authentication failed");
                     return; // failed to connect as root.
@@ -131,12 +132,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private int bootstrap(Connection bootstrapConn, EC2Computer computer, PrintStream logger) throws IOException, InterruptedException, EC2Exception {
+    private int bootstrap(Connection bootstrapConn, EC2Computer computer, PrintStream logger) throws IOException, InterruptedException, AmazonClientException {
         boolean closeBootstrap = true;
         try {
             int tries = 20;
             boolean isAuthenticated = false;
-            KeyPairInfo key = EC2Cloud.get().getKeyPair();
+            KeyPair key = EC2Cloud.get().getKeyPair();
             while (tries-- > 0) {
                 logger.println("Authenticating as " + computer.getRemoteAdmin());
                 isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
@@ -174,10 +175,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws EC2Exception, InterruptedException {
+    private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
         while(true) {
             try {
-                String host = computer.updateInstanceDescription().getDnsName();
+                String host = computer.updateInstanceDescription().getPublicDnsName();
                 if ("0.0.0.0".equals(host)) {
                     logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
