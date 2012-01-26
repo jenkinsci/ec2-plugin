@@ -1,16 +1,13 @@
 package hudson.plugins.ec2;
 
-import com.xerox.amazonws.ec2.EC2Exception;
-import com.xerox.amazonws.ec2.InstanceType;
-import com.xerox.amazonws.ec2.Jec2;
+import hudson.Extension;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Slave;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
-import hudson.Extension;
-import hudson.Util;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -19,6 +16,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.DataBoundConstructor;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 /**
  * Slave running on EC2.
@@ -65,11 +67,17 @@ public final class EC2Slave extends Slave {
      */
     /*package*/ static int toNumExecutors(InstanceType it) {
         switch (it) {
-        case DEFAULT:       return 1;
-        case MEDIUM_HCPU:   return 5;
-        case LARGE:         return 4;
-        case XLARGE:        return 8;
-        case XLARGE_HCPU:   return 20;
+        case T1Micro:       return 1;
+        case M1Small:       return 1;
+        case M1Large:       return 4;
+        case C1Medium:      return 5;
+        case M2Xlarge:      return 6;
+        case M1Xlarge:      return 8;
+        case M22xlarge:     return 13;
+        case C1Xlarge:      return 20;
+        case M24xlarge:     return 26;
+        case Cc14xlarge:    return 33;
+        case Cg14xlarge:    return 33;
         default:            throw new AssertionError();
         }
     }
@@ -91,11 +99,12 @@ public final class EC2Slave extends Slave {
      */
     public void terminate() {
         try {
-            Jec2 ec2 = EC2Cloud.get().connect();
-            ec2.terminateInstances(Collections.singletonList(getInstanceId()));
+            AmazonEC2 ec2 = EC2Cloud.get().connect();
+            TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+            ec2.terminateInstances(request);
             LOGGER.info("Terminated EC2 instance: "+getInstanceId());
             Hudson.getInstance().removeNode(this);
-        } catch (EC2Exception e) {
+        } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);

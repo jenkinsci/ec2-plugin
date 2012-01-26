@@ -4,7 +4,8 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.399</version>
+      <version>1.399</version>
+<!--      <version>1.451</version>-->
   </parent>
   
   <artifactId>ec2</artifactId>
@@ -20,31 +21,21 @@
 
   <dependencies>
     <dependency>
-      <groupId>net.java.dev.jets3t</groupId>
-      <artifactId>jets3t</artifactId>
-      <version>0.7.2</version>
-      <exclusions>
-        <!-- they come from core -->
-        <exclusion>
-          <groupId>commons-codec</groupId>
-          <artifactId>commons-codec</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->
       <groupId>bouncycastle</groupId>
       <artifactId>bcprov-jdk15</artifactId>
       <version>140</version>
     </dependency>
     <dependency>
-      <groupId>com.google.code.typica</groupId>
-      <artifactId>typica</artifactId>
-      <version>1.7.2</version>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk</artifactId>
+      <version>1.2.15</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

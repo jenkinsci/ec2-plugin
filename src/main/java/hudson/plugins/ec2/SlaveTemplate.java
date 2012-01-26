@@ -1,32 +1,38 @@
 package hudson.plugins.ec2;
 
-import com.xerox.amazonws.ec2.EC2Exception;
-import com.xerox.amazonws.ec2.ImageDescription;
-import com.xerox.amazonws.ec2.InstanceType;
-import com.xerox.amazonws.ec2.Jec2;
-import com.xerox.amazonws.ec2.KeyPairInfo;
-import com.xerox.amazonws.ec2.ReservationDescription.Instance;
+import hudson.Extension;
+import hudson.Util;
 import hudson.model.Describable;
+import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
-import hudson.model.TaskListener;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.Extension;
-import hudson.Util;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
 
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+
+import javax.servlet.ServletException;
+
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.Image;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
 
 /**
  * Template of {@link EC2Slave} to launch.
@@ -121,16 +127,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2Slave provision(TaskListener listener) throws EC2Exception, IOException {
+    public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
-        Jec2 ec2 = getParent().connect();
+        AmazonEC2 ec2 = getParent().connect();
 
         try {
             logger.println("Launching "+ami);
-            KeyPairInfo keyPair = parent.getPrivateKey().find(ec2);
+            KeyPair keyPair = parent.getPrivateKey().find(ec2);
             if(keyPair==null)
-                throw new EC2Exception("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-            Instance inst = ec2.runInstances(ami, 1, 1, Collections.<String>emptyList(), userData, keyPair.getKeyName(), type).getInstances().get(0);
+                throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+            RunInstancesRequest request = new RunInstancesRequest(ami, 1, 1);
+            request.setUserData(userData);
+            request.setKeyName(keyPair.getKeyName());
+            request.setInstanceType(type.toString());
+            Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
             return newSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -145,13 +155,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Provisions a new EC2 slave based on the currently running instance on EC2,
      * instead of starting a new one.
      */
-    public EC2Slave attach(String instanceId, TaskListener listener) throws EC2Exception, IOException {
+    public EC2Slave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
-        Jec2 ec2 = getParent().connect();
+        AmazonEC2 ec2 = getParent().connect();
 
         try {
             logger.println("Attaching to "+instanceId);
-            Instance inst = ec2.describeInstances(Collections.singletonList(instanceId)).get(0).getInstances().get(0);
+            DescribeInstancesRequest request = new DescribeInstancesRequest();
+            request.setInstanceIds(Collections.singletonList(instanceId));
+            Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
             return newSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -193,20 +205,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 @QueryParameter String accessId, @QueryParameter String secretKey,
                 @QueryParameter AwsRegion region,
                 final @QueryParameter String ami) throws IOException, ServletException {
-            Jec2 jec2 = EC2Cloud.connect(accessId, secretKey, region.ec2Endpoint);
-            if(jec2!=null) {
+            AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, region.ec2Endpoint);
+            if(ec2!=null) {
                 try {
                     List<String> images = new LinkedList<String>();
                     images.add(ami);
                     List<String> owners = new LinkedList<String>();
                     List<String> users = new LinkedList<String>();
-                    List<ImageDescription> img = jec2.describeImages(images, owners, users);
+                    DescribeImagesRequest request = new DescribeImagesRequest();
+                    request.setImageIds(images);
+                    request.setOwners(owners);
+                    request.setExecutableUsers(users);
+                    List<Image> img = ec2.describeImages(request).getImages();
                     if(img==null || img.isEmpty())
                         // de-registered AMI causes an empty list to be returned. so be defensive
                         // against other possibilities
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
-                    return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerId());
-                } catch (EC2Exception e) {
+                    return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerAlias());
+                } catch (AmazonClientException e) {
                     return FormValidation.error(e.getMessage());
                 }
             } else

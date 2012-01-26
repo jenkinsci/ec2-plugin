@@ -3,23 +3,7 @@ package hudson.plugins.ec2;
 import hudson.Extension;
 import hudson.util.FormValidation;
 import hudson.util.IOException2;
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.Element;
-import org.dom4j.io.SAXReader;
-import org.jets3t.service.Jets3tProperties;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -28,6 +12,22 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.List;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import javax.servlet.ServletException;
+
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.Element;
+import org.dom4j.io.SAXReader;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerResponse;
 
 /**
  * Eucalyptus.
@@ -59,16 +59,6 @@ public class Eucalyptus extends EC2Cloud {
     @Override
     public URL getS3EndpointUrl() throws IOException {
         return getMetadata().s3endpoint;
-    }
-
-    @Override
-    protected Jets3tProperties buildJets3tProperties(URL s3) {
-        Jets3tProperties props = super.buildJets3tProperties(s3);
-        
-        /* For eucalyptus as of 1.6.0 */
-        props.setProperty("s3service.disable-dns-buckets", "true");
-
-        return props;
     }
 
     @Extension

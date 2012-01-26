@@ -1,11 +1,5 @@
 package hudson.plugins.ec2;
 
-import com.xerox.amazonws.ec2.EC2Exception;
-import com.xerox.amazonws.ec2.InstanceType;
-import com.xerox.amazonws.ec2.Jec2;
-import com.xerox.amazonws.ec2.KeyPairInfo;
-import com.xerox.amazonws.ec2.ReservationDescription;
-import com.xerox.amazonws.ec2.ReservationDescription.Instance;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
@@ -16,34 +10,42 @@ import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
-import java.net.MalformedURLException;
 
-import org.jets3t.service.Constants;
-import org.jets3t.service.S3Service;
-import org.jets3t.service.S3ServiceException;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.security.AWSCredentials;
-import org.jets3t.service.utils.ServiceUtils;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-
-import javax.servlet.ServletException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jets3t.service.Jets3tProperties;
-import java.util.logging.Level;
+import javax.servlet.ServletException;
+
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
 
 /**
@@ -62,9 +64,11 @@ public abstract class EC2Cloud extends Cloud {
      */
     public final int instanceCap;
     private final List<SlaveTemplate> templates;
-    private transient KeyPairInfo usableKeyPair;
+    private transient KeyPair usableKeyPair;
 
-    private transient Jec2 connection;
+    private transient AmazonEC2 connection;
+    
+	private static AWSCredentials awsCredentials;
     
     protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
         super(id);
@@ -132,7 +136,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Gets the {@link KeyPairInfo} used for the launch.
      */
-    public synchronized KeyPairInfo getKeyPair() throws EC2Exception, IOException {
+    public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
         if(usableKeyPair==null)
             usableKeyPair = privateKey.find(connect());
         return usableKeyPair;
@@ -144,11 +148,11 @@ public abstract class EC2Cloud extends Cloud {
      * <p>
      * This includes those instances that may be started outside Hudson.
      */
-    public int countCurrentEC2Slaves() throws EC2Exception {
+    public int countCurrentEC2Slaves() throws AmazonClientException {
         int n=0;
-        for (ReservationDescription r : connect().describeInstances(Collections.<String>emptyList())) {
+        for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if(!i.isTerminated())
+                if(!"terminated".equals(i.getState().getName()))
                     n++;
             }
         }
@@ -158,7 +162,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Debug command to attach to a running instance.
      */
-    public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id) throws ServletException, IOException, EC2Exception {
+    public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id) throws ServletException, IOException, AmazonClientException {
         checkPermission(PROVISION);
         SlaveTemplate t = getTemplates().get(0);
 
@@ -189,7 +193,7 @@ public abstract class EC2Cloud extends Cloud {
             Hudson.getInstance().addNode(node);
 
             rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
-        } catch (EC2Exception e) {
+        } catch (AmazonClientException e) {
             e.printStackTrace(listener.error(e.getMessage()));
             sendError(sw.toString(),req,rsp);
         }
@@ -229,7 +233,7 @@ public abstract class EC2Cloud extends Cloud {
                         ,t.getNumExecutors()));
             }
             return r;
-        } catch (EC2Exception e) {
+        } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to count the # of live instances on EC2",e);
             return Collections.emptyList();
         }
@@ -247,39 +251,36 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Connects to EC2 and returns {@link Jec2}, which can then be used to communicate with EC2.
+     * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
-    public synchronized Jec2 connect() throws EC2Exception {
+    public synchronized AmazonEC2 connect() throws AmazonClientException {
         try {
             if (connection == null) {
                 connection = connect(accessId, secretKey, getEc2EndpointUrl());
             }
             return connection;
         } catch (IOException e) {
-            throw new EC2Exception("Failed to retrieve the endpoint",e);
+            throw new AmazonClientException("Failed to retrieve the endpoint",e);
         }
     }
 
     /***
      * Connect to an EC2 instance.
-     * @return Jec2
+     * @return {@link AmazonEC2} client
      */
-    public static Jec2 connect(String accessId, String secretKey, URL endpoint) {
+    public static AmazonEC2 connect(String accessId, String secretKey, URL endpoint) {
         return connect(accessId, Secret.fromString(secretKey), endpoint);
     }
 
     /***
      * Connect to an EC2 instance.
-     * @return Jec2
+     * @return {@link AmazonEC2} client
      */
-    public static Jec2 connect(String accessId, Secret secretKey, URL endpoint) {
-        int ec2Port = portFromURL(endpoint);
-        boolean SSL = isSSL(endpoint);
-        Jec2 result = new Jec2(accessId, secretKey.toString(), SSL, endpoint.getHost(), ec2Port);
-        String path = endpoint.getPath();
-        if (path.length() != 0) /* '/' is the default, not '' */
-            result.setResourcePrefix(path);
-        return result;
+    public static AmazonEC2 connect(String accessId, Secret secretKey, URL endpoint) {
+    	awsCredentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
+        AmazonEC2 client = new AmazonEC2Client(awsCredentials);
+        client.setEndpoint(endpoint.toString());
+        return client;
     }
 
     /***
@@ -316,46 +317,17 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Connects to S3 and returns {@link S3Service}.
-     */
-    public S3Service connectS3() throws S3ServiceException, IOException {
-        URL s3 = getS3EndpointUrl();
-
-        return new RestS3Service(new AWSCredentials(accessId,secretKey.toString()),
-            null, null, buildJets3tProperties(s3));
-    }
-
-    /**
-     * Builds the connection parameters for S3.
-     */
-    protected Jets3tProperties buildJets3tProperties(URL s3) {
-        Jets3tProperties props = Jets3tProperties.getInstance(Constants.JETS3T_PROPERTIES_FILENAME);
-        final String s3Host = s3.getHost();
-        if (!s3Host.equals("s3.amazonaws.com"))
-            props.setProperty("s3service.s3-endpoint", s3Host);
-        int s3Port = portFromURL(s3);
-        if (s3Port != -1)
-            props.setProperty("s3service.s3-endpoint-http-port", String.valueOf(s3Port));
-        if (s3.getPath().length() > 1)
-            props.setProperty("s3service.s3-endpoint-virtual-path", s3.getPath());
-        props.setProperty("s3service.https-only", String.valueOf(isSSL(s3)));
-        return props;
-    }
-
-    /**
      * Computes the presigned URL for the given S3 resource.
      *
      * @param path
      *      String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
      */
-    public URL buildPresignedURL(String path) throws IOException, S3ServiceException {
-        long expires = System.currentTimeMillis()/1000+60*60;
-        String token = "GET\n\n\n" + expires + "\n" + path;
-
-        String url = "http://s3.amazonaws.com"+path+"?AWSAccessKeyId="+accessId+"&Expires="+expires+"&Signature="+
-                URLEncoder.encode(
-                        ServiceUtils.signWithHmacSha1(secretKey.toString(),token),"UTF-8");
-        return new URL(url);
+    public URL buildPresignedURL(String path) throws IOException, AmazonClientException {
+        long expires = System.currentTimeMillis()+60*60*1000;
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(path, Secret.toString(secretKey));
+        request.setExpiration(new Date(expires));
+        AmazonS3 s3 = new AmazonS3Client(awsCredentials);
+        return s3.generatePresignedUrl(request);
     }
 
     /* Parse a url or return a sensible error */
@@ -422,8 +394,8 @@ public abstract class EC2Cloud extends Cloud {
         protected FormValidation doTestConnection( URL ec2endpoint,
                                      String accessId, String secretKey, String privateKey) throws IOException, ServletException {
             try {
-                Jec2 jec2 = connect(accessId, secretKey, ec2endpoint);
-                jec2.describeInstances(Collections.<String>emptyList());
+                AmazonEC2 ec2 = connect(accessId, secretKey, ec2endpoint);
+                ec2.describeInstances();
 
                 if(accessId==null)
                     return FormValidation.error("Access ID is not specified");
@@ -435,12 +407,12 @@ public abstract class EC2Cloud extends Cloud {
                 if(privateKey.trim().length()>0) {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
-                    if(pk.find(jec2)==null)
+                    if(pk.find(ec2)==null)
                         return FormValidation.error("The private key entered below isn't registered to this EC2 region (fingerprint is "+pk.getFingerprint()+")");
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
-            } catch (EC2Exception e) {
+            } catch (AmazonClientException e) {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
                 return FormValidation.error(e.getMessage());
             }
@@ -449,8 +421,8 @@ public abstract class EC2Cloud extends Cloud {
         public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, String accessId, String secretKey
         ) throws IOException, ServletException {
             try {
-                Jec2 jec2 = connect(accessId, secretKey, ec2EndpointUrl);
-                List<KeyPairInfo> existingKeys = jec2.describeKeyPairs(Collections.<String>emptyList());
+                AmazonEC2 ec2 = connect(accessId, secretKey, ec2EndpointUrl);
+                List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
                 int n = 0;
                 while(true) {
@@ -464,13 +436,14 @@ public abstract class EC2Cloud extends Cloud {
                     n++;
                 }
 
-                KeyPairInfo key = jec2.createKeyPair("hudson-" + n);
+                CreateKeyPairRequest request = new CreateKeyPairRequest("hudson-" + n);
+                KeyPair key = ec2.createKeyPair(request).getKeyPair();
 
 
                 rsp.addHeader("script","findPreviousFormItem(button,'privateKey').value='"+key.getKeyMaterial().replace("\n","\\n")+"'");
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
-            } catch (EC2Exception e) {
+            } catch (AmazonClientException e) {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential",e);
                 return FormValidation.error(e.getMessage());
             }
