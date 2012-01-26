@@ -9,7 +9,9 @@ public enum InstanceState {
     PENDING,
     RUNNING,
     SHUTTING_DOWN,
-    TERMINATED;
+    TERMINATED,
+    STOPPING,
+    STOPPED;
 
     public String getCode() {
         return name().toLowerCase().replace('_','-');

@@ -1,10 +1,9 @@
 package hudson.plugins.ec2.ssh;
 
+import java.util.logging.Logger;
+
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.crypto.digest.MD5;
-import com.xerox.amazonws.ec2.ConsoleOutput;
-
-import java.util.logging.Logger;
 
 /**
  * {@link ServerHostKeyVerifier} that makes sure that the host key fingerprint
@@ -14,10 +13,6 @@ import java.util.logging.Logger;
  */
 public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
     private final String console;
-
-    public HostKeyVerifierImpl(ConsoleOutput console) {
-        this.console = console.getOutput();
-    }
 
     public HostKeyVerifierImpl(String console) {
         this.console = console;
