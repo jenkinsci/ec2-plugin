@@ -18,9 +18,11 @@ import java.util.Locale;
 public enum AwsRegion {
     US_EAST_1(Messages._AwsRegion_UsEast()),
     US_WEST_1(Messages._AwsRegion_UsWest()),
+    US_WEST_2(Messages._AwsRegion_UsWest2()),
     EU_WEST_1(Messages._AwsRegion_EuWest()),
     AP_SOUTHEAST_1(Messages._AwsRegion_ApSouthEast()),
-    AP_NORTHEAST_1(Messages._AwsRegion_ApSouthEast());
+    AP_NORTHEAST_1(Messages._AwsRegion_ApNorthEast()),
+    SA_EAST_1(Messages._AwsRegion_SaEast1());
 
     public final URL ec2Endpoint,s3Endpoint;
 
@@ -44,7 +46,7 @@ public enum AwsRegion {
     public String toString() {
         return displayName.toString();
     }
-    
+
     static {
         Stapler.CONVERT_UTILS.register(new EnumConverter(), AwsRegion.class);
     }
