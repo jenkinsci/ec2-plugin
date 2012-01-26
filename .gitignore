@@ -2,3 +2,9 @@
 *.ipr
 *.iws
 target
+
+.classpath
+
+.project
+
+.settings/org.eclipse.jdt.core.prefs

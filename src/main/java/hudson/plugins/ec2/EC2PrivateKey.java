@@ -1,8 +1,6 @@
 package hudson.plugins.ec2;
 
 import hudson.util.Secret;
-import org.apache.commons.codec.binary.Hex;
-import org.bouncycastle.openssl.PEMReader;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -16,10 +14,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Security;
 
-import com.xerox.amazonws.ec2.KeyPairInfo;
-import com.xerox.amazonws.ec2.Jec2;
-import com.xerox.amazonws.ec2.EC2Exception;
+import org.apache.commons.codec.binary.Hex;
+import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PasswordFinder;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -78,11 +79,16 @@ final class EC2PrivateKey {
     /**
      * Finds the {@link KeyPairInfo} that corresponds to this key in EC2.
      */
-    public KeyPairInfo find(Jec2 ec2) throws IOException, EC2Exception {
+    public com.amazonaws.services.ec2.model.KeyPair find(AmazonEC2 ec2) throws IOException, AmazonClientException {
         String fp = getFingerprint();
-        for(KeyPairInfo kp : ec2.describeKeyPairs(new String[0])) {
-            if(kp.getKeyFingerprint().equalsIgnoreCase(fp))
-                return new KeyPairInfo(kp.getKeyName(),fp,privateKey.toString());
+        for(KeyPairInfo kp : ec2.describeKeyPairs().getKeyPairs()) {
+            if(kp.getKeyFingerprint().equalsIgnoreCase(fp)) {
+            	com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
+            	keyPair.setKeyName(kp.getKeyName());
+            	keyPair.setKeyFingerprint(fp);
+            	keyPair.setKeyMaterial(Secret.toString(privateKey));
+            	return keyPair;
+            }
         }
         return null;
     }
