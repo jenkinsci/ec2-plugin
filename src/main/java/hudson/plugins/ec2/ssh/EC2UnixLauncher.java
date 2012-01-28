@@ -61,12 +61,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
 
-            if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e /.hudson-run-init", logger) !=0) {
+            if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e /tmp/.hudson-run-init", logger) !=0) {
                 logger.println("Executing init script");
                 scp.put(initScript.getBytes("UTF-8"),"init.sh","/tmp","0700");
                 Session sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
-                sess.execCommand(computer.getRootCommandPrefix() + "/tmp/init.sh");
+                sess.execCommand("/tmp/init.sh");
 
                 sess.getStdin().close();    // nothing to write here
                 sess.getStderr().close();   // we are not supposed to get anything from stderr
@@ -79,7 +79,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
 
                 // leave the completion marker
-                scp.put(new byte[0],".hudson-run-init","/","0600");
+                scp.put(new byte[0],".hudson-run-init","/tmp","0600");
 
             }
 
@@ -150,7 +150,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logger.println("Authentication failed");
                 return FAILED;
             }
-            if (!computer.getRemoteAdmin().equals("root")) {
+            if (!computer.getRemoteAdmin().equals("root") && computer.getRootCommandPrefix().trim().length() > 0) {
                 // Get root working, so we can scp in etc.
                 Session sess = bootstrapConn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
