@@ -17,6 +17,9 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         Hudson.XSTREAM.alias("hudson.plugins.ec2.EC2Cloud",AmazonEC2Cloud.class);
         // backward compatibility with the legacy instance type
         Hudson.XSTREAM.registerConverter(new InstanceTypeConverter());
+
+        // make sure the converter gets registered by forcing static initializer
+        AwsRegion.AP_NORTHEAST_1.toString();
         
         load();
     }
