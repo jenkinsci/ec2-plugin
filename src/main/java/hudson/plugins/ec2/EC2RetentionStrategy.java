@@ -3,9 +3,10 @@ package hudson.plugins.ec2;
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
-import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.logging.Logger;
+
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * {@link RetentionStrategy} for EC2.
@@ -17,7 +18,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     public EC2RetentionStrategy() {
     }
 
-    public synchronized long check(EC2Computer c) {
+    @Override
+	public synchronized long check(EC2Computer c) {
         if (c.isIdle() && !disabled) {
             // TODO: really think about the right strategy here
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
@@ -40,7 +42,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     // no registration since this retention strategy is used only for EC2 nodes that we provision automatically.
     // @Extension
     public static class DescriptorImpl extends Descriptor<RetentionStrategy<?>> {
-        public String getDisplayName() {
+        @Override
+		public String getDisplayName() {
             return "EC2";
         }
     }

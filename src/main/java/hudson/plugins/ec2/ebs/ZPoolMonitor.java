@@ -3,7 +3,6 @@ package hudson.plugins.ec2.ebs;
 import hudson.model.PeriodicWork;
 import hudson.model.Hudson;
 import hudson.model.AdministrativeMonitor;
-import hudson.triggers.Trigger;
 import hudson.util.TimeUnit2;
 import hudson.Extension;
 import org.jvnet.solaris.libzfs.LibZFS;
@@ -20,11 +19,13 @@ import java.io.IOException;
  */
 @Extension
 public class ZPoolMonitor extends PeriodicWork {
-    public long getRecurrencePeriod() {
+    @Override
+	public long getRecurrencePeriod() {
         return TimeUnit2.HOURS.toMillis(1);
     }
 
-    protected void doRun() {
+    @Override
+	protected void doRun() {
         ZFSFileSystem fs=null;
         try {
             if(isInsideEC2())

@@ -133,7 +133,8 @@ public final class EC2Slave extends Slave {
 
     @Extension
     public static final class DescriptorImpl extends SlaveDescriptor {
-        public String getDisplayName() {
+        @Override
+		public String getDisplayName() {
             return "Amazon EC2";
         }
 

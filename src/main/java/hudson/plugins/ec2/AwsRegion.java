@@ -1,14 +1,13 @@
 package hudson.plugins.ec2;
 
-import org.jvnet.localizer.Localizable;
-import org.kohsuke.stapler.Stapler;
-
-import hudson.model.Node.Mode;
 import hudson.util.EnumConverter;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Locale;
+
+import org.jvnet.localizer.Localizable;
+import org.kohsuke.stapler.Stapler;
 
 /**
  * Represents Amazon EC2 regions.

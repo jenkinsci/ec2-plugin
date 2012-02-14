@@ -199,7 +199,8 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    @Override
+	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
 
             final SlaveTemplate t = getTemplate(label);
@@ -239,7 +240,8 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    public boolean canProvision(Label label) {
+    @Override
+	public boolean canProvision(Label label) {
         return getTemplate(label)!=null;
     }
 

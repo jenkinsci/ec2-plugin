@@ -20,7 +20,8 @@ public class ZPoolExpandNotice extends AdministrativeMonitor {
         super("zpool.ebs");
     }
 
-    public boolean isActivated() {
+    @Override
+	public boolean isActivated() {
         return activated;
     }
 }

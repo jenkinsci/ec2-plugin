@@ -42,7 +42,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
 
-    protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException, InterruptedException {
+    @Override
+	protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException, InterruptedException {
 
         final Connection bootstrapConn;
         final Connection conn;
@@ -130,7 +131,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             final Session sess = conn.openSession();
             sess.execCommand(launchString);
             computer.setChannel(sess.getStdout(),sess.getStdin(),logger,new Listener() {
-                public void onClosed(Channel channel, IOException cause) {
+                @Override
+				public void onClosed(Channel channel, IOException cause) {
                     sess.close();
                     conn.close();
                 }
@@ -207,7 +209,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         return -1;
     }
 
-    public Descriptor<ComputerLauncher> getDescriptor() {
+    @Override
+	public Descriptor<ComputerLauncher> getDescriptor() {
         throw new UnsupportedOperationException();
     }
 }

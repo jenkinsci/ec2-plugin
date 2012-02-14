@@ -63,11 +63,13 @@ public class Eucalyptus extends EC2Cloud {
 
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
-        public String getDisplayName() {
+        @Override
+		public String getDisplayName() {
             return "Eucalyptus";
         }
 
-        public FormValidation doTestConnection(
+        @Override
+		public FormValidation doTestConnection(
                 @QueryParameter URL url,
                 @QueryParameter String accessId,
                 @QueryParameter String secretKey,
@@ -75,7 +77,8 @@ public class Eucalyptus extends EC2Cloud {
             return super.doTestConnection(new Metadata(url).ec2endpoint,accessId,secretKey,privateKey);
         }
 
-        public FormValidation doGenerateKey(
+        @Override
+		public FormValidation doGenerateKey(
                 StaplerResponse rsp, @QueryParameter URL url, @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
             return super.doGenerateKey(rsp, new Metadata(url).ec2endpoint, accessId,secretKey);
         }

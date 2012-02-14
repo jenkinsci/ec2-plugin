@@ -184,7 +184,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
-        public String getDisplayName() {
+        @Override
+		public String getDisplayName() {
             return null;
         }
 

@@ -2,15 +2,16 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.util.FormValidation;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+
+import javax.servlet.ServletException;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.List;
 
 /**
  * The original implementation of {@link EC2Cloud}.
@@ -47,7 +48,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
-        public String getDisplayName() {
+        @Override
+		public String getDisplayName() {
             return "Amazon EC2";
         }
 
