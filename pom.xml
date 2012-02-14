@@ -41,6 +41,11 @@
 
   <developers>
     <developer>
+      <id>kohsuke</id>
+      <name>Kohsuke Kawaguchi</name>
+      <email>kkawaguchi@cloudbees.com</email>
+    </developer>
+    <developer>
       <id>francisu</id>
       <name>Francis Upton IV</name>
       <email>francis@oaklandsoftware.com</email>

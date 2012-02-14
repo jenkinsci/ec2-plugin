@@ -4,14 +4,8 @@
 target
 
 .classpath
-
 .project
-
-<<<<<<< HEAD
-.settings/org.eclipse.jdt.core.prefs
-=======
 .settings
 
 /bin
 /work
->>>>>>> 936b1088a15d7ec2bd636f6307f11660f66b7634
