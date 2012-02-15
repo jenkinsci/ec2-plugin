@@ -39,6 +39,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
@@ -152,7 +153,8 @@ public abstract class EC2Cloud extends Cloud {
         int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if(!"terminated".equals(i.getState().getName()))
+                InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
+                if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
                     n++;
             }
         }
