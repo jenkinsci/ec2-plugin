@@ -126,7 +126,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             scp.put(Hudson.getInstance().getJnlpJars("slave.jar").readFully(),
                     "slave.jar","/tmp");
 
-            String launchString = "java " + computer.getNode().jvmopts + " -jar /tmp/slave.jar";
+            String jvmopts = computer.getNode().jvmopts;
+            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar /tmp/slave.jar";
             logger.println("Launching slave agent: " + launchString);
             final Session sess = conn.openSession();
             sess.execCommand(launchString);
