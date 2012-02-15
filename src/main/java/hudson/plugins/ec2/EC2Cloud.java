@@ -347,33 +347,12 @@ public abstract class EC2Cloud extends Cloud {
             return InstanceType.values();
         }
 
-        /**
-         * TODO: once 1.304 is released, revert to FormValidation.validateBase64
-         */
-        private FormValidation validateBase64(String value, boolean allowWhitespace, boolean allowEmpty, String errorMessage) {
-            try {
-                String v = value;
-                if(!allowWhitespace) {
-                    if(v.indexOf(' ')>=0 || v.indexOf('\n')>=0)
-                        return FormValidation.error(errorMessage);
-                }
-                v=v.trim();
-                if(!allowEmpty && v.length()==0)
-                    return FormValidation.error(errorMessage);
-
-                com.trilead.ssh2.crypto.Base64.decode(v.toCharArray());
-                return FormValidation.ok();
-            } catch (IOException e) {
-                return FormValidation.error(errorMessage);
-            }
-        }
-
         public FormValidation doCheckAccessId(@QueryParameter String value) throws IOException, ServletException {
-            return validateBase64(value,false,false,Messages.EC2Cloud_InvalidAccessId());
+            return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidAccessId());
         }
 
         public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
-            return validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
+            return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
         }
 
         public FormValidation doCheckPrivateKey(@QueryParameter String value) throws IOException, ServletException {
