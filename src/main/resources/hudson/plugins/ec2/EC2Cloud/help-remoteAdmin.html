@@ -1,8 +1,7 @@
 <div>
-    This field is optional. It controls what usercode to ssh into instances
-    to perform administration. Many EC2 AMI's ship with root as the administrative
-    user, but official Ubuntu images ship with root disabled and the user
-    'ubuntu' available instead. If the user does not have direct administrative
-    access you may also want to set the root command prefix. Hudson will use these
-    two fields to make the root user usable again.
+    This field is optional. Specify the user name used to access the instance using
+    ssh. For many Amazon AMI's this is 'ec2-user'; Ubuntu images use 'ubuntu'. If you
+    don't specify this, 'root' is assumed.
+    If the user does not have direct administrative
+    access, i.e. is not 'root', you should also set the root command prefix, i.e. to 'sudo'. 
 </div>

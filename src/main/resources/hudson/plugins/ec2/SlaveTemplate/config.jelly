@@ -38,6 +38,9 @@ THE SOFTWARE.
   <f:entry title="${%Remote user}" field="remoteAdmin">
     <f:textbox />
   </f:entry>
+  <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
+    <f:textbox/>
+  </f:entry>
   <f:entry title="${%Labels}" field="labelString">
     <f:textbox />
   </f:entry>
@@ -50,9 +53,6 @@ THE SOFTWARE.
     </f:entry>
     <f:entry title="${%Number of Executors}" field="numExecutors">
       <f:textbox />
-    </f:entry>
-    <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
-      <f:textbox/>
     </f:entry>
     <f:entry title="${%JVM Options}" field="jvmopts">
       <f:textbox/>

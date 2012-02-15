@@ -29,8 +29,8 @@ THE SOFTWARE.
 
       <p>
         Your <tt>JENKINS_HOME</tt> (${app.rootDir}) is almost full.
-        When this directory completely fills up, it'll wrec havoc
-        because Hudson can't store any more data.
+        When this directory completely fills up, it will cause problems
+        because Jenkins can't store any more data.
       </p><p>
         
       </p>
