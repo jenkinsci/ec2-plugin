@@ -47,16 +47,6 @@ THE SOFTWARE.
           <f:textbox />
         </f:entry>
         
-        <f:entry title="${%Availability Zone}" field="zone">
-          <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12 -->
-          <!-- <f:select/>-->
-          <f:textbox/>
-        </f:entry>
-
-        <f:entry title="${%Remote FS root}" field="remoteFS">
-          <f:textbox />
-        </f:entry>
-
         <f:entry title="${%Labels}" field="labelString">
           <f:textbox />
         </f:entry>
@@ -65,8 +55,6 @@ THE SOFTWARE.
           <f:textarea />
         </f:entry>
 
-        <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
-
         <f:entry title="${%Remote user}" field="remoteAdmin">
           <f:textbox />
         </f:entry>
@@ -74,6 +62,8 @@ THE SOFTWARE.
         <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
           <f:textbox />
         </f:entry>
+
+        <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
         <f:block>
           <f:submit value="${%Save}"/>

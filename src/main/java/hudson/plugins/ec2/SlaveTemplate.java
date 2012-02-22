@@ -161,7 +161,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, getZone(), remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts);
     }
 
     /**

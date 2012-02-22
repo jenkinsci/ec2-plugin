@@ -38,7 +38,6 @@ public final class EC2Slave extends Slave {
     /**
      * Comes from {@link SlaveTemplate#initScript}.
      */
-    public final String zone;
     public final String initScript;
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
@@ -51,14 +50,13 @@ public final class EC2Slave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
     
-    public EC2Slave(String instanceId, String description, String zone, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
-        this(instanceId, description, zone, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
+        this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
     }
 
     @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String zone, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
         super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
-        this.zone  = zone;
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
@@ -70,7 +68,7 @@ public final class EC2Slave extends Slave {
      * Constructor for debugging.
      */
     public EC2Slave(String instanceId) throws FormException, IOException {
-        this(instanceId,"debug","zone", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null);
+        this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null);
     }
 
     /**
@@ -120,10 +118,6 @@ public final class EC2Slave extends Slave {
         } catch (IOException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
         }
-    }
-
-    String getZone() {
-        return zone;
     }
 
     String getRemoteAdmin() {
