@@ -11,6 +11,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -21,6 +22,7 @@ import java.util.Set;
 
 import javax.servlet.ServletException;
 
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -32,6 +34,7 @@ import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.Placement;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 
 /**
@@ -42,6 +45,7 @@ import com.amazonaws.services.ec2.model.RunInstancesRequest;
 public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String ami;
     public final String description;
+    public final String zone;
     public final String remoteFS;
     public final String sshPort;
     public final InstanceType type;
@@ -57,8 +61,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts) {
+    public SlaveTemplate(String ami, String zone, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts) {
         this.ami = ami;
+        this.zone = zone;
         this.remoteFS = remoteFS;
         this.sshPort = sshPort;
         this.type = type;
@@ -83,6 +88,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String getDisplayName() {
         return description+" ("+ami+")";
+    }
+
+    String getZone() {
+        return zone;
     }
 
     public int getNumExecutors() {
@@ -137,6 +146,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if(keyPair==null)
                 throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
             RunInstancesRequest request = new RunInstancesRequest(ami, 1, 1);
+            if (StringUtils.isNotBlank(getZone())) {
+            	Placement placement = new Placement(getZone());
+            	request.setPlacement(placement);
+            }
             request.setUserData(userData);
             request.setKeyName(keyPair.getKeyName());
             request.setInstanceType(type.toString());
@@ -148,7 +161,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts);
+        return new EC2Slave(inst.getInstanceId(), description, getZone(), remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts);
     }
 
     /**
@@ -204,9 +217,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         public FormValidation doValidateAmi(
                 @QueryParameter String accessId, @QueryParameter String secretKey,
-                @QueryParameter AwsRegion region,
+                @QueryParameter String region,
                 final @QueryParameter String ami) throws IOException, ServletException {
-            AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, region.ec2Endpoint);
+            AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
             if(ec2!=null) {
                 try {
                     List<String> images = new LinkedList<String>();
@@ -229,5 +242,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else
                 return FormValidation.ok();   // can't test
         }
+        
+        public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
+        		@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
+    			ServletException {
+        	return EC2Slave.fillZoneItems(accessId, secretKey, region);
+    	}
+        
     }
 }

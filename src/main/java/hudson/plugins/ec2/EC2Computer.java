@@ -1,13 +1,19 @@
 package hudson.plugins.ec2;
 
+import hudson.Extension;
 import hudson.Util;
+import hudson.model.Slave.SlaveDescriptor;
 import hudson.slaves.SlaveComputer;
+import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.util.Collections;
 
+import javax.servlet.ServletException;
+
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -123,4 +129,5 @@ public class EC2Computer extends SlaveComputer {
     public String getRootCommandPrefix() {
         return getNode().getRootCommandPrefix();
     }
+    
 }
