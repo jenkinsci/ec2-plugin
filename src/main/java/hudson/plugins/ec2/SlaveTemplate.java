@@ -56,12 +56,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String remoteAdmin;
     public final String rootCommandPrefix;
     public final String jvmopts;
+    public final boolean stopOnTerminate;
     protected transient EC2Cloud parent;
+    
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts) {
+    public SlaveTemplate(String ami, String zone, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) {
         this.ami = ami;
         this.zone = zone;
         this.remoteFS = remoteFS;
@@ -75,6 +77,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
+        this.stopOnTerminate = stopOnTerminate;
         readResolve(); // initialize
     }
     
@@ -161,7 +164,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate);
     }
 
     /**

@@ -19,7 +19,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
 	@Override
 	public void setUp() throws Exception{
 		super.setUp();
-		SlaveTemplate template = new SlaveTemplate("ami", "foo", "zone", "22", InstanceType.M1Large, LABEL1 + " " + LABEL2, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g");
+		SlaveTemplate template = new SlaveTemplate("ami", "foo", "zone", "22", InstanceType.M1Large, LABEL1 + " " + LABEL2, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(template);
         ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates);
@@ -41,7 +41,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
     }
         
         public void testEmptyLabel() throws Exception{
-            SlaveTemplate temp = new SlaveTemplate("ami", "foo", "zone", "22", InstanceType.M1Large, "", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g");
+            SlaveTemplate temp = new SlaveTemplate("ami", "foo", "zone", "22", InstanceType.M1Large, "", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true);
             List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
             templates.add(temp);
             ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates);

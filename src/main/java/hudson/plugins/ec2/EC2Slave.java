@@ -27,6 +27,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 /**
@@ -42,6 +43,7 @@ public final class EC2Slave extends Slave {
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
     public final String jvmopts; //e.g. -Xmx1g
+    public final boolean stopOnTerminate;
 
     /**
      * For data read from old Hudson, this is 0, so we use that to indicate 22.
@@ -50,25 +52,26 @@ public final class EC2Slave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
     
-    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
-        this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts);
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) throws FormException, IOException {
+        this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate);
     }
 
     @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts) throws FormException, IOException {
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) throws FormException, IOException {
         super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(), nodeProperties);
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
         this.sshPort = sshPort;
+        this.stopOnTerminate = stopOnTerminate;
     }
 
     /**
      * Constructor for debugging.
      */
     public EC2Slave(String instanceId) throws FormException, IOException {
-        this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null);
+        this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null, false);
     }
 
     /**
@@ -109,9 +112,15 @@ public final class EC2Slave extends Slave {
     public void terminate() {
         try {
             AmazonEC2 ec2 = EC2Cloud.get().connect();
-            TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
-            ec2.terminateInstances(request);
-            LOGGER.info("Terminated EC2 instance: "+getInstanceId());
+            if (stopOnTerminate) {
+            	StopInstancesRequest request = new StopInstancesRequest(Collections.singletonList(getInstanceId()));
+            	ec2.stopInstances(request);
+                LOGGER.info("Terminated EC2 instance (stopped): "+getInstanceId());
+            } else {
+            	TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+            	ec2.terminateInstances(request);
+                LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
+            }
             Hudson.getInstance().removeNode(this);
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
@@ -138,6 +147,10 @@ public final class EC2Slave extends Slave {
 
     public int getSshPort() {
         return sshPort!=0 ? sshPort : 22;
+    }
+
+    public boolean getStopOnTerminate() {
+        return stopOnTerminate;
     }
 
 	public static ListBoxModel fillZoneItems(String accessId,

@@ -63,6 +63,10 @@ THE SOFTWARE.
           <f:textbox />
         </f:entry>
 
+	    <f:entry title="${%Stop on Terminate}" field="stopOnTerminate">
+    	  <f:checkbox />
+    	</f:entry>
+
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
         <f:block>
