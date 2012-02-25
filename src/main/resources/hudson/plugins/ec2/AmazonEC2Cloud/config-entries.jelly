@@ -1,12 +1,14 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <f:entry title="${%Region}" field="region">
-    <f:enum>${it.displayName}</f:enum>
-  </f:entry>
   <f:entry title="${%Access Key ID}" field="accessId">
     <f:textbox />
   </f:entry>
   <f:entry title="${%Secret Access Key}" field="secretKey">
     <f:password />
+  </f:entry>
+  <f:description>The regions will be populated once the keys above are entered.
+  </f:description>
+  <f:entry title="${%Region}" field="region">
+    <f:select/>
   </f:entry>
   <f:entry title="${%EC2 Key Pair's Private Key}" field="privateKey">
     <f:textarea />

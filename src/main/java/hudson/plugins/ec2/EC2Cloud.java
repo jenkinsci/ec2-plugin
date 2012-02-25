@@ -56,6 +56,9 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
  */
 public abstract class EC2Cloud extends Cloud {
 
+	public static final String DEFAULT_EC2_HOST = "us-east-1";
+	public static final String EC2_URL_HOST = "ec2.amazonaws.com";
+	
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
@@ -292,21 +295,10 @@ public abstract class EC2Cloud extends Cloud {
      */
     public static String convertHostName(String ec2HostName) {
         if (ec2HostName == null || ec2HostName.length()==0)
-            ec2HostName = "us-east-1";
+            ec2HostName = DEFAULT_EC2_HOST;
         if (!ec2HostName.contains("."))
-            ec2HostName = ec2HostName + ".ec2.amazonaws.com";
+            ec2HostName = ec2HostName + "." + EC2_URL_HOST;
 	return ec2HostName;
-    }
-
-    /***
-     * Convert a configured s3 endpoint to a FQDN or ip address
-     */
-    public static String convertS3HostName(String s3HostName) {
-        if (s3HostName == null || s3HostName.length()==0)
-            s3HostName = "s3";
-        if (!s3HostName.contains("."))
-            s3HostName = s3HostName + ".amazonaws.com";
-	return s3HostName;
     }
 
     /***
@@ -391,7 +383,7 @@ public abstract class EC2Cloud extends Cloud {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if(pk.find(ec2)==null)
-                        return FormValidation.error("The private key entered below isn't registered to this EC2 region (fingerprint is "+pk.getFingerprint()+")");
+                        return FormValidation.error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "+pk.getFingerprint()+")");
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
