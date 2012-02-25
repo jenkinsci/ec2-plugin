@@ -175,7 +175,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
         while(true) {
             try {
-                String host = computer.updateInstanceDescription().getPublicDnsName();
+                
+				//check for both public and private DNS, private IP is private subnets in a VPC
+				//publicDNS and privateIP should be empty until set.  If public DNS exists it will be used instead of private IP,
+				//otherwise it will use the private ip address if it is set.
+				String publicDNS = computer.updateInstanceDescription().getPublicDnsName();
+				String privateIP = computer.updateInstanceDescription().getPrivateIpAddress();
+                
+                String host = "0.0.0.0";
+                if(!publicDNS.isEmpty())
+                	host=publicDNS;
+                else if(!privateIP.isEmpty())
+                	host=privateIP;
+                
                 if ("0.0.0.0".equals(host)) {
                     logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
