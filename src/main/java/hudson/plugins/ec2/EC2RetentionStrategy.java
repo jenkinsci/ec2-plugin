@@ -23,7 +23,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         if (c.isIdle() && !disabled) {
             // TODO: really think about the right strategy here
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(30)) {
+            // EC2 instances are charged at ceil(hours), so we should not terminate it when not near an hour boundary.
+            final long milliSecondsUptimeThisHour = c.getUptime() % TimeUnit2.MINUTES.toMillis(60);
+            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(30) && milliSecondsUptimeThisHour > TimeUnit2.MINUTES.toMillis(55)) {
                 LOGGER.info("Disconnecting "+c.getName());
                 c.getNode().terminate();
             }
