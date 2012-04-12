@@ -81,6 +81,7 @@ public final class EC2Slave extends Slave {
         switch (it) {
         case T1Micro:       return 1;
         case M1Small:       return 1;
+        case M1Medium:      return 2;
         case M1Large:       return 4;
         case C1Medium:      return 5;
         case M2Xlarge:      return 6;
