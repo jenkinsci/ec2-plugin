@@ -57,13 +57,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String rootCommandPrefix;
     public final String jvmopts;
     public final boolean stopOnTerminate;
+    public final String subnetId;
     protected transient EC2Cloud parent;
     
-
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) {
+    public SlaveTemplate(String ami, String zone, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate,String subnetId) {
         this.ami = ami;
         this.zone = zone;
         this.remoteFS = remoteFS;
@@ -78,6 +78,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
         this.stopOnTerminate = stopOnTerminate;
+        this.subnetId = subnetId;
+
         readResolve(); // initialize
     }
     
@@ -156,6 +158,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             request.setUserData(userData);
             request.setKeyName(keyPair.getKeyName());
             request.setInstanceType(type.toString());
+            if(!subnetId.isEmpty())
+            	request.setSubnetId(subnetId);
+            
             Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
             return newSlave(inst);
         } catch (FormException e) {

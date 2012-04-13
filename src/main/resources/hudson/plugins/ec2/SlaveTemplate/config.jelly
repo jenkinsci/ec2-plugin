@@ -69,6 +69,9 @@ THE SOFTWARE.
     <f:entry title="${%Stop on Terminate}" field="stopOnTerminate">
       <f:checkbox />
     </f:entry>
+    <f:entry title="${%VPC Subnet ID}" field="subnetId">
+      <f:textbox />
+    </f:entry>
   </f:advanced>
 
   <f:entry title="">

@@ -24,13 +24,14 @@ public class SlaveTemplateTest extends HudsonTestCase {
 	
     public void testConfigRoundtrip() throws Exception {
         String ami = "ami1";
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2Slave.TEST_ZONE, "foo", "22", InstanceType.M1Large, "ttt", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false);
+
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2Slave.TEST_ZONE, "foo", "22", InstanceType.M1Large, "ttt", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "");
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
         AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(ami);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate");
+        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,subnetId");
     }
 }
