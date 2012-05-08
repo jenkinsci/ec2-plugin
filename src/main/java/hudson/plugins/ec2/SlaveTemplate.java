@@ -15,7 +15,9 @@ import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -46,6 +48,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String ami;
     public final String description;
     public final String zone;
+    public final String securityGroups;
     public final String remoteFS;
     public final String sshPort;
     public final InstanceType type;
@@ -61,11 +64,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
+	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) {
         this.ami = ami;
         this.zone = zone;
+        this.securityGroups = securityGroups;
         this.remoteFS = remoteFS;
         this.sshPort = sshPort;
         this.type = type;
@@ -97,6 +102,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return zone;
     }
 
+    public String getSecurityGroupString() {
+        return securityGroups;
+    }
+
+    public Set<String> getSecurityGroupSet() {
+        return securityGroupSet;
+    }
+
+    public Set<String> parseSecurityGroups() {
+        if (securityGroups == null || "".equals(securityGroups.trim()))  {
+            return Collections.emptySet();
+        } else {
+            return new HashSet<String>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
+        }
+    }
+
     public int getNumExecutors() {
         try {
             return Integer.parseInt(numExecutors);
@@ -121,9 +142,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
     
     public Set getLabelSet(){
-    	return labelSet;
+        return labelSet;
     }
-    
+
     /**
      * Does this contain the given label?
      *
@@ -156,6 +177,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             request.setUserData(userData);
             request.setKeyName(keyPair.getKeyName());
             request.setInstanceType(type.toString());
+            request.setSecurityGroups(securityGroupSet);
             Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
             return newSlave(inst);
         } catch (FormException e) {
@@ -191,6 +213,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     protected Object readResolve() {
         labelSet = Label.parse(labels);
+        securityGroupSet = parseSecurityGroups();
         return this;
     }
 
@@ -201,7 +224,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Extension
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
         @Override
-		public String getDisplayName() {
+        public String getDisplayName() {
             return null;
         }
 
@@ -247,10 +270,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
         
         public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
-        		@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-    			ServletException {
-        	return EC2Slave.fillZoneItems(accessId, secretKey, region);
-    	}
+                @QueryParameter String secretKey, @QueryParameter String region) throws IOException,
+                ServletException {
+            return EC2Slave.fillZoneItems(accessId, secretKey, region);
+        }
         
     }
 }
