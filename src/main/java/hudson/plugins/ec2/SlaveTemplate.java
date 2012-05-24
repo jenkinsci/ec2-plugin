@@ -24,6 +24,7 @@ import java.util.Set;
 
 import javax.servlet.ServletException;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -174,7 +175,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             	Placement placement = new Placement(getZone());
             	request.setPlacement(placement);
             }
-            request.setUserData(userData);
+            request.setUserData(Base64.encodeBase64String(userData.getBytes()));
             request.setKeyName(keyPair.getKeyName());
             request.setInstanceType(type.toString());
             request.setSecurityGroups(securityGroupSet);
