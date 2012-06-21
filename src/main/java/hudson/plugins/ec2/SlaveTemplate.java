@@ -15,12 +15,7 @@ import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import javax.servlet.ServletException;
 
@@ -31,14 +26,7 @@ import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.*;
 
 /**
  * Template of {@link EC2Slave} to launch.
@@ -60,15 +48,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String remoteAdmin;
     public final String rootCommandPrefix;
     public final String jvmopts;
+    public final String subnetId;
+    public final String idleTerminationMinutes;
     public final boolean stopOnTerminate;
+    private final List<EC2Tag> tags;
     protected transient EC2Cloud parent;
     
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
-	private transient /*almost final*/ Set<String> securityGroupSet;
+	 private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type,
+                         String labelString, String description, String initScript, String userData, String numExecutors,
+                         String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate,
+                         String subnetId, List<EC2Tag> tags, String idleTerminationMinutes ) {
         this.ami = ami;
         this.zone = zone;
         this.securityGroups = securityGroups;
@@ -84,6 +78,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
         this.stopOnTerminate = stopOnTerminate;
+        this.subnetId = subnetId;
+        this.tags = tags;
+        this.idleTerminationMinutes = idleTerminationMinutes;
+
         readResolve(); // initialize
     }
     
@@ -134,12 +132,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return 22;
         }
     }
+
     public String getRemoteAdmin() {
         return remoteAdmin;
     }
 
     public String getRootCommandPrefix() {
         return rootCommandPrefix;
+    }
+
+    public String getSubnetId() {
+        return subnetId;
+    }
+
+    public List<EC2Tag> getTags() {
+        return Collections.unmodifiableList(tags);
+    }
+
+    public String getidleTerminationMinutes() {
+        return idleTerminationMinutes;
     }
     
     public Set getLabelSet(){
@@ -168,26 +179,93 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             logger.println("Launching "+ami);
             KeyPair keyPair = parent.getPrivateKey().find(ec2);
-            if(keyPair==null)
+            if(keyPair==null) {
                 throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+            }
+           
             RunInstancesRequest request = new RunInstancesRequest(ami, 1, 1);
+
             if (StringUtils.isNotBlank(getZone())) {
             	Placement placement = new Placement(getZone());
             	request.setPlacement(placement);
             }
+
+            if (StringUtils.isNotBlank(getSubnetId())) {
+               request.setSubnetId(getSubnetId());
+
+               /* If we have a subnet ID then we can only use VPC security groups */
+               if ( !securityGroupSet.isEmpty() ) {
+                  List<String> group_ids = new ArrayList<String>();
+
+                  DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
+                  group_req.withFilters( new Filter( "group-name" ).withValues( securityGroupSet ));
+                  DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups( group_req );
+
+                  for ( SecurityGroup group : group_result.getSecurityGroups() ) {
+                     if ( group.getVpcId() != null && !group.getVpcId().isEmpty()) {
+                        List<Filter> filters = new ArrayList<Filter>();
+                        filters.add( new Filter( "vpc-id" ).withValues( group.getVpcId() ));
+                        filters.add( new Filter( "state" ).withValues( "available" ));
+                        filters.add( new Filter( "subnet-id" ).withValues( getSubnetId() ));
+
+                        DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
+                        subnet_req.withFilters( filters );
+                        DescribeSubnetsResult subnet_result = ec2.describeSubnets( subnet_req );
+
+                        List subnets = subnet_result.getSubnets();
+                        if( subnets != null && !subnets.isEmpty() ) {
+                           group_ids.add( group.getGroupId() );
+                        }
+                     }
+                  }
+
+                  if ( securityGroupSet.size() != group_ids.size() ) {
+                     throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
+                  }
+
+                  if ( !group_ids.isEmpty() ) {
+                     request.setSecurityGroupIds( group_ids );
+                  }
+               }
+            }
+            else
+            {
+               /* No subnet: we can use standard security groups by name */
+               request.setSecurityGroups( securityGroupSet );
+            }
+
             request.setUserData(Base64.encodeBase64String(userData.getBytes()));
             request.setKeyName(keyPair.getKeyName());
             request.setInstanceType(type.toString());
-            request.setSecurityGroups(securityGroupSet);
             Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
+
+            /* Now that we have our instance, we can set tags on it */
+            if ( !tags.isEmpty() ) {
+                HashSet<Tag> inst_tags = new HashSet<Tag>();
+
+                for( EC2Tag t : tags ) {
+                    inst_tags.add( new Tag( t.getName(), t.getValue()) );
+                }
+
+                CreateTagsRequest tag_request = new CreateTagsRequest();
+                tag_request.withResources( inst.getInstanceId() ).setTags( inst_tags );
+                ec2.createTags( tag_request );
+
+                // That was a remote request - we should also update our local instance data.
+                inst.setTags( inst_tags );
+            }
+
             return newSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
     }
 
+
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels,
+                            initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes,
+                            inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags( inst.getTags() ));
     }
 
     /**
@@ -269,12 +347,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else
                 return FormValidation.ok();   // can't test
         }
-        
-        public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
-                @QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-                ServletException {
-            return EC2Slave.fillZoneItems(accessId, secretKey, region);
+
+        public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value)
+        {
+            if ( value == null || value.trim() == "" ) return FormValidation.ok();
+            try
+            {
+                int val = Integer.parseInt( value );
+                if ( val >= 0 ) return FormValidation.ok();
+            }
+            catch ( NumberFormatException nfe ) {}
+            return FormValidation.error( "Idle Termination time must be a non-negative integer (or null)" );
         }
         
+        public ListBoxModel doFillZoneItems( @QueryParameter String accessId,
+                                             @QueryParameter String secretKey,
+                                             @QueryParameter String region)
+                                             throws IOException, ServletException
+        {
+            return EC2Slave.fillZoneItems(accessId, secretKey, region);
+        }
     }
 }
+
