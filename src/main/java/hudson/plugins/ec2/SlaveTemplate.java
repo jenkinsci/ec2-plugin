@@ -6,10 +6,12 @@ import hudson.model.Describable;
 import hudson.model.TaskListener;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Node.Mode;
 import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import hudson.slaves.NodeProperty;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
@@ -61,6 +63,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String rootCommandPrefix;
     public final String jvmopts;
     public final boolean stopOnTerminate;
+    public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
     
 
@@ -68,7 +71,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, boolean usePrivateDnsName) {
         this.ami = ami;
         this.zone = zone;
         this.securityGroups = securityGroups;
@@ -84,6 +87,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
         this.stopOnTerminate = stopOnTerminate;
+        this.usePrivateDnsName = usePrivateDnsName;
         readResolve(); // initialize
     }
     
@@ -187,7 +191,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, usePrivateDnsName);
     }
 
     /**

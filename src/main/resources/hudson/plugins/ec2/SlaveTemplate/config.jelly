@@ -72,6 +72,9 @@ THE SOFTWARE.
     <f:entry title="${%Stop on Terminate}" field="stopOnTerminate">
       <f:checkbox />
     </f:entry>
+    <f:entry title="${%Connect using private DNS name instead of public one}" field="usePrivateDnsName">
+      <f:checkbox />
+    </f:entry>
   </f:advanced>
 
   <f:entry title="">
