@@ -14,16 +14,37 @@ import org.kohsuke.stapler.DataBoundConstructor;
  * @author Kohsuke Kawaguchi
  */
 public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
+    /** Number of minutes of idleness before an instance should be terminated.
+	    A value of zero indicates that the instance should never be automatically terminated */
+    public final int idleTerminationMinutes;
+
+
     @DataBoundConstructor
-    public EC2RetentionStrategy() {
+    public EC2RetentionStrategy(String idleTerminationMinutes) {
+        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
+            this.idleTerminationMinutes = 0;
+        } else {
+            int value = 30;
+            try {
+                value = Integer.parseInt(idleTerminationMinutes);
+            } catch (NumberFormatException nfe) {
+                LOGGER.info("Malformed default idleTermination value: " + idleTerminationMinutes); 
+            }
+
+            this.idleTerminationMinutes = value;
+        }
     }
 
     @Override
 	public synchronized long check(EC2Computer c) {
+
+        /* If we've been told never to terminate, then we're done. */
+        if  (idleTerminationMinutes == 0) return 1;
+
         if (c.isIdle() && !disabled) {
             // TODO: really think about the right strategy here
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(30)) {
+            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
                 LOGGER.info("Disconnecting "+c.getName());
                 c.getNode().terminate();
             }
