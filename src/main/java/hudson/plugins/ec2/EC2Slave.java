@@ -51,6 +51,7 @@ public final class EC2Slave extends Slave {
     public String publicDNS;
     public String privateDNS;
     public List<EC2Tag> tags;
+    public final boolean usePrivateDnsName;
 
     private long _last_live_fetch = 0;
 
@@ -72,14 +73,41 @@ public final class EC2Slave extends Slave {
 
         this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript,
              Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate,
-             idleTerminationMinutes, publicDNS, privateDNS, tags);
+             idleTerminationMinutes, publicDNS, privateDNS, tags, false );
     }
+
+
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors,
+                    String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts,
+                    boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags,
+                    boolean usePrivateDnsName)
+                    throws FormException, IOException {
+
+        this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript,
+             Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate,
+             idleTerminationMinutes, publicDNS, privateDNS, tags, usePrivateDnsName);
+    }
+
+    /*
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) throws FormException, IOException {
+        this(instanceId, description, remoteFS, sshPort, numExecutors, labelString, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, false);
+    }
+
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, boolean usePrivateDnsName) throws FormException, IOException {
+        this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, usePrivateDnsName);
+    }
+
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate) throws FormException, IOException {
+        this(instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, false);
+    }
+    */
+
 
     @DataBoundConstructor
     public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode,
                     String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin,
                     String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes,
-                    String publicDNS, String privateDNS, List<EC2Tag> tags )
+                    String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName )
                     throws FormException, IOException {
 
         super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(),
@@ -95,6 +123,7 @@ public final class EC2Slave extends Slave {
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
         this.tags = tags;
+        this.usePrivateDnsName = usePrivateDnsName;
     }
 
     /**
@@ -102,7 +131,7 @@ public final class EC2Slave extends Slave {
      */
     public EC2Slave(String instanceId) throws FormException, IOException {
         this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(),
-             null, null, null, false, null, "Fake public", "Fake private", null);
+             null, null, null, false, null, "Fake public", "Fake private", null, false);
     }
 
     /**
@@ -184,7 +213,6 @@ public final class EC2Slave extends Slave {
     public boolean getStopOnTerminate() {
         return stopOnTerminate;
     }
-
 
     /* Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to
        time to ensure we reflect the reality of the instances. */
@@ -294,9 +322,11 @@ public final class EC2Slave extends Slave {
     }
 
 
-    public static ListBoxModel fillZoneItems(String accessId,
-			String secretKey, String region) throws IOException,
-			ServletException {
+    public boolean getUsePrivateDnsName() {
+        return usePrivateDnsName;
+    }
+
+	public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
 			model.add(TEST_ZONE);

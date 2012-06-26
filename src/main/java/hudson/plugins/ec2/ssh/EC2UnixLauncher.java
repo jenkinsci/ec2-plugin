@@ -179,17 +179,25 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 String vpc_id = instance.getVpcId();
                 String host;
 
-                /* VPC hosts don't have public DNS names, so we need to use an IP address instead */
-                if ( vpc_id == null || vpc_id.equals( "" )) {
-                   host = instance.getPublicDnsName();
-                } else {
-                   host = instance.getPrivateIpAddress();
+                if ( computer.getNode().usePrivateDnsName )
+                {
+                    host = instance.getPrivateDnsName();
+                }
+                else
+                {
+                    /* VPC hosts don't have public DNS names, so we need to use an IP address instead */
+                    if ( vpc_id == null || vpc_id.equals( "" )) {
+                        host = instance.getPublicDnsName();
+                    } else {
+                        host = instance.getPrivateIpAddress();
+                    }
                 }
 
                 if ("0.0.0.0".equals(host)) {
                     logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
                 }
+
                 int port = computer.getSshPort();
                 logger.println("Connecting to " + host + " on port " + port + ". ");
                 Connection conn = new Connection(host, port);

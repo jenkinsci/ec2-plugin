@@ -105,6 +105,9 @@ THE SOFTWARE.
        </f:repeatable>
     </f:entry>
 
+    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
+      <f:checkbox />
+    </f:entry>
   </f:advanced>
 
   <f:entry title="">
