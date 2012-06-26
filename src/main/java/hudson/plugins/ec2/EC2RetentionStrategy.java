@@ -21,19 +21,13 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
-        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "")
-        {
+        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
             this.idleTerminationMinutes = 0;
-        }
-        else
-        {
+        } else {
             int value = 30;
-            try
-            {
+            try {
                 value = Integer.parseInt(idleTerminationMinutes);
-            }
-            catch (NumberFormatException nfe)
-            {
+            } catch (NumberFormatException nfe) {
                 LOGGER.info("Malformed default idleTermination value: " + idleTerminationMinutes); 
             }
 

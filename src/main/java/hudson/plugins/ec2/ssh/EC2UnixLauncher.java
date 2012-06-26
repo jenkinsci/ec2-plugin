@@ -179,14 +179,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 String vpc_id = instance.getVpcId();
                 String host;
 
-                if ( computer.getNode().usePrivateDnsName )
-                {
+                if (computer.getNode().usePrivateDnsName) {
                     host = instance.getPrivateDnsName();
-                }
-                else
-                {
+                } else {
                     /* VPC hosts don't have public DNS names, so we need to use an IP address instead */
-                    if ( vpc_id == null || vpc_id.equals( "" )) {
+                    if (vpc_id == null || vpc_id.equals("")) {
                         host = instance.getPublicDnsName();
                     } else {
                         host = instance.getPrivateIpAddress();

@@ -59,13 +59,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
-	 private transient /*almost final*/ Set<String> securityGroupSet;
+	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type,
-                         String labelString, String description, String initScript, String userData, String numExecutors,
-                         String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate,
-                         String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName ) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName ) {
         this.ami = ami;
         this.zone = zone;
         this.securityGroups = securityGroups;
@@ -198,44 +195,44 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                request.setSubnetId(getSubnetId());
 
                /* If we have a subnet ID then we can only use VPC security groups */
-               if ( !securityGroupSet.isEmpty() ) {
+               if (!securityGroupSet.isEmpty()) {
                   List<String> group_ids = new ArrayList<String>();
 
                   DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-                  group_req.withFilters( new Filter( "group-name" ).withValues( securityGroupSet ));
-                  DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups( group_req );
+                  group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
+                  DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
 
-                  for ( SecurityGroup group : group_result.getSecurityGroups() ) {
-                     if ( group.getVpcId() != null && !group.getVpcId().isEmpty()) {
+                  for (SecurityGroup group : group_result.getSecurityGroups()) {
+                     if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
                         List<Filter> filters = new ArrayList<Filter>();
-                        filters.add( new Filter( "vpc-id" ).withValues( group.getVpcId() ));
-                        filters.add( new Filter( "state" ).withValues( "available" ));
-                        filters.add( new Filter( "subnet-id" ).withValues( getSubnetId() ));
+                        filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
+                        filters.add(new Filter("state").withValues("available"));
+                        filters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
                         DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
-                        subnet_req.withFilters( filters );
-                        DescribeSubnetsResult subnet_result = ec2.describeSubnets( subnet_req );
+                        subnet_req.withFilters(filters);
+                        DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
 
                         List subnets = subnet_result.getSubnets();
-                        if( subnets != null && !subnets.isEmpty() ) {
-                           group_ids.add( group.getGroupId() );
+                        if(subnets != null && !subnets.isEmpty()) {
+                           group_ids.add(group.getGroupId());
                         }
                      }
                   }
 
-                  if ( securityGroupSet.size() != group_ids.size() ) {
+                  if (securityGroupSet.size() != group_ids.size()) {
                      throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
                   }
 
-                  if ( !group_ids.isEmpty() ) {
-                     request.setSecurityGroupIds( group_ids );
+                  if (!group_ids.isEmpty()) {
+                     request.setSecurityGroupIds(group_ids);
                   }
                }
             }
             else
             {
                /* No subnet: we can use standard security groups by name */
-               request.setSecurityGroups( securityGroupSet );
+               request.setSecurityGroups(securityGroupSet);
             }
 
             request.setUserData(Base64.encodeBase64String(userData.getBytes()));
@@ -244,19 +241,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
 
             /* Now that we have our instance, we can set tags on it */
-            if ( !tags.isEmpty() ) {
+            if (!tags.isEmpty()) {
                 HashSet<Tag> inst_tags = new HashSet<Tag>();
 
-                for( EC2Tag t : tags ) {
-                    inst_tags.add( new Tag( t.getName(), t.getValue()) );
+                for(EC2Tag t : tags) {
+                    inst_tags.add(new Tag(t.getName(), t.getValue()));
                 }
 
                 CreateTagsRequest tag_request = new CreateTagsRequest();
-                tag_request.withResources( inst.getInstanceId() ).setTags( inst_tags );
-                ec2.createTags( tag_request );
+                tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
+                ec2.createTags(tag_request);
 
                 // That was a remote request - we should also update our local instance data.
-                inst.setTags( inst_tags );
+                inst.setTags(inst_tags);
             }
 
             return newSlave(inst);
@@ -267,10 +264,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels,
-                            initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes,
-                            inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags( inst.getTags() ),
-                            usePrivateDnsName );
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
     }
 
     /**
@@ -353,16 +347,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();   // can't test
         }
 
-        public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value)
-        {
-            if ( value == null || value.trim() == "" ) return FormValidation.ok();
-            try
-            {
-                int val = Integer.parseInt( value );
-                if ( val >= 0 ) return FormValidation.ok();
+        public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
+            if (value == null || value.trim() == "") return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0) return FormValidation.ok();
             }
             catch ( NumberFormatException nfe ) {}
-            return FormValidation.error( "Idle Termination time must be a non-negative integer (or null)" );
+            return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
         }
         
         public ListBoxModel doFillZoneItems( @QueryParameter String accessId,
