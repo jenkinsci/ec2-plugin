@@ -26,8 +26,7 @@ THE SOFTWARE.
   This is bit unusual, but so that we can override "name" with "Instance ID", override the config page entirely,
   instead of just supplying EC2Slave/configure-entries.jelly
 -->
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
-         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <l:layout norefresh="true" permission="${app.ADMINISTER}" title="${it.name} Configuration">
     <st:include page="sidepanel.jelly"/>
     <l:main-panel>
@@ -35,8 +34,20 @@ THE SOFTWARE.
         <j:set var="instance" value="${it.node}" />
         <j:set var="descriptor" value="${instance.descriptor}" />
 
+        <f:invisibleEntry>
+           <input type="hidden" name="name" value="${it.name}" />
+        </f:invisibleEntry>
+
         <f:entry title="${%Instance ID}" field="instanceId">
-          <f:textbox />
+          <f:readOnlyTextbox />
+        </f:entry>
+
+        <f:entry title="${%Public DNS}" field="publicDNS">
+          <f:readOnlyTextbox />
+        </f:entry>
+
+        <f:entry title="${%Private DNS}" field="privateDNS">
+          <f:readOnlyTextbox />
         </f:entry>
 
         <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html">
@@ -67,7 +78,18 @@ THE SOFTWARE.
     	  <f:checkbox />
     	</f:entry>
 
-	    <f:entry title="${%Connect using private DNS name instead of public one}" field="usePrivateDnsName">
+        <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
+            <f:textbox />
+        </f:entry>
+
+
+        <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
+            <f:repeatable field="tags">
+                <st:include page="../EC2Tag/config.jelly" />
+            </f:repeatable>
+        </f:entry>
+
+	    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
     	  <f:checkbox />
     	</f:entry>
 
