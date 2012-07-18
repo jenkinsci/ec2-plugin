@@ -84,8 +84,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
 
-        if(null == instanceCapStr || instanceCapStr.equals(""))
-        {
+        if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
@@ -119,7 +118,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Set<String> parseSecurityGroups() {
-        if (securityGroups == null || "".equals(securityGroups.trim()))  {
+        if (securityGroups == null || "".equals(securityGroups.trim())) {
             return Collections.emptySet();
         } else {
             return new HashSet<String>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
@@ -171,9 +170,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return instanceCap;
     }
 
-    public String getInstanceCapStr()
-    {
-        if(instanceCap==Integer.MAX_VALUE) {
+    public String getInstanceCapStr() {
+        if (instanceCap==Integer.MAX_VALUE) {
             return "";
         } else {
             return String.valueOf(instanceCap);
@@ -250,9 +248,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                      request.setSecurityGroupIds(group_ids);
                   }
                }
-            }
-            else
-            {
+            } else {
                /* No subnet: we can use standard security groups by name */
                request.setSecurityGroups(securityGroupSet);
             }
@@ -384,8 +380,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) return FormValidation.ok();
-            }
-            catch ( NumberFormatException nfe ) {}
+            } catch ( NumberFormatException nfe ) {}
             return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
         }
         

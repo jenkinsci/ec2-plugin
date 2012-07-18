@@ -218,7 +218,7 @@ public final class EC2Slave extends Slave {
         privateDNS = i.getPrivateIpAddress();
         tags = new LinkedList<EC2Tag>();
 
-        for (Tag t : i.getTags()){
+        for (Tag t : i.getTags()) {
             tags.add(new EC2Tag(t.getKey(), t.getValue()));
         }
     }
@@ -285,8 +285,7 @@ public final class EC2Slave extends Slave {
             return null;
         }
 
-        if (!isAlive(true))
-        {
+        if (!isAlive(true)) {
             LOGGER.info("EC2 instance terminated externally: " + getInstanceId());
             try {
                 Hudson.getInstance().removeNode(this);
