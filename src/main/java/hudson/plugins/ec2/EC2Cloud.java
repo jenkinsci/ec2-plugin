@@ -80,8 +80,11 @@ public abstract class EC2Cloud extends Cloud {
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
 
-        this.templates = templates;
-        if(templates==null)     templates=Collections.emptyList();
+        if(templates==null) {
+            this.templates=Collections.emptyList();
+        } else {
+            this.templates=templates;
+        }
 
         if(instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
