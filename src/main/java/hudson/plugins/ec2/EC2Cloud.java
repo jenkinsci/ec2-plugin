@@ -79,12 +79,19 @@ public abstract class EC2Cloud extends Cloud {
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
-        if(instanceCapStr.equals(""))
+
+        if(templates==null) {
+            this.templates=Collections.emptyList();
+        } else {
+            this.templates=templates;
+        }
+
+        if(instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
-        else
+        } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
-        if(templates==null)     templates=Collections.emptyList();
-        this.templates = templates;
+        }
+
         readResolve(); // set parents
     }
 
@@ -147,18 +154,21 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of instances in EC2 currently running.
+     * Counts the number of instances in EC2 currently running that are using the specifed image.
      *
+     * @param ami If AMI is left null, then all instances are counted.
      * <p>
      * This includes those instances that may be started outside Hudson.
      */
-    public int countCurrentEC2Slaves() throws AmazonClientException {
+    public int countCurrentEC2Slaves(String ami) throws AmazonClientException {
         int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
-                    n++;
+                if (ami == null || ami.equals(i.getImageId())) {
+                    InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
+                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
+                        n++;
+                }
             }
         }
         return n;
@@ -212,10 +222,17 @@ public abstract class EC2Cloud extends Cloud {
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
             for( ; excessWorkload>0; excessWorkload-- ) {
-                if(countCurrentEC2Slaves()>=instanceCap) {
+                if(countCurrentEC2Slaves(null)>=instanceCap) {
                     LOGGER.log(Level.INFO, "Instance cap reached, not provisioning.");
                     break;      // maxed out
                 }
+
+                int amiCap = t.getInstanceCap();
+                if (amiCap < countCurrentEC2Slaves(t.ami)) {
+                    LOGGER.log(Level.INFO, "AMI Instance cap reached, not provisioning.");
+                    break;      // maxed out
+                }
+
 
                 r.add(new PlannedNode(t.getDisplayName(),
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
