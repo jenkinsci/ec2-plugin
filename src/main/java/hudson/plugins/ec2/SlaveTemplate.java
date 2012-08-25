@@ -52,6 +52,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String jvmopts;
     public final String subnetId;
     public final String idleTerminationMinutes;
+    public final int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
@@ -62,7 +63,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName ) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
         this.ami = ami;
         this.zone = zone;
         this.securityGroups = securityGroups;
@@ -83,6 +84,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
 
+        if (null == instanceCapStr || instanceCapStr.equals("")) {
+            this.instanceCap = Integer.MAX_VALUE;
+        } else {
+            this.instanceCap = Integer.parseInt(instanceCapStr);
+        }
+        
         readResolve(); // initialize
     }
     
@@ -111,7 +118,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Set<String> parseSecurityGroups() {
-        if (securityGroups == null || "".equals(securityGroups.trim()))  {
+        if (securityGroups == null || "".equals(securityGroups.trim())) {
             return Collections.emptySet();
         } else {
             return new HashSet<String>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
@@ -147,6 +154,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public List<EC2Tag> getTags() {
+        if (null == tags) return null;
         return Collections.unmodifiableList(tags);
     }
 
@@ -156,6 +164,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     
     public Set getLabelSet(){
         return labelSet;
+    }
+
+    public int getInstanceCap() {
+        return instanceCap;
+    }
+
+    public String getInstanceCapStr() {
+        if (instanceCap==Integer.MAX_VALUE) {
+            return "";
+        } else {
+            return String.valueOf(instanceCap);
+        }
     }
 
     /**
@@ -228,9 +248,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                      request.setSecurityGroupIds(group_ids);
                   }
                }
-            }
-            else
-            {
+            } else {
                /* No subnet: we can use standard security groups by name */
                request.setSecurityGroups(securityGroupSet);
             }
@@ -241,7 +259,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
 
             /* Now that we have our instance, we can set tags on it */
-            if (!tags.isEmpty()) {
+            if (tags != null && !tags.isEmpty()) {
                 HashSet<Tag> inst_tags = new HashSet<Tag>();
 
                 for(EC2Tag t : tags) {
@@ -355,6 +373,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             catch ( NumberFormatException nfe ) {}
             return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
+        }
+
+        public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
+            if (value == null || value.trim() == "") return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0) return FormValidation.ok();
+            } catch ( NumberFormatException nfe ) {}
+            return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
         }
         
         public ListBoxModel doFillZoneItems( @QueryParameter String accessId,
