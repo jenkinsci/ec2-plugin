@@ -40,11 +40,13 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag>
    }
 
 
+   @Override
    public String toString() {
       return "EC2Tag: " + name + "->" + value;
    }
 
 
+   @Override
    public boolean equals(Object o) {
       if (o == null) return false;
       if (!(o instanceof EC2Tag)) return false;
@@ -59,7 +61,8 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag>
 
    @Extension
    public static class DescriptorImpl extends Descriptor<EC2Tag> {
-      public String getDisplayName() { return ""; }
+      @Override
+	  public String getDisplayName() { return ""; }
    }
 
 
