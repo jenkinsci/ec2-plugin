@@ -280,7 +280,8 @@ public final class EC2Slave extends Slave {
         return Collections.unmodifiableList(tags);
     }
 
-    public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {
+    @Override
+	public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {
         if (form == null) {
             return null;
         }
@@ -320,7 +321,7 @@ public final class EC2Slave extends Slave {
 		}
 			
 		if (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey) && !StringUtils.isEmpty(region)) {
-			AmazonEC2 client = AmazonEC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+			AmazonEC2 client = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 			DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
 			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
 			model.add("<not specified>", "");
