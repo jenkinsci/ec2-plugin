@@ -218,7 +218,8 @@ public abstract class EC2Cloud extends Cloud {
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
 
-            final SlaveTemplate t = getTemplate(label);
+
+        	final SlaveTemplate t = getTemplate(label);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
             for( ; excessWorkload>0; excessWorkload-- ) {

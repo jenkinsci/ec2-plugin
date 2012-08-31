@@ -160,7 +160,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return idleTerminationMinutes;
     }
     
-    public Set getLabelSet(){
+    public Set<LabelAtom> getLabelSet(){
         return labelSet;
     }
 
@@ -202,15 +202,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
             }
            
-            RunInstancesRequest request = new RunInstancesRequest(ami, 1, 1);
+            RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
+            List<Filter> diFilters = new ArrayList<Filter>();
+            diFilters.add(new Filter("image-id").withValues(ami));
+            
             if (StringUtils.isNotBlank(getZone())) {
             	Placement placement = new Placement(getZone());
-            	request.setPlacement(placement);
+            	riRequest.setPlacement(placement);
+                diFilters.add(new Filter("availability-zone").withValues(getZone()));
             }
 
             if (StringUtils.isNotBlank(getSubnetId())) {
-               request.setSubnetId(getSubnetId());
+               riRequest.setSubnetId(getSubnetId());
+               diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
                /* If we have a subnet ID then we can only use VPC security groups */
                if (!securityGroupSet.isEmpty()) {
@@ -243,36 +248,79 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                   }
 
                   if (!group_ids.isEmpty()) {
-                     request.setSecurityGroupIds(group_ids);
+                     riRequest.setSecurityGroupIds(group_ids);
+                     diFilters.add(new Filter("instance.group-id").withValues(group_ids));
                   }
                }
             } else {
                /* No subnet: we can use standard security groups by name */
-               request.setSecurityGroups(securityGroupSet);
+            	riRequest.setSecurityGroups(securityGroupSet);
+            	if (securityGroupSet.size() > 0)
+            		diFilters.add(new Filter("group-id").withValues(securityGroupSet));
             }
 
-            request.setUserData(Base64.encodeBase64String(userData.getBytes()));
-            request.setKeyName(keyPair.getKeyName());
-            request.setInstanceType(type.toString());
-            Instance inst = ec2.runInstances(request).getReservation().getInstances().get(0);
-
-            /* Now that we have our instance, we can set tags on it */
+            String userDataString = Base64.encodeBase64String(userData.getBytes());
+            riRequest.setUserData(userDataString);
+            riRequest.setKeyName(keyPair.getKeyName());
+            diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+            riRequest.setInstanceType(type.toString());
+            diFilters.add(new Filter("instance-type").withValues(type.toString()));
+            
+            HashSet<Tag> inst_tags = null;
             if (tags != null && !tags.isEmpty()) {
-                HashSet<Tag> inst_tags = new HashSet<Tag>();
-
+                inst_tags = new HashSet<Tag>();
                 for(EC2Tag t : tags) {
-                    inst_tags.add(new Tag(t.getName(), t.getValue()));
+                    diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
                 }
-
-                CreateTagsRequest tag_request = new CreateTagsRequest();
-                tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-                ec2.createTags(tag_request);
-
-                // That was a remote request - we should also update our local instance data.
-                inst.setTags(inst_tags);
             }
+            
+            DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
+            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), 
+            		InstanceStateName.Stopping.toString()));
+            diRequest.setFilters(diFilters);
+            logger.println("Looking for existing instances: "+diRequest);
 
+            DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
+            if (diResult.getReservations().size() == 0) {
+                // Have to create a new instance
+                Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+
+                /* Now that we have our instance, we can set tags on it */
+                if (inst_tags != null) {
+                    CreateTagsRequest tag_request = new CreateTagsRequest();
+                    tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
+                    ec2.createTags(tag_request);
+
+                    // That was a remote request - we should also update our local instance data.
+                    inst.setTags(inst_tags);
+                }
+                logger.println("No existing instance found - created: "+inst);
+                return newSlave(inst);
+            }
+            	
+            Instance inst = diResult.getReservations().get(0).getInstances().get(0);
+            logger.println("Found existing stopped instance: "+inst);
+            List<String> instances = new ArrayList<String>();
+            instances.add(inst.getInstanceId());
+            StartInstancesRequest siRequest = new StartInstancesRequest(instances);
+            StartInstancesResult siResult = ec2.startInstances(siRequest);
+            logger.println("Starting existing instance: "+inst+ " result:"+siResult);
+
+            List<Node> nodes = Hudson.getInstance().getNodes();
+            for (int i = 0, len = nodes.size(); i < len; i++) {
+            	if (!(nodes.get(i) instanceof EC2Slave))
+            		continue;
+            	EC2Slave ec2Node = (EC2Slave) nodes.get(i);
+            	if (ec2Node.getInstanceId().equals(inst.getInstanceId())) {
+                    logger.println("Found existing corresponding: "+ec2Node);
+            		return ec2Node;
+            	}
+            }
+            
+            // Existing slave not found 
+            logger.println("Creating new slave for existing instance: "+inst);
             return newSlave(inst);
+            
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
