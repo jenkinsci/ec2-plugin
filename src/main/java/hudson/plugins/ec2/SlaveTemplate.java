@@ -256,7 +256,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                /* No subnet: we can use standard security groups by name */
             	riRequest.setSecurityGroups(securityGroupSet);
             	if (securityGroupSet.size() > 0)
-            		diFilters.add(new Filter("group-id").withValues(securityGroupSet));
+            		diFilters.add(new Filter("group-name").withValues(securityGroupSet));
             }
 
             String userDataString = Base64.encodeBase64String(userData.getBytes());
