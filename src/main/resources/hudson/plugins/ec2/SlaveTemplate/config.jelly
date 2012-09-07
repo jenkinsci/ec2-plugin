@@ -45,7 +45,7 @@ THE SOFTWARE.
     <f:textbox/>
   </f:entry>
 
-  <f:entry title="${%Security groups}" field="securityGroups">
+  <f:entry title="${%Security group names}" field="securityGroups">
     <f:textbox/>
   </f:entry>
 
