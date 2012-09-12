@@ -29,6 +29,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
+
 import net.sf.json.JSONObject;
 
 /**
@@ -137,6 +138,23 @@ public final class EC2Slave extends Slave {
         return new EC2Computer(this);
     }
 
+    public static Instance getInstance(String instanceId) {
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+    	request.setInstanceIds(Collections.<String>singletonList(instanceId));
+        EC2Cloud cloudInstance = EC2Cloud.get();
+        if (cloudInstance == null)
+        	return null;
+        AmazonEC2 ec2 = cloudInstance.connect();
+    	List<Reservation> reservations = ec2.describeInstances(request).getReservations();
+        Instance i = null;
+    	if (reservations.size() > 0) {
+    		List<Instance> instances = reservations.get(0).getInstances();
+    		if (instances.size() > 0)
+    			i = instances.get(0);
+    	}
+    	return i;
+    }
+    
     /**
      * Terminates the instance in EC2.
      */
@@ -144,20 +162,12 @@ public final class EC2Slave extends Slave {
         try {
             if (!isAlive(true)) {
                 /* The node has been killed externally, so we've nothing to do here */
-                LOGGER.info("EC2 instance already terminated: " + getInstanceId());
+                LOGGER.info("EC2 instance already terminated: "+getInstanceId());
             } else {
-                /* The node is still alive - do the appropriate thing */
-
                 AmazonEC2 ec2 = EC2Cloud.get().connect();
-                if (stopOnTerminate) {
-                	StopInstancesRequest request = new StopInstancesRequest(Collections.singletonList(getInstanceId()));
-                	ec2.stopInstances(request);
-                    LOGGER.info("Terminated EC2 instance (stopped): "+getInstanceId());
-                } else {
-                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
-                	ec2.terminateInstances(request);
-                    LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
-                }
+                TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+                ec2.terminateInstances(request);
+                LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
             }
             Hudson.getInstance().removeNode(this);
         } catch (AmazonClientException e) {
@@ -166,6 +176,26 @@ public final class EC2Slave extends Slave {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
         }
     }
+
+	void idleTimeout() {
+		LOGGER.info("EC2 instance idle time expired: "+getInstanceId());
+		if (!stopOnTerminate) {
+			terminate();
+			return;
+		}
+
+		try {
+			AmazonEC2 ec2 = EC2Cloud.get().connect();
+			StopInstancesRequest request = new StopInstancesRequest(
+					Collections.singletonList(getInstanceId()));
+			ec2.stopInstances(request);
+			toComputer().disconnect(null);
+		} catch (AmazonClientException e) {
+	        Instance i = getInstance(getNodeName());
+			LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
+		}
+		LOGGER.info("EC2 instance stopped: " + getInstanceId());
+	}
 
     String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
@@ -207,12 +237,12 @@ public final class EC2Slave extends Slave {
             return;
         }
 
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-    	request.setInstanceIds(Collections.<String>singletonList(getNodeName()));
-        Instance i = EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+        Instance i = getInstance(getNodeName());
 
         lastFetchTime = now;
         lastFetchInstance = i;
+        if (i == null)
+        	return;
 
         publicDNS = i.getPublicDnsName();
         privateDNS = i.getPrivateIpAddress();
@@ -226,9 +256,7 @@ public final class EC2Slave extends Slave {
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
     private void clearLiveInstancedata() throws AmazonClientException {
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-        request.setInstanceIds( Collections.<String>singletonList(getNodeName()));
-        Instance inst = EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+        Instance inst = getInstance(getNodeName());
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -247,9 +275,7 @@ public final class EC2Slave extends Slave {
 
     /* Sets tags on an instance.  This will not clear existing tag data, so call clearLiveInstancedata if needed */
     private void pushLiveInstancedata() throws AmazonClientException {
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-        request.setInstanceIds(Collections.<String>singletonList(getNodeName()));
-        Instance inst = EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+        Instance inst = getInstance(getNodeName());
 
         /* Now that we have our instance, we can set tags on it */
         if (tags != null && !tags.isEmpty()) {
