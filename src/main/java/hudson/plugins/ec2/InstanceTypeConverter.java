@@ -10,6 +10,10 @@ import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 
+/*
+ * Note this is used only to handle the metadata for older versions of the ec2-plugin. The current
+ * versions use the Amazon APIs for this. See PluginImpl for where this is used.
+ */
 public class InstanceTypeConverter implements Converter {
 
 	private static final Map<String, InstanceType> TYPICA_INSTANCE_TYPES = new HashMap<String, InstanceType>();

@@ -74,7 +74,7 @@ THE SOFTWARE.
           <f:textbox />
         </f:entry>
 
-	    <f:entry title="${%Stop on Terminate}" field="stopOnTerminate">
+	    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
     	  <f:checkbox />
     	</f:entry>
 
