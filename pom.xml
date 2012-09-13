@@ -8,7 +8,7 @@
   </parent>
   
   <artifactId>ec2</artifactId>
-  <version>1.17</version>
+  <version>1.18-SNAPSHOT</version>
   <packaging>hpi</packaging>
   <name>Amazon EC2 plugin</name>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
