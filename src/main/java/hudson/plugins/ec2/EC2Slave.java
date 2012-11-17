@@ -34,7 +34,7 @@ import net.sf.json.JSONObject;
 
 /**
  * Slave running on EC2.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public final class EC2Slave extends Slave {
@@ -70,7 +70,7 @@ public final class EC2Slave extends Slave {
     private final int sshPort;
 
     public static final String TEST_ZONE = "testZone";
-    
+
     public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags) throws FormException, IOException {
         this(instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, false);
     }
@@ -154,26 +154,51 @@ public final class EC2Slave extends Slave {
     	}
     	return i;
     }
-    
+
     /**
      * Terminates the instance in EC2.
      */
     public void terminate() {
+        if (!isAlive(true)) {
+            /* The node has been killed externally, so we've nothing to do here */
+            LOGGER.info("EC2 instance already terminated: "+getInstanceId());
+        } else if (!terminateInstance()) {
+            LOGGER.info("EC2 terminate failed, attempting a stop");
+            stop();
+            return;
+        }
+
         try {
-            if (!isAlive(true)) {
-                /* The node has been killed externally, so we've nothing to do here */
-                LOGGER.info("EC2 instance already terminated: "+getInstanceId());
-            } else {
-                AmazonEC2 ec2 = EC2Cloud.get().connect();
-                TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
-                ec2.terminateInstances(request);
-                LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
-            }
             Hudson.getInstance().removeNode(this);
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
+        }
+    }
+
+    void stop() {
+        try {
+            AmazonEC2 ec2 = EC2Cloud.get().connect();
+            StopInstancesRequest request = new StopInstancesRequest(
+                    Collections.singletonList(getInstanceId()));
+            ec2.stopInstances(request);
+            LOGGER.info("EC2 instance stopped: " + getInstanceId());
+            toComputer().disconnect(null);
+        } catch (AmazonClientException e) {
+            Instance i = getInstance(getNodeName());
+            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
+        }
+    }
+
+    boolean terminateInstance() {
+        try {
+            AmazonEC2 ec2 = EC2Cloud.get().connect();
+            TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+            ec2.terminateInstances(request);
+            LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
+            return true;
+        } catch (AmazonClientException e) {
+            LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
+            return false;
         }
     }
 
@@ -181,20 +206,10 @@ public final class EC2Slave extends Slave {
 		LOGGER.info("EC2 instance idle time expired: "+getInstanceId());
 		if (!stopOnTerminate) {
 			terminate();
-			return;
 		}
-
-		try {
-			AmazonEC2 ec2 = EC2Cloud.get().connect();
-			StopInstancesRequest request = new StopInstancesRequest(
-					Collections.singletonList(getInstanceId()));
-			ec2.stopInstances(request);
-			toComputer().disconnect(null);
-		} catch (AmazonClientException e) {
-	        Instance i = getInstance(getNodeName());
-			LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
-		}
-		LOGGER.info("EC2 instance stopped: " + getInstanceId());
+        else {
+            stop();
+        }
 	}
 
     String getRemoteAdmin() {
@@ -283,7 +298,7 @@ public final class EC2Slave extends Slave {
 
             for(EC2Tag t : tags) {
                 inst_tags.add(new Tag(t.getName(), t.getValue()));
-            }            
+            }
 
             CreateTagsRequest tag_request = new CreateTagsRequest();
             tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
@@ -338,14 +353,14 @@ public final class EC2Slave extends Slave {
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
-    
+
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
 			model.add(TEST_ZONE);
 			return model;
 		}
-			
+
 		if (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey) && !StringUtils.isEmpty(region)) {
 			AmazonEC2 client = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 			DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
@@ -357,8 +372,8 @@ public final class EC2Slave extends Slave {
 		}
 		return model;
 	}
-    
-    
+
+
     @Extension
     public static final class DescriptorImpl extends SlaveDescriptor {
         @Override
