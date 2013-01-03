@@ -24,6 +24,10 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
   <table width="100%">
 
+  <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html" field="description">
+    <f:textbox />
+  </f:entry>
+
   <f:entry title="${%AMI ID}" field="ami">
     <f:textbox />
   </f:entry>
@@ -32,10 +36,6 @@ THE SOFTWARE.
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
-  </f:entry>
-
-  <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html" field="description">
-    <f:textbox />
   </f:entry>
 
   <f:entry title="${%Availability Zone}" field="zone">
