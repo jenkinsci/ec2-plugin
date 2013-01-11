@@ -14,8 +14,8 @@
     <f:textarea />
   </f:entry>
   <f:optionalBlock name="spotOptions" title="Use SPOT instances">
-    <f:entry title="Max Bid Price">
-      <f:textbox name="spotMaxBidPrice" value="${it.spotMaxBidPrice}"/>
+    <f:entry title="Max Bid Price" field="spotMaxBidPrice">
+      <f:textbox />
     </f:entry>
   </f:optionalBlock>
   <f:advanced>

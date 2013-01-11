@@ -43,7 +43,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
         this.region = region;
 	if(spotMaxBidPrice == null || spotMaxBidPrice == "")
 	{
-		spotMaxBidPrice = 0;
+		this.spotMaxBidPrice = 0.0f;
 	}
 	else
 	{
