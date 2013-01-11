@@ -20,6 +20,11 @@
 
   <dependencies>
     <dependency>
+       <groupId>net.java.dev.jna</groupId>
+       <artifactId>jna</artifactId>
+       <version>3.2.2</version>
+    </dependency>
+    <dependency>
       <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->
       <groupId>bouncycastle</groupId>
       <artifactId>bcprov-jdk15</artifactId>
