@@ -36,7 +36,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates, "0.00");
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -58,7 +58,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates, "0.00");
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));

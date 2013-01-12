@@ -31,15 +31,24 @@ public class AmazonEC2Cloud extends EC2Cloud {
      * Represents the region. Can be null for backward compatibility reasons.
      */
     private String region;
+    private float spotMaxBidPrice = 0;
 
     // Used when running unit tests
     public static boolean testMode;
     
     
     @DataBoundConstructor
-    public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
+    public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String spotMaxBidPrice) {
         super("ec2-"+region, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
+	if(spotMaxBidPrice == null || spotMaxBidPrice == "")
+	{
+		this.spotMaxBidPrice = 0.0f;
+	}
+	else
+	{
+        	this.spotMaxBidPrice = Float.parseFloat(spotMaxBidPrice);
+	}
     }
 
     public String getRegion() {
