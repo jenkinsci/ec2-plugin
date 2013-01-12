@@ -52,13 +52,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String idleTerminationMinutes;
     public final int instanceCap;
     public final boolean stopOnTerminate;
-    private final List<EC2Tag> tags;
+    protected final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
     
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
-	private transient /*almost final*/ Set<String> securityGroupSet;
+	protected transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
