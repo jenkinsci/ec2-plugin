@@ -198,10 +198,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
-		this.spotMaxBidPrice = ".05";		// TODO: Remove this when the value actually saves
-		listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
-
+		//this.spotMaxBidPrice = ".05";		// TODO: Remove this when the value actually saves
 		if (spotMaxBidPrice != null && !spotMaxBidPrice.equals("")){
+			listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
 			return provisionSpot(listener);
 		}
 		return provisionOndemand(listener);
@@ -661,6 +660,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 						{
 			return EC2Slave.fillZoneItems(accessId, secretKey, region);
 						}
+		
+        /* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
+        public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
+        	try {
+        		Float.parseFloat(spotMaxBidPrice);
+        		return FormValidation.ok();
+        	} catch (NumberFormatException ex) {
+        		return FormValidation.error("Not a correct bid price");
+        	} 
+        	
+        }
 	}
 }
 
