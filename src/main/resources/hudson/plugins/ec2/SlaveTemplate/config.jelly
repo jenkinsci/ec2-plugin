@@ -30,7 +30,7 @@ THE SOFTWARE.
 
   <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,region,ami" />
 
-  <f:optionalBlock name="spotOptions" title="Use SPOT instances">
+  <f:optionalBlock name="spotOptions" title="Use Spot Instance">
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
     </f:entry>

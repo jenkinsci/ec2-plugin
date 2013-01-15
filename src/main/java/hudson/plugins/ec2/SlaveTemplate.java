@@ -664,8 +664,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
         public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
         	try {
-        		Float.parseFloat(spotMaxBidPrice);
-        		return FormValidation.ok();
+        		float spotPrice = Float.parseFloat(spotMaxBidPrice);
+        		
+        		/* If the specified bid price is less than or equal to zero return an error*/
+        		if(spotPrice <= 0){
+        			return FormValidation.error("Not a correct bid price");
+        		} else {
+        			return FormValidation.ok();
+        		}
         	} catch (NumberFormatException ex) {
         		return FormValidation.error("Not a correct bid price");
         	} 
