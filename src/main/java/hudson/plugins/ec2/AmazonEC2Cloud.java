@@ -40,17 +40,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
     public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
         super("ec2-"+region, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
-<<<<<<< HEAD
-=======
-        if(spotMaxBidPrice == null || spotMaxBidPrice == "")
-        {
-        	this.spotMaxBidPrice = 0.0f;
-        }
-        else
-        {
-        	this.spotMaxBidPrice = Float.parseFloat(spotMaxBidPrice);
-        }
->>>>>>> a889a6d6a317ccc3528854dd12ac9876828407a9
     }
 
     public String getRegion() {
