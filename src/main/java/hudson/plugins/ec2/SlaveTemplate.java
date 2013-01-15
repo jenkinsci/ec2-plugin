@@ -198,10 +198,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
-		this.spotMaxBidPrice = ".05";		// TODO: Remove this when the value actually saves
-		listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
-
+		//this.spotMaxBidPrice = ".05";		// TODO: Remove this when the value actually saves
 		if (spotMaxBidPrice != null && !spotMaxBidPrice.equals("")){
+			listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
 			return provisionSpot(listener);
 		}
 		return provisionOndemand(listener);
