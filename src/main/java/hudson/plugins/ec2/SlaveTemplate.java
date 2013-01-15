@@ -35,6 +35,7 @@ import com.amazonaws.services.ec2.model.*;
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String ami;
+    public final String spotMaxBidPrice;
     public final String description;
     public final String zone;
     public final String securityGroups;
@@ -61,8 +62,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	protected transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
+    public SlaveTemplate(String ami, String spotMaxBidPrice, String zone, String securityGroups, String remoteFS, 
+    		String sshPort, InstanceType type, String labelString, String description, 
+    		String initScript, String userData, String numExecutors, String remoteAdmin, 
+    		String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, 
+    		List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, 
+    		String instanceCapStr) {
         this.ami = ami;
+        this.spotMaxBidPrice = spotMaxBidPrice;
         this.zone = zone;
         this.securityGroups = securityGroups;
         this.remoteFS = remoteFS;
@@ -101,6 +108,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String getDisplayName() {
         return description+" ("+ami+")";
+    }
+    
+    public String getSpotMaxBidPrice(){
+    	return spotMaxBidPrice;
     }
 
     String getZone() {
@@ -186,12 +197,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return l==null || labelSet.contains(l);
     }
 
+    public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
+    	listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
+    	if (spotMaxBidPrice != null && !spotMaxBidPrice.equals("")){
+    		return provisionSpot(listener);
+    	}
+    	return provisionOndemand(listener);
+    }
+    
+    
     /**
      * Provisions a new EC2 slave.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException {
+    private EC2Slave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -295,7 +315,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     inst.setTags(inst_tags);
                 }
                 logger.println("No existing instance found - created: "+inst);
-                return newSlave(inst);
+                return newOndemandSlave(inst);
             }
             	
             Instance inst = diResult.getReservations().get(0).getInstances().get(0);
@@ -319,18 +339,193 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             
             // Existing slave not found 
             logger.println("Creating new slave for existing instance: "+inst);
-            return newSlave(inst);
+            return newOndemandSlave(inst);
             
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
     }
+    
+    /**
+     * Provision a new EC2 spot instance as a slave
+     * 
+     * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
+     */
+	private EC2Slave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
+		PrintStream logger = listener.getLogger();
+		AmazonEC2 ec2 = getParent().connect();
 
+		try{
+			logger.println("Launching "+ami);
+			KeyPair keyPair = parent.getPrivateKey().find(ec2);
+			if(keyPair==null) {
+				throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+			}
 
-    private EC2Slave newSlave(Instance inst) throws FormException, IOException {
+			RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
+			
+			//spotRequest.setSpotPrice(spotMaxBidPrice);
+			spotRequest.setSpotPrice("0.05");
+			spotRequest.setInstanceCount(Integer.valueOf(1));
+			
+			LaunchSpecification launchSpecification = new LaunchSpecification();
+
+			List<Filter> diFilters = new ArrayList<Filter>();
+			
+			launchSpecification.setImageId(ami);
+			launchSpecification.setInstanceType(type);
+			diFilters.add(new Filter("image-id").withValues(ami));
+
+			if (StringUtils.isNotBlank(getZone())) {
+				SpotPlacement placement = new SpotPlacement(getZone());
+				launchSpecification.setPlacement(placement);
+				diFilters.add(new Filter("availability-zone").withValues(getZone()));
+				
+			}
+
+			if (StringUtils.isNotBlank(getSubnetId())) {
+				launchSpecification.setSubnetId(getSubnetId());
+				diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
+
+				/* If we have a subnet ID then we can only use VPC security groups */
+				if (!securityGroupSet.isEmpty()) {
+					List<String> group_ids = new ArrayList<String>();
+
+					DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
+					group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
+					DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
+
+					for (SecurityGroup group : group_result.getSecurityGroups()) {
+						if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
+							List<Filter> filters = new ArrayList<Filter>();
+							filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
+							filters.add(new Filter("state").withValues("available"));
+							filters.add(new Filter("subnet-id").withValues(getSubnetId()));
+
+							DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
+							subnet_req.withFilters(filters);
+							DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
+
+							List<Subnet> subnets = subnet_result.getSubnets();
+							if(subnets != null && !subnets.isEmpty()) {
+								group_ids.add(group.getGroupId());
+							}
+						}
+					}
+
+					if (securityGroupSet.size() != group_ids.size()) {
+						throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
+					}
+
+					if (!group_ids.isEmpty()) {
+						launchSpecification.setSecurityGroups(group_ids);
+						diFilters.add(new Filter("instance.group-id").withValues(group_ids));
+					}
+				}
+			} else {
+				/* No subnet: we can use standard security groups by name */
+				launchSpecification.setSecurityGroups(securityGroupSet);
+				if (securityGroupSet.size() > 0)
+					diFilters.add(new Filter("group-name").withValues(securityGroupSet));
+			}
+
+			String userDataString = Base64.encodeBase64String(userData.getBytes());
+			launchSpecification.setUserData(userDataString);
+			launchSpecification.setKeyName(keyPair.getKeyName());
+			diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+			launchSpecification.setInstanceType(type.toString());
+			diFilters.add(new Filter("instance-type").withValues(type.toString()));
+
+			HashSet<Tag> inst_tags = null;
+			if (tags != null && !tags.isEmpty()) {
+				inst_tags = new HashSet<Tag>();
+				for(EC2Tag t : tags) {
+					diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
+				}
+			}
+
+			
+//			DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest();
+			diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), 
+					InstanceStateName.Stopping.toString()));
+//			dsirRequest.setFilters(diFilters);
+//			logger.println("Looking for existing instances: "+dsirRequest);
+			
+//			DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
+			spotRequest.setLaunchSpecification(launchSpecification);
+//			if (dsirResult.getSpotInstanceRequests().size() == 0) {
+				
+			// Have to create a new instance
+			RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
+			List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
+			if (reqInstances.size() <= 0){
+				throw new AmazonClientException("No spot instances found");
+			}
+			
+			SpotInstanceRequest inst = reqInstances.get(0);
+
+			/* Now that we have our instance, we can set tags on it */
+			if (inst_tags != null) {
+				CreateTagsRequest tag_request = new CreateTagsRequest();
+				tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
+				ec2.createTags(tag_request);
+
+				// That was a remote request - we should also update our local instance data.
+				inst.setTags(inst_tags);
+			}
+			logger.println("No existing instance found - created: "+inst);
+			return newSpotSlave(inst, logger);
+			
+//			}
+
+/*			SpotInstanceRequest inst = dsirResult.getSpotInstanceRequests().get(0);
+			logger.println("Found existing stopped instance: "+inst);
+			List<String> instances = new ArrayList<String>();
+			instances.add(inst.getInstanceId());
+			StartInstancesRequest siRequest = new StartInstancesRequest(instances);
+			StartInstancesResult siResult = ec2.startInstances(siRequest);
+			logger.println("Starting existing instance: "+inst+ " result:"+siResult);
+
+			List<Node> nodes = Hudson.getInstance().getNodes();
+			for (int i = 0, len = nodes.size(); i < len; i++) {
+				if (!(nodes.get(i) instanceof EC2Slave))
+					continue;
+				EC2Slave ec2Node = (EC2Slave) nodes.get(i);
+				if (ec2Node.getInstanceId().equals(inst.getInstanceId())) {
+					logger.println("Found existing corresponding: "+ec2Node);
+					return ec2Node;
+				}
+			}
+
+			// Existing slave not found 
+			logger.println("Creating new slave for existing instance: "+inst);
+			return newSpotSlave(inst);*/
+		}  catch (FormException e) {
+			throw new AssertionError(); // we should have discovered all configuration issues upfront
+		}
+	}
+    
+
+    private EC2Slave newOndemandSlave(Instance inst) throws FormException, IOException {
         return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
     }
-
+    
+    private EC2Slave newSpotSlave(SpotInstanceRequest inst, PrintStream log) throws FormException, IOException {
+		/*AmazonEC2 ec2 = getParent().connect();
+		
+		DescribeInstancesRequest dir = new DescribeInstancesRequest().withInstanceIds(inst.getInstanceId());
+		List<Reservation> reservations = ec2.describeInstances(dir).getReservations();
+		if (reservations.size() <= 0){
+			return null;
+		}
+		Reservation res = reservations.get(0);
+		Instance requestInst = res.getInstances().get(0);*/
+		
+		return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), 
+				getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, 
+				jvmopts, stopOnTerminate, idleTerminationMinutes, "fakePublicDns", 
+				"fakePrivateDns", EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
+	}
     /**
      * Provisions a new EC2 slave based on the currently running instance on EC2,
      * instead of starting a new one.
@@ -344,7 +539,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));
             Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
-            return newSlave(inst);
+            return newOndemandSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
