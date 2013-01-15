@@ -125,16 +125,5 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 StaplerResponse rsp, @QueryParameter String region, @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
             return super.doGenerateKey(rsp,getEc2EndpointUrl(region),accessId,secretKey);
         }
-        
-        /* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
-        public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
-        	try {
-        		Float.parseFloat(spotMaxBidPrice);
-        		return FormValidation.ok();
-        	} catch (NumberFormatException ex) {
-        		return FormValidation.error("Not a correct bid price");
-        	} 
-        	
-        }
     }
 }

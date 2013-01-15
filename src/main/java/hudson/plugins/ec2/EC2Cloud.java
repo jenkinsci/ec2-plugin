@@ -411,7 +411,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, String accessId, String secretKey
+		public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, String accessId, String secretKey
         ) throws IOException, ServletException {
             try {
                 AmazonEC2 ec2 = connect(accessId, secretKey, ec2EndpointUrl);
