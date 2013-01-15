@@ -41,14 +41,14 @@ public class AmazonEC2Cloud extends EC2Cloud {
     public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String spotMaxBidPrice) {
         super("ec2-"+region, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
-	if(spotMaxBidPrice == null || spotMaxBidPrice == "")
-	{
-		this.spotMaxBidPrice = 0.0f;
-	}
-	else
-	{
+        if(spotMaxBidPrice == null || spotMaxBidPrice == "")
+        {
+        	this.spotMaxBidPrice = 0.0f;
+        }
+        else
+        {
         	this.spotMaxBidPrice = Float.parseFloat(spotMaxBidPrice);
-	}
+        }
     }
 
     public String getRegion() {
@@ -122,6 +122,17 @@ public class AmazonEC2Cloud extends EC2Cloud {
         public FormValidation doGenerateKey(
                 StaplerResponse rsp, @QueryParameter String region, @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
             return super.doGenerateKey(rsp,getEc2EndpointUrl(region),accessId,secretKey);
+        }
+        
+        /* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
+        public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
+        	try {
+        		Float.parseFloat(spotMaxBidPrice);
+        		return FormValidation.ok();
+        	} catch (NumberFormatException ex) {
+        		return FormValidation.error("Not a correct bid price");
+        	} 
+        	
         }
     }
 }
