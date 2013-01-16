@@ -198,7 +198,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
-		//this.spotMaxBidPrice = ".05";		// TODO: Remove this when the value actually saves
+		this.spotMaxBidPrice = "0.05";		// TODO: Remove this when the value actually saves
 		if (spotMaxBidPrice != null && !spotMaxBidPrice.equals("")){
 			listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
 			return provisionSpot(listener);
@@ -456,14 +456,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			//			if (dsirResult.getSpotInstanceRequests().size() == 0) {
 
 			// Have to create a new instance
-			RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
-			List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
-			if (reqInstances.size() <= 0){
-				throw new AmazonClientException("No spot instances found");
-			}
-
-			SpotInstanceRequest inst = reqInstances.get(0);
-
+			SpotInstanceRequest inst;
+			do{
+				RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
+				List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
+				if (reqInstances.size() <= 0){
+					throw new AmazonClientException("No spot instances found");
+				}
+	
+				inst = reqInstances.get(0);
+				System.out.log("Spot instance id in provision: " + inst.getInstanceId());
+			}while(inst == null || inst.getInstanceId() == null);
+			
+			
 			/* Now that we have our instance, we can set tags on it */
 			if (inst_tags != null) {
 				CreateTagsRequest tag_request = new CreateTagsRequest();
@@ -473,7 +478,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				// That was a remote request - we should also update our local instance data.
 				inst.setTags(inst_tags);
 			}
-			logger.println("No existing instance found - created: "+inst);
+//			logger.println("No existing instance found - created: "+inst);
+			
 			return newSpotSlave(inst, logger);
 
 			//			}
@@ -512,20 +518,35 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 	private EC2Slave newSpotSlave(SpotInstanceRequest inst, PrintStream log) throws FormException, IOException {
 		AmazonEC2 ec2 = getParent().connect();
-
-		String instanceId = inst.getInstanceId();
+		
+		String instanceId = "";//inst.getInstanceId();
+		
 		DescribeInstancesRequest dir = null;
 		List<Reservation> reservations;
 		String publicDns = "";
 		String privateDns = "";
 
-		log.println("Waiting for Spot instance " + instanceId + " to start");
+		System.out.println("SPOT: Waiting for Spot instance " + instanceId + " to start");
+		log.println("SPOT: Waiting for Spot instance " + instanceId + " to start");
 		int attempt = 1;
-		while (true){
+/*		while(inst.getInstanceId() == null){
+			System.out.println("SPOT: Instance state: " + inst.getInstanceId());
+			log.println("SPOT: Instance state: " + inst.getInstanceId());
+			try {
+				Thread.sleep(5000L);		// Check again in 5 seconds
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}	
+		}
+*/
+		instanceId = inst.getInstanceId();
+		
+//		while (true){
+			System.out.println("SPOT: Checking for instance " + instanceId + ". Attempt: " + attempt++);
+			log.println("SPOT: Checking for instance " + instanceId + ". Attempt: " + attempt++);
 			if(instanceId != null && !instanceId.equals("")){
 				dir = (dir != null) ? dir : new DescribeInstancesRequest().withInstanceIds(instanceId);
 				if (dir != null){
-					log.println("Checking for instance " + instanceId+ ". Attempt: " + attempt);
 					reservations = ec2.describeInstances(dir).getReservations();
 					if (reservations != null && reservations.size() > 0){
 						Reservation res = reservations.get(0);
@@ -534,21 +555,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 							Instance runningInstance = instances.get(0);
 							publicDns = runningInstance.getPublicDnsName();
 							privateDns = runningInstance.getPrivateDnsName();
-							log.println("Public dns: " + publicDns);
-							log.println("Private dns: " + privateDns);
-							break;
+							
+							System.out.println("SPOT: Public dns: " + publicDns);
+							log.println("SPOT: Public dns: " + publicDns);
+							System.out.println("SPOT: Private dns: " + privateDns);
+							log.println("SPOT: Private dns: " + privateDns);
+//							break;
 						}
 					}
 				}
 			}
 
-			try {
-				Thread.sleep(5000L);		// Check again in 5 seconds
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}	
-		}
-
+		
+//		}
+			
 		return new EC2Slave(instanceId, description, remoteFS, getSshPort(), 
 				getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, 
 				jvmopts, stopOnTerminate, idleTerminationMinutes, publicDns, 

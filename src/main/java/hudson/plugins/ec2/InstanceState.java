@@ -11,8 +11,7 @@ public enum InstanceState {
     SHUTTING_DOWN,
     TERMINATED,
     STOPPING,
-    STOPPED,
-    OPEN;
+    STOPPED;
 
     public String getCode() {
         return name().toLowerCase().replace('_','-');

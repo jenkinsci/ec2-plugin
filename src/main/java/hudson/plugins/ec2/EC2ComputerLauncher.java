@@ -32,7 +32,6 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             while(true) {
                 switch (computer.getState()) {
                     case PENDING:
-                    case OPEN:
                     case STOPPING:
                         Thread.sleep(5000); // check every 5 secs
                         continue OUTER;
