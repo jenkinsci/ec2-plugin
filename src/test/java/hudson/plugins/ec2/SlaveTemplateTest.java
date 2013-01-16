@@ -1,10 +1,14 @@
 package hudson.plugins.ec2;
 
+import hudson.maven.reporters.MavenMailer.DescriptorImpl;
+import hudson.util.FormValidation;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import org.jvnet.hudson.test.HudsonTestCase;
 
+import com.amazonaws.http.HttpResponse;
 import com.amazonaws.services.ec2.model.InstanceType;
 
 /**
@@ -64,5 +68,19 @@ public class SlaveTemplateTest extends HudsonTestCase {
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(ami);
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+    }
+    
+    // Test to ensure doCheckSpotMaxBidPrice is properly validating 
+    public void testMaxBidPriceValidator() throws Exception {
+    	String[] validSpotBidPrices = {"0.003", Float.toString(Float.MAX_VALUE), "3.000011111", "0.001"}; 
+    	String[] invalidSpotBidPrice = {Float.toString(-Float.MIN_VALUE), "-1.0", "xer"};
+    	
+    	hudson.plugins.ec2.SlaveTemplate.DescriptorImpl toTest = new hudson.plugins.ec2.SlaveTemplate.DescriptorImpl();
+    	for(int i=0; i < validSpotBidPrices.length; i++){    		
+    		assertEquals(FormValidation.ok(), toTest.doCheckSpotMaxBidPrice(validSpotBidPrices[i]));
+    	}
+    	for(int i=0; i < invalidSpotBidPrice.length; i++){
+    		assertNotSame(FormValidation.ok(), toTest.doCheckSpotMaxBidPrice(invalidSpotBidPrice[i]));
+    	}
     }
 }
