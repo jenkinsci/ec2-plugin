@@ -62,6 +62,8 @@ THE SOFTWARE.
           <f:textbox />
         </f:entry>
 
+        <f:slave-mode name="mode" node="${instance}" />
+
         <f:entry title="${%Init Script}" field="initScript">
           <f:textarea />
         </f:entry>
