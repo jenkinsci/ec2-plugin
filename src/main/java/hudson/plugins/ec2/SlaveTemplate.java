@@ -42,6 +42,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String sshPort;
     public final InstanceType type;
     public final String labels;
+    public final Node.Mode mode;
     public final String initScript;
     public final String userData;
     public final String numExecutors;
@@ -61,7 +62,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
         this.ami = ami;
         this.zone = zone;
         this.securityGroups = securityGroups;
@@ -69,6 +70,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.sshPort = sshPort;
         this.type = type;
         this.labels = Util.fixNull(labelString);
+        this.mode = mode;
         this.description = description;
         this.initScript = initScript;
         this.userData = userData;
@@ -97,6 +99,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String getLabelString() {
         return labels;
+    }
+
+    public Node.Mode getMode() {
+        return mode;
     }
 
     public String getDisplayName() {
@@ -328,7 +334,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
     }
 
     /**
