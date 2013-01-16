@@ -198,7 +198,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
-		this.spotMaxBidPrice = "0.05";		// TODO: Remove this when the value actually saves
+		//this.spotMaxBidPrice = "0.05";		// TODO: Remove this when the value actually saves
 		if (spotMaxBidPrice != null && !spotMaxBidPrice.equals("")){
 			listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
 			return provisionSpot(listener);
@@ -316,7 +316,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					inst.setTags(inst_tags);
 				}
 				logger.println("No existing instance found - created: "+inst);
-				return newOndemandSlave(inst);
+				return newSlave(inst);
 			}
 
 			Instance inst = diResult.getReservations().get(0).getInstances().get(0);
@@ -340,7 +340,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			// Existing slave not found 
 			logger.println("Creating new slave for existing instance: "+inst);
-			return newOndemandSlave(inst);
+			return newSlave(inst);
 
 		} catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -444,31 +444,70 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				}
 			}
 
-
-			//			DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest();
 			diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), 
 					InstanceStateName.Stopping.toString()));
-			//			dsirRequest.setFilters(diFilters);
-			//			logger.println("Looking for existing instances: "+dsirRequest);
 
-			//			DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
 			spotRequest.setLaunchSpecification(launchSpecification);
-			//			if (dsirResult.getSpotInstanceRequests().size() == 0) {
 
 			// Have to create a new instance
-			SpotInstanceRequest inst;
-			do{
-				RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
-				List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
-				if (reqInstances.size() <= 0){
-					throw new AmazonClientException("No spot instances found");
+			RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
+			SpotInstanceRequest spotInstReq = null;
+
+			List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
+			if (reqInstances.size() <= 0){
+				throw new AmazonClientException("No spot instances found");
+			}
+
+			spotInstReq = reqInstances.get(0);
+			if (spotInstReq != null && spotInstReq.getSpotInstanceRequestId() != null){
+				System.out.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
+			}
+
+
+			/* We now have a spot request, wait for it to be filled */
+			boolean isStarted = false;
+			String instanceId = "";
+			while(!isStarted){
+				System.out.println("SPOT: Waiting for Spot instance " + spotInstReq.getSpotInstanceRequestId() + " to start");
+			
+				DescribeSpotInstanceRequestsRequest descReqsReq = new DescribeSpotInstanceRequestsRequest()
+						.withSpotInstanceRequestIds(spotInstReq.getSpotInstanceRequestId());
+
+				DescribeSpotInstanceRequestsResult descResult = ec2.describeSpotInstanceRequests(descReqsReq);
+				SpotInstanceRequest descResponse = descResult.getSpotInstanceRequests().get(0);
+				
+				if (descResponse.getState().equals("active")){
+					isStarted = true;
+					instanceId = descResponse.getInstanceId();
+					break;
 				}
-	
-				inst = reqInstances.get(0);
-				System.out.log("Spot instance id in provision: " + inst.getInstanceId());
-			}while(inst == null || inst.getInstanceId() == null);
-			
-			
+
+				try {
+					Thread.sleep(30000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
+			System.out.println("Spot instance started with id: " + instanceId);
+			// TODO: Check if this while loop is actually needed
+			Instance inst;
+			while (true){
+				inst = ec2.describeInstances(
+						new DescribeInstancesRequest().withInstanceIds(instanceId))
+						.getReservations().get(0).getInstances().get(0);
+				
+				if (inst != null){
+					break;
+				}
+				
+				try {
+					Thread.sleep(5000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
 			/* Now that we have our instance, we can set tags on it */
 			if (inst_tags != null) {
 				CreateTagsRequest tag_request = new CreateTagsRequest();
@@ -478,101 +517,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				// That was a remote request - we should also update our local instance data.
 				inst.setTags(inst_tags);
 			}
-//			logger.println("No existing instance found - created: "+inst);
-			
-			return newSpotSlave(inst, logger);
 
-			//			}
+			return newSlave(inst);
 
-			/*			SpotInstanceRequest inst = dsirResult.getSpotInstanceRequests().get(0);
-			logger.println("Found existing stopped instance: "+inst);
-			List<String> instances = new ArrayList<String>();
-			instances.add(inst.getInstanceId());
-			StartInstancesRequest siRequest = new StartInstancesRequest(instances);
-			StartInstancesResult siResult = ec2.startInstances(siRequest);
-			logger.println("Starting existing instance: "+inst+ " result:"+siResult);
-
-			List<Node> nodes = Hudson.getInstance().getNodes();
-			for (int i = 0, len = nodes.size(); i < len; i++) {
-				if (!(nodes.get(i) instanceof EC2Slave))
-					continue;
-				EC2Slave ec2Node = (EC2Slave) nodes.get(i);
-				if (ec2Node.getInstanceId().equals(inst.getInstanceId())) {
-					logger.println("Found existing corresponding: "+ec2Node);
-					return ec2Node;
-				}
-			}
-
-			// Existing slave not found 
-			logger.println("Creating new slave for existing instance: "+inst);
-			return newSpotSlave(inst);*/
 		}  catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
 		}
 	}
 
 
-	private EC2Slave newOndemandSlave(Instance inst) throws FormException, IOException {
+	private EC2Slave newSlave(Instance inst) throws FormException, IOException {
 		return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
-	}
-
-	private EC2Slave newSpotSlave(SpotInstanceRequest inst, PrintStream log) throws FormException, IOException {
-		AmazonEC2 ec2 = getParent().connect();
-		
-		String instanceId = "";//inst.getInstanceId();
-		
-		DescribeInstancesRequest dir = null;
-		List<Reservation> reservations;
-		String publicDns = "";
-		String privateDns = "";
-
-		System.out.println("SPOT: Waiting for Spot instance " + instanceId + " to start");
-		log.println("SPOT: Waiting for Spot instance " + instanceId + " to start");
-		int attempt = 1;
-/*		while(inst.getInstanceId() == null){
-			System.out.println("SPOT: Instance state: " + inst.getInstanceId());
-			log.println("SPOT: Instance state: " + inst.getInstanceId());
-			try {
-				Thread.sleep(5000L);		// Check again in 5 seconds
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}	
-		}
-*/
-		instanceId = inst.getInstanceId();
-		
-//		while (true){
-			System.out.println("SPOT: Checking for instance " + instanceId + ". Attempt: " + attempt++);
-			log.println("SPOT: Checking for instance " + instanceId + ". Attempt: " + attempt++);
-			if(instanceId != null && !instanceId.equals("")){
-				dir = (dir != null) ? dir : new DescribeInstancesRequest().withInstanceIds(instanceId);
-				if (dir != null){
-					reservations = ec2.describeInstances(dir).getReservations();
-					if (reservations != null && reservations.size() > 0){
-						Reservation res = reservations.get(0);
-						List<Instance> instances= res.getInstances();
-						if (instances != null && instances.size() > 0){
-							Instance runningInstance = instances.get(0);
-							publicDns = runningInstance.getPublicDnsName();
-							privateDns = runningInstance.getPrivateDnsName();
-							
-							System.out.println("SPOT: Public dns: " + publicDns);
-							log.println("SPOT: Public dns: " + publicDns);
-							System.out.println("SPOT: Private dns: " + privateDns);
-							log.println("SPOT: Private dns: " + privateDns);
-//							break;
-						}
-					}
-				}
-			}
-
-		
-//		}
-			
-		return new EC2Slave(instanceId, description, remoteFS, getSshPort(), 
-				getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, 
-				jvmopts, stopOnTerminate, idleTerminationMinutes, publicDns, 
-				privateDns, EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
 	}
 	/**
 	 * Provisions a new EC2 slave based on the currently running instance on EC2,
@@ -587,7 +542,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			DescribeInstancesRequest request = new DescribeInstancesRequest();
 			request.setInstanceIds(Collections.singletonList(instanceId));
 			Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
-			return newOndemandSlave(inst);
+			return newSlave(inst);
 		} catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
 		}
@@ -680,23 +635,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 						{
 			return EC2Slave.fillZoneItems(accessId, secretKey, region);
 						}
-		
-        /* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
-        public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
-        	try {
-        		float spotPrice = Float.parseFloat(spotMaxBidPrice);
-        		
-        		/* If the specified bid price is less than or equal to zero return an error*/
-        		if(spotPrice <= 0){
-        			return FormValidation.error("Not a correct bid price");
-        		} else {
-        			return FormValidation.ok();
-        		}
-        	} catch (NumberFormatException ex) {
-        		return FormValidation.error("Not a correct bid price");
-        	} 
-        	
-        }
+
+		/* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
+		public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
+			try {
+				float spotPrice = Float.parseFloat(spotMaxBidPrice);
+
+				/* If the specified bid price is less than or equal to zero return an error*/
+				if(spotPrice <= 0){
+					return FormValidation.error("Not a correct bid price");
+				} else {
+					return FormValidation.ok();
+				}
+			} catch (NumberFormatException ex) {
+				return FormValidation.error("Not a correct bid price");
+			} 
+
+		}
 	}
 }
 

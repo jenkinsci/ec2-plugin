@@ -1,13 +1,13 @@
+#!/bin/bash
 JENKINS_URL="http://localhost:8080/"
-jenkcli="sudo java -jar ../jenkins-cli.jar -s $JENKINS_URL"
-
-pushd ec2-plugin/
+jenkcli="sudo jenkins-cli -s $JENKINS_URL"
 
 mvn -DskipTests
+
+echo "Installing plugin built at `stat -c %y target/ec2.hpi`"
 
 $jenkcli install-plugin target/ec2.hpi
 $jenkcli safe-restart
 
-popd
-date
+echo "Finished installing at `date`"
 
