@@ -641,8 +641,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			try {
 				float spotPrice = Float.parseFloat(spotMaxBidPrice);
 
-				/* If the specified bid price is less than or equal to zero return an error*/
-				if(spotPrice <= 0){
+				/* If the specified bid price is less than 0.001 return an error*/
+				if(spotPrice < 0.001){
 					return FormValidation.error("Not a correct bid price");
 				} else {
 					return FormValidation.ok();
