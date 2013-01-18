@@ -35,7 +35,7 @@ import com.amazonaws.services.ec2.model.*;
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
 	public final String ami;
-	public String spotMaxBidPrice;			// TODO: Make this final
+	public final String spotMaxBidPrice;// TODO: Make this final
 	public final String description;
 	public final String zone;
 	public final String securityGroups;
@@ -62,14 +62,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	protected transient /*almost final*/ Set<String> securityGroupSet;
 
 	@DataBoundConstructor
-	public SlaveTemplate(String ami, String spotMaxBidPrice, String zone, String securityGroups, String remoteFS, 
+	public SlaveTemplate(String ami, EnableSpot enableSpot, String zone, String securityGroups, String remoteFS, 
 			String sshPort, InstanceType type, String labelString, String description, 
 			String initScript, String userData, String numExecutors, String remoteAdmin, 
 			String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, 
 			List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, 
 			String instanceCapStr) {
 		this.ami = ami;
-		this.spotMaxBidPrice = spotMaxBidPrice;
+		this.spotMaxBidPrice = enableSpot == null ? "" : enableSpot.spotMaxBidPrice;
 		this.zone = zone;
 		this.securityGroups = securityGroups;
 		this.remoteFS = remoteFS;
@@ -488,17 +488,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					e.printStackTrace();
 				}
 			}
-
+			
 			System.out.println("Spot instance started with id: " + instanceId);
-			// TODO: Check if this while loop is actually needed
 			Instance inst;
 			while (true){
-				inst = ec2.describeInstances(
-						new DescribeInstancesRequest().withInstanceIds(instanceId))
-						.getReservations().get(0).getInstances().get(0);
-				
-				if (inst != null){
-					break;
+				System.out.println("Waiting for instance " + instanceId + " to become available");
+				DescribeInstancesResult instResult = ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(instanceId));
+				List<Reservation> reservations = instResult.getReservations();
+				if(reservations.size() > 0){
+					List<Instance> instances = reservations.get(0).getInstances();
+					if(instances.size() > 0){
+						inst = instances.get(0);
+						if (inst != null){
+							break;
+						}
+					}
 				}
 				
 				try {
@@ -560,7 +564,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	public Descriptor<SlaveTemplate> getDescriptor() {
 		return Hudson.getInstance().getDescriptor(getClass());
 	}
-
+	
 	@Extension
 	public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
 		@Override
