@@ -2,11 +2,11 @@ package hudson.plugins.ec2;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 
-public final class EnableSpot{
+public final class SpotConfiguration{
 	public final String spotMaxBidPrice;
 	
 	@DataBoundConstructor
-	public EnableSpot(String spotMaxBidPrice){
+	public SpotConfiguration(String spotMaxBidPrice){
 		this.spotMaxBidPrice = spotMaxBidPrice;
 	}
 }

@@ -35,7 +35,7 @@ import com.amazonaws.services.ec2.model.*;
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
 	public final String ami;
-	public final String spotMaxBidPrice;// TODO: Make this final
+	public final SpotConfiguration spotConfig;// TODO: Make this final
 	public final String description;
 	public final String zone;
 	public final String securityGroups;
@@ -62,14 +62,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	protected transient /*almost final*/ Set<String> securityGroupSet;
 
 	@DataBoundConstructor
-	public SlaveTemplate(String ami, EnableSpot enableSpot, String zone, String securityGroups, String remoteFS, 
+	public SlaveTemplate(String ami, SpotConfiguration spotConfig, String zone, String securityGroups, String remoteFS, 
 			String sshPort, InstanceType type, String labelString, String description, 
 			String initScript, String userData, String numExecutors, String remoteAdmin, 
 			String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, 
 			List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, 
 			String instanceCapStr) {
 		this.ami = ami;
-		this.spotMaxBidPrice = enableSpot == null ? "" : enableSpot.spotMaxBidPrice;
+		this.spotConfig = spotConfig;
 		this.zone = zone;
 		this.securityGroups = securityGroups;
 		this.remoteFS = remoteFS;
@@ -111,7 +111,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	public String getSpotMaxBidPrice(){
-		return spotMaxBidPrice;
+		return spotConfig.spotMaxBidPrice;
 	}
 
 	String getZone() {
@@ -199,8 +199,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
 		//this.spotMaxBidPrice = "0.05";		// TODO: Remove this when the value actually saves
-		if (spotMaxBidPrice != null && !spotMaxBidPrice.equals("")){
-			listener.getLogger().println("Spot Price: " + this.spotMaxBidPrice);
+		if (spotConfig != null && !spotConfig.spotMaxBidPrice.equals("")){
+			listener.getLogger().println("Spot Price: " + spotConfig.spotMaxBidPrice);
 			return provisionSpot(listener);
 		}
 		return provisionOndemand(listener);
@@ -365,7 +365,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
 
-			spotRequest.setSpotPrice(spotMaxBidPrice);
+			spotRequest.setSpotPrice(spotConfig.spotMaxBidPrice);
 			spotRequest.setInstanceCount(Integer.valueOf(1));
 
 			LaunchSpecification launchSpecification = new LaunchSpecification();
