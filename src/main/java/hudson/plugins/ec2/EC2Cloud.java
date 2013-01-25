@@ -48,6 +48,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
+import java.util.UUID;
 
 /**
  * Hudson's view of EC2. 
@@ -62,6 +63,7 @@ public abstract class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
+    private final UUID CloudID; 
 
     /**
      * Upper bound on how many instances we may provision.
@@ -79,6 +81,7 @@ public abstract class EC2Cloud extends Cloud {
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
+        CloudID = UUID.randomUUID();
 
         if(templates==null) {
             this.templates=Collections.emptyList();
@@ -114,6 +117,10 @@ public abstract class EC2Cloud extends Cloud {
 
     public EC2PrivateKey getPrivateKey() {
         return privateKey;
+    }
+    
+    public UUID getCloudID(){
+    	return CloudID;
     }
 
     public String getInstanceCapStr() {
