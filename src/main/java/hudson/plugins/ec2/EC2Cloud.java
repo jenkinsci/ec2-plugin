@@ -64,6 +64,7 @@ public abstract class EC2Cloud extends Cloud {
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
     private final UUID CloudID; 
+    private final String cloudName;
 
     /**
      * Upper bound on how many instances we may provision.
@@ -76,12 +77,13 @@ public abstract class EC2Cloud extends Cloud {
     
 	private static AWSCredentials awsCredentials;
     
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String cloudName) {
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
         CloudID = UUID.randomUUID();
+        this.cloudName = cloudName;
 
         if(templates==null) {
             this.templates=Collections.emptyList();
@@ -121,6 +123,10 @@ public abstract class EC2Cloud extends Cloud {
     
     public UUID getCloudID(){
     	return CloudID;
+    }
+    
+    public String getCloudName(){
+    	return cloudName;
     }
 
     public String getInstanceCapStr() {

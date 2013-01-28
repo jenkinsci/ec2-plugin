@@ -30,7 +30,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
       List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
       templates.add(template);
 
-      ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates);
+      ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates, "Test Cloud");
 	}
 	
 	public void testLabelAtom(){
@@ -59,7 +59,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(temp);
 
-        ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates);
+        ac = new AmazonEC2Cloud("us-east-1", "abc", "def", "ghi", "3", templates, "Test Cloud");
 
         assertEquals(true, ac.canProvision(null));
     }
