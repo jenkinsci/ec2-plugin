@@ -5,6 +5,7 @@ import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Slave;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
@@ -196,7 +197,7 @@ public abstract class EC2Cloud extends Cloud {
 
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
-        EC2Slave node = t.attach(id,listener);
+        EC2OndemandSlave node = t.attach(id,listener);
         Hudson.getInstance().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
@@ -217,7 +218,7 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         try {
-            EC2Slave node = t.provision(listener);
+            Slave node = t.provision(listener);
             Hudson.getInstance().addNode(node);
 
             rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
@@ -252,7 +253,7 @@ public abstract class EC2Cloud extends Cloud {
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
-                                EC2Slave s = t.provision(new StreamTaskListener(System.out));
+                                Slave s = t.provision(new StreamTaskListener(System.out));
                                 Hudson.getInstance().addNode(s);
                                 // EC2 instances may have a long init script. If we declare
                                 // the provisioning complete by returning without the connect
