@@ -41,7 +41,7 @@ public class Eucalyptus extends EC2Cloud {
 
     @DataBoundConstructor
     public Eucalyptus(URL url, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) throws IOException {
-        super("eucalyptus", accessId, secretKey, privateKey, instanceCapStr, templates);
+        super("eucalyptus", accessId, secretKey, privateKey, instanceCapStr, templates, "eucalyptus");
         this.url = url;
     }
 
