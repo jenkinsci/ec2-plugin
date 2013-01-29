@@ -64,7 +64,6 @@ public class EC2SpotSlave extends EC2Slave {
 				tags);
 		
 		connectOnStartup = false;
-		// TODO Auto-generated constructor stub
 	}
 
 

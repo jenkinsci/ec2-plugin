@@ -92,7 +92,7 @@ public abstract class EC2Slave extends Slave {
 	}
 	
 	/**
-     * EC2 instance ID.
+     * EC2 instance ID (on demand) or spot request id (spot)
      */
     public String getInstanceId() {
         return getNodeName();

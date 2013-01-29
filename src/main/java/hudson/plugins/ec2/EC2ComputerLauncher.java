@@ -26,6 +26,8 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     public void launch(SlaveComputer _computer, TaskListener listener) {
         try {
             EC2Computer computer = (EC2Computer)_computer;
+            if(!computer.getNode().getConnectOnStartup()) return;
+
             PrintStream logger = listener.getLogger();
 
             OUTER:
