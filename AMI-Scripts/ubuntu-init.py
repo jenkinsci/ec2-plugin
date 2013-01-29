@@ -21,5 +21,5 @@ for arg in args:
 	if arg.split("=")[0] == "SLAVE_NAME":
 		slaveName = arg.split("=")[1]
 		
-os.system("wget http://" + jenkinsUrl + "/jnlpJars/slave.jar -O slave.jar")
-os.system("java -jar slave.jar -jnlp http://" + jenkinsUrl + "/computer/" + slaveName + "/slave-agent.jnlp")
+os.system("wget " + jenkinsUrl + "jnlpJars/slave.jar -O slave.jar")
+os.system("java -jar slave.jar -jnlp " + jenkinsUrl + "computer/" + slaveName + "/slave-agent.jnlp")
