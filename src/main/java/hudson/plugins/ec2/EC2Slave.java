@@ -9,14 +9,18 @@ import javax.servlet.ServletException;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.Reservation;
 
+import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
@@ -34,6 +38,7 @@ public abstract class EC2Slave extends Slave {
 	public final boolean stopOnTerminate;
 	public final String idleTerminationMinutes;
 	public List<EC2Tag> tags;
+	protected boolean connectOnStartup;
 
     public static final String TEST_ZONE = "testZone";
 
@@ -93,8 +98,14 @@ public abstract class EC2Slave extends Slave {
         return getNodeName();
     }
     
+    public boolean getConnectOnStartup(){
+    	return connectOnStartup;
+    }
+    
     @Override
-    public abstract Computer createComputer();
+	public Computer createComputer() {
+		return new EC2Computer(this);
+	}
     
     public abstract void terminate();
 
@@ -120,6 +131,30 @@ public abstract class EC2Slave extends Slave {
         return stopOnTerminate;
     }
     
+	public int getSshPort() {
+		return 0;
+	}
+    
+    public static Instance getInstance(String instanceId) {
+    	if (instanceId == null || instanceId.trim().equals("")) return null;
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+    	request.setInstanceIds(Collections.<String>singletonList(instanceId));
+        EC2Cloud cloudInstance = EC2Cloud.get();
+        if (cloudInstance == null)
+        	return null;
+        AmazonEC2 ec2 = cloudInstance.connect();
+    	List<Reservation> reservations = ec2.describeInstances(request).getReservations();
+        Instance i = null;
+    	if (reservations.size() > 0) {
+    		List<Instance> instances = reservations.get(0).getInstances();
+    		if (instances.size() > 0)
+    			i = instances.get(0);
+    	}
+    	return i;
+    }
+    
+    /* Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to
+    time to ensure we reflect the reality of the instances. */
     protected abstract void fetchLiveInstanceData(boolean force);
     
     public List<EC2Tag> getTags() {
@@ -150,4 +185,23 @@ public abstract class EC2Slave extends Slave {
 		}
 		return model;
 	}
+    
+    @Extension
+    public static final class DescriptorImpl extends SlaveDescriptor {
+        @Override
+		public String getDisplayName() {
+            return "Amazon EC2";
+        }
+
+        @Override
+        public boolean isInstantiable() {
+            return false;
+        }
+
+        public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
+        		@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
+    			ServletException {
+        	return fillZoneItems(accessId, secretKey, region);
+    	}
+    }
 }

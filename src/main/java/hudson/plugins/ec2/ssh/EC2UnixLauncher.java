@@ -3,6 +3,7 @@ package hudson.plugins.ec2.ssh;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.plugins.ec2.EC2ComputerLauncher;
+import hudson.plugins.ec2.EC2OndemandSlave;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.remoting.Channel;
@@ -44,11 +45,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     @Override
 	protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException, InterruptedException {
-
         final Connection bootstrapConn;
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
         boolean successful = false;
+        
+        if(!computer.getNode().getConnectOnStartup()) return;
         
         try {
             bootstrapConn = connectToSsh(computer, logger);
@@ -69,7 +71,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             conn = cleanupConn;
 
             SCPClient scp = conn.createSCPClient();
-            String initScript = computer.getNode().initScript;
+            String initScript = "";
+            if (computer.getNode().getConnectOnStartup()){
+            	initScript = ((EC2OndemandSlave)computer.getNode()).initScript;
+        	}
+            
 
             if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e ~/.hudson-run-init", logger) !=0) {
                 logger.println("Executing init script");
@@ -173,13 +179,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
+    	if (!computer.getNode().getConnectOnStartup()){
+    		return null;
+    	}
+    	EC2OndemandSlave node = (EC2OndemandSlave) computer.getNode();
         while(true) {
             try {
                 Instance instance = computer.updateInstanceDescription();
                 String vpc_id = instance.getVpcId();
                 String host;
 
-                if (computer.getNode().usePrivateDnsName) {
+                if (node.usePrivateDnsName) {
                     host = instance.getPrivateDnsName();
                 } else {
                     /* VPC hosts don't have public DNS names, so we need to use an IP address instead */

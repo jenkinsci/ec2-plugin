@@ -73,6 +73,7 @@ public class EC2OndemandSlave extends EC2Slave {
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
         this.usePrivateDnsName = usePrivateDnsName;
+        connectOnStartup = true;
     }
 
     /**
@@ -82,28 +83,6 @@ public class EC2OndemandSlave extends EC2Slave {
         this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null, false, null, "Fake public", "Fake private", null, false);
     }
 
-
-    @Override
-    public Computer createComputer() {
-        return new EC2Computer(this);
-    }
-
-    public static Instance getInstance(String instanceId) {
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-    	request.setInstanceIds(Collections.<String>singletonList(instanceId));
-        EC2Cloud cloudInstance = EC2Cloud.get();
-        if (cloudInstance == null)
-        	return null;
-        AmazonEC2 ec2 = cloudInstance.connect();
-    	List<Reservation> reservations = ec2.describeInstances(request).getReservations();
-        Instance i = null;
-    	if (reservations.size() > 0) {
-    		List<Instance> instances = reservations.get(0).getInstances();
-    		if (instances.size() > 0)
-    			i = instances.get(0);
-    	}
-    	return i;
-    }
     
     /**
      * Terminates the instance in EC2.
@@ -147,6 +126,7 @@ public class EC2OndemandSlave extends EC2Slave {
 		LOGGER.info("EC2 instance stopped: " + getInstanceId());
 	}
 
+	@Override
     public int getSshPort() {
         return sshPort!=0 ? sshPort : 22;
     }
@@ -158,8 +138,7 @@ public class EC2OndemandSlave extends EC2Slave {
         return true;
     }
 
-    /* Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to
-       time to ensure we reflect the reality of the instances. */
+    
     protected void fetchLiveInstanceData( boolean force ) throws AmazonClientException {
 		/* If we've grabbed the data recently, don't bother getting it again unless we are forced */
         long now = System.currentTimeMillis();
@@ -264,25 +243,6 @@ public class EC2OndemandSlave extends EC2Slave {
         return usePrivateDnsName;
     }
     
-    
-    @Extension
-    public static final class DescriptorImpl extends SlaveDescriptor {
-        @Override
-		public String getDisplayName() {
-            return "Amazon EC2";
-        }
-
-        @Override
-        public boolean isInstantiable() {
-            return false;
-        }
-
-        public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
-        		@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-    			ServletException {
-        	return fillZoneItems(accessId, secretKey, region);
-    	}
-    }
 
     private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 }

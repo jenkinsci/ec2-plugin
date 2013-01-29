@@ -22,13 +22,13 @@ public class EC2Computer extends SlaveComputer {
      */
     private volatile Instance ec2InstanceDescription;
 
-    public EC2Computer(EC2OndemandSlave slave) {
+    public EC2Computer(EC2Slave slave) {
         super(slave);
     }
 
     @Override
-    public EC2OndemandSlave getNode() {
-        return (EC2OndemandSlave)super.getNode();
+    public EC2Slave getNode() {
+        return (EC2Slave)super.getNode();
     }
 
     public String getInstanceId() {
