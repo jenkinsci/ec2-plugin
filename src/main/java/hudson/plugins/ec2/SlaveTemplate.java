@@ -20,6 +20,8 @@ import java.util.*;
 
 import javax.servlet.ServletException;
 
+import jenkins.model.Jenkins;
+
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -349,7 +351,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	/**
-	 * Provision a new Dumb slave for an EC2 spot instance to call back to
+	 * Provision a new slave for an EC2 spot instance to call back to
 	 * 
 	 * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
 	 */
@@ -376,6 +378,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			launchSpecification.setImageId(ami);
 			launchSpecification.setInstanceType(type);
 			diFilters.add(new Filter("image-id").withValues(ami));
+			
+			String jenkinsUrl = Jenkins.getInstance().getRootUrl();
+			String slaveName = UUID.randomUUID().toString();
+			launchSpecification.setUserData("JENKINS_URL=" + jenkinsUrl + "&SLAVE_NAME=" + slaveName);
 
 			if (StringUtils.isNotBlank(getZone())) {
 				SpotPlacement placement = new SpotPlacement(getZone());
@@ -463,8 +469,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			if (spotInstReq != null && spotInstReq.getSpotInstanceRequestId() != null){
 				System.out.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 			}
-
-			return newSpotSlave(spotInstReq);
+			
+			return newSpotSlave(spotInstReq, slaveName);
 
 		}  catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -472,8 +478,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 
-	private EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
-		return new EC2SpotSlave(sir.getSpotInstanceRequestId(), description, remoteFS,
+	private EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
+		return new EC2SpotSlave(sir.getSpotInstanceRequestId(), name, description, remoteFS,
 				getNumExecutors(), labels, remoteAdmin, rootCommandPrefix, jvmopts,
 				stopOnTerminate, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()));
 	}

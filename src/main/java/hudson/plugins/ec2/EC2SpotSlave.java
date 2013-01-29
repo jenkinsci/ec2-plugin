@@ -1,6 +1,8 @@
 package hudson.plugins.ec2;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -17,6 +19,7 @@ import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DeleteTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
@@ -39,18 +42,20 @@ import hudson.util.ListBoxModel;
 
 public class EC2SpotSlave extends EC2Slave {
 	
-	public EC2SpotSlave(String instanceId, String description, String remoteFS,
+	private final String spotInstanceRequestId;
+	
+	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS,
 			int numExecutors, String labelString, String remoteAdmin, 
 			String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, 
 			String idleTerminationMinutes, List<EC2Tag> tags) 
 					throws FormException, IOException {
 		
-		this(instanceId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, new EC2UnixLauncher(), 
+		this(name, spotInstanceRequestId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, new EC2UnixLauncher(), 
 				new EC2RetentionStrategy(idleTerminationMinutes), Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate,
 				idleTerminationMinutes, tags);
 	}
 
-	public EC2SpotSlave(String instanceId, String description, String remoteFS,
+	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS,
 			int numExecutors, Mode mode, String labelString,
 			ComputerLauncher launcher, EC2RetentionStrategy retentionStrategy,
 			List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin,
@@ -58,22 +63,30 @@ public class EC2SpotSlave extends EC2Slave {
 					String idleTerminationMinutes, List<EC2Tag> tags)
 							throws FormException, IOException {
 		
-		super(instanceId, description, remoteFS, numExecutors, mode, labelString,
+		super(name, description, remoteFS, numExecutors, mode, labelString,
 				launcher, retentionStrategy, nodeProperties, remoteAdmin,
 				rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes,
 				tags);
 		
 		connectOnStartup = false;
+		this.spotInstanceRequestId = spotInstanceRequestId;
 	}
 
 
 	@Override
 	public void terminate() {
-		// TODO Auto-generated method stub
+		// Cancel the spot request
+		AmazonEC2 ec2 = getEc2Cloud();
+		if (ec2 == null) return;
 		
-		// Remove the spot request
+		List<String> requestIds = new ArrayList<String>();
+		requestIds.add(spotInstanceRequestId);
+		CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
 		
-		// Terminate the slave if it is running
+	    ec2.cancelSpotInstanceRequests(cancelRequest);
+		
+		
+		// TODO: Terminate the slave if it is running
 
 	}
 
@@ -83,10 +96,15 @@ public class EC2SpotSlave extends EC2Slave {
 
 	}
 	
-	private SpotInstanceRequest getSpotRequest(String requestId){
+	private AmazonEC2 getEc2Cloud(){
 		EC2Cloud cloudInstance = EC2Cloud.get();
 		if (cloudInstance == null) return null;
-		AmazonEC2 ec2 = cloudInstance.connect();
+		return cloudInstance.connect();
+	}
+	
+	private SpotInstanceRequest getSpotRequest(String requestId){
+		AmazonEC2 ec2 = getEc2Cloud();
+		if(ec2 == null) return null;
 		
 		DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(requestId);
 		DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
@@ -107,7 +125,7 @@ public class EC2SpotSlave extends EC2Slave {
             return;
         }
 
-        SpotInstanceRequest sir = getSpotRequest(getNodeName());
+        SpotInstanceRequest sir = getSpotRequest(spotInstanceRequestId);
         Instance i = getInstance(sir);
 
         lastFetchTime = now;
@@ -164,7 +182,7 @@ public class EC2SpotSlave extends EC2Slave {
 	
 	/* Clears all existing tag data so that we can force the instance into a known state */
     private void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(this.getSpotRequest(getNodeName()));
+        Instance inst = getInstance(getSpotRequest(spotInstanceRequestId));
         if (inst == null) return;
 
         /* Now that we have our instance, we can clear the tags on it */
@@ -184,7 +202,7 @@ public class EC2SpotSlave extends EC2Slave {
 
     /* Sets tags on an instance.  This will not clear existing tag data, so call clearLiveInstancedata if needed */
     private void pushLiveInstancedata() throws AmazonClientException {
-    	Instance inst = getInstance(this.getSpotRequest(getNodeName()));
+    	Instance inst = getInstance(this.getSpotRequest(spotInstanceRequestId));
         if (inst == null) return;
 
         /* Now that we have our instance, we can set tags on it */
