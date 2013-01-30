@@ -35,7 +35,7 @@ import com.amazonaws.services.ec2.model.*;
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
 	public final String ami;
-	public final SpotConfiguration spotConfig;// TODO: Make this final
+	public final SpotConfiguration spotConfig;
 	public final String description;
 	public final String zone;
 	public final String securityGroups;
@@ -56,6 +56,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	protected final List<EC2Tag> tags;
 	public final boolean usePrivateDnsName;
 	protected transient EC2Cloud parent;
+	public String currentSpotPrice;
 
 
 	private transient /*almost final*/ Set<LabelAtom> labelSet;
@@ -88,6 +89,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		this.tags = tags;
 		this.idleTerminationMinutes = idleTerminationMinutes;
 		this.usePrivateDnsName = usePrivateDnsName;
+		this.currentSpotPrice = "0.0";
 
 		if (null == instanceCapStr || instanceCapStr.equals("")) {
 			this.instanceCap = Integer.MAX_VALUE;
@@ -185,6 +187,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		} else {
 			return String.valueOf(instanceCap);
 		}
+	}
+	
+	public String getCurrentSpotPrice() {
+		return currentSpotPrice;
 	}
 
 	/**
@@ -639,7 +645,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 						{
 			return EC2Slave.fillZoneItems(accessId, secretKey, region);
 						}
-
+		
 		/* Validate the Spot Max Bid Price to ensure that it is a floating point number*/
 		public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
 			try {
@@ -654,7 +660,49 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			} catch (NumberFormatException ex) {
 				return FormValidation.error("Not a correct bid price");
 			} 
+		}
+		
+		/* Check the current Spot price of the selected instance type for the selected region */
+		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
+				@QueryParameter String region, @QueryParameter InstanceType type ) throws IOException, ServletException {
+			String cp = "";
+			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
+			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+			if(ec2!=null) {
 
+				try {
+					// Build a new price history request with the currently selected type and region
+					DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
+
+					request.setAvailabilityZone(region+"a");
+					
+					Collection<String> instanceType = new ArrayList<String>();
+					instanceType.add(type.toString());
+					request.setInstanceTypes(instanceType);
+					
+					// Retrieve the price history request result and store the current price
+					DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
+					SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
+
+					cp = currentPrice.getSpotPrice();
+				} catch (AmazonClientException e) {
+					return FormValidation.error("Could not retrieve current Spot price");
+				}
+			}
+			
+			/*
+			 * If we could not return the current price of the instance display an error
+			 * Else, remove the additional zeros from the current price and return it to the interface
+			 * in the form of a message
+			 */
+			if(cp == ""){
+				return FormValidation.error("Could not retrieve current Spot price");
+			} else {
+				cp = cp.substring(0, cp.length() - 3);
+				
+				return FormValidation.ok("The current Spot price for a " + type.toString() + 
+						" in the " + region + " region is $" + cp );
+			}
 		}
 	}
 }

@@ -35,6 +35,7 @@ THE SOFTWARE.
   </f:entry>
   
   <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
+  	<f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="accessId,secretKey,region,type" />
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
     </f:entry>
