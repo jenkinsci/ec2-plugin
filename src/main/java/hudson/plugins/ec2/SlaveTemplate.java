@@ -9,6 +9,7 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
+import hudson.model.Slave;
 import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -18,6 +19,8 @@ import java.io.PrintStream;
 import java.util.*;
 
 import javax.servlet.ServletException;
+
+import jenkins.model.Jenkins;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
@@ -203,8 +206,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		return l==null || labelSet.contains(l);
 	}
 
-	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
-		//this.spotMaxBidPrice = "0.05";		// TODO: Remove this when the value actually saves
+	public Slave provision(TaskListener listener) throws AmazonClientException, IOException{
 		if (spotConfig != null && !spotConfig.spotMaxBidPrice.equals("")){
 			listener.getLogger().println("Spot Price: " + spotConfig.spotMaxBidPrice);
 			return provisionSpot(listener);
@@ -212,13 +214,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		return provisionOndemand(listener);
 	}
 
+	
 
 	/**
-	 * Provisions a new EC2 slave.
+	 * Provisions a new on-demand EC2 slave.
 	 *
 	 * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
 	 */
-	private EC2Slave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
+	private EC2OndemandSlave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
 		PrintStream logger = listener.getLogger();
 		AmazonEC2 ec2 = getParent().connect();
 
@@ -322,7 +325,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					inst.setTags(inst_tags);
 				}
 				logger.println("No existing instance found - created: "+inst);
-				return newSlave(inst);
+				return newOndemandSlave(inst);
 			}
 
 			Instance inst = diResult.getReservations().get(0).getInstances().get(0);
@@ -335,9 +338,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			List<Node> nodes = Hudson.getInstance().getNodes();
 			for (int i = 0, len = nodes.size(); i < len; i++) {
-				if (!(nodes.get(i) instanceof EC2Slave))
+				if (!(nodes.get(i) instanceof EC2OndemandSlave))
 					continue;
-				EC2Slave ec2Node = (EC2Slave) nodes.get(i);
+				EC2OndemandSlave ec2Node = (EC2OndemandSlave) nodes.get(i);
 				if (ec2Node.getInstanceId().equals(inst.getInstanceId())) {
 					logger.println("Found existing corresponding: "+ec2Node);
 					return ec2Node;
@@ -346,7 +349,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			// Existing slave not found 
 			logger.println("Creating new slave for existing instance: "+inst);
-			return newSlave(inst);
+			return newOndemandSlave(inst);
 
 		} catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -354,7 +357,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 	/**
-	 * Provision a new EC2 spot instance as a slave
+	 * Provision a new slave for an EC2 spot instance to call back to
 	 * 
 	 * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
 	 */
@@ -381,6 +384,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			launchSpecification.setImageId(ami);
 			launchSpecification.setInstanceType(type);
 			diFilters.add(new Filter("image-id").withValues(ami));
+			
+			String jenkinsUrl = Jenkins.getInstance().getRootUrl();
+			String slaveName = UUID.randomUUID().toString();
+			launchSpecification.setUserData("JENKINS_URL=" + jenkinsUrl + "&SLAVE_NAME=" + slaveName);
 
 			if (StringUtils.isNotBlank(getZone())) {
 				SpotPlacement placement = new SpotPlacement(getZone());
@@ -468,67 +475,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			if (spotInstReq != null && spotInstReq.getSpotInstanceRequestId() != null){
 				System.out.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 			}
-
-
-			/* We now have a spot request, wait for it to be filled */
-			boolean isStarted = false;
-			String instanceId = "";
-			while(!isStarted){
-				System.out.println("SPOT: Waiting for Spot instance " + spotInstReq.getSpotInstanceRequestId() + " to start");
 			
-				DescribeSpotInstanceRequestsRequest descReqsReq = new DescribeSpotInstanceRequestsRequest()
-						.withSpotInstanceRequestIds(spotInstReq.getSpotInstanceRequestId());
-
-				DescribeSpotInstanceRequestsResult descResult = ec2.describeSpotInstanceRequests(descReqsReq);
-				SpotInstanceRequest descResponse = descResult.getSpotInstanceRequests().get(0);
-				
-				if (descResponse.getState().equals("active")){
-					isStarted = true;
-					instanceId = descResponse.getInstanceId();
-					break;
-				}
-
-				try {
-					Thread.sleep(30000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			
-			System.out.println("Spot instance started with id: " + instanceId);
-			Instance inst;
-			while (true){
-				System.out.println("Waiting for instance " + instanceId + " to become available");
-				DescribeInstancesResult instResult = ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(instanceId));
-				List<Reservation> reservations = instResult.getReservations();
-				if(reservations.size() > 0){
-					List<Instance> instances = reservations.get(0).getInstances();
-					if(instances.size() > 0){
-						inst = instances.get(0);
-						if (inst != null){
-							break;
-						}
-					}
-				}
-				
-				try {
-					Thread.sleep(5000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-
-			/* Now that we have our instance, we can set tags on it */
-			if (inst_tags != null) {
-				CreateTagsRequest tag_request = new CreateTagsRequest();
-				tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-				ec2.createTags(tag_request);
-
-				// That was a remote request - we should also update our local instance data.
-				inst.setTags(inst_tags);
-			}
-
-			return newSlave(inst);
+			return newSpotSlave(spotInstReq, slaveName);
 
 		}  catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
@@ -536,14 +484,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
 
-	private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-		return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
+	private EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
+		return new EC2SpotSlave(sir.getSpotInstanceRequestId(), name, description, remoteFS,
+				getNumExecutors(), labels, remoteAdmin, rootCommandPrefix, jvmopts,
+				stopOnTerminate, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()));
 	}
+	
+	private EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
+		return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), 
+				getNumExecutors(), labels, initScript, remoteAdmin, rootCommandPrefix, 
+				jvmopts, stopOnTerminate, idleTerminationMinutes, 
+				inst.getPublicDnsName(), inst.getPrivateDnsName(), 
+				EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
+	}
+	
 	/**
 	 * Provisions a new EC2 slave based on the currently running instance on EC2,
 	 * instead of starting a new one.
 	 */
-	public EC2Slave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
+	public EC2OndemandSlave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
 		PrintStream logger = listener.getLogger();
 		AmazonEC2 ec2 = getParent().connect();
 
@@ -552,7 +511,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			DescribeInstancesRequest request = new DescribeInstancesRequest();
 			request.setInstanceIds(Collections.singletonList(instanceId));
 			Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
-			return newSlave(inst);
+			return newOndemandSlave(inst);
 		} catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
 		}
@@ -584,7 +543,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		@Override
 		public String getHelpFile(String fieldName) {
 			String p = super.getHelpFile(fieldName);
-			if (p==null)        p = Hudson.getInstance().getDescriptor(EC2Slave.class).getHelpFile(fieldName);
+			// TODO make this generic for all of EC2. Not just on demand
+			if (p==null)        p = Hudson.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
 			return p;
 		}
 
