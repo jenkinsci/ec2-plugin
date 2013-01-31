@@ -385,10 +385,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			launchSpecification.setInstanceType(type);
 			diFilters.add(new Filter("image-id").withValues(ami));
 			
-			String jenkinsUrl = Jenkins.getInstance().getRootUrl();
-			String slaveName = UUID.randomUUID().toString();
-			launchSpecification.setUserData("JENKINS_URL=" + jenkinsUrl + "&SLAVE_NAME=" + slaveName);
-
 			if (StringUtils.isNotBlank(getZone())) {
 				SpotPlacement placement = new SpotPlacement(getZone());
 				launchSpecification.setPlacement(placement);
@@ -442,7 +438,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					diFilters.add(new Filter("group-name").withValues(securityGroupSet));
 			}
 
-			String userDataString = Base64.encodeBase64String(userData.getBytes());
+			String jenkinsUrl = Jenkins.getInstance().getRootUrl();
+			String slaveName = UUID.randomUUID().toString();
+			String newUserData = "JENKINS_URL=" + jenkinsUrl + "&SLAVE_NAME=" + slaveName + "&" + userData;
+
+			String userDataString = Base64.encodeBase64String(newUserData.getBytes());
 			launchSpecification.setUserData(userDataString);
 			launchSpecification.setKeyName(keyPair.getKeyName());
 			diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
