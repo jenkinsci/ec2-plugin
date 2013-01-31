@@ -4,7 +4,7 @@ import httplib
 import string
 
 os.system("sudo apt-get update")
-os.system("sudo apt-get install openjdk-7-jre")
+os.system("sudo apt-get install openjdk-7-jre -y")
 
 conn = httplib.HTTPConnection("169.254.169.254")
 conn.request("GET", "/latest/user-data")
