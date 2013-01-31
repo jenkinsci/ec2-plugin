@@ -4,7 +4,7 @@
       <td />
       <td colspan="${monitors.size()+1}">
         <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
-          <input type="submit" class="ec2-provision-button" value="${%Provision via} ${it.cloudName}" />
+          <input type="submit" class="ec2-provision-button" value="${%Provision via EC2:} ${it.cloudName}" />
           <select name="ami">
             <j:forEach var="t" items="${it.templates}">
               <option value="${t.ami}">${t.displayName}</option>
