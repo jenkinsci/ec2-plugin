@@ -8,8 +8,11 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.ServletException;
+
 import net.sf.json.JSONObject;
 
+import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.AmazonClientException;
@@ -26,12 +29,15 @@ import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
+import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Slave.SlaveDescriptor;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
+import hudson.util.ListBoxModel;
 
 public class EC2SpotSlave extends EC2Slave {
 
@@ -147,7 +153,7 @@ public class EC2SpotSlave extends EC2Slave {
 	private Instance getInstance(SpotInstanceRequest sir){
 		return getInstance(sir.getInstanceId());
 	}
-	
+
 	public String getInstanceId(){
 		return spotInstanceRequestId;
 	}
@@ -251,6 +257,25 @@ public class EC2SpotSlave extends EC2Slave {
 			CreateTagsRequest tag_request = new CreateTagsRequest();
 			tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
 			EC2Cloud.get().connect().createTags(tag_request);
+		}
+	}
+
+	@Extension
+	public static final class DescriptorImpl extends SlaveDescriptor {
+		@Override
+		public String getDisplayName() {
+			return "Amazon EC2 Spot Instance";
+		}
+
+		@Override
+		public boolean isInstantiable() {
+			return false;
+		}
+
+		public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
+				@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
+				ServletException {
+			return fillZoneItems(accessId, secretKey, region);
 		}
 	}
 

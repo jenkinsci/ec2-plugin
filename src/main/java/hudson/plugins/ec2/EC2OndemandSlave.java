@@ -4,6 +4,7 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Slave.SlaveDescriptor;
 import hudson.model.Hudson;
 import hudson.model.Slave;
 import hudson.model.Node;
@@ -249,6 +250,24 @@ public class EC2OndemandSlave extends EC2Slave {
         return usePrivateDnsName;
     }
     
+    @Extension
+    public static final class DescriptorImpl extends SlaveDescriptor {
+        @Override
+		public String getDisplayName() {
+            return "Amazon EC2";
+        }
+
+        @Override
+        public boolean isInstantiable() {
+            return false;
+        }
+
+        public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
+        		@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
+    			ServletException {
+        	return fillZoneItems(accessId, secretKey, region);
+    	}
+    }
 
     private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 }
