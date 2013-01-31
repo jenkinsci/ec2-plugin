@@ -32,7 +32,6 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Slave.SlaveDescriptor;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
@@ -67,11 +66,16 @@ public class EC2SpotSlave extends EC2Slave {
 				rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes,
 				tags);
 
-		connectOnStartup = false;
+		this.connectOnStartup = false;
 		this.spotInstanceRequestId = spotInstanceRequestId;
 	}
 
 
+	/**
+	 * Cancel the spot request for the instance.
+	 * Terminate the instance if it is up.
+	 * Remove the slave from Jenkins.
+	 */
 	@Override
 	public void terminate() {
 		// Cancel the spot request
@@ -89,7 +93,7 @@ public class EC2SpotSlave extends EC2Slave {
 			// Spot request is no longer valid 
 			return;
 		} finally{
-			// Try to kill the jenkins slave
+			// Try to remove the Jenkins slave
 			try {
 				Hudson.getInstance().removeNode(this);
 			} catch(IOException e){
@@ -102,7 +106,7 @@ public class EC2SpotSlave extends EC2Slave {
 		dsirRequest.setSpotInstanceRequestIds(requestIds);
 		List<SpotInstanceRequest> spotRequests = ec2.describeSpotInstanceRequests(dsirRequest).getSpotInstanceRequests();
 		if (spotRequests.size() <= 0) {
-			LOGGER.log(Level.WARNING,"Failed to cancel spot request: "+spotInstanceRequestId);
+			LOGGER.log(Level.WARNING,"Failed to cancel spot request: "+getInstanceId());
 			return;
 		}
 
@@ -127,9 +131,14 @@ public class EC2SpotSlave extends EC2Slave {
 
 	}
 
+	/**
+	 * Terminates the instance
+	 */
 	@Override
 	void idleTimeout() {
-		// TODO Auto-generated method stub
+		LOGGER.info("EC2 spot instance idle time expired: "+getInstanceId());
+		terminate();
+		LOGGER.info("EC2 spot instance terminated: " + getInstanceId());
 
 	}
 
@@ -166,7 +175,7 @@ public class EC2SpotSlave extends EC2Slave {
 			return;
 		}
 
-		SpotInstanceRequest sir = getSpotRequest(spotInstanceRequestId);
+		SpotInstanceRequest sir = getSpotRequest(getInstanceId());
 		Instance i = getInstance(sir);
 
 		lastFetchTime = now;
@@ -223,7 +232,7 @@ public class EC2SpotSlave extends EC2Slave {
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
 	private void clearLiveInstancedata() throws AmazonClientException {
-		Instance inst = getInstance(getSpotRequest(spotInstanceRequestId));
+		Instance inst = getInstance(getSpotRequest(getInstanceId()));
 		if (inst == null) return;
 
 		/* Now that we have our instance, we can clear the tags on it */
@@ -243,7 +252,7 @@ public class EC2SpotSlave extends EC2Slave {
 
 	/* Sets tags on an instance.  This will not clear existing tag data, so call clearLiveInstancedata if needed */
 	private void pushLiveInstancedata() throws AmazonClientException {
-		Instance inst = getInstance(this.getSpotRequest(spotInstanceRequestId));
+		Instance inst = getInstance(getSpotRequest(getInstanceId()));
 		if (inst == null) return;
 
 		/* Now that we have our instance, we can set tags on it */

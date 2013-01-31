@@ -105,8 +105,15 @@ public abstract class EC2Slave extends Slave {
 		return new EC2Computer(this);
 	}
     
+    /**
+     * Terminates the EC2 instance associated with the slave
+     * and removes the node from Jenkins
+     */
     public abstract void terminate();
 
+    /**
+     * Fired when the specified idle timeout is reached
+     */
     abstract void idleTimeout();
     
     String getRemoteAdmin() {
@@ -125,14 +132,28 @@ public abstract class EC2Slave extends Slave {
         return Util.fixNull(jvmopts);
     }
     
+    /**
+     * Whether or not this slave gets stopped instead of terminated
+     * @return
+     */
     public boolean getStopOnTerminate() {
         return stopOnTerminate;
     }
     
+    /**
+     * Get the SSH port for a node
+     * Default to 0. Should be overridden by subclasses
+     * @return 0
+     */
 	public int getSshPort() {
 		return 0;
 	}
     
+	/**
+	 * Get the EC2 instance from the instance id
+	 * @param instanceId - InstanceID for the EC2 node
+	 * @return Instance with specified instanceId, or null
+	 */
     public static Instance getInstance(String instanceId) {
     	if (instanceId == null || instanceId.trim().equals("")) return null;
         DescribeInstancesRequest request = new DescribeInstancesRequest();
@@ -155,6 +176,10 @@ public abstract class EC2Slave extends Slave {
     time to ensure we reflect the reality of the instances. */
     protected abstract void fetchLiveInstanceData(boolean force);
     
+    /**
+     * Retrieve the stored tags 
+     * @return immutable list of tags
+     */
     public List<EC2Tag> getTags() {
         fetchLiveInstanceData(false);
         return Collections.unmodifiableList(tags);
