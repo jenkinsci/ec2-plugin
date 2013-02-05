@@ -4,7 +4,7 @@ import httplib
 import string
 
 # To install run:
-# sudo touch /etc/rc6.d/599userdata
+# sudo touch /etc/rc6.d/S99userdata
 # write the contents of this file to /etc/init.d/userdata
 # sudo chmod +x /etc/init.d/userdata
 
