@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import hudson.model.Label;
+import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
 
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
       tags.add( tag1 );
       tags.add( tag2 );
 
-      SlaveTemplate template = new SlaveTemplate("ami", "foo", "default", "zone", "22", InstanceType.M1Large, LABEL1 + " " + LABEL2, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null);
+      SlaveTemplate template = new SlaveTemplate("ami", "foo", "default", "zone", "22", InstanceType.M1Large, LABEL1 + " " + LABEL2, Node.Mode.NORMAL,"foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null);
       List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
       templates.add(template);
 
@@ -55,7 +56,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate temp = new SlaveTemplate("ami", "foo", "default", "zone", "22", InstanceType.M1Large, "", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null);
+        SlaveTemplate temp = new SlaveTemplate("ami", "foo", "default", "zone", "22", InstanceType.M1Large, "", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", true, "subnet 456", tags, null, false, null);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(temp);
 
