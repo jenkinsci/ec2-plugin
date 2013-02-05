@@ -624,17 +624,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		
 		/* Check the current Spot price of the selected instance type for the selected region */
 		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
-				@QueryParameter String region, @QueryParameter InstanceType type ) throws IOException, ServletException {
+				@QueryParameter String region, @QueryParameter InstanceType type, 
+				@QueryParameter String zone ) throws IOException, ServletException {
 			String cp = "";
 			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
 			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 			if(ec2!=null) {
 
 				try {
-					// Build a new price history request with the currently selected type and region
+					// Build a new price history request with the currently selected type
 					DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
-
-					request.setAvailabilityZone(region+"a");
+					
+					// If a zone is specified, set the availability zone in the request
+					// Else, proceed with no availability zone which will result with the cheapest Spot price
+					if(zone != ""){
+						request.setAvailabilityZone(zone);
+					}
 					
 					Collection<String> instanceType = new ArrayList<String>();
 					instanceType.add(type.toString());
