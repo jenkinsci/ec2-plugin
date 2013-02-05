@@ -44,26 +44,23 @@ public class EC2SpotSlave extends EC2Slave {
 
 	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS,
 			int numExecutors, String labelString, String remoteAdmin, 
-			String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, 
-			String idleTerminationMinutes, List<EC2Tag> tags) 
+			String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags) 
 					throws FormException, IOException {
 
 		this(name, spotInstanceRequestId, description, remoteFS, numExecutors, Mode.NORMAL, labelString, new EC2UnixLauncher(), 
-				new EC2RetentionStrategy(idleTerminationMinutes), Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate,
+				new EC2RetentionStrategy(idleTerminationMinutes), Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts,
 				idleTerminationMinutes, tags);
 	}
 
 	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS,
-			int numExecutors, Mode mode, String labelString,
-			ComputerLauncher launcher, EC2RetentionStrategy retentionStrategy,
-			List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin,
-					String rootCommandPrefix, String jvmopts, boolean stopOnTerminate,
-					String idleTerminationMinutes, List<EC2Tag> tags)
-							throws FormException, IOException {
+			int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, 
+			EC2RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties, 
+			String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, 
+				List<EC2Tag> tags) throws FormException, IOException {
 
 		super(name, description, remoteFS, numExecutors, mode, labelString,
 				launcher, retentionStrategy, nodeProperties, remoteAdmin,
-				rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes,
+				rootCommandPrefix, jvmopts, false, idleTerminationMinutes,
 				tags);
 
 		this.connectOnStartup = false;

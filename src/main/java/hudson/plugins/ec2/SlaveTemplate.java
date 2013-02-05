@@ -487,7 +487,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
 		return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS,
 				getNumExecutors(), labels, remoteAdmin, rootCommandPrefix, jvmopts,
-				stopOnTerminate, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()));
+				idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()));
 	}
 	
 	private EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
