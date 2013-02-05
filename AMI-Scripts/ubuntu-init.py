@@ -3,6 +3,11 @@ import os
 import httplib
 import string
 
+# To install run:
+# sudo touch /etc/rc6.d/599userdata
+# write the contents of this file to /etc/init.d/userdata
+# sudo chmod +x /etc/init.d/userdata
+
 # If java is installed it will be zero
 # If java is not installed it will be non-zero
 hasJava = os.system("java -version")
