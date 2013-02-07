@@ -11,6 +11,7 @@ import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 
+import java.lang.Math;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -22,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,7 +52,7 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
 
 /**
- * Hudson's view of EC2. 
+ * Hudson's view of EC2.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -58,7 +60,7 @@ public abstract class EC2Cloud extends Cloud {
 
 	public static final String DEFAULT_EC2_HOST = "us-east-1";
 	public static final String EC2_URL_HOST = "ec2.amazonaws.com";
-	
+
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
@@ -71,9 +73,14 @@ public abstract class EC2Cloud extends Cloud {
     private transient KeyPair usableKeyPair;
 
     private transient AmazonEC2 connection;
-    
+
 	private static AWSCredentials awsCredentials;
-    
+
+    /* Track the count per-AMI identifiers for AMIs currently being
+     * provisioned, but not necessarily reported yet by Amazon.
+     */
+    private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
+
     protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
         super(id);
         this.accessId = accessId.trim();
@@ -214,44 +221,109 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+
+    /**
+     * Check for the count of EC2 slaves and determine if a new slave can be added.
+     * Takes into account both what Amazon reports as well as an internal count
+     * of slaves currently being "provisioned".
+     */
+    private boolean addProvisionedSlave(String ami, int amiCap) throws AmazonClientException {
+        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
+        int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
+
+        synchronized (provisioningAmis) {
+            int currentProvisioning;
+
+            for (int amiCount : provisioningAmis.values()) {
+                estimatedTotalSlaves += amiCount;
+            }
+            try {
+                currentProvisioning = provisioningAmis.get(ami);
+            }
+            catch (NullPointerException npe) {
+                currentProvisioning = 0;
+            }
+
+            estimatedAmiSlaves += currentProvisioning;
+
+            if(estimatedTotalSlaves >= instanceCap) {
+                LOGGER.log(Level.INFO, "Total instance cap of " + instanceCap +
+                                    " reached, not provisioning.");
+                return false;      // maxed out
+            }
+
+            if (estimatedAmiSlaves >= amiCap) {
+                LOGGER.log(Level.INFO, "AMI Instance cap of " + amiCap +
+                                    " reached for ami " + ami +
+                                    ", not provisioning.");
+                return false;      // maxed out
+            }
+
+            LOGGER.log(Level.INFO,
+                            "Provisioning for AMI " + ami + "; " +
+                            "Estimated number of total slaves: "
+                            + String.valueOf(estimatedTotalSlaves) + "; " +
+                            "Estimated number of slaves for ami "
+                            + ami + ": "
+                            + String.valueOf(estimatedAmiSlaves)
+                    );
+
+            provisioningAmis.put(ami, currentProvisioning + 1);
+            return true;
+        }
+    }
+
+    /**
+     * Decrease the count of slaves being "provisioned".
+     */
+    private void decrementAmiSlaveProvision(String ami) {
+        synchronized (provisioningAmis) {
+            int currentProvisioning;
+            try {
+                currentProvisioning = provisioningAmis.get(ami);
+            } catch(NullPointerException npe) {
+                return;
+            }
+            provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
+        }
+    }
+
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
-
-
-        	final SlaveTemplate t = getTemplate(label);
-
             List<PlannedNode> r = new ArrayList<PlannedNode>();
+
+            final SlaveTemplate t = getTemplate(label);
+            int amiCap = t.getInstanceCap();
+
             for( ; excessWorkload>0; excessWorkload-- ) {
-                if(countCurrentEC2Slaves(null)>=instanceCap) {
-                    LOGGER.log(Level.INFO, "Instance cap reached, not provisioning.");
-                    break;      // maxed out
-                }
 
-                int amiCap = t.getInstanceCap();
-                if (amiCap < countCurrentEC2Slaves(t.ami)) {
-                    LOGGER.log(Level.INFO, "AMI Instance cap reached, not provisioning.");
-                    break;      // maxed out
+                if (!addProvisionedSlave(t.ami, amiCap)) {
+                    break;
                 }
-
 
                 r.add(new PlannedNode(t.getDisplayName(),
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
-                                EC2Slave s = t.provision(new StreamTaskListener(System.out));
-                                Hudson.getInstance().addNode(s);
-                                // EC2 instances may have a long init script. If we declare
-                                // the provisioning complete by returning without the connect
-                                // operation, NodeProvisioner may decide that it still wants
-                                // one more instance, because it sees that (1) all the slaves
-                                // are offline (because it's still being launched) and
-                                // (2) there's no capacity provisioned yet.
-                                //
-                                // deferring the completion of provisioning until the launch
-                                // goes successful prevents this problem.
-                                s.toComputer().connect(false).get();
-                                return s;
+                                try {
+                                    EC2Slave s = t.provision(new StreamTaskListener(System.out));
+                                    Hudson.getInstance().addNode(s);
+                                    // EC2 instances may have a long init script. If we declare
+                                    // the provisioning complete by returning without the connect
+                                    // operation, NodeProvisioner may decide that it still wants
+                                    // one more instance, because it sees that (1) all the slaves
+                                    // are offline (because it's still being launched) and
+                                    // (2) there's no capacity provisioned yet.
+                                    //
+                                    // deferring the completion of provisioning until the launch
+                                    // goes successful prevents this problem.
+                                    s.toComputer().connect(false).get();
+                                    return s;
+                                }
+                                finally {
+                                    decrementAmiSlaveProvision(t.ami);
+                                }
                             }
                         })
                         ,t.getNumExecutors()));
