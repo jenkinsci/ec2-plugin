@@ -57,7 +57,7 @@ THE SOFTWARE.
         <f:entry title="${%# of executors}" field="numExecutors">
           <f:textbox />
         </f:entry>
-        
+                
         <f:entry title="${%Labels}" field="labelString">
           <f:textbox />
         </f:entry>
@@ -66,6 +66,10 @@ THE SOFTWARE.
 
         <f:entry title="${%Init Script}" field="initScript">
           <f:textarea />
+        </f:entry>
+
+        <f:entry title="${%Remote FS root}" field="remoteFS">
+          <f:textbox />
         </f:entry>
 
         <f:entry title="${%Remote user}" field="remoteAdmin">
