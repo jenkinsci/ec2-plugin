@@ -61,6 +61,7 @@ import net.sf.json.JSONObject;
  * @author Kohsuke Kawaguchi
  */
 public final class EC2Slave extends Slave {
+    public final String instanceId;
     /**
      * Comes from {@link SlaveTemplate#initScript}.
      */
@@ -106,8 +107,9 @@ public final class EC2Slave extends Slave {
     @DataBoundConstructor
     public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
 
-        super(instanceId, description, remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), nodeProperties);
+        super(description + " (" + instanceId + ")", "", remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), nodeProperties);
 
+	this.instanceId = instanceId;
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
         this.rootCommandPrefix = rootCommandPrefix;
@@ -153,7 +155,7 @@ public final class EC2Slave extends Slave {
      * EC2 instance ID.
      */
     public String getInstanceId() {
-        return getNodeName();
+        return instanceId;
     }
 
     @Override
@@ -225,15 +227,15 @@ public final class EC2Slave extends Slave {
         }
     }
 
-	void idleTimeout() {
-		LOGGER.info("EC2 instance idle time expired: "+getInstanceId());
-		if (!stopOnTerminate) {
-			terminate();
-		}
-        else {
-            stop();
-        }
+    void idleTimeout() {
+	LOGGER.info("EC2 instance idle time expired: "+getInstanceId());
+	if (!stopOnTerminate) {
+	    terminate();
 	}
+	else {
+	    stop();
+	}
+    }
 
     String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
@@ -275,7 +277,7 @@ public final class EC2Slave extends Slave {
             return;
         }
 
-        Instance i = getInstance(getNodeName());
+        Instance i = getInstance(getInstanceId());
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -294,7 +296,7 @@ public final class EC2Slave extends Slave {
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
     private void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getNodeName());
+        Instance inst = getInstance(getInstanceId());
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -313,7 +315,7 @@ public final class EC2Slave extends Slave {
 
     /* Sets tags on an instance.  This will not clear existing tag data, so call clearLiveInstancedata if needed */
     private void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getNodeName());
+        Instance inst = getInstance(getInstanceId());
 
         /* Now that we have our instance, we can set tags on it */
         if (tags != null && !tags.isEmpty()) {
