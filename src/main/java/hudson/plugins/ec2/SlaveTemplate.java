@@ -225,7 +225,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            logger.println("Launching "+ami);
+            logger.println("Launching " + ami + " for template " + description);
             KeyPair keyPair = parent.getPrivateKey().find(ec2);
             if(keyPair==null) {
                 throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
