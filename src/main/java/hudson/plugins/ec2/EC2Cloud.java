@@ -157,9 +157,9 @@ public abstract class EC2Cloud extends Cloud {
         return Collections.unmodifiableList(templates);
     }
 
-    public SlaveTemplate getTemplate(String ami) {
+    public SlaveTemplate getTemplate(String template) {
         for (SlaveTemplate t : templates)
-            if(t.ami.equals(ami))
+            if(t.description.equals(template))
                 return t;
         return null;
     }
@@ -219,15 +219,15 @@ public abstract class EC2Cloud extends Cloud {
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
 
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String ami) throws ServletException, IOException {
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
-        if(ami==null) {
-            sendError("The 'ami' query parameter is missing",req,rsp);
+        if(template==null) {
+            sendError("The 'template' query parameter is missing",req,rsp);
             return;
         }
-        SlaveTemplate t = getTemplate(ami);
+        SlaveTemplate t = getTemplate(template);
         if(t==null) {
-            sendError("No such AMI: "+ami,req,rsp);
+            sendError("No such template: "+template,req,rsp);
             return;
         }
 
