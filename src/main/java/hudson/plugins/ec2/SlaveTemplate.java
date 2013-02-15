@@ -622,11 +622,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			} 
 		}
 		
+		
+		// Retrieve the availability zones for the region
+		private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2)  {
+			ArrayList<String> availabilityZones = new ArrayList<String>();
+				
+			DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
+			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
+
+			for (AvailabilityZone z : zoneList) {
+				availabilityZones.add(z.getZoneName());
+			}
+			
+			return availabilityZones;
+		}
+		
 		/* Check the current Spot price of the selected instance type for the selected region */
 		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
 				@QueryParameter String region, @QueryParameter InstanceType type, 
 				@QueryParameter String zone ) throws IOException, ServletException {
 			String cp = "";
+			String zoneStr = "";
 			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
 			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 			if(ec2!=null) {
@@ -637,13 +653,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					
 					// If a zone is specified, set the availability zone in the request
 					// Else, proceed with no availability zone which will result with the cheapest Spot price
-					if(zone != ""){
+					if(getAvailabilityZones(ec2).contains(zone)){
 						request.setAvailabilityZone(zone);
+						zoneStr = zone + " availability zone";
+					} else {
+						zoneStr = region + " region";
 					}
 					
 					Collection<String> instanceType = new ArrayList<String>();
 					instanceType.add(type.toString());
 					request.setInstanceTypes(instanceType);
+					request.setStartTime(new Date());
 					
 					// Retrieve the price history request result and store the current price
 					DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
@@ -666,7 +686,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				cp = cp.substring(0, cp.length() - 3);
 				
 				return FormValidation.ok("The current Spot price for a " + type.toString() + 
-						" in the " + region + " region is $" + cp );
+						" in the " + zoneStr + " is $" + cp );
 			}
 		}
 	}
