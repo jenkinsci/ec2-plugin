@@ -39,12 +39,14 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -236,6 +238,29 @@ public abstract class EC2Cloud extends Cloud {
         	final SlaveTemplate t = getTemplate(label);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
+
+            // Count number of pending executors from spot requests
+            for(Node n : Hudson.getInstance().getNodes()){
+            	// If the slave is online then it is already counted by Jenkins
+            	// We only want to count potential additional Spot instance slaves
+            	if (n instanceof EC2SpotSlave && ((EC2SpotSlave) n).getComputer().isOffline()){
+            		DescribeSpotInstanceRequestsRequest dsir =
+            				new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(((EC2SpotSlave) n).getInstanceId());
+
+            		for(SpotInstanceRequest sir : connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests()) {
+            			// Count Spot requests that are open and still have a chance to be active
+            			// A request can be active and not yet registered as a slave. We check above
+            			// to ensure only unregistered slaves get counted
+            			if(sir.getState().equals("open") || sir.getState().equals("active")){
+            				excessWorkload -= n.getNumExecutors();
+            			}
+            		}
+            	}
+            }
+
+            System.out.println("Excess workload after pending Spot instances: " + excessWorkload);
+
+
             for( ; excessWorkload>0; excessWorkload-- ) {
                 if(countCurrentEC2Slaves(null)>=instanceCap) {
                     LOGGER.log(Level.INFO, "Instance cap reached, not provisioning.");
