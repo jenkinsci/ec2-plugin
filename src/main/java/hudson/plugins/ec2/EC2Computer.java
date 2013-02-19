@@ -21,18 +21,18 @@ public class EC2Computer extends SlaveComputer {
      * Cached description of this EC2 instance. Lazily fetched.
      */
     private volatile Instance ec2InstanceDescription;
-    private String instanceType = "Default Type";
+    public final String spotInstanceType;
 
     public EC2Computer(EC2Slave slave) {
     	super(slave);
     	if(slave.getClass().equals(EC2SpotSlave.class))
-        	instanceType = "Spot Slave";
+        	spotInstanceType = "Spot Slave";
         else
-        	instanceType = "On Demand Slave";
+        	spotInstanceType = "On Demand Slave";
     }
     
     public String getInstanceType(){
-    	return instanceType;
+    	return spotInstanceType;
     }
 
     @Override
