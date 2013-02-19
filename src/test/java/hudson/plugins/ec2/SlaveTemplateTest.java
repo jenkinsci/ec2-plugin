@@ -10,6 +10,7 @@ import org.jvnet.hudson.test.HudsonTestCase;
 
 import com.amazonaws.http.HttpResponse;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.SpotInstanceType;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -79,7 +80,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );  
         
-        SpotConfiguration spotConfig = new SpotConfiguration(".05");
+        SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.name());
 
         SlaveTemplate orig = new SlaveTemplate(ami, spotConfig, EC2OndemandSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();

@@ -61,7 +61,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	protected transient EC2Cloud parent;
 	public String currentSpotPrice;
 
-
 	private transient /*almost final*/ Set<LabelAtom> labelSet;
 	protected transient /*almost final*/ Set<String> securityGroupSet;
 
@@ -102,7 +101,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 		readResolve(); // initialize
 	}
-
+	
 	public EC2Cloud getParent() {
 		return parent;
 	}
@@ -117,6 +116,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 	public String getSpotMaxBidPrice(){
 		return spotConfig.spotMaxBidPrice;
+	}
+	
+	public String getBidType(){
+		return spotConfig.bidType;
 	}
 
 	String getZone() {
@@ -376,6 +379,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			spotRequest.setSpotPrice(spotConfig.spotMaxBidPrice);
 			spotRequest.setInstanceCount(Integer.valueOf(1));
+			spotRequest.setType(spotConfig.SpotInstanceBidType);
 
 			LaunchSpecification launchSpecification = new LaunchSpecification();
 
@@ -689,6 +693,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 						" in the " + zoneStr + " is $" + cp );
 			}
 		}
+		
+		/**
+		 * Populates the Bid Type Drop down on the slave template config.
+		 * @return
+		 */
+		public ListBoxModel doFillBidTypeItems() {
+	        ListBoxModel items = new ListBoxModel();
+	        	items.add(SpotInstanceType.OneTime.name());
+	        	items.add(SpotInstanceType.Persistent.name());
+	        return items;
+	    }
+		
 	}
 }
 
