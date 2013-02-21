@@ -42,10 +42,6 @@ THE SOFTWARE.
           <f:readOnlyTextbox />
         </f:entry>
         
-        <f:entry title="${%Instance Type}" field="instanceType">
-          <f:readOnlyTextbox />
-        </f:entry>
-        
         <f:entry title="${%Instance Type: } ${it.instanceType}">
         </f:entry>
         
