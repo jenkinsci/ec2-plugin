@@ -16,7 +16,7 @@ $webclient.DownloadFile($url,$file)
 
 # Download Start Up Powershell Script
 $webclient = New-Object System.Net.WebClient
-$url = "https://raw.github.com/bwall/ec2-plugin/master/AMI-Scripts/powershell-init.ps1"
+$url = "https://raw.github.com/bwall/ec2-plugin/master/AMI-Scripts/powrshell-init.ps1"
 $file = "$downloadLocation\jenkins-spot-startup.ps1"
 $webclient.DownloadFile($url,$file)
 
