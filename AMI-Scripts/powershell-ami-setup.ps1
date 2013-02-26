@@ -11,8 +11,8 @@ $url = "http://javadl.sun.com/webapps/download/AutoDL?BundleId=74788"
 $file = "$downloadLocation\java.exe"
 $webclient.DownloadFile($url,$file)
 
-# Execute Java installer silently
-[System.Diagnostics.Process]::Start("$file", "/s")
+# Execute Java installer
+[System.Diagnostics.Process]::Start("$file", "")
 
 # Download Start Up Powershell Script
 $webclient = New-Object System.Net.WebClient
