@@ -1,6 +1,8 @@
 # This script runs when the slave starts up
 $downloadLocation = $pwd
 
+[environment]::SetEnvironmentVariable('JAVA_HOME', $installDir, 'machine')
+
 $webclient = New-Object System.Net.WebClient
 $userdata = $webclient.DownloadString("http://169.254.169.254/latest/user-data")
 $jenkinsUrl = ""
