@@ -4,6 +4,7 @@
 # "Set-ExecutionPolicy RemoteSigned"
 
 $downloadLocation = $pwd
+$installDir = "C:\Java"
 
 # Download Java
 $webclient = New-Object System.Net.WebClient
@@ -12,7 +13,8 @@ $file = "$downloadLocation\java.exe"
 $webclient.DownloadFile($url,$file)
 
 # Execute Java installer
-[System.Diagnostics.Process]::Start("$file", "")
+[System.Diagnostics.Process]::Start("$file", "/s INSTALL_DIR=$installDir")
+[environment]::SetEnvironmentVariable('JAVA_HOME', $installDir, 'machine')
 
 # Download Start Up Powershell Script
 $webclient = New-Object System.Net.WebClient
