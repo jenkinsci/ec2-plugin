@@ -209,7 +209,7 @@ public final class EC2Slave extends Slave {
             LOGGER.info("EC2 instance stopped: " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
-            Instance i = getInstance(getNodeName());
+            Instance i = getInstance(getInstanceId());
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
         }
     }
