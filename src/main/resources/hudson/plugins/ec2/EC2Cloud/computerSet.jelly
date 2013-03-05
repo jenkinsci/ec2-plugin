@@ -27,13 +27,8 @@ THE SOFTWARE.
       <td />
       <td colspan="${monitors.size()+1}">
         <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
-<<<<<<< HEAD
-          <input type="submit" class="ec2-provision-button" value="${%Provision via EC2:} ${it.cloudName}" />
-          <select name="ami">
-=======
-          <input type="submit" class="ec2-provision-button" value="${%Provision via EC2}" />
+          <input type="submit" class="ec2-provision-button" value="${%Provision via EC2} ${it.cloudName}" />
           <select name="template">
->>>>>>> upstream/master
             <j:forEach var="t" items="${it.templates}">
               <option value="${t.description}">${t.displayName}</option>
             </j:forEach>
