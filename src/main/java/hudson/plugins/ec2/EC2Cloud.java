@@ -1,3 +1,26 @@
+/*
+ * The MIT License
+ *
+ * Copyright (c) 2004-, Kohsuke Kawaguchi, Sun Microsystems, Inc., and a number of other of contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package hudson.plugins.ec2;
 
 import hudson.model.Computer;
@@ -12,6 +35,7 @@ import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 
+import java.lang.Math;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -23,6 +47,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -54,7 +79,7 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import java.util.UUID;
 
 /**
- * Hudson's view of EC2. 
+ * Hudson's view of EC2.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -62,7 +87,7 @@ public abstract class EC2Cloud extends Cloud {
 
 	public static final String DEFAULT_EC2_HOST = "us-east-1";
 	public static final String EC2_URL_HOST = "ec2.amazonaws.com";
-	
+
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
@@ -77,10 +102,20 @@ public abstract class EC2Cloud extends Cloud {
     private transient KeyPair usableKeyPair;
 
     private transient AmazonEC2 connection;
-    
+
 	private static AWSCredentials awsCredentials;
+<<<<<<< HEAD
     
     protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String cloudName) {
+=======
+
+    /* Track the count per-AMI identifiers for AMIs currently being
+     * provisioned, but not necessarily reported yet by Amazon.
+     */
+    private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
+
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
+>>>>>>> upstream/master
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
@@ -143,9 +178,9 @@ public abstract class EC2Cloud extends Cloud {
         return Collections.unmodifiableList(templates);
     }
 
-    public SlaveTemplate getTemplate(String ami) {
+    public SlaveTemplate getTemplate(String template) {
         for (SlaveTemplate t : templates)
-            if(t.ami.equals(ami))
+            if(t.description.equals(template))
                 return t;
         return null;
     }
@@ -205,15 +240,15 @@ public abstract class EC2Cloud extends Cloud {
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
 
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String ami) throws ServletException, IOException {
+    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
-        if(ami==null) {
-            sendError("The 'ami' query parameter is missing",req,rsp);
+        if(template==null) {
+            sendError("The 'template' query parameter is missing",req,rsp);
             return;
         }
-        SlaveTemplate t = getTemplate(ami);
+        SlaveTemplate t = getTemplate(template);
         if(t==null) {
-            sendError("No such AMI: "+ami,req,rsp);
+            sendError("No such template: "+template,req,rsp);
             return;
         }
 
@@ -230,11 +265,82 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+
+    /**
+     * Check for the count of EC2 slaves and determine if a new slave can be added.
+     * Takes into account both what Amazon reports as well as an internal count
+     * of slaves currently being "provisioned".
+     */
+    private boolean addProvisionedSlave(String ami, int amiCap) throws AmazonClientException {
+        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
+        int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
+
+        synchronized (provisioningAmis) {
+            int currentProvisioning;
+
+            for (int amiCount : provisioningAmis.values()) {
+                estimatedTotalSlaves += amiCount;
+            }
+            try {
+                currentProvisioning = provisioningAmis.get(ami);
+            }
+            catch (NullPointerException npe) {
+                currentProvisioning = 0;
+            }
+
+            estimatedAmiSlaves += currentProvisioning;
+
+            if(estimatedTotalSlaves >= instanceCap) {
+                LOGGER.log(Level.INFO, "Total instance cap of " + instanceCap +
+                                    " reached, not provisioning.");
+                return false;      // maxed out
+            }
+
+            if (estimatedAmiSlaves >= amiCap) {
+                LOGGER.log(Level.INFO, "AMI Instance cap of " + amiCap +
+                                    " reached for ami " + ami +
+                                    ", not provisioning.");
+                return false;      // maxed out
+            }
+
+            LOGGER.log(Level.INFO,
+                            "Provisioning for AMI " + ami + "; " +
+                            "Estimated number of total slaves: "
+                            + String.valueOf(estimatedTotalSlaves) + "; " +
+                            "Estimated number of slaves for ami "
+                            + ami + ": "
+                            + String.valueOf(estimatedAmiSlaves)
+                    );
+
+            provisioningAmis.put(ami, currentProvisioning + 1);
+            return true;
+        }
+    }
+
+    /**
+     * Decrease the count of slaves being "provisioned".
+     */
+    private void decrementAmiSlaveProvision(String ami) {
+        synchronized (provisioningAmis) {
+            int currentProvisioning;
+            try {
+                currentProvisioning = provisioningAmis.get(ami);
+            } catch(NullPointerException npe) {
+                return;
+            }
+            provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
+        }
+    }
+
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
+            List<PlannedNode> r = new ArrayList<PlannedNode>();
 
+            final SlaveTemplate t = getTemplate(label);
+            int amiCap = t.getInstanceCap();
 
+<<<<<<< HEAD
         	final SlaveTemplate t = getTemplate(label);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
@@ -261,23 +367,19 @@ public abstract class EC2Cloud extends Cloud {
             System.out.println("Excess workload after pending Spot instances: " + excessWorkload);
 
 
+=======
+>>>>>>> upstream/master
             for( ; excessWorkload>0; excessWorkload-- ) {
-                if(countCurrentEC2Slaves(null)>=instanceCap) {
-                    LOGGER.log(Level.INFO, "Instance cap reached, not provisioning.");
-                    break;      // maxed out
-                }
 
-                int amiCap = t.getInstanceCap();
-                if (amiCap < countCurrentEC2Slaves(t.ami)) {
-                    LOGGER.log(Level.INFO, "AMI Instance cap reached, not provisioning.");
-                    break;      // maxed out
+                if (!addProvisionedSlave(t.ami, amiCap)) {
+                    break;
                 }
-
 
                 r.add(new PlannedNode(t.getDisplayName(),
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
+<<<<<<< HEAD
                                 Slave s = t.provision(new StreamTaskListener(System.out));
                                 Hudson.getInstance().addNode(s);
                                 // EC2 instances may have a long init script. If we declare
@@ -291,6 +393,26 @@ public abstract class EC2Cloud extends Cloud {
                                 // goes successful prevents this problem.
                                 s.toComputer().connect(false).get();
                                 return s;
+=======
+                                try {
+                                    EC2Slave s = t.provision(new StreamTaskListener(System.out));
+                                    Hudson.getInstance().addNode(s);
+                                    // EC2 instances may have a long init script. If we declare
+                                    // the provisioning complete by returning without the connect
+                                    // operation, NodeProvisioner may decide that it still wants
+                                    // one more instance, because it sees that (1) all the slaves
+                                    // are offline (because it's still being launched) and
+                                    // (2) there's no capacity provisioned yet.
+                                    //
+                                    // deferring the completion of provisioning until the launch
+                                    // goes successful prevents this problem.
+                                    s.toComputer().connect(false).get();
+                                    return s;
+                                }
+                                finally {
+                                    decrementAmiSlaveProvision(t.ami);
+                                }
+>>>>>>> upstream/master
                             }
                         })
                         ,t.getNumExecutors()));
