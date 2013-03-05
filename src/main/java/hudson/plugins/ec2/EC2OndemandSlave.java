@@ -35,98 +35,22 @@ import net.sf.json.JSONObject;
  */
 public class EC2OndemandSlave extends EC2Slave {
     
-	/**
-	 * Comes from {@link SlaveTemplate#initScript}.
-	 */
-    public final String initScript;
     public final String instanceId;
-    public final boolean usePrivateDnsName;
     
-    // Temporary stuff that is obtained live from EC2
-    public String publicDNS;
-    public String privateDNS;
 
     /**
      * For data read from old Hudson, this is 0, so we use that to indicate 22.
      */
     private final int sshPort;
     
-    /**
-     * 
-     * @param name
-     * @param instanceId
-     * @param description
-     * @param remoteFS
-     * @param sshPort
-     * @param numExecutors
-     * @param labelString
-     * @param initScript
-     * @param remoteAdmin
-     * @param rootCommandPrefix
-     * @param jvmopts
-     * @param stopOnTerminate
-     * @param idleTerminationMinutes
-     * @param publicDNS
-     * @param privateDNS
-     * @param tags
-     * @throws FormException
-     * @throws IOException
-     */
     public EC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags) throws FormException, IOException {
     	this(name, instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, false);
     }
     
-    /**
-     * 
-     * @param name
-     * @param instanceId
-     * @param description
-     * @param remoteFS
-     * @param sshPort
-     * @param numExecutors
-     * @param labelString
-     * @param initScript
-     * @param remoteAdmin
-     * @param rootCommandPrefix
-     * @param jvmopts
-     * @param stopOnTerminate
-     * @param idleTerminationMinutes
-     * @param publicDNS
-     * @param privateDNS
-     * @param tags
-     * @param usePrivateDnsName
-     * @throws FormException
-     * @throws IOException
-     */
     public EC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
     	this(name, instanceId, description, remoteFS, sshPort, numExecutors, Mode.NORMAL, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, usePrivateDnsName);
     } 	 
 
-
-    /**
-     * 
-     * @param name
-     * @param instanceId
-     * @param description
-     * @param remoteFS
-     * @param sshPort
-     * @param numExecutors
-     * @param mode
-     * @param labelString
-     * @param initScript
-     * @param nodeProperties
-     * @param remoteAdmin
-     * @param rootCommandPrefix
-     * @param jvmopts
-     * @param stopOnTerminate
-     * @param idleTerminationMinutes
-     * @param publicDNS
-     * @param privateDNS
-     * @param tags
-     * @param usePrivateDnsName
-     * @throws FormException
-     * @throws IOException
-     */
     @DataBoundConstructor
     public EC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {	
 

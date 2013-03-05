@@ -23,37 +23,38 @@
  */
 package hudson.plugins.ec2;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-
-import javax.servlet.ServletException;
-
-import net.sf.json.JSONObject;
-
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Reservation;
-
-<<<<<<< HEAD
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Node;
+import hudson.model.Hudson;
 import hudson.model.Slave;
+import hudson.model.Node;
+import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
-import hudson.slaves.ComputerLauncher;
 import hudson.util.ListBoxModel;
-=======
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.LinkedList;
+import java.util.HashSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.ServletException;
+
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.*;
+
+import net.sf.json.JSONObject;
+
 /**
  * Slave running on EC2.
  *
@@ -76,31 +77,22 @@ public final class EC2Slave extends Slave {
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
     public String privateDNS;
->>>>>>> upstream/master
 
-public abstract class EC2Slave extends Slave {
+    /* The last instance data to be fetched for the slave */
+    private Instance lastFetchInstance = null;
 
-	public final String remoteAdmin; // e.g. 'ubuntu'
-	public final String rootCommandPrefix; // e.g. 'sudo'
-	public final String jvmopts; //e.g. -Xmx1g
-	public final boolean stopOnTerminate;
-	public final String idleTerminationMinutes;
-	public List<EC2Tag> tags;
-	protected boolean connectOnStartup;
+    /* The time at which we fetched the last instance data */
+    private long lastFetchTime = 0;
 
-    public static final String TEST_ZONE = "testZone";
+    /* The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked for it */
+    private static final long MIN_FETCH_TIME = 20 * 1000;
 
-	/* The last instance data to be fetched for the slave */
-	protected Instance lastFetchInstance = null;
 
-	/* The time at which we fetched the last instance data */
-	protected long lastFetchTime = 0;
+    /**
+     * For data read from old Hudson, this is 0, so we use that to indicate 22.
+     */
+    private final int sshPort;
 
-<<<<<<< HEAD
-	/* The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked for it */
-	protected static final long MIN_FETCH_TIME = 20 * 1000;
-
-=======
     public static final String TEST_ZONE = "testZone";
 
     public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags) throws FormException, IOException {
@@ -110,51 +102,11 @@ public abstract class EC2Slave extends Slave {
     public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
         this(instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, usePrivateDnsName);
     }
->>>>>>> upstream/master
 
-	public EC2Slave(String instanceId, String description, String remoteFS,
-			int numExecutors, Mode mode, String labelString, 
-			ComputerLauncher launcher, EC2RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties,
-			String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate,
-			String idleTerminationMinutes, List<EC2Tag> tags) throws FormException, IOException {
 
-		super(instanceId, description, remoteFS, numExecutors, mode, labelString, 
-				launcher, retentionStrategy, nodeProperties);
+    @DataBoundConstructor
+    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
 
-<<<<<<< HEAD
-
-		this.remoteAdmin = remoteAdmin;
-		this.rootCommandPrefix = rootCommandPrefix;
-		this.jvmopts = jvmopts;
-		this.stopOnTerminate = stopOnTerminate;
-		this.idleTerminationMinutes = idleTerminationMinutes;
-		this.tags = tags;
-	}
-
-	/**
-	 * See http://aws.amazon.com/ec2/instance-types/
-	 */
-	/*package*/ static int toNumExecutors(InstanceType it) {
-		switch (it) {
-		case T1Micro:       return 1;
-		case M1Small:       return 1;
-		case M1Medium:      return 2;
-		case M1Large:       return 4;
-		case C1Medium:      return 5;
-		case M2Xlarge:      return 6;
-		case M1Xlarge:      return 8;
-		case M22xlarge:     return 13;
-		case C1Xlarge:      return 20;
-		case M24xlarge:     return 26;
-		case Cc14xlarge:    return 33;
-		case Cg14xlarge:    return 33;
-		default:            throw new AssertionError();
-		}
-	}
-	
-	/**
-     * EC2 instance ID (on demand) or spot request id (spot)
-=======
         super(description + " (" + instanceId + ")", "", remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), nodeProperties);
 
 	this.instanceId = instanceId;
@@ -187,75 +139,45 @@ public abstract class EC2Slave extends Slave {
 
     /**
      * Constructor for debugging.
->>>>>>> upstream/master
      */
-    public abstract String getInstanceId();
-    
-    public boolean getConnectOnStartup(){
-    	return connectOnStartup;
+    public EC2Slave(String instanceId) throws FormException, IOException {
+        this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null, false, null, "Fake public", "Fake private", null, false);
     }
-    
-    @Override
-	public Computer createComputer() {
-		return new EC2Computer(this);
-	}
-    
-    /**
-     * Terminates the EC2 instance associated with the slave
-     * and removes the node from Jenkins
-     */
-    public abstract void terminate();
 
     /**
-     * Fired when the specified idle timeout is reached
+     * See http://aws.amazon.com/ec2/instance-types/
      */
-<<<<<<< HEAD
-    abstract void idleTimeout();
-    
-    String getRemoteAdmin() {
-        if (remoteAdmin == null || remoteAdmin.length() == 0)
-            return "root";
-        return remoteAdmin;
-=======
+    /*package*/ static int toNumExecutors(InstanceType it) {
+        switch (it) {
+        case T1Micro:       return 1;
+        case M1Small:       return 1;
+        case M1Medium:      return 2;
+        case M1Large:       return 4;
+        case C1Medium:      return 5;
+        case M2Xlarge:      return 6;
+        case M1Xlarge:      return 8;
+        case M22xlarge:     return 13;
+        case C1Xlarge:      return 20;
+        case M24xlarge:     return 26;
+        case Cc14xlarge:    return 33;
+        case Cg14xlarge:    return 33;
+        default:            throw new AssertionError();
+        }
+    }
+
+    /**
+     * EC2 instance ID.
+     */
     public String getInstanceId() {
         return instanceId;
->>>>>>> upstream/master
     }
 
-    String getRootCommandPrefix() {
-        if (rootCommandPrefix == null || rootCommandPrefix.length() == 0)
-            return "";
-        return rootCommandPrefix + " ";
+    @Override
+    public Computer createComputer() {
+        return new EC2Computer(this);
     }
 
-    String getJvmopts() {
-        return Util.fixNull(jvmopts);
-    }
-    
-    /**
-     * Whether or not this slave gets stopped instead of terminated
-     * @return
-     */
-    public boolean getStopOnTerminate() {
-        return stopOnTerminate;
-    }
-    
-    /**
-     * Get the SSH port for a node
-     * Default to 0. Should be overridden by subclasses
-     * @return 0
-     */
-	public int getSshPort() {
-		return 0;
-	}
-    
-	/**
-	 * Get the EC2 instance from the instance id
-	 * @param instanceId - InstanceID for the EC2 node
-	 * @return Instance with specified instanceId, or null
-	 */
     public static Instance getInstance(String instanceId) {
-    	if (instanceId == null || instanceId.trim().equals("")) return null;
         DescribeInstancesRequest request = new DescribeInstancesRequest();
     	request.setInstanceIds(Collections.<String>singletonList(instanceId));
         EC2Cloud cloudInstance = EC2Cloud.get();
@@ -271,21 +193,10 @@ public abstract class EC2Slave extends Slave {
     	}
     	return i;
     }
-<<<<<<< HEAD
-    
-    /* Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to
-    time to ensure we reflect the reality of the instances. */
-    protected abstract void fetchLiveInstanceData(boolean force);
-    
-=======
 
->>>>>>> upstream/master
     /**
-     * Retrieve the stored tags 
-     * @return immutable list of tags
+     * Terminates the instance in EC2.
      */
-<<<<<<< HEAD
-=======
     public void terminate() {
         if (!isAlive(true)) {
             /* The node has been killed externally, so we've nothing to do here */
@@ -444,25 +355,44 @@ public abstract class EC2Slave extends Slave {
         return privateDNS;
     }
 
->>>>>>> upstream/master
     public List<EC2Tag> getTags() {
         fetchLiveInstanceData(false);
         return Collections.unmodifiableList(tags);
     }
-    
+
     @Override
-    public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException{
-    	return super.reconfigure(req, form);
+	public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {
+        if (form == null) {
+            return null;
+        }
+
+        if (!isAlive(true)) {
+            LOGGER.info("EC2 instance terminated externally: " + getInstanceId());
+            try {
+                Hudson.getInstance().removeNode(this);
+            } catch (IOException ioe) {
+                LOGGER.log(Level.WARNING, "Attempt to reconfigure EC2 instance which has been externally terminated: " + getInstanceId(), ioe);
+            }
+
+            return null;
+        }
+
+        Node result = super.reconfigure(req, form);
+
+        /* Get rid of the old tags, as represented by ourselves. */
+        clearLiveInstancedata();
+
+        /* Set the new tags, as represented by our successor */
+        ((EC2Slave) result).pushLiveInstancedata();
+
+        return result;
     }
 
-<<<<<<< HEAD
-=======
 
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
 
->>>>>>> upstream/master
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
@@ -481,12 +411,8 @@ public abstract class EC2Slave extends Slave {
 		}
 		return model;
 	}
-<<<<<<< HEAD
-    
-=======
 
 
->>>>>>> upstream/master
     @Extension
     public static final class DescriptorImpl extends SlaveDescriptor {
         @Override
@@ -505,4 +431,6 @@ public abstract class EC2Slave extends Slave {
         	return fillZoneItems(accessId, secretKey, region);
     	}
     }
+
+    private static final Logger LOGGER = Logger.getLogger(EC2Slave.class.getName());
 }
