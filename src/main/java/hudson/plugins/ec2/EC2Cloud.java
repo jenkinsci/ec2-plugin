@@ -104,18 +104,13 @@ public abstract class EC2Cloud extends Cloud {
     private transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
-<<<<<<< HEAD
-    
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String cloudName) {
-=======
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
->>>>>>> upstream/master
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String cloudName) {
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
@@ -340,8 +335,7 @@ public abstract class EC2Cloud extends Cloud {
             final SlaveTemplate t = getTemplate(label);
             int amiCap = t.getInstanceCap();
 
-<<<<<<< HEAD
-        	final SlaveTemplate t = getTemplate(label);
+	    final SlaveTemplate t = getTemplate(label);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
 
@@ -366,9 +360,6 @@ public abstract class EC2Cloud extends Cloud {
 
             System.out.println("Excess workload after pending Spot instances: " + excessWorkload);
 
-
-=======
->>>>>>> upstream/master
             for( ; excessWorkload>0; excessWorkload-- ) {
 
                 if (!addProvisionedSlave(t.ami, amiCap)) {
@@ -379,40 +370,24 @@ public abstract class EC2Cloud extends Cloud {
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
-<<<<<<< HEAD
-                                Slave s = t.provision(new StreamTaskListener(System.out));
-                                Hudson.getInstance().addNode(s);
-                                // EC2 instances may have a long init script. If we declare
-                                // the provisioning complete by returning without the connect
-                                // operation, NodeProvisioner may decide that it still wants
-                                // one more instance, because it sees that (1) all the slaves
-                                // are offline (because it's still being launched) and
-                                // (2) there's no capacity provisioned yet.
-                                //
-                                // deferring the completion of provisioning until the launch
-                                // goes successful prevents this problem.
-                                s.toComputer().connect(false).get();
-                                return s;
-=======
-                                try {
-                                    EC2Slave s = t.provision(new StreamTaskListener(System.out));
-                                    Hudson.getInstance().addNode(s);
-                                    // EC2 instances may have a long init script. If we declare
-                                    // the provisioning complete by returning without the connect
-                                    // operation, NodeProvisioner may decide that it still wants
-                                    // one more instance, because it sees that (1) all the slaves
-                                    // are offline (because it's still being launched) and
-                                    // (2) there's no capacity provisioned yet.
-                                    //
-                                    // deferring the completion of provisioning until the launch
-                                    // goes successful prevents this problem.
-                                    s.toComputer().connect(false).get();
-                                    return s;
-                                }
-                                finally {
-                                    decrementAmiSlaveProvision(t.ami);
-                                }
->>>>>>> upstream/master
+				try {
+                                	Slave s = t.provision(new StreamTaskListener(System.out));
+                                	Hudson.getInstance().addNode(s);
+	                                // EC2 instances may have a long init script. If we declare
+	                                // the provisioning complete by returning without the connect
+	                                // operation, NodeProvisioner may decide that it still wants
+	                                // one more instance, because it sees that (1) all the slaves
+	                                // are offline (because it's still being launched) and
+	                                // (2) there's no capacity provisioned yet.
+	                                //
+	                                // deferring the completion of provisioning until the launch
+	                                // goes successful prevents this problem.
+	                                s.toComputer().connect(false).get();
+	                                return s;
+				}
+				finally {
+					decrementAmiSlaveProvision(t.ami);	
+				}
                             }
                         })
                         ,t.getNumExecutors()));
