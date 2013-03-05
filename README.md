@@ -8,3 +8,5 @@ Jenkins ec2 plugin with Spot support
 - sha256sum: bba17765064e8cdc257a27f05f055474ede03bf1360374727bd57463ead7b32d
 
 - [User Guide](https://docs.google.com/a/g.rit.edu/document/d/1lpPQrNtjFt8P7792lRd0TVY-609RNlPdVmWUKnuiNbo/pub)
+
+- [Tutorial Video](http://www.youtube.com/watch?v=-vAAuTs9iu4)
