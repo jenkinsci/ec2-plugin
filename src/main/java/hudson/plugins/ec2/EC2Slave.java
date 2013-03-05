@@ -61,7 +61,7 @@ import net.sf.json.JSONObject;
  * @author Kohsuke Kawaguchi
  */
 public final class EC2Slave extends Slave {
-    public final String instanceId;
+    public String instanceId;
     /**
      * Comes from {@link SlaveTemplate#initScript}.
      */
@@ -121,6 +121,20 @@ public final class EC2Slave extends Slave {
         this.privateDNS = privateDNS;
         this.tags = tags;
         this.usePrivateDnsName = usePrivateDnsName;
+    }
+
+    protected Object readResolve() {
+	/*
+	 * If instanceId is null, this object was deserialized from an old
+	 * version of the plugin, where this field did not exist. In those
+	 * versions, the node name *was* the instance ID, so we can get it
+	 * from there.
+	 */
+	if (instanceId == null) {
+	    instanceId = getNodeName();
+	}
+
+	return this;
     }
 
     /**
