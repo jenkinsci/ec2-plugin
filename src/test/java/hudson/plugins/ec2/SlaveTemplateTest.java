@@ -51,6 +51,10 @@ public class SlaveTemplateTest extends HudsonTestCase {
         AmazonEC2Cloud.testMode = false;
     }
 
+    /**
+     * Tests to make sure the slave created has been configured properly.
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
     public void testConfigRoundtrip() throws Exception {
         String ami = "ami1";
 	String description = "foo ami";
@@ -59,9 +63,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         EC2Tag tag2 = new EC2Tag( "name2", "value2" );
         List<EC2Tag> tags = new ArrayList<EC2Tag>();
         tags.add( tag1 );
-        tags.add( tag2 );
-        
-        //SlaveTemplate orig = new SlaveTemplate(ami, null, EC2OndemandSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null);
+        tags.add( tag2 );        
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2Slave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null);
 
@@ -76,6 +78,11 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName");
     }
 
+    /**
+     * Tests to make sure the slave created has been configured properly, while
+     * using privateDNS.
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
     public void testConfigRoundtripWithPrivateDns() throws Exception {
         String ami = "ami1";
 	String description = "foo ami";
@@ -85,8 +92,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<EC2Tag> tags = new ArrayList<EC2Tag>();
         tags.add( tag1 );
         tags.add( tag2 );       
-
-        //SlaveTemplate orig = new SlaveTemplate(ami, null, EC2OndemandSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
+        
         SlaveTemplate orig = new SlaveTemplate(ami, EC2Slave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
@@ -100,6 +106,11 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
     
+    /**
+     * Tests to make sure the slave created has been configured properly.
+     * Also tests to make sure the spot max bid price has been set properly. 
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
     public void testConfigWithSpotBidPrice() throws Exception {
     	String ami = "ami1";
 
@@ -124,7 +135,10 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertTrue(orig.spotConfig.spotMaxBidPrice.compareTo(received.spotConfig.spotMaxBidPrice) == 0);
     }
     
-    // Test to ensure doCheckSpotMaxBidPrice is properly validating 
+    /**
+     * Test to ensure doCheckSpotMaxBidPrice is properly validating the maximum bid price field
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
     public void testMaxBidPriceValidator() throws Exception {
     	String[] validSpotBidPrices = {"0.003", Float.toString(Float.MAX_VALUE), "3.000011111", "0.001"}; 
     	String[] invalidSpotBidPrice = {Float.toString(-Float.MIN_VALUE), "-1.0", "xer"};

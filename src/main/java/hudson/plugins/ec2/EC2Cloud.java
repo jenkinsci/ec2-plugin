@@ -91,7 +91,7 @@ public abstract class EC2Cloud extends Cloud {
     private final String accessId;
     private final Secret secretKey;
     private final EC2PrivateKey privateKey;
-    private final UUID CloudID; 
+    private final UUID CloudID; // Unique Cloud ID given to the slaves. Major functionality TB Implemented
     private final String cloudName;
 
     /**
@@ -104,13 +104,24 @@ public abstract class EC2Cloud extends Cloud {
     private transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
+<<<<<<< HEAD
+=======
+//<<<<<<< HEAD
+    
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String cloudName) {
+//=======
+>>>>>>> Added comments and cleaned up some of the conflicts
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
+<<<<<<< HEAD
     protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String cloudName) {
+=======
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
+>>>>>>> Added comments and cleaned up some of the conflicts
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
@@ -335,10 +346,13 @@ public abstract class EC2Cloud extends Cloud {
             final SlaveTemplate t = getTemplate(label);
             int amiCap = t.getInstanceCap();
 
+<<<<<<< HEAD
 	    final SlaveTemplate t = getTemplate(label);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
 
+=======
+>>>>>>> Added comments and cleaned up some of the conflicts
             // Count number of pending executors from spot requests
             for(Node n : Hudson.getInstance().getNodes()){
             	// If the slave is online then it is already counted by Jenkins
@@ -370,6 +384,7 @@ public abstract class EC2Cloud extends Cloud {
                         Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
+<<<<<<< HEAD
 				try {
                                 	Slave s = t.provision(new StreamTaskListener(System.out));
                                 	Hudson.getInstance().addNode(s);
@@ -388,6 +403,43 @@ public abstract class EC2Cloud extends Cloud {
 				finally {
 					decrementAmiSlaveProvision(t.ami);	
 				}
+=======
+//<<<<<<< HEAD
+// Need to look through this more - Cory Santiago                        
+                                Slave s = t.provision(new StreamTaskListener(System.out));
+                                Hudson.getInstance().addNode(s);
+                                // EC2 instances may have a long init script. If we declare
+                                // the provisioning complete by returning without the connect
+                                // operation, NodeProvisioner may decide that it still wants
+                                // one more instance, because it sees that (1) all the slaves
+                                // are offline (because it's still being launched) and
+                                // (2) there's no capacity provisioned yet.
+                                //
+                                // deferring the completion of provisioning until the launch
+                                // goes successful prevents this problem.
+                                s.toComputer().connect(false).get();
+                                return s;
+//=======
+                                try {
+                                    EC2Slave s = t.provision(new StreamTaskListener(System.out));
+                                    Hudson.getInstance().addNode(s);
+                                    // EC2 instances may have a long init script. If we declare
+                                    // the provisioning complete by returning without the connect
+                                    // operation, NodeProvisioner may decide that it still wants
+                                    // one more instance, because it sees that (1) all the slaves
+                                    // are offline (because it's still being launched) and
+                                    // (2) there's no capacity provisioned yet.
+                                    //
+                                    // deferring the completion of provisioning until the launch
+                                    // goes successful prevents this problem.
+                                    s.toComputer().connect(false).get();
+                                    return s;
+                                }
+                                finally {
+                                    decrementAmiSlaveProvision(t.ami);
+                                }
+//>>>>>>> upstream/master
+>>>>>>> Added comments and cleaned up some of the conflicts
                             }
                         })
                         ,t.getNumExecutors()));

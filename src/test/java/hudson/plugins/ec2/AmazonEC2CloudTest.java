@@ -54,6 +54,10 @@ public class AmazonEC2CloudTest extends HudsonTestCase {
 				"region,accessId,secretKey,privateKey,instanceCap");
 	}
 	
+	/**
+	 * Ensure that the Slave's unique ID is being set properly. 
+	 * @throws Exception - Exception that can be thrown by the Jenkins test harness
+	 */
 	public void testCloudUUID() throws Exception {
 		AmazonEC2Cloud orig = new AmazonEC2Cloud("abc", "def", "us-east-1",
 				"ghi", "3", Collections.<SlaveTemplate> emptyList(),"Test Cloud");
