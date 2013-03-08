@@ -35,8 +35,13 @@ import net.sf.json.JSONObject;
  */
 public class EC2OndemandSlave extends EC2Slave {
     
+	public final String initScript;
     public final String instanceId;
+    public final boolean usePrivateDnsName;
     
+    // Temporary stuff that is obtained live from EC2
+    public String publicDNS;
+    public String privateDNS;
 
     /**
      * For data read from old Hudson, this is 0, so we use that to indicate 22.

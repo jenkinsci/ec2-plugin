@@ -27,10 +27,12 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Node.Mode;
 import hudson.model.Hudson;
 import hudson.model.Slave;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
+import hudson.slaves.ComputerLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.util.ListBoxModel;
 
@@ -60,68 +62,51 @@ import net.sf.json.JSONObject;
  *
  * @author Kohsuke Kawaguchi
  */
-public final class EC2Slave extends Slave {
+public abstract class EC2Slave extends Slave {
     private String instanceId;
     /**
      * Comes from {@link SlaveTemplate#initScript}.
      */
-    public final String initScript;
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
     public final String jvmopts; //e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
-    public final boolean usePrivateDnsName;
     public List<EC2Tag> tags;
+    protected boolean connectOnStartup;
 
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
     public String privateDNS;
 
     /* The last instance data to be fetched for the slave */
-    private Instance lastFetchInstance = null;
+    protected Instance lastFetchInstance = null;
 
     /* The time at which we fetched the last instance data */
-    private long lastFetchTime = 0;
+    protected long lastFetchTime = 0;
 
     /* The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked for it */
-    private static final long MIN_FETCH_TIME = 20 * 1000;
-
-
-    /**
-     * For data read from old Hudson, this is 0, so we use that to indicate 22.
-     */
-    private final int sshPort;
+    protected static final long MIN_FETCH_TIME = 20 * 1000;
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags) throws FormException, IOException {
-        this(instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, false);
-    }
+    public EC2Slave(String instanceId, String description, String remoteFS,
+			int numExecutors, Mode mode, String labelString, 
+			ComputerLauncher launcher, EC2RetentionStrategy retentionStrategy, List<? extends NodeProperty<?>> nodeProperties,
+			String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate,
+			String idleTerminationMinutes, List<EC2Tag> tags) throws FormException, IOException {
 
-    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
-        this(instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, usePrivateDnsName);
-    }
+		super(instanceId, description, remoteFS, numExecutors, mode, labelString, 
+				launcher, retentionStrategy, nodeProperties);
 
 
-    @DataBoundConstructor
-    public EC2Slave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
-
-        super(description + " (" + instanceId + ")", "", remoteFS, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), nodeProperties);
-
-	this.instanceId = instanceId;
-        this.initScript  = initScript;
-        this.remoteAdmin = remoteAdmin;
-        this.rootCommandPrefix = rootCommandPrefix;
-        this.jvmopts = jvmopts;
-        this.sshPort = sshPort;
-        this.stopOnTerminate = stopOnTerminate;
-        this.idleTerminationMinutes = idleTerminationMinutes;
-        this.publicDNS = publicDNS;
-        this.privateDNS = privateDNS;
-        this.tags = tags;
-        this.usePrivateDnsName = usePrivateDnsName;
-    }
+		this.remoteAdmin = remoteAdmin;
+		this.rootCommandPrefix = rootCommandPrefix;
+		this.jvmopts = jvmopts;
+		this.stopOnTerminate = stopOnTerminate;
+		this.idleTerminationMinutes = idleTerminationMinutes;
+		this.tags = tags;
+	}
 
     protected Object readResolve() {
 	/*
@@ -168,8 +153,10 @@ public final class EC2Slave extends Slave {
     /**
      * EC2 instance ID.
      */
-    public String getInstanceId() {
-        return instanceId;
+    public abstract String getInstanceId();
+    
+    public boolean getConnectOnStartup(){
+    	return connectOnStartup;
     }
 
     @Override
@@ -268,7 +255,7 @@ public final class EC2Slave extends Slave {
     }
 
     public int getSshPort() {
-        return sshPort!=0 ? sshPort : 22;
+        return 0;
     }
 
     public boolean getStopOnTerminate() {
@@ -283,29 +270,8 @@ public final class EC2Slave extends Slave {
     }
 
     /* Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to
-       time to ensure we reflect the reality of the instances. */
-    private void fetchLiveInstanceData( boolean force ) throws AmazonClientException {
-		/* If we've grabbed the data recently, don't bother getting it again unless we are forced */
-        long now = System.currentTimeMillis();
-        if ((lastFetchTime > 0) && (now - lastFetchTime < MIN_FETCH_TIME) && !force) {
-            return;
-        }
-
-        Instance i = getInstance(getInstanceId());
-
-        lastFetchTime = now;
-        lastFetchInstance = i;
-        if (i == null)
-        	return;
-
-        publicDNS = i.getPublicDnsName();
-        privateDNS = i.getPrivateIpAddress();
-        tags = new LinkedList<EC2Tag>();
-
-        for (Tag t : i.getTags()) {
-            tags.add(new EC2Tag(t.getKey(), t.getValue()));
-        }
-    }
+    time to ensure we reflect the reality of the instances. */
+    protected abstract void fetchLiveInstanceData(boolean force);
 
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
