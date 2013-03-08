@@ -121,7 +121,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         
         SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.name());
 
-        SlaveTemplate orig = new SlaveTemplate(ami, spotConfig, EC2OndemandSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
+        SlaveTemplate orig = new SlaveTemplate(ami, spotConfig, EC2OndemandSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 

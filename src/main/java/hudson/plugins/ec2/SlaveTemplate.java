@@ -520,7 +520,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	
 	private EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
 		return new EC2OndemandSlave(inst.getInstanceId(), inst.getInstanceId(), description, remoteFS, getSshPort(), 
-				getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, 
+				getNumExecutors(), mode, labels, initScript,  remoteAdmin, rootCommandPrefix, 
 				jvmopts, stopOnTerminate, idleTerminationMinutes, 
 				inst.getPublicDnsName(), inst.getPrivateDnsName(), 
 				EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
