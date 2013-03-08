@@ -123,13 +123,6 @@ public abstract class EC2Slave extends Slave {
     }
 
     /**
-     * Constructor for debugging.
-     */
-    public EC2Slave(String instanceId) throws FormException, IOException {
-        this(instanceId,"debug", "/tmp/hudson", 22, 1, Mode.NORMAL, "debug", "", Collections.<NodeProperty<?>>emptyList(), null, null, null, false, null, "Fake public", "Fake private", null, false);
-    }
-
-    /**
      * See http://aws.amazon.com/ec2/instance-types/
      */
     /*package*/ static int toNumExecutors(InstanceType it) {
@@ -352,11 +345,6 @@ public abstract class EC2Slave extends Slave {
         ((EC2Slave) result).pushLiveInstancedata();
 
         return result;
-    }
-
-
-    public boolean getUsePrivateDnsName() {
-        return usePrivateDnsName;
     }
 
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
