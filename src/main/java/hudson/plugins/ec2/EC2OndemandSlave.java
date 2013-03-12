@@ -34,7 +34,9 @@ import net.sf.json.JSONObject;
  * @author Kohsuke Kawaguchi
  */
 public class EC2OndemandSlave extends EC2Slave {
-    
+	/**
+     * Comes from {@link SlaveTemplate#initScript}.
+     */
 	public final String initScript;
     public final String instanceId;
     public final boolean usePrivateDnsName;

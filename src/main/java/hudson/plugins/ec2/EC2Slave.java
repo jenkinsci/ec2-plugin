@@ -27,11 +27,9 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Node.Mode;
 import hudson.model.Hudson;
 import hudson.model.Slave;
 import hudson.model.Node;
-import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.util.ListBoxModel;
@@ -39,7 +37,6 @@ import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.LinkedList;
 import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,7 +44,6 @@ import java.util.logging.Logger;
 import javax.servlet.ServletException;
 
 import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -64,16 +60,14 @@ import net.sf.json.JSONObject;
  */
 public abstract class EC2Slave extends Slave {
     private String instanceId;
-    /**
-     * Comes from {@link SlaveTemplate#initScript}.
-     */
+    
     public final String remoteAdmin; // e.g. 'ubuntu'
     public final String rootCommandPrefix; // e.g. 'sudo'
     public final String jvmopts; //e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
     public List<EC2Tag> tags;
-    protected boolean connectOnStartup;
+    protected boolean connectOnStartup; // Whether to connect via ssh or wait for the callback
 
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;

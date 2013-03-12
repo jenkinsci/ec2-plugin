@@ -145,6 +145,11 @@ public class EC2SpotSlave extends EC2Slave {
 		return cloudInstance.connect();
 	}
 
+	/**
+	 * Retrieve the SpotRequest for a requestId
+	 * @param requestId
+	 * @return SpotInstanceRequest object for the requestId, or null
+	 */
 	private SpotInstanceRequest getSpotRequest(String requestId){
 		AmazonEC2 ec2 = getEc2Cloud();
 		if(ec2 == null) return null;
@@ -160,6 +165,10 @@ public class EC2SpotSlave extends EC2Slave {
 		return getInstance(sir.getInstanceId());
 	}
 
+	/**
+	 * Accessor for the spotInstanceRequestId
+	 */
+	@Override
 	public String getInstanceId(){
 		return spotInstanceRequestId;
 	}
