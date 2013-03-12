@@ -37,10 +37,6 @@ THE SOFTWARE.
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
   </f:entry>
-
-  <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html" field="description">
-    <f:textbox />
-  </f:entry>
   
   <f:entry title="${%Availability Zone}" field="zone">
     <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12 
