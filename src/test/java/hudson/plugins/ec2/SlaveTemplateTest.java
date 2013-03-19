@@ -84,7 +84,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
      */
     public void testConfigRoundtripWithPrivateDns() throws Exception {
         String ami = "ami1";
-	String description = "foo ami";
+        String description = "foo ami";
 
         EC2Tag tag1 = new EC2Tag( "name1", "value1" );
         EC2Tag tag2 = new EC2Tag( "name2", "value2" );
@@ -112,7 +112,8 @@ public class SlaveTemplateTest extends HudsonTestCase {
      */
     public void testConfigWithSpotBidPrice() throws Exception {
     	String ami = "ami1";
-
+    	String description = "foo ami";
+    	
         EC2Tag tag1 = new EC2Tag( "name1", "value1" );
         EC2Tag tag2 = new EC2Tag( "name2", "value2" );
         List<EC2Tag> tags = new ArrayList<EC2Tag>();
@@ -129,7 +130,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(ami);
+        SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
         assertTrue(orig.spotConfig.spotMaxBidPrice.compareTo(received.spotConfig.spotMaxBidPrice) == 0);
     }
