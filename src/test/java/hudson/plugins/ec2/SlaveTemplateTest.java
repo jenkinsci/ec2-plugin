@@ -131,8 +131,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
-        assertTrue(orig.spotConfig.spotMaxBidPrice.compareTo(received.spotConfig.spotMaxBidPrice) == 0);
+        assertEqualBeans(orig, received, "ami,spotConfig,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
     
     /**
