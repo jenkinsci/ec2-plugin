@@ -26,7 +26,7 @@ package hudson.plugins.ec2.ssh;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2OndemandSlave;
+import hudson.plugins.ec2.EC2Slave;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.remoting.Channel;
@@ -96,7 +96,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SCPClient scp = conn.createSCPClient();
             String initScript = "";
             if (computer.getNode().getConnectOnStartup()){
-            	initScript = ((EC2OndemandSlave)computer.getNode()).initScript;
+            	initScript = ((EC2Slave)computer.getNode()).initScript;
         	}
             
 
@@ -205,7 +205,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     	if (!computer.getNode().getConnectOnStartup()){
     		return null;
     	}
-    	EC2OndemandSlave node = (EC2OndemandSlave) computer.getNode();
+    	EC2Slave node = (EC2Slave) computer.getNode();
         while(true) {
             try {
                 Instance instance = computer.updateInstanceDescription();

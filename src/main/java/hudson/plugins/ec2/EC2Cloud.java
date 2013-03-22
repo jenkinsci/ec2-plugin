@@ -229,7 +229,7 @@ public abstract class EC2Cloud extends Cloud {
 
 		StringWriter sw = new StringWriter();
 		StreamTaskListener listener = new StreamTaskListener(sw);
-		EC2OndemandSlave node = t.attach(id,listener);
+		EC2Slave node = t.attach(id,listener);
 		Hudson.getInstance().addNode(node);
 
 		rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());

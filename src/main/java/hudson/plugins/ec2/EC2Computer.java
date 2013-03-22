@@ -50,7 +50,7 @@ public class EC2Computer extends SlaveComputer {
      */
     public final String instanceType;
 
-    public EC2Computer(EC2Slave slave) {
+    public EC2Computer(EC2AbstractSlave slave) {
     	super(slave);
     	if(slave.getClass().equals(EC2SpotSlave.class))
         	instanceType = "Spot Slave";
@@ -63,12 +63,12 @@ public class EC2Computer extends SlaveComputer {
     }
 
     @Override
-    public EC2Slave getNode() {
-        return (EC2Slave)super.getNode();
+    public EC2AbstractSlave getNode() {
+        return (EC2AbstractSlave)super.getNode();
     }
 
     public String getInstanceId() {
-        EC2Slave node = (EC2Slave) super.getNode();
+        EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
 	return node.getInstanceId();
     }
 

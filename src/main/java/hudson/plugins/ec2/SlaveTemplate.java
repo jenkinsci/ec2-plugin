@@ -55,7 +55,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 
 /**
- * Template of {@link EC2Slave} to launch.
+ * Template of {@link EC2AbstractSlave} to launch.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -170,7 +170,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		try {
 			return Integer.parseInt(numExecutors);
 		} catch (NumberFormatException e) {
-			return EC2Slave.toNumExecutors(type);
+			return EC2AbstractSlave.toNumExecutors(type);
 		}
 	}
 
@@ -233,7 +233,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		return l==null || labelSet.contains(l);
 	}
 
-	public EC2Slave provision(TaskListener listener) throws AmazonClientException, IOException{
+	public EC2AbstractSlave provision(TaskListener listener) throws AmazonClientException, IOException{
 		if (spotConfig != null && !spotConfig.spotMaxBidPrice.equals("")){
 			listener.getLogger().println("Spot Price: " + spotConfig.spotMaxBidPrice);
 			return provisionSpot(listener);
@@ -248,7 +248,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	 *
 	 * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
 	 */
-	private EC2OndemandSlave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
+	private EC2Slave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
 		PrintStream logger = listener.getLogger();
 		AmazonEC2 ec2 = getParent().connect();
 
@@ -365,9 +365,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			List<Node> nodes = Hudson.getInstance().getNodes();
 			for (int i = 0, len = nodes.size(); i < len; i++) {
-				if (!(nodes.get(i) instanceof EC2OndemandSlave))
+				if (!(nodes.get(i) instanceof EC2Slave))
 					continue;
-				EC2OndemandSlave ec2Node = (EC2OndemandSlave) nodes.get(i);
+				EC2Slave ec2Node = (EC2Slave) nodes.get(i);
 				if (ec2Node.getInstanceId().equals(inst.getInstanceId())) {
 					logger.println("Found existing corresponding: "+ec2Node);
 					return ec2Node;
@@ -388,7 +388,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	 * 
 	 * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
 	 */
-	private EC2Slave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
+	private EC2AbstractSlave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
 		PrintStream logger = listener.getLogger();
 		AmazonEC2 ec2 = getParent().connect();
 
@@ -518,8 +518,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()));
 	}
 	
-	private EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-		return new EC2OndemandSlave(inst.getInstanceId(), inst.getInstanceId(), description, remoteFS, getSshPort(), 
+	private EC2Slave newOndemandSlave(Instance inst) throws FormException, IOException {
+		return new EC2Slave(inst.getInstanceId(), inst.getInstanceId(), description, remoteFS, getSshPort(), 
 				getNumExecutors(), mode, labels, initScript,  remoteAdmin, rootCommandPrefix, 
 				jvmopts, stopOnTerminate, idleTerminationMinutes, 
 				inst.getPublicDnsName(), inst.getPrivateDnsName(), 
@@ -530,7 +530,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	 * Provisions a new EC2 slave based on the currently running instance on EC2,
 	 * instead of starting a new one.
 	 */
-	public EC2OndemandSlave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
+	public EC2Slave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
 		PrintStream logger = listener.getLogger();
 		AmazonEC2 ec2 = getParent().connect();
 
@@ -572,7 +572,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		public String getHelpFile(String fieldName) {
 			String p = super.getHelpFile(fieldName);
 			// TODO make this generic for all of EC2. Not just on demand
-			if (p==null)        p = Hudson.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
+			if (p==null)        p = Hudson.getInstance().getDescriptor(EC2Slave.class).getHelpFile(fieldName);
 			return p;
 		}
 
@@ -631,7 +631,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				@QueryParameter String region)
 						throws IOException, ServletException
 						{
-			return EC2Slave.fillZoneItems(accessId, secretKey, region);
+			return EC2AbstractSlave.fillZoneItems(accessId, secretKey, region);
 						}
 		
 		/* Validate the Spot Max Bid Price to ensure that it is a floating point number*/

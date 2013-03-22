@@ -38,7 +38,7 @@ import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.util.ListBoxModel;
 
-public class EC2SpotSlave extends EC2Slave {
+public class EC2SpotSlave extends EC2AbstractSlave {
 
 	private final String spotInstanceRequestId;
 
