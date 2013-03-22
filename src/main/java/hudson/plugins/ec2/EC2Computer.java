@@ -31,6 +31,7 @@ import java.util.Collections;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
@@ -90,7 +91,7 @@ public class EC2Computer extends SlaveComputer {
      *
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
-    public Instance describeInstance() throws AmazonClientException {
+    public Instance describeInstance() throws AmazonClientException, InterruptedException {
         if(ec2InstanceDescription==null)
             ec2InstanceDescription = _describeInstance();
         return ec2InstanceDescription;
@@ -99,7 +100,7 @@ public class EC2Computer extends SlaveComputer {
     /**
      * This will flush any cached description held by {@link #describeInstance()}.
      */
-    public Instance updateInstanceDescription() throws AmazonClientException {
+    public Instance updateInstanceDescription() throws AmazonClientException, InterruptedException {
         return ec2InstanceDescription = _describeInstance();
     }
 
@@ -109,7 +110,7 @@ public class EC2Computer extends SlaveComputer {
      * <p>
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
-    public InstanceState getState() throws AmazonClientException {
+    public InstanceState getState() throws AmazonClientException, InterruptedException {
         ec2InstanceDescription=_describeInstance();
         return InstanceState.find(ec2InstanceDescription.getState().getName());
     }
@@ -117,23 +118,43 @@ public class EC2Computer extends SlaveComputer {
     /**
      * Number of milli-secs since the instance was started.
      */
-    public long getUptime() throws AmazonClientException {
+    public long getUptime() throws AmazonClientException, InterruptedException {
         return System.currentTimeMillis()-describeInstance().getLaunchTime().getTime();
     }
 
     /**
      * Returns uptime in the human readable form.
      */
-    public String getUptimeString() throws AmazonClientException {
+    public String getUptimeString() throws AmazonClientException, InterruptedException {
         return Util.getTimeSpanString(getUptime());
     }
 
-    private Instance _describeInstance() throws AmazonClientException {
-    	DescribeInstancesRequest request = new DescribeInstancesRequest();
-    	request.setInstanceIds(Collections.<String>singletonList(getNode().getInstanceId()));
-        return EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+    private Instance _describeInstance() throws AmazonClientException, InterruptedException {
+        // Sometimes even after a successful RunInstances, DescribeInstances
+        // returns an error for a few seconds. We do a few retries instead of
+        // failing instantly. See [JENKINS-15319].
+        for (int i = 0; i < 5; i++) {
+            try {
+                return _describeInstanceOnce();
+            } catch (AmazonServiceException e) {
+                if (e.getErrorCode().equals("InvalidInstanceID.NotFound")) {
+                    // retry in 5 seconds.
+                    Thread.sleep(5000);
+                    continue;
+                }
+                throw e;
+            }
+        }
+        // Last time, throw on any error.
+        return _describeInstanceOnce();
     }
 
+    private Instance _describeInstanceOnce() throws AmazonClientException {
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+        request.setInstanceIds(Collections.<String>singletonList(getNode().getInstanceId()));
+        return EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+    }
+    
     /**
      * When the slave is deleted, terminate the instance.
      */
