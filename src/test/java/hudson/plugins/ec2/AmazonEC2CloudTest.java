@@ -25,6 +25,8 @@ package hudson.plugins.ec2;
 
 import org.jvnet.hudson.test.HudsonTestCase;
 
+import com.amazonaws.services.ec2.AmazonEC2;
+
 import java.util.Collections;
 
 /**
@@ -44,11 +46,25 @@ public class AmazonEC2CloudTest extends HudsonTestCase {
 
 	public void testConfigRoundtrip() throws Exception {
 		AmazonEC2Cloud orig = new AmazonEC2Cloud("abc", "def", "us-east-1",
-				"ghi", "3", Collections.<SlaveTemplate> emptyList());
+				"ghi", "3", Collections.<SlaveTemplate> emptyList(), "Test Cloud");
 		hudson.clouds.add(orig);
 		submit(createWebClient().goTo("configure").getFormByName("config"));
 
 		assertEqualBeans(orig, hudson.clouds.iterator().next(),
 				"region,accessId,secretKey,privateKey,instanceCap");
+	}
+	
+	/**
+	 * Ensure that the Slave's unique ID is being set properly. 
+	 * @throws Exception - Exception that can be thrown by the Jenkins test harness
+	 */
+	public void testCloudUUID() throws Exception {
+		AmazonEC2Cloud orig = new AmazonEC2Cloud("abc", "def", "us-east-1",
+				"ghi", "3", Collections.<SlaveTemplate> emptyList(),"Test Cloud");
+		hudson.clouds.add(orig);
+		submit(createWebClient().goTo("configure").getFormByName("config"));
+		AmazonEC2Cloud received = (AmazonEC2Cloud)hudson.clouds.iterator().next();
+		System.out.println(received.getCloudID().toString());
+		assertTrue(received.getCloudID().toString().compareTo(" ") != 0);	
 	}
 }

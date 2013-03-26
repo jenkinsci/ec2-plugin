@@ -23,13 +23,18 @@
  */
 package hudson.plugins.ec2;
 
+import hudson.maven.reporters.MavenMailer.DescriptorImpl;
+import hudson.util.FormValidation;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import hudson.model.Node;
 import org.jvnet.hudson.test.HudsonTestCase;
 
+import com.amazonaws.http.HttpResponse;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.SpotInstanceType;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -46,22 +51,25 @@ public class SlaveTemplateTest extends HudsonTestCase {
         AmazonEC2Cloud.testMode = false;
     }
 
+    /**
+     * Tests to make sure the slave created has been configured properly.
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
     public void testConfigRoundtrip() throws Exception {
         String ami = "ami1";
-	String description = "foo ami";
+        String description = "foo ami";
 
         EC2Tag tag1 = new EC2Tag( "name1", "value1" );
         EC2Tag tag2 = new EC2Tag( "name2", "value2" );
         List<EC2Tag> tags = new ArrayList<EC2Tag>();
         tags.add( tag1 );
-        tags.add( tag2 );
+        tags.add( tag2 );        
 
-	SlaveTemplate orig = new SlaveTemplate(ami, EC2Slave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null);
-
+        SlaveTemplate orig = new SlaveTemplate(ami, null, EC2AbstractSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null);
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates, "Test Cloud");
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -69,26 +77,77 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName");
     }
 
+    /**
+     * Tests to make sure the slave created has been configured properly, while
+     * using privateDNS.
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
     public void testConfigRoundtripWithPrivateDns() throws Exception {
         String ami = "ami1";
-	String description = "foo ami";
+        String description = "foo ami";
 
         EC2Tag tag1 = new EC2Tag( "name1", "value1" );
         EC2Tag tag2 = new EC2Tag( "name2", "value2" );
         List<EC2Tag> tags = new ArrayList<EC2Tag>();
         tags.add( tag1 );
-        tags.add( tag2 );
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2Slave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
+        tags.add( tag2 );       
+        
+        SlaveTemplate orig = new SlaveTemplate(ami, null, EC2AbstractSlave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates, "Test Cloud");
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
         assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+    }
+    
+    /**
+     * Tests to make sure the slave created has been configured properly.
+     * Also tests to make sure the spot max bid price has been set properly. 
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
+    public void testConfigWithSpotBidPrice() throws Exception {
+    	String ami = "ami1";
+    	String description = "foo ami";
+    	
+        EC2Tag tag1 = new EC2Tag( "name1", "value1" );
+        EC2Tag tag2 = new EC2Tag( "name2", "value2" );
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add( tag1 );
+        tags.add( tag2 );  
+        
+        SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.name());
+
+        SlaveTemplate orig = new SlaveTemplate(ami, spotConfig, EC2Slave.TEST_ZONE, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null);
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud( "abc", "def", "us-east-1", "ghi", "3", templates, "Test Cloud");
+        hudson.clouds.add(ac);
+
+        submit(createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
+        assertEqualBeans(orig, received, "ami,spotConfig,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+    }
+    
+    /**
+     * Test to ensure doCheckSpotMaxBidPrice is properly validating the maximum bid price field
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
+    public void testMaxBidPriceValidator() throws Exception {
+    	String[] validSpotBidPrices = {"0.003", Float.toString(Float.MAX_VALUE), "3.000011111", "0.001"}; 
+    	String[] invalidSpotBidPrice = {Float.toString(-Float.MIN_VALUE), "-1.0", "xer"};
+    	
+    	hudson.plugins.ec2.SlaveTemplate.DescriptorImpl toTest = new hudson.plugins.ec2.SlaveTemplate.DescriptorImpl();
+    	for(int i=0; i < validSpotBidPrices.length; i++){    		
+    		assertEquals(FormValidation.ok(), toTest.doCheckSpotMaxBidPrice(validSpotBidPrices[i]));
+    	}
+    	for(int i=0; i < invalidSpotBidPrice.length; i++){
+    		assertNotSame(FormValidation.ok(), toTest.doCheckSpotMaxBidPrice(invalidSpotBidPrice[i]));
+    	}
     }
 }
