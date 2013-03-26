@@ -51,6 +51,12 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             EC2Computer computer = (EC2Computer)_computer;
             PrintStream logger = listener.getLogger();
 
+            if (!computer.getNode().getConnectViaSsh()) {
+                logger.println("The instance " + computer.getNode().getNodeName() + " is configured not to connect via ssh");
+                logger.println("Waiting for the instance to register itself with Jenkins as " + computer.getNode().getNodeName());
+                return;
+            }
+
             OUTER:
             while(true) {
                 switch (computer.getState()) {
