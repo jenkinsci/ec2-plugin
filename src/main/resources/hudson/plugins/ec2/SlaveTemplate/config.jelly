@@ -45,6 +45,12 @@ THE SOFTWARE.
     <f:textbox/>
   </f:entry>
 
+  <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
+    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+      <f:textbox />
+    </f:entry>
+  </f:optionalBlock>
+
   <f:entry title="${%Security group names}" field="securityGroups">
     <f:textbox/>
   </f:entry>
