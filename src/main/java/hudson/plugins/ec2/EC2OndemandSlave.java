@@ -4,6 +4,7 @@ import hudson.Extension;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Node;
+import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.util.ListBoxModel;
 
@@ -43,7 +44,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
     @DataBoundConstructor
     public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {	
     	
-        super(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
+        super(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
 
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;

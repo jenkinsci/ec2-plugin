@@ -208,7 +208,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getSpotMaxBidPrice(){
-		return spotConfig.spotMaxBidPrice;
+		return spotConfig == null ? null : spotConfig.spotMaxBidPrice;
 	}
 
 

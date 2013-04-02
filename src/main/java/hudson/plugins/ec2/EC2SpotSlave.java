@@ -27,6 +27,7 @@ import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
+import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.util.ListBoxModel;
 
@@ -40,7 +41,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
 
-		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
+		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
 
 		this.name = name;
 		this.connectViaSsh = false;
