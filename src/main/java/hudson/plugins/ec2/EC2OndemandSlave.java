@@ -47,6 +47,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
 
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
+        this.ec2Type = "On Demand";
     }
 
     /**

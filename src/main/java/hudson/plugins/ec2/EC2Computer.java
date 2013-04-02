@@ -59,6 +59,10 @@ public class EC2Computer extends SlaveComputer {
         EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
 	return node.getInstanceId();
     }
+    
+    public String getEc2Type() {
+    	return getNode().getEc2Type();
+    }
 
     /**
      * Gets the EC2 console output.

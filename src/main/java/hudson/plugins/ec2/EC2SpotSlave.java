@@ -45,6 +45,8 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 		this.name = name;
 		this.connectViaSsh = false;
 		this.spotInstanceRequestId = spotInstanceRequestId;
+		String spotMaxBidPrice = this.getSpotRequest(spotInstanceRequestId).getSpotPrice();
+		this.ec2Type = "Spot - $" + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3) + " max bid price";
 	}
 
 

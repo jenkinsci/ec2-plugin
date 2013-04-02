@@ -99,6 +99,11 @@ public abstract class EC2AbstractSlave extends Slave {
     protected final int sshPort;
 
     public static final String TEST_ZONE = "testZone";
+    
+    /*
+     * Used to determine if the slave is On Demand or Spot 
+     */
+    protected String ec2Type;
 
     @DataBoundConstructor
     public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
@@ -364,6 +369,10 @@ public abstract class EC2AbstractSlave extends Slave {
 		}
 		return model;
 	}
+    
+    public String getEc2Type() {
+    	return ec2Type;
+    }
 
 
     @Extension
