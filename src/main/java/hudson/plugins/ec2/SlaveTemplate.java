@@ -299,6 +299,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (tags != null && !tags.isEmpty()) {
                 inst_tags = new HashSet<Tag>();
                 for(EC2Tag t : tags) {
+                    inst_tags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
                 }
             }
