@@ -208,7 +208,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getSpotMaxBidPrice(){
-		return spotConfig == null ? null : spotConfig.spotMaxBidPrice;
+    	if (spotConfig == null)
+    		return null;
+    	return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
 	}
 
 
@@ -230,9 +232,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     public EC2AbstractSlave provision(TaskListener listener) throws AmazonClientException, IOException {
-    	if (this.spotConfig != null && this.spotConfig.spotMaxBidPrice != null && 
-                !this.spotConfig.spotMaxBidPrice.equals("")){
-            return provisionSpot(listener);
+    	if (this.spotConfig != null){
+    		return provisionSpot(listener);
     	}
     	return provisionOndemand(listener);
     }
@@ -246,10 +247,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         try {
             logger.println("Launching " + ami + " for template " + description);
-            KeyPair keyPair = parent.getPrivateKey().find(ec2);
-            if(keyPair==null) {
-                throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-            }
+            KeyPair keyPair = getKeyPair(ec2);
            
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
@@ -268,33 +266,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                /* If we have a subnet ID then we can only use VPC security groups */
                if (!securityGroupSet.isEmpty()) {
-                  List<String> group_ids = new ArrayList<String>();
-
-                  DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-                  group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
-                  DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
-
-                  for (SecurityGroup group : group_result.getSecurityGroups()) {
-                     if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
-                        List<Filter> filters = new ArrayList<Filter>();
-                        filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
-                        filters.add(new Filter("state").withValues("available"));
-                        filters.add(new Filter("subnet-id").withValues(getSubnetId()));
-
-                        DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
-                        subnet_req.withFilters(filters);
-                        DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
-
-                        List subnets = subnet_result.getSubnets();
-                        if(subnets != null && !subnets.isEmpty()) {
-                           group_ids.add(group.getGroupId());
-                        }
-                     }
-                  }
-
-                  if (securityGroupSet.size() != group_ids.size()) {
-                     throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
-                  }
+                  List<String> group_ids = getEc2SecurityGroups(ec2);
 
                   if (!group_ids.isEmpty()) {
                      riRequest.setSecurityGroupIds(group_ids);
@@ -337,9 +309,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 /* Now that we have our instance, we can set tags on it */
                 if (inst_tags != null) {
-                    CreateTagsRequest tag_request = new CreateTagsRequest();
-                    tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-                    ec2.createTags(tag_request);
+                	updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
 
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
@@ -384,103 +354,75 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		AmazonEC2 ec2 = getParent().connect();
 
 		try{
-			logger.println("Launching "+ami);
-			KeyPair keyPair = parent.getPrivateKey().find(ec2);
-			if(keyPair==null) {
-				throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-			}
+			logger.println("Launching " + ami + " for template " + description);
+			KeyPair keyPair = getKeyPair(ec2);
 
 			RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
 
-			spotRequest.setSpotPrice(spotConfig.spotMaxBidPrice);
+			// Validate spot bid before making the request
+			if (getSpotMaxBidPrice() == null){
+				// throw new FormException("Invalid Spot price specified: " + getSpotMaxBidPrice(), "spotMaxBidPrice");
+				throw new AmazonClientException("Invalid Spot price specified: " + getSpotMaxBidPrice());
+			}
+
+			spotRequest.setSpotPrice(getSpotMaxBidPrice());
 			spotRequest.setInstanceCount(Integer.valueOf(1));
 
 			LaunchSpecification launchSpecification = new LaunchSpecification();
 
-			List<Filter> diFilters = new ArrayList<Filter>();
-
 			launchSpecification.setImageId(ami);
 			launchSpecification.setInstanceType(type);
-			diFilters.add(new Filter("image-id").withValues(ami));
 
 			if (StringUtils.isNotBlank(getZone())) {
 				SpotPlacement placement = new SpotPlacement(getZone());
 				launchSpecification.setPlacement(placement);
-				diFilters.add(new Filter("availability-zone").withValues(getZone()));
-
 			}
 
 			if (StringUtils.isNotBlank(getSubnetId())) {
 				launchSpecification.setSubnetId(getSubnetId());
-				diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
 				/* If we have a subnet ID then we can only use VPC security groups */
 				if (!securityGroupSet.isEmpty()) {
-					List<String> group_ids = new ArrayList<String>();
-
-					DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-					group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
-					DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
-
-					for (SecurityGroup group : group_result.getSecurityGroups()) {
-						if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
-							List<Filter> filters = new ArrayList<Filter>();
-							filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
-							filters.add(new Filter("state").withValues("available"));
-							filters.add(new Filter("subnet-id").withValues(getSubnetId()));
-
-							DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
-							subnet_req.withFilters(filters);
-							DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
-
-							List<Subnet> subnets = subnet_result.getSubnets();
-							if(subnets != null && !subnets.isEmpty()) {
-								group_ids.add(group.getGroupId());
-							}
-						}
-					}
-
-					if (securityGroupSet.size() != group_ids.size()) {
-						throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
-					}
+					List<String> group_ids = getEc2SecurityGroups(ec2);
 
 					if (!group_ids.isEmpty()) {
 						launchSpecification.setSecurityGroups(group_ids);
-						diFilters.add(new Filter("instance.group-id").withValues(group_ids));
 					}
 				}
 			} else {
 				/* No subnet: we can use standard security groups by name */
-				launchSpecification.setSecurityGroups(securityGroupSet);
 				if (securityGroupSet.size() > 0)
-					diFilters.add(new Filter("group-name").withValues(securityGroupSet));
+					launchSpecification.setSecurityGroups(securityGroupSet);
 			}
 
+			// The slave must know the Jenkins server to register with as well
+			// as the name of the node in Jenkins it should register as. The only
+			// way to give infomration to the Spot slaves is through the ec2 user data
 			String jenkinsUrl = Hudson.getInstance().getRootUrl();
+			// The user data for a Spot instance must be set prior to requesting 
+			// the instance, Because of this we cannot use the id given to the instance 
+			// by EC2. Instead we give it a unique name from UUID
 			String slaveName = UUID.randomUUID().toString();
-			String newUserData = "JENKINS_URL=" + jenkinsUrl + "&SLAVE_NAME=" + slaveName + "&" + userData;
+			String newUserData = "JENKINS_URL=" + jenkinsUrl +
+					"&SLAVE_NAME=" + slaveName +
+					"&USER_DATA=" + Base64.encodeBase64String(userData.getBytes());
 
 			String userDataString = Base64.encodeBase64String(newUserData.getBytes());
 			launchSpecification.setUserData(userDataString);
 			launchSpecification.setKeyName(keyPair.getKeyName());
-			diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
 			launchSpecification.setInstanceType(type.toString());
-			diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
 			HashSet<Tag> inst_tags = null;
 			if (tags != null && !tags.isEmpty()) {
 				inst_tags = new HashSet<Tag>();
 				for(EC2Tag t : tags) {
-					diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
+					inst_tags.add(new Tag(t.getName(), t.getValue()));
 				}
 			}
 
-			diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), 
-					InstanceStateName.Stopping.toString()));
-
 			spotRequest.setLaunchSpecification(launchSpecification);
 
-			// Have to create a new instance
+			// Make the request for a new Spot instance
 			RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
 
 			List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
@@ -489,9 +431,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			}
 
 			SpotInstanceRequest spotInstReq = reqInstances.get(0);
-			if (spotInstReq != null && spotInstReq.getSpotInstanceRequestId() != null){
-				logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
+			if (spotInstReq == null){
+				throw new AmazonClientException("Spot instance request is null");
 			}
+
+			/* Now that we have our Spot request, we can set tags on it */
+			if (inst_tags != null) {
+				updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
+
+				// That was a remote request - we should also update our local instance data.
+				spotInstReq.setTags(inst_tags);
+			}
+
+			logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
 			return newSpotSlave(spotInstReq, slaveName);
 
@@ -500,13 +452,67 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 		}
 	}
 
-
     private EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
         return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
     }
-    
+
     private EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
         return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), usePrivateDnsName);
+    }
+
+    /**
+     * Get a KeyPair from the configured information for the slave template
+     */
+    private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException{
+    	KeyPair keyPair = parent.getPrivateKey().find(ec2);
+    	if(keyPair==null) {
+        	throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+    	}
+    	return keyPair;
+    }
+
+    /**
+     * Update the tags stored in EC2 with the specified information
+     */
+    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String... params) {
+    	CreateTagsRequest tag_request = new CreateTagsRequest();
+        tag_request.withResources(params).setTags(inst_tags);
+        ec2.createTags(tag_request);
+    }
+
+    /**
+     * Get a list of security group ids for the slave
+     */
+    private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException{
+    	List<String> group_ids = new ArrayList<String>();
+
+		DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
+		group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
+		DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
+
+		for (SecurityGroup group : group_result.getSecurityGroups()) {
+			if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
+				List<Filter> filters = new ArrayList<Filter>();
+				filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
+				filters.add(new Filter("state").withValues("available"));
+				filters.add(new Filter("subnet-id").withValues(getSubnetId()));
+
+				DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
+				subnet_req.withFilters(filters);
+				DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
+
+				List<Subnet> subnets = subnet_result.getSubnets();
+				if(subnets != null && !subnets.isEmpty()) {
+					group_ids.add(group.getGroupId());
+				}
+			}
+		}
+
+		if (securityGroupSet.size() != group_ids.size()) {
+			throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
+		}
+
+		return group_ids;
     }
 
     /**
@@ -618,18 +624,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         /* Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001 */
 		public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
-			try {
-				float spotPrice = Float.parseFloat(spotMaxBidPrice);
-
-				/* If the specified bid price cannot be less than 0.001 */
-				if(spotPrice < 0.001){
-					return FormValidation.error("Not a correct bid price");
-				} else {
-					return FormValidation.ok();
-				}
-			} catch (NumberFormatException ex) {
-				return FormValidation.error("Not a correct bid price");
+			if(SpotConfiguration.normalizeBid(spotMaxBidPrice) != null){
+				return FormValidation.ok();
 			}
+			return FormValidation.error("Not a correct bid price");
 		}
     }
 }

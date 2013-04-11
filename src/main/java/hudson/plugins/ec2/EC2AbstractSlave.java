@@ -28,7 +28,6 @@ import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
-import hudson.model.Node;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
@@ -47,13 +46,10 @@ import javax.servlet.ServletException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
-
-import net.sf.json.JSONObject;
 
 /**
  * Slave running on EC2.
@@ -78,10 +74,6 @@ public abstract class EC2AbstractSlave extends Slave {
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
     public String privateDNS;
-    
-    // Whether or not Jenkins should connect to the instance via SSH
-    // Spot slaves register as a headless slave
-    protected boolean connectViaSsh = true;
 
     /* The last instance data to be fetched for the slave */
     protected Instance lastFetchInstance = null;
@@ -106,7 +98,7 @@ public abstract class EC2AbstractSlave extends Slave {
     protected String ec2Type;
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -338,17 +330,8 @@ public abstract class EC2AbstractSlave extends Slave {
         return Collections.unmodifiableList(tags);
     }
 
-    @Override
-	public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException{
-        return super.reconfigure(req, form);
-    }
-
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
-    }
-
-    public boolean getConnectViaSsh() {
-        return connectViaSsh;
     }
     
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {

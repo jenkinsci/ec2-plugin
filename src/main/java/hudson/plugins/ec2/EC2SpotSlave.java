@@ -19,7 +19,6 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
-import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
@@ -27,7 +26,6 @@ import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
-import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.slaves.NodeProperty;
 import hudson.util.ListBoxModel;
 
@@ -41,10 +39,9 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
 
-		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
+		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
 
 		this.name = name;
-		this.connectViaSsh = false;
 		this.spotInstanceRequestId = spotInstanceRequestId;
 		String spotMaxBidPrice = this.getSpotRequest(spotInstanceRequestId).getSpotPrice();
 		this.ec2Type = "Spot - $" + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3) + " max bid price";
@@ -115,10 +112,6 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 		List<SpotInstanceRequest> siRequests = dsirResult.getSpotInstanceRequests();
 		if (siRequests.size() <= 0) return null;
 		return siRequests.get(0);
-	}
-
-	private Instance getInstance(SpotInstanceRequest sir){
-		return EC2AbstractSlave.getInstance(getInstanceId());
 	}
 
 	/**
