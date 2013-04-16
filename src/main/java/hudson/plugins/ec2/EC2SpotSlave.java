@@ -43,8 +43,6 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 		this.name = name;
 		this.spotInstanceRequestId = spotInstanceRequestId;
-		String spotMaxBidPrice = this.getSpotRequest(spotInstanceRequestId).getSpotPrice();
-		this.ec2Type = "Spot - $" + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3) + " max bid price";
 	}
 
 
@@ -154,6 +152,12 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	}
 
 	private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
+
+	@Override
+	public String getEc2Type() {
+		String spotMaxBidPrice = this.getSpotRequest(spotInstanceRequestId).getSpotPrice();
+		return "Spot - $" + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3) + " max bid price";
+	}
 
 
 }

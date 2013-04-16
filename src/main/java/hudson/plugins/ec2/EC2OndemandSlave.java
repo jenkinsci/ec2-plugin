@@ -48,7 +48,6 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
 
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
-        this.ec2Type = "On Demand";
     }
 
     /**
@@ -129,4 +128,9 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
+
+	@Override
+	public String getEc2Type() {
+		return "On Demand";
+	}
 }
