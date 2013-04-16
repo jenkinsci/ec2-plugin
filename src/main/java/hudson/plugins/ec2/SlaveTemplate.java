@@ -397,11 +397,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			// The slave must know the Jenkins server to register with as well
 			// as the name of the node in Jenkins it should register as. The only
-			// way to give infomration to the Spot slaves is through the ec2 user data
+			// way to give information to the Spot slaves is through the ec2 user data
 			String jenkinsUrl = Hudson.getInstance().getRootUrl();
-			// The user data for a Spot instance must be set prior to requesting 
-			// the instance, Because of this we cannot use the id given to the instance 
-			// by EC2. Instead we give it a unique name from UUID
+			// We must provide a unique node name for the slave to connect to Jenkins.
+			// We don't have the EC2 generated instance ID, or the Spot request ID
+			// until after the instance is requested, which is then too late to set the
+			// user-data for the request. Instead we generate a unique name from UUID
+			// so that the slave has a unique name within Jenkins to register to.
 			String slaveName = UUID.randomUUID().toString();
 			String newUserData = "JENKINS_URL=" + jenkinsUrl +
 					"&SLAVE_NAME=" + slaveName +

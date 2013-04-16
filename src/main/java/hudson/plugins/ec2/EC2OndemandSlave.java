@@ -97,7 +97,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
             return null;
         }
 
-        Node result = reconfigure(req, form);
+        Node result = super.reconfigure(req, form);
 
         /* Get rid of the old tags, as represented by ourselves. */
         clearLiveInstancedata();

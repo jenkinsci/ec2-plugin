@@ -14,6 +14,6 @@ public class EC2SpotComputerLauncher extends ComputerLauncher {
         PrintStream logger = listener.getLogger();
 
         logger.println("The instance " + computer.getNode().getNodeName() + " is a Spot slave.");
-        logger.println("Waiting for the instance to register itself with with JNLP as " + computer.getNode().getNodeName());
+        logger.println("Waiting for the instance to register itself with JNLP as " + computer.getNode().getNodeName());
     }
 }
