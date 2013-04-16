@@ -32,7 +32,15 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,region,ami" />
+    <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,region,ami" />
+
+ <f:entry title="${%Use Spot Instances}" field="isSpotInstance">
+       <f:checkbox />
+     </f:entry>
+
+ <f:entry title="${%Max Bid}" field="maxBid">
+    <f:textbox/>
+  </f:entry>
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
@@ -69,7 +77,11 @@ THE SOFTWARE.
 
   <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
     <f:textbox default="30" />
-  </f:entry>  
+  </f:entry>
+
+   <f:entry title="${%Offline termination time}" field="offlineTerminationMinutes">
+     <f:textbox />
+   </f:entry>
 
   <f:entry title="${%Init script}" field="initScript">
     <f:textarea />

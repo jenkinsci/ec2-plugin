@@ -233,23 +233,34 @@ public abstract class EC2Cloud extends Cloud {
 
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
+
+        if (t.getIsSpotInstance() == true) {
         try {
+                EC2Slave node = t.spotRequest(listener, t.getMaxBid(), t.getAmi(), t.getType(), t.getSecurityGroups());
+                Hudson.getInstance().addNode(node);
+                rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
+            } catch (AmazonClientException e) {
+                e.printStackTrace(listener.error(e.getMessage()));
+                sendError(sw.toString(), req, rsp);
+            }
+        } else {
+            try {
             EC2Slave node = t.provision(listener);
             Hudson.getInstance().addNode(node);
-
             rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
         } catch (AmazonClientException e) {
             e.printStackTrace(listener.error(e.getMessage()));
             sendError(sw.toString(),req,rsp);
         }
     }
-
+    }
 
     /**
      * Check for the count of EC2 slaves and determine if a new slave can be added.
      * Takes into account both what Amazon reports as well as an internal count
      * of slaves currently being "provisioned".
      */
+
     private boolean addProvisionedSlave(String ami, int amiCap) throws AmazonClientException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null);
         int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
@@ -330,6 +341,12 @@ public abstract class EC2Cloud extends Cloud {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
                                 try {
+                                    if (t.getIsSpotInstance() == true) {
+                                        EC2Slave s = t.spotRequest(new StreamTaskListener(System.out), t.getMaxBid(), t.getAmi(), t.getType(), t.getSecurityGroups());
+                                        Hudson.getInstance().addNode(s);
+                                        s.toComputer().connect(false).get();
+                                        return s;
+                                    } else {
                                     EC2Slave s = t.provision(new StreamTaskListener(System.out));
                                     Hudson.getInstance().addNode(s);
                                     // EC2 instances may have a long init script. If we declare
@@ -344,7 +361,7 @@ public abstract class EC2Cloud extends Cloud {
                                     s.toComputer().connect(false).get();
                                     return s;
                                 }
-                                finally {
+                                } finally {
                                     decrementAmiSlaveProvision(t.ami);
                                 }
                             }

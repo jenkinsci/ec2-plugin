@@ -23,10 +23,14 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
+
+import java.io.IOException;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -40,10 +44,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     /** Number of minutes of idleness before an instance should be terminated.
 	    A value of zero indicates that the instance should never be automatically terminated */
     public final int idleTerminationMinutes;
+    public final int offlineTerminationMinutes;
 
 
     @DataBoundConstructor
-    public EC2RetentionStrategy(String idleTerminationMinutes) {
+    public EC2RetentionStrategy(String idleTerminationMinutes, String offlineTerminationMinutes) {
         if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
             this.idleTerminationMinutes = 0;
         } else {
@@ -56,16 +61,52 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
             this.idleTerminationMinutes = value;
         }
+        if (offlineTerminationMinutes == null || offlineTerminationMinutes.trim() == "") {
+            this.offlineTerminationMinutes = 0;
+        } else {
+            int value = 60;
+            try {
+                value = Integer.parseInt(offlineTerminationMinutes);
+            } catch (NumberFormatException nfe) {
+                LOGGER.info("Malformed default offlineTerminationMinutes value: " + offlineTerminationMinutes);
+    }
+
+            this.offlineTerminationMinutes = value;
+        }
+
     }
 
     @Override
 	public synchronized long check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
-        if  (idleTerminationMinutes == 0) return 1;
+        if (idleTerminationMinutes == 0 && offlineTerminationMinutes == 0) return 1;
+
+        try {
+        final long upTime = c.getUptime();
+        final long offlineTerminationMinutes1 = TimeUnit2.MINUTES.toMillis(offlineTerminationMinutes);
         final long idleMilliseconds1 = System.currentTimeMillis() - c.getIdleStartMilliseconds();
         System.out.println(c.getName() + " idle: " + idleMilliseconds1);
         
+       /* If the boxes uptime if greater than offline time threshold is online but not idle exit */
+        if (upTime > offlineTerminationMinutes1 && c.isOnline() && !c.isIdle()) {
+            LOGGER.info("Node has been up for " + upTime + " ms" + c.getName());
+            return 1;
+        }
+
+        if (offlineTerminationMinutes > 0 && c.isOffline()) {
+            LOGGER.info("Node in an unexpectedly disabled or offline, checking if the node needs to be terminated : " + "Node uptime :" + upTime  + c.getName());
+            LOGGER.info("Node offlineTime :" + offlineTerminationMinutes1 + c.getName());
+
+            //determine if node is freshly spinning up
+            if (upTime > offlineTerminationMinutes1) {
+                LOGGER.info("Node has been up for " + upTime + " does need to be terminated : " + c.getName());
+                c.getNode().termOfflineNode(c);
+            } else {
+                LOGGER.info("Node does not need to be terminated, may still be coming online : " + c.getName());
+            }
+        }
+
         if (c.isIdle() && c.isOnline() && !disabled) {
             // TODO: really think about the right strategy here
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
@@ -74,8 +115,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 c.getNode().idleTimeout();
             }
         }
+        } catch (AmazonServiceException e) {
+        } catch (InterruptedException e) {
+      }
         return 1;
-    }
+      }
 
     /**
      * Try to connect to it ASAP.

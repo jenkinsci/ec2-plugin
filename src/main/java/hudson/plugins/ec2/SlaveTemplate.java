@@ -38,6 +38,8 @@ import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.Boolean;
+import java.lang.String;
 import java.util.*;
 
 import javax.servlet.ServletException;
@@ -48,6 +50,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 
@@ -74,18 +77,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String jvmopts;
     public final String subnetId;
     public final String idleTerminationMinutes;
+    public final String offlineTerminationMinutes;
     public final int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
-    
+    public final boolean isSpotInstance;
+    public final String maxBid;
+
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
-	private transient /*almost final*/ Set<String> securityGroupSet;
+    private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
+    public SlaveTemplate(String ami, String zone, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String offlineTerminationMinutes, boolean isSpotInstance, String maxBid) {
         this.ami = ami;
         this.zone = zone;
         this.securityGroups = securityGroups;
@@ -106,16 +112,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
+        this.offlineTerminationMinutes = offlineTerminationMinutes;
+        this.isSpotInstance = isSpotInstance;
+        this.maxBid = maxBid;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
         }
-        
+
         readResolve(); // initialize
     }
-    
+
     public EC2Cloud getParent() {
         return parent;
     }
@@ -124,16 +133,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return labels;
     }
 
+    public String getMaxBid() {
+        return maxBid;
+    }
+
     public Node.Mode getMode() {
         return mode;
     }
 
     public String getDisplayName() {
-        return description+" ("+ami+")";
+        return description + " (" + ami + ")";
     }
 
     String getZone() {
         return zone;
+    }
+
+    public String getSecurityGroups() {
+        return securityGroups;
     }
 
     public String getSecurityGroupString() {
@@ -176,8 +193,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return rootCommandPrefix;
     }
 
+    public String getAmi() {
+        return ami;
+    }
+
     public String getSubnetId() {
         return subnetId;
+    }
+
+    public InstanceType getType() {
+        return type;
     }
 
     public List<EC2Tag> getTags() {
@@ -214,6 +239,102 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public boolean containsLabel(Label l) {
         return l==null || labelSet.contains(l);
     }
+
+    public boolean getIsSpotInstance() {
+        return isSpotInstance;
+    }
+
+    public EC2Slave spotRequest(TaskListener listener, String maxBid, String ami, InstanceType type, String securityGroups) {
+
+        PrintStream logger = listener.getLogger();
+        AmazonEC2 ec2 = getParent().connect();
+
+        RequestSpotInstancesRequest requestRequest = new RequestSpotInstancesRequest();
+
+        requestRequest.setSpotPrice(maxBid);
+        requestRequest.setInstanceCount(Integer.valueOf(1));
+
+        LaunchSpecification launchSpecification = new LaunchSpecification();
+        launchSpecification.setImageId(ami);
+        launchSpecification.setInstanceType(type);
+
+        ArrayList<String> securityGroup = new ArrayList<String>();
+        securityGroup.add(securityGroups);
+        launchSpecification.setSecurityGroups(securityGroup);
+
+        requestRequest.setLaunchSpecification(launchSpecification);
+
+        RequestSpotInstancesResult requestResult = ec2.requestSpotInstances(requestRequest);
+
+        List<SpotInstanceRequest> requestResponses = requestResult.getSpotInstanceRequests();
+        ArrayList<String> spotInstanceRequestIds = new ArrayList<String>();
+
+        for (SpotInstanceRequest requestResponse : requestResponses) {
+            System.out.println("Created Spot Request: " + requestResponse.getSpotInstanceRequestId());
+            spotInstanceRequestIds.add(requestResponse.getSpotInstanceRequestId());
+        }
+
+        boolean anyOpen;
+
+        do {
+
+            DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest();
+            describeRequest.setSpotInstanceRequestIds(spotInstanceRequestIds);
+            List<String> instanceIds = new ArrayList<String>();
+
+
+            anyOpen = false;
+
+            try {
+                DescribeSpotInstanceRequestsResult describeResult = ec2.describeSpotInstanceRequests(describeRequest);
+                List<SpotInstanceRequest> describeResponses = describeResult.getSpotInstanceRequests();
+
+
+                for (SpotInstanceRequest describeResponse : describeResponses) {
+
+                    if (describeResponse.getState().equals("open")) {
+                        anyOpen = true;
+                        break;
+                    } else {
+
+                        instanceIds.add(describeResponse.getInstanceId());
+                        DescribeInstancesRequest dis = new DescribeInstancesRequest();
+                        dis.setInstanceIds(instanceIds);
+                        DescribeInstancesResult disresult = ec2.describeInstances(dis);
+                        List<Reservation> list = disresult.getReservations();
+
+                        for (Reservation res : list) {
+                            List<Instance> instancelist = res.getInstances();
+                            try {
+                                for (Instance currentInstance : instancelist) {
+                                    Instance instance = currentInstance;
+                                    EC2Slave node = newSpotSlave(instance);
+                                    return node;
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace(listener.error(e.getMessage()));
+
+                            }
+                        }
+                    }
+                }
+
+            } catch (AmazonServiceException e) {
+                anyOpen = true;
+            }
+
+            try {
+                Thread.sleep(60 * 1000);
+            } catch (Exception e) {
+            }
+        } while (anyOpen);
+        return null;
+    }
+
+    private EC2Slave newSpotSlave(Instance instance) throws FormException, IOException {
+        return new EC2Slave(instance.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, instance.getPublicDnsName(), instance.getPrivateDnsName(), EC2Tag.fromAmazonTags(instance.getTags()), usePrivateDnsName, offlineTerminationMinutes, isSpotInstance, maxBid);
+    }
+
 
     /**
      * Provisions a new EC2 slave.
@@ -283,9 +404,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                }
             } else {
                /* No subnet: we can use standard security groups by name */
-            	riRequest.setSecurityGroups(securityGroupSet);
-            	if (securityGroupSet.size() > 0)
-            		diFilters.add(new Filter("group-name").withValues(securityGroupSet));
+                riRequest.setSecurityGroups(securityGroupSet);
+                if (securityGroupSet.size() > 0)
+                    diFilters.add(new Filter("group-name").withValues(securityGroupSet));
             }
 
             String userDataString = Base64.encodeBase64String(userData.getBytes());
@@ -358,7 +479,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 
     private EC2Slave newSlave(Instance inst) throws FormException, IOException {
-        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName);
+        return new EC2Slave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), usePrivateDnsName, offlineTerminationMinutes, isSpotInstance, maxBid);
     }
 
     /**
