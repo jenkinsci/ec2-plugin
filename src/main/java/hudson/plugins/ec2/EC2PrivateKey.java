@@ -34,7 +34,9 @@ import java.security.DigestInputStream;
 import java.security.KeyPair;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Key;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Security;
 
 import org.apache.commons.codec.binary.Hex;
@@ -86,6 +88,27 @@ final class EC2PrivateKey {
         }
     }
 
+    public String getPublicFingerprint() throws IOException {
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        Reader r = new BufferedReader(new StringReader(privateKey.toString()));
+        PEMReader pem = new PEMReader(r,new PasswordFinder() {
+            public char[] getPassword() {
+                throw PRIVATE_KEY_WITH_PASSWORD;
+            }
+        });
+
+        try {
+            KeyPair pair = (KeyPair) pem.readObject();
+            if(pair==null)  return null;
+            PublicKey key = pair.getPublic();
+            return digestOpt(key,"MD5");
+        } catch (RuntimeException e) {
+            if (e==PRIVATE_KEY_WITH_PASSWORD)
+                throw new IOException("This private key is password protected, which isn't supported yet");
+            throw e;
+        }
+    }
+
     /**
      * Is this file really a private key?
      */
@@ -104,6 +127,7 @@ final class EC2PrivateKey {
      */
     public com.amazonaws.services.ec2.model.KeyPair find(AmazonEC2 ec2) throws IOException, AmazonClientException {
         String fp = getFingerprint();
+        String pfp = getPublicFingerprint();
         for(KeyPairInfo kp : ec2.describeKeyPairs().getKeyPairs()) {
             if(kp.getKeyFingerprint().equalsIgnoreCase(fp)) {
             	com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
@@ -111,6 +135,13 @@ final class EC2PrivateKey {
             	keyPair.setKeyFingerprint(fp);
             	keyPair.setKeyMaterial(Secret.toString(privateKey));
             	return keyPair;
+            }
+            if(kp.getKeyFingerprint().equalsIgnoreCase(pfp)) {
+                com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
+                keyPair.setKeyName(kp.getKeyName());
+                keyPair.setKeyFingerprint(pfp);
+                keyPair.setKeyMaterial(Secret.toString(privateKey));
+                return keyPair;
             }
         }
         return null;
@@ -132,8 +163,12 @@ final class EC2PrivateKey {
     }
 
     /*package*/ static String digest(PrivateKey k) throws IOException {
+        return digestOpt(k,"SHA1");
+    }
+
+    /*package*/ static String digestOpt(Key k, String dg) throws IOException {
         try {
-            MessageDigest md5 = MessageDigest.getInstance("SHA1");
+            MessageDigest md5 = MessageDigest.getInstance(dg);
 
             DigestInputStream in = new DigestInputStream(new ByteArrayInputStream(k.getEncoded()), md5);
             try {
