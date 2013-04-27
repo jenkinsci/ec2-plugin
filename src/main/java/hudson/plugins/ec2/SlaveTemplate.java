@@ -334,6 +334,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     		}
                     		continue;
                     	}
+                    	break;
                     }
 
                     // That was a remote request - we should also update our local instance data.
