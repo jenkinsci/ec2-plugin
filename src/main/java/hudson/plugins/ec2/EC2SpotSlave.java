@@ -8,10 +8,8 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
-import net.sf.json.JSONObject;
-
+import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -25,7 +23,6 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Node;
 import hudson.slaves.NodeProperty;
 import hudson.util.ListBoxModel;
 
@@ -37,6 +34,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 		this(name, spotInstanceRequestId, description, remoteFS, sshPort, numExecutors, mode, initScript, labelString, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, tags, usePrivateDnsName);
 	}
 
+	@DataBoundConstructor
 	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
 
 		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
@@ -125,11 +123,6 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 			this.instanceId = this.getSpotRequest(spotInstanceRequestId).getInstanceId();
 		}
 		return instanceId;
-	}
-
-	@Override
-	public Node reconfigure(StaplerRequest req, JSONObject form) throws FormException {
-		return null;
 	}
 
 	@Extension

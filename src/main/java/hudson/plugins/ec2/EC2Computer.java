@@ -64,6 +64,13 @@ public class EC2Computer extends SlaveComputer {
     	return getNode().getEc2Type();
     }
 
+    public String getSpotInstanceRequestId(){
+    	if(getNode() instanceof EC2SpotSlave){
+    		return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
+    	}
+    	return "";
+    }
+
     /**
      * Gets the EC2 console output.
      */

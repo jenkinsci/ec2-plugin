@@ -26,6 +26,8 @@ package hudson.plugins.ec2;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
+import hudson.model.Hudson;
+import hudson.model.Node;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
 import hudson.slaves.NodeProperty;
@@ -43,9 +45,12 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import net.sf.json.JSONObject;
+
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -206,6 +211,23 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
             return false;
         }
+    }
+
+    @Override
+	public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {
+        if (form == null) {
+            return null;
+        }
+
+        Node result = super.reconfigure(req, form);
+
+        /* Get rid of the old tags, as represented by ourselves. */
+        clearLiveInstancedata();
+
+        /* Set the new tags, as represented by our successor */
+        ((EC2AbstractSlave) result).pushLiveInstancedata();
+
+        return result;
     }
 
     void idleTimeout() {

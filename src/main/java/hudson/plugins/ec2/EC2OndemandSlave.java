@@ -16,6 +16,8 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import net.sf.json.JSONObject;
+
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -23,8 +25,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
-
-import net.sf.json.JSONObject;
 
 /**
  * Slave running on EC2.
@@ -93,21 +93,13 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
             } catch (IOException ioe) {
                 LOGGER.log(Level.WARNING, "Attempt to reconfigure EC2 instance which has been externally terminated: " + getInstanceId(), ioe);
             }
-
+    
             return null;
         }
 
-        Node result = super.reconfigure(req, form);
-
-        /* Get rid of the old tags, as represented by ourselves. */
-        clearLiveInstancedata();
-
-        /* Set the new tags, as represented by our successor */
-        ((EC2OndemandSlave) result).pushLiveInstancedata();
-
-        return result;
+        return super.reconfigure(req, form);
     }
-    
+
     @Extension
     public static final class DescriptorImpl extends SlaveDescriptor {
         @Override
