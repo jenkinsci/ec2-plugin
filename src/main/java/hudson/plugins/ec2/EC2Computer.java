@@ -59,12 +59,17 @@ public class EC2Computer extends SlaveComputer {
         EC2Slave node = (EC2Slave) super.getNode();
 	return node.getInstanceId();
     }
+    
+    public EC2Cloud getCloud() {
+    	EC2Slave node = (EC2Slave) super.getNode();
+    	return node.cloud;
+    }
 
     /**
      * Gets the EC2 console output.
      */
     public String getConsoleOutput() throws AmazonClientException {
-        AmazonEC2 ec2 = EC2Cloud.get().connect();
+        AmazonEC2 ec2 = getCloud().connect();
         GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
         return ec2.getConsoleOutput(request).getOutput();
     }
@@ -139,7 +144,7 @@ public class EC2Computer extends SlaveComputer {
     private Instance _describeInstanceOnce() throws AmazonClientException {
         DescribeInstancesRequest request = new DescribeInstancesRequest();
         request.setInstanceIds(Collections.<String>singletonList(getNode().getInstanceId()));
-        return EC2Cloud.get().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+        return getCloud().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
     }
     
     /**
