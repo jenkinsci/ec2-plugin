@@ -319,7 +319,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (inst_tags != null) {
                     CreateTagsRequest tag_request = new CreateTagsRequest();
                     tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-                    ec2.createTags(tag_request);
+                    
+                    int retries = 0;
+                    
+                    while (retries < 5) {
+                    	try {
+                    		ec2.createTags(tag_request);
+                    	} catch(AmazonClientException e) {
+                    		retries++;
+                    		try {
+                    		    Thread.sleep(1000); // Sleep for one second
+                    		} catch (InterruptedException ie) {
+                    		    Thread.currentThread().interrupt();
+                    		}
+                    		continue;
+                    	}
+                    }
 
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
