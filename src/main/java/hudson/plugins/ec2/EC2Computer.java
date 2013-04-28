@@ -46,18 +46,29 @@ public class EC2Computer extends SlaveComputer {
      */
     private volatile Instance ec2InstanceDescription;
 
-    public EC2Computer(EC2Slave slave) {
+    public EC2Computer(EC2AbstractSlave slave) {
         super(slave);
     }
 
     @Override
-    public EC2Slave getNode() {
-        return (EC2Slave)super.getNode();
+    public EC2AbstractSlave getNode() {
+        return (EC2AbstractSlave)super.getNode();
     }
 
     public String getInstanceId() {
-        EC2Slave node = (EC2Slave) super.getNode();
+        EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
 	return node.getInstanceId();
+    }
+    
+    public String getEc2Type() {
+    	return getNode().getEc2Type();
+    }
+
+    public String getSpotInstanceRequestId(){
+    	if(getNode() instanceof EC2SpotSlave){
+    		return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
+    	}
+    	return "";
     }
 
     /**
