@@ -38,7 +38,15 @@ THE SOFTWARE.
            <input type="hidden" name="name" value="${it.name}" />
         </f:invisibleEntry>
 
+		<f:invisibleEntry>
+           <input type="hidden" name="spotInstanceRequestId" value="${it.spotInstanceRequestId}" />
+        </f:invisibleEntry>
+
         <f:entry title="${%Instance ID}" field="instanceId">
+          <f:readOnlyTextbox />
+        </f:entry>
+        
+        <f:entry title="${%EC2 Type}" field="ec2Type">
           <f:readOnlyTextbox />
         </f:entry>
 

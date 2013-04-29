@@ -63,12 +63,14 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -213,7 +215,7 @@ public abstract class EC2Cloud extends Cloud {
 
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
-        EC2Slave node = t.attach(id,listener);
+        EC2AbstractSlave node = t.attach(id,listener);
         Hudson.getInstance().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
@@ -234,7 +236,7 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         try {
-            EC2Slave node = t.provision(listener);
+            EC2AbstractSlave node = t.provision(listener);
             Hudson.getInstance().addNode(node);
 
             rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
@@ -314,6 +316,26 @@ public abstract class EC2Cloud extends Cloud {
     @Override
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
+            // Count number of pending executors from spot requests
+			for(Node n : Hudson.getInstance().getNodes()){
+				// If the slave is online then it is already counted by Jenkins
+				// We only want to count potential additional Spot instance slaves
+				if (n instanceof EC2SpotSlave && ((EC2SpotSlave) n).getComputer().isOffline()){
+					DescribeSpotInstanceRequestsRequest dsir =
+							new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(((EC2SpotSlave) n).getSpotInstanceRequestId());
+
+					for(SpotInstanceRequest sir : connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests()) {
+						// Count Spot requests that are open and still have a chance to be active
+						// A request can be active and not yet registered as a slave. We check above
+						// to ensure only unregistered slaves get counted
+						if(sir.getState().equals("open") || sir.getState().equals("active")){
+							excessWorkload -= n.getNumExecutors();
+						}
+					}
+				}
+			}
+			LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
+
             List<PlannedNode> r = new ArrayList<PlannedNode>();
 
             final SlaveTemplate t = getTemplate(label);
@@ -330,7 +352,7 @@ public abstract class EC2Cloud extends Cloud {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
                                 try {
-                                    EC2Slave s = t.provision(new StreamTaskListener(System.out));
+                                    EC2AbstractSlave s = t.provision(new StreamTaskListener(System.out));
                                     Hudson.getInstance().addNode(s);
                                     // EC2 instances may have a long init script. If we declare
                                     // the provisioning complete by returning without the connect
