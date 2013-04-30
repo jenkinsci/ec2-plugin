@@ -644,6 +644,101 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			}
 			return FormValidation.error("Not a correct bid price");
 		}
+		
+		// Retrieve the availability zones for the region
+		private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2)  {
+			ArrayList<String> availabilityZones = new ArrayList<String>();
+				
+			DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
+			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
+
+			for (AvailabilityZone z : zoneList) {
+				availabilityZones.add(z.getZoneName());
+			}
+			
+			return availabilityZones;
+		}
+		
+		/* Check the current Spot price of the selected instance type for the selected region */
+		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
+				@QueryParameter String region, @QueryParameter String type,
+				@QueryParameter String zone ) throws IOException, ServletException {
+			
+			String cp = "";
+			String zoneStr = "";
+			
+			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
+			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+
+			if(ec2!=null) {
+
+				try {
+					// Build a new price history request with the currently selected type
+					DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
+					// If a zone is specified, set the availability zone in the request
+					// Else, proceed with no availability zone which will result with the cheapest Spot price
+					if(getAvailabilityZones(ec2).contains(zone)){
+						request.setAvailabilityZone(zone);
+						zoneStr = zone + " availability zone";
+					} else {
+						zoneStr = region + " region";
+					}
+					
+					/*
+					 * Iterate through the AWS instance types to see if can find a match for the databound
+					 * String type. This is necessary because the AWS API needs the instance type
+					 * string formatted a particular way to retrieve prices and the form gives us the strings
+					 * in a different format. For example "T1Micro" vs "t1.micro".
+					 */
+					InstanceType ec2Type = null;
+
+					for(InstanceType it : InstanceType.values()){
+						if (it.name().toString().equals(type)){
+							ec2Type = it;
+							break;
+						}
+					}
+					
+					/*
+					 * If the type string cannot be matched with an instance type,
+					 * throw a Form error
+					 */
+					if(ec2Type == null){
+						return FormValidation.error("Could not resolve instance type: " + type);
+					}
+
+					Collection<String> instanceType = new ArrayList<String>();
+					instanceType.add(ec2Type.toString());
+					request.setInstanceTypes(instanceType);
+					request.setStartTime(new Date());
+
+					// Retrieve the price history request result and store the current price
+					DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
+
+					if(!result.getSpotPriceHistory().isEmpty()){
+						SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
+
+						cp = currentPrice.getSpotPrice();
+					}
+					
+				} catch (AmazonClientException e) {
+					return FormValidation.error(e.getMessage());
+				}
+			}
+			/*
+			 * If we could not return the current price of the instance display an error
+			 * Else, remove the additional zeros from the current price and return it to the interface
+			 * in the form of a message
+			 */
+			if(cp.isEmpty()){
+				return FormValidation.error("Could not retrieve current Spot price");
+			} else {
+				cp = cp.substring(0, cp.length() - 3);
+
+				return FormValidation.ok("The current Spot price for a " + type + 
+						" in the " + zoneStr + " is $" + cp );
+			}
+		}
     }
 }
 
