@@ -72,7 +72,7 @@ public class EC2Computer extends SlaveComputer {
     }
     
     public EC2Cloud	getCloud() {
-    	EC2Slave node = (EC2Slave) super.getNode();
+    	EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
     	return node.cloud;
     }
 
