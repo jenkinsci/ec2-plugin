@@ -30,14 +30,14 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 	private final String spotInstanceRequestId;
 
-	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
-		this(name, spotInstanceRequestId, description, remoteFS, sshPort, numExecutors, mode, initScript, labelString, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, tags, usePrivateDnsName);
+	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, EC2Cloud cloud, boolean usePrivateDnsName) throws FormException, IOException {
+		this(name, spotInstanceRequestId, description, remoteFS, sshPort, numExecutors, mode, initScript, labelString, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, tags, cloud, usePrivateDnsName);
 	}
 
 	@DataBoundConstructor
-	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
+	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, EC2Cloud cloud, boolean usePrivateDnsName) throws FormException, IOException {
 
-		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, usePrivateDnsName);
+		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, cloud, usePrivateDnsName);
 
 		this.name = name;
 		this.spotInstanceRequestId = spotInstanceRequestId;
@@ -52,8 +52,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	@Override
 	public void terminate() {
 		// Cancel the spot request
-		AmazonEC2 ec2 = getEc2Cloud();
-		if (ec2 == null) return;
+		AmazonEC2 ec2 = cloud.connect();
 
 		String instanceId = getInstanceId();
 		List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
@@ -88,20 +87,13 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 	}
 
-	private AmazonEC2 getEc2Cloud(){
-		EC2Cloud cloudInstance = EC2Cloud.get();
-		if (cloudInstance == null) return null;
-		return cloudInstance.connect();
-	}
-
 	/**
 	 * Retrieve the SpotRequest for a requestId
 	 * @param requestId
 	 * @return SpotInstanceRequest object for the requestId, or null
 	 */
 	private SpotInstanceRequest getSpotRequest(String spotRequestId){
-		AmazonEC2 ec2 = getEc2Cloud();
-		if(ec2 == null) return null;
+		AmazonEC2 ec2 = cloud.connect();
 
 		DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(spotRequestId);
 		DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);

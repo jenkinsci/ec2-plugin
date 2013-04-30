@@ -61,7 +61,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                     case RUNNING:
                         break OUTER;
                     case STOPPED:
-                    	AmazonEC2 ec2 = EC2Cloud.get().connect();
+                    	AmazonEC2 ec2 = computer.getCloud().connect();
                         List<String> instances = new ArrayList<String>();
                         instances.add(computer.getInstanceId());
 
