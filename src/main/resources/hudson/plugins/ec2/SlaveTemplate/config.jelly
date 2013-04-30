@@ -53,6 +53,8 @@ THE SOFTWARE.
     <f:description>Slaves designated as Spot slaves will initially show up as disconnected. The state
     will change to connecting when a Spot request has been fulfilled. </f:description>
     
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="accessId,secretKey,region,type,zone" />
+    
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
     </f:entry>
