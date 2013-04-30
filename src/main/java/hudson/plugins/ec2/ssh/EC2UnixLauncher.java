@@ -83,7 +83,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             else {
                 // connect fresh as ROOT
                 cleanupConn = connectToSsh(computer, logger);
-                KeyPair key = EC2Cloud.get().getKeyPair();
+                KeyPair key = computer.getCloud().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logger.println("Authentication failed");
                     return; // failed to connect as root.
@@ -125,7 +125,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 String jdk = "java1.6.0_12";
                 String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
 
-                URL url = EC2Cloud.get().buildPresignedURL(path);
+                URL url = computer.getCloud().buildPresignedURL(path);
                 if(conn.exec("wget -nv -O /tmp/" + jdk + ".tgz '" + url + "'", logger) !=0) {
                     logger.println("Failed to download Java");
                     return;
@@ -173,7 +173,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         try {
             int tries = 20;
             boolean isAuthenticated = false;
-            KeyPair key = EC2Cloud.get().getKeyPair();
+            KeyPair key = computer.getCloud().getKeyPair();
             while (tries-- > 0) {
                 logger.println("Authenticating as " + computer.getRemoteAdmin());
                 isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
