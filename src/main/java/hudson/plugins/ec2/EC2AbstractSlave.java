@@ -75,6 +75,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
     public List<EC2Tag> tags;
+    public EC2Cloud cloud;
 
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
@@ -99,7 +100,7 @@ public abstract class EC2AbstractSlave extends Slave {
     
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, boolean usePrivateDnsName) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, EC2Cloud cloud, boolean usePrivateDnsName) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -112,6 +113,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
+        this.cloud = cloud;
         this.usePrivateDnsName = usePrivateDnsName;
     }
 
@@ -164,13 +166,12 @@ public abstract class EC2AbstractSlave extends Slave {
         return new EC2Computer(this);
     }
 
-    public static Instance getInstance(String instanceId) {
+    public static Instance getInstance(String instanceId, EC2Cloud cloud) {
         DescribeInstancesRequest request = new DescribeInstancesRequest();
     	request.setInstanceIds(Collections.<String>singletonList(instanceId));
-        EC2Cloud cloudInstance = EC2Cloud.get();
-        if (cloudInstance == null)
+        if (cloud == null)
         	return null;
-        AmazonEC2 ec2 = cloudInstance.connect();
+        AmazonEC2 ec2 = cloud.connect();
     	List<Reservation> reservations = ec2.describeInstances(request).getReservations();
         Instance i = null;
     	if (reservations.size() > 0) {
@@ -188,21 +189,21 @@ public abstract class EC2AbstractSlave extends Slave {
     
     void stop() {
         try {
-            AmazonEC2 ec2 = EC2Cloud.get().connect();
+            AmazonEC2 ec2 = cloud.connect();
             StopInstancesRequest request = new StopInstancesRequest(
                     Collections.singletonList(getInstanceId()));
             ec2.stopInstances(request);
             LOGGER.info("EC2 instance stopped: " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
-            Instance i = getInstance(getInstanceId());
+            Instance i = getInstance(getInstanceId(), cloud);
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
         }
     }
 
     boolean terminateInstance() {
         try {
-            AmazonEC2 ec2 = EC2Cloud.get().connect();
+            AmazonEC2 ec2 = cloud.connect();
             TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
             ec2.terminateInstances(request);
             LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
@@ -280,7 +281,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        Instance i = getInstance(getInstanceId());
+        Instance i = getInstance(getInstanceId(), cloud);
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -298,7 +299,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
     protected void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId());
+        Instance inst = getInstance(getInstanceId(), cloud);
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -310,14 +311,14 @@ public abstract class EC2AbstractSlave extends Slave {
 
             DeleteTagsRequest tag_request = new DeleteTagsRequest();
             tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            EC2Cloud.get().connect().deleteTags(tag_request);
+            cloud.connect().deleteTags(tag_request);
         }
     }
 
 
     /* Sets tags on an instance.  This will not clear existing tag data, so call clearLiveInstancedata if needed */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId());
+        Instance inst = getInstance(getInstanceId(), cloud);
 
         /* Now that we have our instance, we can set tags on it */
         if (tags != null && !tags.isEmpty()) {
@@ -329,7 +330,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
             CreateTagsRequest tag_request = new CreateTagsRequest();
             tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            EC2Cloud.get().connect().createTags(tag_request);
+            cloud.connect().createTags(tag_request);
         }
     }
     
