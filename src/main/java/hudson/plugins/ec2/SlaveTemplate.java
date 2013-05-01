@@ -543,17 +543,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 	
-	/**
-	 * In releases of this plugin prior to 1.18, template-specific instance caps could be configured
-	 * but were not enforced. As a result, it was possible to have the instance cap for a template
-	 * be configured to 0 (zero) with no ill effects. Starting with version 1.18, template-specific
-	 * instance caps are enforced, so if a configuration has a cap of zero for a template, no instances
-	 * will be launched from that template. Since there is no practical value of intentionally setting
-	 * the cap to zero, this block will override such a setting to a value that means 'no cap'.
-	 */
-	if (this.instanceCap == 0) {
-	    this.instanceCap = Integer.MAX_VALUE;
-	}
+        /**
+         * In releases of this plugin prior to 1.18, template-specific instance caps could be configured
+         * but were not enforced. As a result, it was possible to have the instance cap for a template
+         * be configured to 0 (zero) with no ill effects. Starting with version 1.18, template-specific
+         * instance caps are enforced, so if a configuration has a cap of zero for a template, no instances
+         * will be launched from that template. Since there is no practical value of intentionally setting
+         * the cap to zero, this block will override such a setting to a value that means 'no cap'.
+         */
+        if (instanceCap == 0) {
+        	instanceCap = Integer.MAX_VALUE;
+        }
 
         return this;
     }

@@ -65,7 +65,7 @@ public class EC2Computer extends SlaveComputer {
     }
 
     public String getSpotInstanceRequestId(){
-    	if(getNode() instanceof EC2SpotSlave){
+    	if(getNode() instanceof EC2SpotSlave) {
     		return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
     	}
     	return "";

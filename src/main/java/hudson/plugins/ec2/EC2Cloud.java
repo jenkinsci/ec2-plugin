@@ -160,9 +160,11 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     public SlaveTemplate getTemplate(String template) {
-        for (SlaveTemplate t : templates)
-            if(t.description.equals(template))
+        for (SlaveTemplate t : templates) {
+            if(t.description.equals(template)) {
                 return t;
+            }
+        }
         return null;
     }
 
@@ -170,9 +172,11 @@ public abstract class EC2Cloud extends Cloud {
      * Gets {@link SlaveTemplate} that has the matching {@link Label}.
      */
     public SlaveTemplate getTemplate(Label label) {
-        for (SlaveTemplate t : templates)
-        	if(label == null || label.matches(t.getLabelSet()))
+        for (SlaveTemplate t : templates) {
+        	if(label == null || label.matches(t.getLabelSet())) {
                 return t;
+        	}
+        }
         return null;
     }
 
@@ -426,7 +430,7 @@ public abstract class EC2Cloud extends Cloud {
             ec2HostName = DEFAULT_EC2_HOST;
         if (!ec2HostName.contains("."))
             ec2HostName = ec2HostName + "." + EC2_URL_HOST;
-	return ec2HostName;
+        return ec2HostName;
     }
 
     /***
@@ -436,8 +440,7 @@ public abstract class EC2Cloud extends Cloud {
     public static Integer convertPort(String ec2Port) {
         if (ec2Port == null || ec2Port.length() == 0)
             return -1;
-        else
-            return Integer.parseInt(ec2Port);
+        return Integer.parseInt(ec2Port);
     }
 
     /**
@@ -521,8 +524,8 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, String accessId, String secretKey
-        ) throws IOException, ServletException {
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, String accessId, String secretKey)
+        		throws IOException, ServletException {
             try {
                 AmazonEC2 ec2 = connect(accessId, secretKey, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
@@ -554,16 +557,4 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
-
-    private static boolean isSSL(URL endpoint) {
-        return endpoint.getProtocol().equals("https");
-    }
-
-    private static int portFromURL(URL endpoint) {
-        int ec2Port = endpoint.getPort();
-        if (ec2Port == -1) {
-            ec2Port = endpoint.getDefaultPort();
-        }
-        return ec2Port;
-    }
 }

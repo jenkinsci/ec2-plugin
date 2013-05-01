@@ -26,7 +26,6 @@ package hudson.plugins.ec2;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
-import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
@@ -232,13 +231,12 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     void idleTimeout() {
-	LOGGER.info("EC2 instance idle time expired: "+getInstanceId());
-	if (!stopOnTerminate) {
-	    terminate();
-	}
-	else {
-	    stop();
-	}
+    	LOGGER.info("EC2 instance idle time expired: "+getInstanceId());
+    	if (!stopOnTerminate) {
+    		terminate();
+    	} else {
+    		stop();
+    	}
     }
 
     String getRemoteAdmin() {
@@ -267,8 +265,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     protected boolean isAlive(boolean force) {
         fetchLiveInstanceData(force);
-        if (lastFetchInstance == null) return false;
-        if (lastFetchInstance.getState().getName().equals(InstanceStateName.Terminated.toString())) return false;
+        if (lastFetchInstance == null) 
+        	return false;
+        if (lastFetchInstance.getState().getName().equals(InstanceStateName.Terminated.toString())) 
+        	return false;
         return true;
     }
 

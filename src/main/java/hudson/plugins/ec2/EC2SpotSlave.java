@@ -121,7 +121,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	public static final class DescriptorImpl extends SlaveDescriptor {
 		@Override
 		public String getDisplayName() {
-			return "Amazon EC2 Spot Instance";
+			return Messages.EC2SpotSlave_AmazonEC2SpotInstance();
 		}
 
 		@Override
@@ -141,7 +141,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	@Override
 	public String getEc2Type() {
 		String spotMaxBidPrice = this.getSpotRequest(spotInstanceRequestId).getSpotPrice();
-		return "Spot - $" + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3) + " max bid price";
+		return Messages.EC2SpotSlave_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3) + Messages.EC2SpotSlave_Spot2();
 	}
 
 

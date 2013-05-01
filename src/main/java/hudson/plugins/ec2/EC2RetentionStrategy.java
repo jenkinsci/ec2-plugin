@@ -62,7 +62,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 	public synchronized long check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
-        if  (idleTerminationMinutes == 0) return 1;
+        if  (idleTerminationMinutes == 0)
+        	return 1;
         final long idleMilliseconds1 = System.currentTimeMillis() - c.getIdleStartMilliseconds();
         System.out.println(c.getName() + " idle: " + idleMilliseconds1);
         

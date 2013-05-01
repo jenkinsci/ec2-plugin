@@ -104,7 +104,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
     public static final class DescriptorImpl extends SlaveDescriptor {
         @Override
 		public String getDisplayName() {
-            return "Amazon EC2";
+			return Messages.EC2OndemandSlave_AmazonEC2();
         }
 
         @Override
@@ -123,6 +123,6 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
 
 	@Override
 	public String getEc2Type() {
-		return "On Demand";
+		return Messages.EC2OndemandSlave_OnDemand();
 	}
 }

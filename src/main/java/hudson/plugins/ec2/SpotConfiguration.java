@@ -12,7 +12,7 @@ public final class SpotConfiguration {
 
 	@Override
 	public boolean equals(Object obj) {
-		if(obj == null || (this.getClass() != obj.getClass())){
+		if(obj == null || (this.getClass() != obj.getClass())) {
 			return false;
 		}
 		final SpotConfiguration config = (SpotConfiguration) obj;
@@ -32,7 +32,7 @@ public final class SpotConfiguration {
 			Float spotPrice = Float.parseFloat(bid);
 
 			/* The specified bid price cannot be less than 0.001 */
-			if(spotPrice < 0.001){
+			if(spotPrice < 0.001) {
 				return null;
 			}
 			return spotPrice.toString();
