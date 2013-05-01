@@ -386,13 +386,6 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Gets the first {@link EC2Cloud} instance configured in the current Hudson, or null if no such thing exists.
-     */
-    public static EC2Cloud get() {
-        return Hudson.getInstance().clouds.get(EC2Cloud.class);
-    }
-
-    /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
     public synchronized AmazonEC2 connect() throws AmazonClientException {
