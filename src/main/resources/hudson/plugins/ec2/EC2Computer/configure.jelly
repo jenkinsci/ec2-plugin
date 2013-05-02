@@ -53,6 +53,10 @@ THE SOFTWARE.
         <f:entry title="${%EC2 Type}" field="ec2Type">
           <f:readOnlyTextbox />
         </f:entry>
+        
+        <f:entry title="${%Uptime}">
+          <f:readOnlyTextbox value="${it.uptimeString}"/>
+        </f:entry>
 
         <f:entry title="${%Public DNS}" field="publicDNS">
           <f:readOnlyTextbox />
