@@ -1,13 +1,16 @@
 package hudson.plugins.ec2;
 
 import org.kohsuke.stapler.DataBoundConstructor;
+import com.amazonaws.services.ec2.model.SpotInstanceType;
 
 public final class SpotConfiguration {
 	public final String spotMaxBidPrice;
+	public final String spotInstanceBidType;
 	
 	@DataBoundConstructor
-	public SpotConfiguration(String spotMaxBidPrice) {
+	public SpotConfiguration(String spotMaxBidPrice, String bidType) {
 		this.spotMaxBidPrice = spotMaxBidPrice;
+		this.spotInstanceBidType = bidType;
 	}
 
 	@Override
@@ -17,7 +20,8 @@ public final class SpotConfiguration {
 		}
 		final SpotConfiguration config = (SpotConfiguration) obj;
 
-		return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
+		return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice)) &&
+				this.spotInstanceBidType.equals(config.spotInstanceBidType);
 	}
 
 	/**
