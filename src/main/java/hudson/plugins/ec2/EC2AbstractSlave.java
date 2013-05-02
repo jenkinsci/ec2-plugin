@@ -23,9 +23,9 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.Extension;
 import hudson.Util;
 import hudson.model.Computer;
+import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
@@ -99,7 +99,7 @@ public abstract class EC2AbstractSlave extends Slave {
     
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, EC2Cloud cloud, boolean usePrivateDnsName) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -112,22 +112,21 @@ public abstract class EC2AbstractSlave extends Slave {
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
-        this.cloud = cloud;
         this.usePrivateDnsName = usePrivateDnsName;
+        cloud = (EC2Cloud) Hudson.getInstance().getCloud(cloudName);
     }
 
     protected Object readResolve() {
-	/*
-	 * If instanceId is null, this object was deserialized from an old
-	 * version of the plugin, where this field did not exist (prior to
-	 * version 1.18). In those versions, the node name *was* the instance
-	 * ID, so we can get it from there.
-	 */
-	if (instanceId == null) {
-	    instanceId = getNodeName();
-	}
-
-	return this;
+    	/*
+    	 * If instanceId is null, this object was deserialized from an old
+    	 * version of the plugin, where this field did not exist (prior to
+    	 * version 1.18). In those versions, the node name *was* the instance
+    	 * ID, so we can get it from there.
+    	 */
+    	if (instanceId == null) {
+    		instanceId = getNodeName();
+    	}
+    	return this;
     }
 
     /**
@@ -219,14 +218,13 @@ public abstract class EC2AbstractSlave extends Slave {
             return null;
         }
 
-        Node result = super.reconfigure(req, form);
+        EC2AbstractSlave result = (EC2AbstractSlave) super.reconfigure(req, form);
 
         /* Get rid of the old tags, as represented by ourselves. */
         clearLiveInstancedata();
 
         /* Set the new tags, as represented by our successor */
-        ((EC2AbstractSlave) result).pushLiveInstancedata();
-
+        result.pushLiveInstancedata();
         return result;
     }
 
@@ -376,25 +374,23 @@ public abstract class EC2AbstractSlave extends Slave {
      * Used to determine if the slave is On Demand or Spot 
      */
     abstract public String getEc2Type();
+    
+	public static abstract class DescriptorImpl extends SlaveDescriptor {
+	    
+    	@Override
+		public abstract String getDisplayName();
 
-    @Extension
-    public static final class DescriptorImpl extends SlaveDescriptor {
-        @Override
-		public String getDisplayName() {
-            return "Amazon EC2";
-        }
+		@Override
+		public boolean isInstantiable() {
+			return false;
+		}
 
-        @Override
-        public boolean isInstantiable() {
-            return false;
-        }
-
-        public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
-        		@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-    			ServletException {
-        	return fillZoneItems(accessId, secretKey, region);
-    	}
-    }
+		public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
+				@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
+				ServletException {
+			return fillZoneItems(accessId, secretKey, region);
+		}
+	}
 
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 }

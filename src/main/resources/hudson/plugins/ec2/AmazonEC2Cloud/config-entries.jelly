@@ -28,7 +28,8 @@ THE SOFTWARE.
   <f:entry title="${%Secret Access Key}" field="secretKey">
     <f:password />
   </f:entry>
-  <f:description>The regions will be populated once the keys above are entered.
+  <f:description>The regions will be populated once the keys above are entered. Since at most one cloud can be defined per
+  region, region names which are associated with other clouds are not shown here.
   </f:description>
   <f:entry title="${%Region}" field="region">
     <f:select/>

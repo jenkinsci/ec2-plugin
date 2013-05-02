@@ -455,11 +455,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     private EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent, usePrivateDnsName);
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName);
     }
 
     private EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent, usePrivateDnsName);
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName);
     }
 
     /**
@@ -575,7 +575,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         @Override
         public String getHelpFile(String fieldName) {
             String p = super.getHelpFile(fieldName);
-            if (p==null)        p = Hudson.getInstance().getDescriptor(EC2AbstractSlave.class).getHelpFile(fieldName);
+            if (p==null)
+            	p = Hudson.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
+            if (p==null)
+            	p = Hudson.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
             return p;
         }
 
@@ -598,11 +601,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     request.setOwners(owners);
                     request.setExecutableUsers(users);
                     List<Image> img = ec2.describeImages(request).getImages();
-                    if(img==null || img.isEmpty())
+                    if(img==null || img.isEmpty()) {
                         // de-registered AMI causes an empty list to be returned. so be defensive
                         // against other possibilities
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
-                    return FormValidation.ok(img.get(0).getImageLocation()+" by "+img.get(0).getImageOwnerAlias());
+                    }
+                    String ownerAlias = img.get(0).getImageOwnerAlias();
+                    return FormValidation.ok(img.get(0).getImageLocation() + 
+                    		(ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
                     return FormValidation.error(e.getMessage());
                 }

@@ -24,16 +24,21 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
+import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import javax.servlet.ServletException;
+
+import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -55,13 +60,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
      */
     private String region;
 
+    public static final String CLOUD_ID_PREFIX = "ec2-";
+    
     // Used when running unit tests
     public static boolean testMode;
     
     
     @DataBoundConstructor
     public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
-        super("ec2-"+region, accessId, secretKey, privateKey, instanceCapStr, templates);
+        super(CLOUD_ID_PREFIX + region, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
     }
 
@@ -105,7 +112,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
         }
 
 		public ListBoxModel doFillRegionItems(@QueryParameter String accessId,
-				@QueryParameter String secretKey) throws IOException,
+				@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
 				ServletException {
 			ListBoxModel model = new ListBoxModel();
 			if (testMode) {
@@ -114,12 +121,21 @@ public class AmazonEC2Cloud extends EC2Cloud {
 			}
 				
 			if (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey)) {
+				int prefixLen = CLOUD_ID_PREFIX.length();
+				Set<String> cloudRegions = new HashSet<String>();
+				for (Cloud c : Jenkins.getInstance().clouds) {
+					cloudRegions.add(c.name.substring(prefixLen));
+				}
+				
 				AmazonEC2 client = connect(accessId, secretKey, new URL(
 						"http://ec2.amazonaws.com"));
 				DescribeRegionsResult regions = client.describeRegions();
 				List<Region> regionList = regions.getRegions();
 				for (Region r : regionList) {
-					model.add(r.getRegionName(), r.getRegionName());
+					String name = r.getRegionName();
+					if ((region == null || !region.equals(name)) && cloudRegions.contains(name))
+						continue;
+					model.add(name, name);
 				}
 			}
 			return model;

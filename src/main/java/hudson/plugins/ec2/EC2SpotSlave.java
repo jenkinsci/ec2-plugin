@@ -6,10 +6,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.servlet.ServletException;
-
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -24,20 +21,19 @@ import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
 import hudson.slaves.NodeProperty;
-import hudson.util.ListBoxModel;
 
 public final class EC2SpotSlave extends EC2AbstractSlave {
 
 	private final String spotInstanceRequestId;
 
-	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, EC2Cloud cloud, boolean usePrivateDnsName) throws FormException, IOException {
-		this(name, spotInstanceRequestId, description, remoteFS, sshPort, numExecutors, mode, initScript, labelString, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, tags, cloud, usePrivateDnsName);
+	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName) throws FormException, IOException {
+		this(name, spotInstanceRequestId, description, remoteFS, sshPort, numExecutors, mode, initScript, labelString, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName);
 	}
 
 	@DataBoundConstructor
-	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, EC2Cloud cloud, boolean usePrivateDnsName) throws FormException, IOException {
+	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName) throws FormException, IOException {
 
-		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, cloud, usePrivateDnsName);
+		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName);
 
 		this.name = name;
 		this.spotInstanceRequestId = spotInstanceRequestId;
@@ -111,28 +107,20 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 	@Override
 	public String getInstanceId() {
-		if (instanceId == null || instanceId.equals("")){
-			this.instanceId = this.getSpotRequest(spotInstanceRequestId).getInstanceId();
+		if (instanceId == null || instanceId.equals("")) {
+			SpotInstanceRequest sr = getSpotRequest(spotInstanceRequestId);
+			if (sr != null)
+				instanceId = sr.getInstanceId();
 		}
 		return instanceId;
 	}
 
 	@Extension
-	public static final class DescriptorImpl extends SlaveDescriptor {
+	public static final class DescriptorImpl extends EC2AbstractSlave.DescriptorImpl {
+		
 		@Override
 		public String getDisplayName() {
 			return Messages.EC2SpotSlave_AmazonEC2SpotInstance();
-		}
-
-		@Override
-		public boolean isInstantiable() {
-			return false;
-		}
-
-		public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
-				@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-				ServletException {
-			return fillZoneItems(accessId, secretKey, region);
 		}
 	}
 
