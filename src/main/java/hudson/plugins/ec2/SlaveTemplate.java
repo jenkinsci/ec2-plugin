@@ -81,7 +81,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
-
+    
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
@@ -120,11 +120,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         readResolve(); // initialize
     }
-
+    
     public EC2Cloud getParent() {
         return parent;
     }
-
+    
     public String getBidType(){
     	if(spotConfig == null)
     		return null;
@@ -199,7 +199,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getidleTerminationMinutes() {
         return idleTerminationMinutes;
     }
-
+    
     public Set<LabelAtom> getLabelSet(){
         return labelSet;
     }
@@ -237,8 +237,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return l==null || labelSet.contains(l);
     }
 
-
-
+    
+    
     /**
      * Provisions a new EC2 slave.
      *
@@ -250,7 +250,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     	}
     	return provisionOndemand(listener);
     }
-
+    
     /**
      * Provisions new On-demand EC2 slave.
      */
@@ -261,12 +261,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             logger.println("Launching " + ami + " for template " + description);
             KeyPair keyPair = getKeyPair(ec2);
-
+           
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
-
+            
             if (StringUtils.isNotBlank(getZone())) {
             	Placement placement = new Placement(getZone());
             	riRequest.setPlacement(placement);
@@ -309,9 +309,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
                 }
             }
-
+            
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
-            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(),
+            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), 
             		InstanceStateName.Stopping.toString()));
             diRequest.setFilters(diFilters);
             logger.println("Looking for existing instances: "+diRequest);
@@ -331,7 +331,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 logger.println("No existing instance found - created: "+inst);
                 return newOndemandSlave(inst);
             }
-
+            	
             Instance inst = diResult.getReservations().get(0).getInstances().get(0);
             logger.println("Found existing stopped instance: "+inst);
             List<String> instances = new ArrayList<String>();
@@ -350,16 +350,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             		return ec2Node;
             	}
             }
-
-            // Existing slave not found
+            
+            // Existing slave not found 
             logger.println("Creating new slave for existing instance: "+inst);
             return newOndemandSlave(inst);
-
+            
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
     }
-
+    
     /**
 	 * Provision a new slave for an EC2 spot instance to call back to Jenkins
 	 */
@@ -557,7 +557,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     protected Object readResolve() {
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
-
+	
         /**
          * In releases of this plugin prior to 1.18, template-specific instance caps could be configured
          * but were not enforced. As a result, it was possible to have the instance cap for a template
@@ -622,7 +622,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
                     }
                     String ownerAlias = img.get(0).getImageOwnerAlias();
-                    return FormValidation.ok(img.get(0).getImageLocation() +
+                    return FormValidation.ok(img.get(0).getImageLocation() + 
                     		(ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
                     return FormValidation.error(e.getMessage());
@@ -649,7 +649,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch ( NumberFormatException nfe ) {}
             return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
         }
-
+        
         public ListBoxModel doFillZoneItems( @QueryParameter String accessId,
                                              @QueryParameter String secretKey,
                                              @QueryParameter String region)
@@ -665,21 +665,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			}
 			return FormValidation.error("Not a correct bid price");
 		}
-
+		
 		// Retrieve the availability zones for the region
 		private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2)  {
 			ArrayList<String> availabilityZones = new ArrayList<String>();
-
+				
 			DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
 			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
 
 			for (AvailabilityZone z : zoneList) {
 				availabilityZones.add(z.getZoneName());
 			}
-
+			
 			return availabilityZones;
 		}
-
+		
 		/**
 		* Populates the Bid Type Drop down on the slave template config.
 		* @return
@@ -688,17 +688,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			ListBoxModel items = new ListBoxModel();
 			items.add(SpotInstanceType.OneTime.toString());
 			items.add(SpotInstanceType.Persistent.toString());
-			return items;
+			return items;      
 		}
-
+		
 		/* Check the current Spot price of the selected instance type for the selected region */
 		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
 				@QueryParameter String region, @QueryParameter String type,
 				@QueryParameter String zone ) throws IOException, ServletException {
-
+			
 			String cp = "";
 			String zoneStr = "";
-
+			
 			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
 			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
@@ -715,7 +715,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					} else {
 						zoneStr = region + " region";
 					}
-
+					
 					/*
 					 * Iterate through the AWS instance types to see if can find a match for the databound
 					 * String type. This is necessary because the AWS API needs the instance type
@@ -730,7 +730,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 							break;
 						}
 					}
-
+					
 					/*
 					 * If the type string cannot be matched with an instance type,
 					 * throw a Form error
@@ -752,7 +752,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 						cp = currentPrice.getSpotPrice();
 					}
-
+					
 				} catch (AmazonClientException e) {
 					return FormValidation.error(e.getMessage());
 				}
@@ -767,7 +767,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			} else {
 				cp = cp.substring(0, cp.length() - 3);
 
-				return FormValidation.ok("The current Spot price for a " + type +
+				return FormValidation.ok("The current Spot price for a " + type + 
 						" in the " + zoneStr + " is $" + cp );
 			}
 		}
