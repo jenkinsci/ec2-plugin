@@ -75,6 +75,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String jvmopts;
     public final String subnetId;
     public final String idleTerminationMinutes;
+    public final String iamInstanceProfile;
     public int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
@@ -86,7 +87,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -114,7 +115,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
         }
-        
+
+        this.iamInstanceProfile = iamInstanceProfile;
+
         readResolve(); // initialize
     }
     
@@ -218,6 +221,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     		return null;
     	return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
 	}
+    
+    public String getIamInstanceProfile() {
+        return iamInstanceProfile;
+    }
 
 
     /**
@@ -292,7 +299,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
             riRequest.setInstanceType(type.toString());
             diFilters.add(new Filter("instance-type").withValues(type.toString()));
-            
+
             HashSet<Tag> inst_tags = null;
             if (tags != null && !tags.isEmpty()) {
                 inst_tags = new HashSet<Tag>();
@@ -309,7 +316,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logger.println("Looking for existing instances: "+diRequest);
 
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
-            if (diResult.getReservations().size() == 0) {
+
+            Instance existingInstance = null;
+            if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+                riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+                // cannot filter on IAM Instance Profile, so search in result
+                reservationLoop:
+                for (Reservation reservation : diResult.getReservations()) {
+                    for (Instance instance : reservation.getInstances()) {
+                        if (instance.getIamInstanceProfile() != null && instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
+                            existingInstance = instance;
+                            break reservationLoop;
+                        }
+                    }
+                }
+            } else if (diResult.getReservations().size() > 0) {
+                existingInstance = diResult.getReservations().get(0).getInstances().get(0);
+            }
+
+            if (existingInstance == null) {
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
@@ -324,28 +349,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return newOndemandSlave(inst);
             }
             	
-            Instance inst = diResult.getReservations().get(0).getInstances().get(0);
-            logger.println("Found existing stopped instance: "+inst);
+            logger.println("Found existing stopped instance: "+existingInstance);
             List<String> instances = new ArrayList<String>();
-            instances.add(inst.getInstanceId());
+            instances.add(existingInstance.getInstanceId());
             StartInstancesRequest siRequest = new StartInstancesRequest(instances);
             StartInstancesResult siResult = ec2.startInstances(siRequest);
-            logger.println("Starting existing instance: "+inst+ " result:"+siResult);
+            logger.println("Starting existing instance: "+existingInstance+ " result:"+siResult);
 
             List<Node> nodes = Hudson.getInstance().getNodes();
             for (int i = 0, len = nodes.size(); i < len; i++) {
             	if (!(nodes.get(i) instanceof EC2AbstractSlave))
             		continue;
             	EC2AbstractSlave ec2Node = (EC2AbstractSlave) nodes.get(i);
-            	if (ec2Node.getInstanceId().equals(inst.getInstanceId())) {
+            	if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
                     logger.println("Found existing corresponding: "+ec2Node);
             		return ec2Node;
             	}
             }
             
             // Existing slave not found 
-            logger.println("Creating new slave for existing instance: "+inst);
-            return newOndemandSlave(inst);
+            logger.println("Creating new slave for existing instance: "+existingInstance);
+            return newOndemandSlave(existingInstance);
             
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
