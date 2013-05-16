@@ -134,7 +134,7 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
-    <f:entry title="${%IAM Role}" field="iamRole">
+    <f:entry title="${%IAM Instance Profile}" field="iamInstanceProfile">
       <f:textbox />
     </f:entry>
   </f:advanced>

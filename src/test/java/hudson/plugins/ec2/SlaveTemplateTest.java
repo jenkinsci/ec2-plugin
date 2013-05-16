@@ -139,7 +139,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamRole");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -149,7 +149,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,iamRole");
+        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,iamInstanceProfile");
     }
 
 }
