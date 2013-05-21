@@ -8,7 +8,7 @@ fi
 echo "Updating package list"
 sudo apt-get update
 echo "Installing dependencies"
-sudo apt-get install openjdk-7-jre wget python -y
+sudo apt-get install wget python -y
 
 echo "Downloading boot script"
 sudo wget http://$1/plugin/ec2/AMI-Scripts/ubuntu-init.py -O /usr/bin/userdata
