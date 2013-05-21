@@ -4,7 +4,7 @@ import httplib
 import string
 
 # To install run:
-# sudo wget https://raw.github.com/bwall/ec2-plugin/master/AMI-Scripts/ubuntu-init.py -O /usr/bin/userdata
+# sudo wget http://$JENKINS_URL/plugin/ec2/AMI-Scripts/ubuntu-init.py -O /usr/bin/userdata
 # sudo chmod +x /etc/init.d/userdata
 # add the following line to /etc/rc.local "python /usr/bin/userdata"
 
