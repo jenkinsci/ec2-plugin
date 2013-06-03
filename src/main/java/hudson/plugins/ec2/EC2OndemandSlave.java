@@ -40,7 +40,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
     @DataBoundConstructor
     public EC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName) throws FormException, IOException {	
     	
-        super(name, instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName);
+        super(name, instanceId, description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, usePrivateDnsName);
 
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
