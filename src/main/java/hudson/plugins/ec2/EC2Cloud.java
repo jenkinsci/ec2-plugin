@@ -345,7 +345,7 @@ public abstract class EC2Cloud extends Cloud {
             final SlaveTemplate t = getTemplate(label);
             int amiCap = t.getInstanceCap();
 
-            for( ; excessWorkload>0; excessWorkload-- ) {
+            while (excessWorkload>0) {
 
                 if (!addProvisionedSlave(t.ami, amiCap)) {
                     break;
@@ -376,6 +376,9 @@ public abstract class EC2Cloud extends Cloud {
                             }
                         })
                         ,t.getNumExecutors()));
+
+                excessWorkload -= t.getNumExecutors();
+
             }
             return r;
         } catch (AmazonClientException e) {
