@@ -76,6 +76,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String subnetId;
     public final String idleTerminationMinutes;
     public final String iamInstanceProfile;
+    public final boolean useEphemeralStorages;
     public int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
@@ -87,7 +88,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralStorages) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -117,6 +118,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
+        this.useEphemeralStorages = useEphemeralStorages;
 
         readResolve(); // initialize
     }
@@ -264,6 +266,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
            
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
+            setupDeviceMapping(riRequest);
+
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
             
@@ -375,7 +379,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
     }
-    
+
+    private void setupDeviceMapping(RunInstancesRequest riRequest) {
+
+        if (!useEphemeralStorages) return;
+
+        riRequest.withBlockDeviceMappings(
+                new BlockDeviceMapping().withDeviceName("/dev/xvdb").withVirtualName("ephemeral0"),
+                new BlockDeviceMapping().withDeviceName("/dev/xvdc").withVirtualName("ephemeral1"),
+                new BlockDeviceMapping().withDeviceName("/dev/xvdd").withVirtualName("ephemeral2"),
+                new BlockDeviceMapping().withDeviceName("/dev/xvde").withVirtualName("ephemeral3")
+        );
+    }
+
     /**
 	 * Provision a new slave for an EC2 spot instance to call back to Jenkins
 	 */
