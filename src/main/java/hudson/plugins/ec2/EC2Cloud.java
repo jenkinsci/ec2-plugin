@@ -34,7 +34,6 @@ import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 
-import java.lang.Math;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -245,8 +244,8 @@ public abstract class EC2Cloud extends Cloud {
 
             rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
         } catch (AmazonClientException e) {
-            e.printStackTrace(listener.error(e.getMessage()));
-            sendError(sw.toString(),req,rsp);
+            req.setAttribute("exception", e);
+            sendError(e.getMessage(),req,rsp);
         }
     }
 
