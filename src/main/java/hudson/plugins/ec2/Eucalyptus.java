@@ -197,7 +197,7 @@ public class Eucalyptus extends EC2Cloud {
             Element e = (Element)metadata.selectSingleNode("//Service[Name/text()='" + serviceName + "']/EndpointUrl");
             if (e==null)
                 throw new IllegalStateException("Service metadata didn't contain "+serviceName);
-            return new URL(e.getTextTrim());
+            return new URL(e.getTextTrim()+"/");
         }
     }
 }
