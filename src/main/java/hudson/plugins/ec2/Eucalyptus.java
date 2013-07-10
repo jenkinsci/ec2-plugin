@@ -75,7 +75,7 @@ public class Eucalyptus extends EC2Cloud {
     public URL getEc2EndpointUrl() throws IOException {
         return this.ec2endpoint;
     }
-
+    
     @Override
     public URL getS3EndpointUrl() throws IOException {
         return this.s3endpoint;
