@@ -418,7 +418,7 @@ public abstract class EC2Cloud extends Cloud {
      * Connect to an EC2 instance.
      * @return {@link AmazonEC2} client
      */
-    public static AmazonEC2 connect(String accessId, Secret secretKey, URL endpoint) {
+    public synchronized static AmazonEC2 connect(String accessId, Secret secretKey, URL endpoint) {
     	awsCredentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
         AmazonEC2 client = new AmazonEC2Client(awsCredentials);
         client.setEndpoint(endpoint.toString());
