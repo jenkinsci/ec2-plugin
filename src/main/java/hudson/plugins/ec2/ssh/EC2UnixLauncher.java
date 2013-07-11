@@ -26,7 +26,6 @@ package hudson.plugins.ec2.ssh;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -34,7 +33,6 @@ import hudson.slaves.ComputerLauncher;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.net.URL;
 
 import org.apache.commons.io.IOUtils;
 
@@ -122,22 +120,20 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if(conn.exec("java -fullversion", logger) !=0) {
                 logger.println("Installing Java");
 
-                String jdk = "java1.6.0_12";
-                String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
-
-                URL url = computer.getCloud().buildPresignedURL(path);
-                if(conn.exec("wget -nv -O /tmp/" + jdk + ".tgz '" + url + "'", logger) !=0) {
-                    logger.println("Failed to download Java");
-                    return;
-                }
-
-                if(conn.exec(buildUpCommand(computer, "tar xz -C /usr -f /tmp/" + jdk + ".tgz"), logger) !=0) {
-                    logger.println("Failed to install Java");
-                    return;
-                }
-
-                if(conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) !=0) {
-                    logger.println("Failed to symlink Java");
+                String jdk_package_el = "java-1.6.0-openjdk";
+                String jdk_package_deb = "openjdk-6-jdk";
+                if(conn.exec("which yum", logger) == 0) {
+                    logger.println("This is an EL instance. Installing package: " + jdk_package_el);
+                    if(conn.exec("yum install -y " + jdk_package_el, logger) != 0)
+                        return;
+                }else if(conn.exec("which apt-get", logger) == 0){
+                    logger.println("This is an DEB instance. Installing package: " + jdk_package_deb);
+                    if(conn.exec("apt-get update", logger) != 0)
+                        return;
+                    if(conn.exec("apt-get install -y " + jdk_package_deb, logger) != 0)
+                        return;
+                }else{
+                    logger.println("Unable to find suitable package manager to install Java.");
                     return;
                 }
             }
