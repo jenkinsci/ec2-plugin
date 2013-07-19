@@ -22,7 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <f:entry title="${%Eucalyptus URL}" field="url">
+  <f:entry title="${%Eucalyptus EC2 URL}" field="ec2endpoint">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="${%Eucalyptus S3 URL}" field="s3endpoint">
     <f:textbox />
   </f:entry>
   <f:entry title="${%Access ID}" field="accessId">
@@ -39,6 +42,6 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="url,secretKey,accessId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="url,secretKey,accessId,privateKey" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="ec2endpoint,secretKey,accessId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="ec2endpoint,secretKey,accessId,privateKey" />
 </j:jelly>

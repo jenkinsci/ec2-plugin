@@ -38,6 +38,7 @@ import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URL;
 import java.util.*;
 
 import javax.servlet.ServletException;
@@ -618,11 +619,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         public FormValidation doValidateAmi(
                 @QueryParameter String accessId, @QueryParameter String secretKey,
-                @QueryParameter String region,
+                @QueryParameter String ec2endpoint,  @QueryParameter String region,
                 final @QueryParameter String ami) throws IOException, ServletException {
-            AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 ec2;
+            if (region != null) {
+			    ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+		    } else {
+			    ec2 = EC2Cloud.connect(accessId, secretKey, new URL(ec2endpoint));
+		    }
             if(ec2!=null) {
-                try {
+            	try {
                     List<String> images = new LinkedList<String>();
                     images.add(ami);
                     List<String> owners = new LinkedList<String>();
@@ -641,7 +647,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     return FormValidation.ok(img.get(0).getImageLocation() + 
                     		(ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
-                    return FormValidation.error(e.getMessage());
+                		return FormValidation.error(e.getMessage());
                 }
             } else
                 return FormValidation.ok();   // can't test
