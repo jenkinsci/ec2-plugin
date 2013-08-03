@@ -88,16 +88,16 @@ public abstract class EC2Cloud extends Cloud {
 
     private final String accessId;
     private final Secret secretKey;
-    private final EC2PrivateKey privateKey;
+    protected final EC2PrivateKey privateKey;
 
     /**
      * Upper bound on how many instances we may provision.
      */
     public final int instanceCap;
-    private final List<SlaveTemplate> templates;
+    private final List<? extends SlaveTemplate> templates;
     private transient KeyPair usableKeyPair;
 
-    private transient AmazonEC2 connection;
+    protected transient AmazonEC2 connection;
 
 	private static AWSCredentials awsCredentials;
 
@@ -106,7 +106,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) {
+    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
