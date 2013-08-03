@@ -88,7 +88,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private final String accessId;
     private final Secret secretKey;
-    private final EC2PrivateKey privateKey;
+    protected final EC2PrivateKey privateKey;
 
     /**
      * Upper bound on how many instances we may provision.

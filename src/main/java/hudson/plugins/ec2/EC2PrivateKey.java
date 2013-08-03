@@ -59,6 +59,8 @@ public class EC2PrivateKey {
 
     EC2PrivateKey(String privateKey) {
         this.privateKey = Secret.fromString(privateKey.trim());
+    public String getPrivateKey() {
+    	return privateKey.getPlainText();
     }
 
     /**

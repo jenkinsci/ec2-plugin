@@ -57,8 +57,8 @@ extends AmazonEC2Cloud
 		EC2PrivateKey mockPrivateKey = Mockito.mock(EC2PrivateKey.class);
 		KeyPair keyPair = new KeyPair();
 		keyPair.setKeyFingerprint("mymockfingerprint");
-		keyPair.setKeyName("mymockkeyname");
-		keyPair.setKeyMaterial("iron");
+		keyPair.setKeyName(mockAmazonEC2.getKeyname());
+		keyPair.setKeyMaterial(mockAmazonEC2.getPrivateKey());
 		try {
 			when(mockPrivateKey.find(Mockito.any(AmazonEC2.class))).thenReturn(keyPair);
 		} catch (AmazonClientException e) {
@@ -88,6 +88,14 @@ extends AmazonEC2Cloud
 		if( connection == null ) {
 			mockAmazonEC2 = new MockAmazonEC2();
 			connection = mockAmazonEC2;
+	    	mockAmazonEC2.setKeyName("testkeypair");
+	    	try {
+				mockAmazonEC2.setFingerprint(privateKey.getFingerprint());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	    	mockAmazonEC2.setPrivateKey(privateKey.getPrivateKey());
 		}
 		return connection;
 	}
