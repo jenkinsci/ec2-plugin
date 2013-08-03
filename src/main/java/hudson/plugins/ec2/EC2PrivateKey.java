@@ -54,11 +54,15 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
  *
  * @author Kohsuke Kawaguchi
  */
-final class EC2PrivateKey {
+public class EC2PrivateKey {
     private final Secret privateKey;
 
     EC2PrivateKey(String privateKey) {
         this.privateKey = Secret.fromString(privateKey.trim());
+    }
+
+    public String getPrivateKey() {
+    	return privateKey.getPlainText();
     }
 
     /**

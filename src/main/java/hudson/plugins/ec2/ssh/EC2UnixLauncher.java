@@ -67,7 +67,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     @Override
 	protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException, InterruptedException {
-
         final Connection bootstrapConn;
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
@@ -76,12 +75,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         try {
             bootstrapConn = connectToSsh(computer, logger);
             int bootstrapResult = bootstrap(bootstrapConn, computer, logger);
-            if (bootstrapResult == FAILED)
+            if (bootstrapResult == FAILED) {
+            	logger.println("bootstrapresult failed");
                 return; // bootstrap closed for us.
-            else if (bootstrapResult == SAMEUSER)
+            }
+            else if (bootstrapResult == SAMEUSER) {
                 cleanupConn = bootstrapConn; // take over the connection
+                logger.println("take over connection");
+            }
             else {
                 // connect fresh as ROOT
+            	logger.println("connect fresh as root");
                 cleanupConn = connectToSsh(computer, logger);
                 KeyPair key = computer.getCloud().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
@@ -161,6 +165,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     conn.close();
                 }
             });
+            
             successful = true;
         } finally {
             if(cleanupConn != null && !successful)
@@ -169,11 +174,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private int bootstrap(Connection bootstrapConn, EC2Computer computer, PrintStream logger) throws IOException, InterruptedException, AmazonClientException {
+        logger.println("bootstrap()" );
         boolean closeBootstrap = true;
         try {
             int tries = 20;
             boolean isAuthenticated = false;
+            logger.println("Getting keypair..." );
             KeyPair key = computer.getCloud().getKeyPair();
+            logger.println("Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n" + key.getKeyMaterial().substring(0, 160) );
             while (tries-- > 0) {
                 logger.println("Authenticating as " + computer.getRemoteAdmin());
                 isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
