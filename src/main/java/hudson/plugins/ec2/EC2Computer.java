@@ -59,7 +59,7 @@ public class EC2Computer extends SlaveComputer {
         EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
 	return node.getInstanceId();
     }
-    
+
     public String getEc2Type() {
     	return getNode().getEc2Type();
     }
@@ -70,7 +70,7 @@ public class EC2Computer extends SlaveComputer {
     	}
     	return "";
     }
-    
+
     public EC2Cloud	getCloud() {
     	EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
     	return node.cloud;
@@ -157,7 +157,7 @@ public class EC2Computer extends SlaveComputer {
         request.setInstanceIds(Collections.<String>singletonList(getNode().getInstanceId()));
         return getCloud().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
     }
-    
+
     /**
      * When the slave is deleted, terminate the instance.
      */
@@ -183,5 +183,12 @@ public class EC2Computer extends SlaveComputer {
     public String getRootCommandPrefix() {
         return getNode().getRootCommandPrefix();
     }
-    
+
+	public void onConnected(){
+		EC2AbstractSlave node = getNode();
+		if (node != null) {
+			node.onConnected();
+		}
+	}
+
 }
