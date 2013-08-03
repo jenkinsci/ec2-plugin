@@ -1,13 +1,7 @@
 package hudson.plugins.ec2.hughtest;
 
-//import org.mockito.Mockito;
-
-import static org.mockito.Mockito.when;
-
 import java.util.ArrayList;
 import java.util.Random;
-
-import org.mockito.Mockito;
 
 import com.amazonaws.*;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -21,7 +15,7 @@ public class MockAmazonEC2 implements AmazonEC2 {
 	
 	void printcall() {
 		StackTraceElement me = Thread.currentThread().getStackTrace()[2];
-		System.out.println(me.getClassName() + "." + me.getMethodName() + " " + me.getLineNumber() );
+//		System.out.println(me.getClassName() + "." + me.getMethodName() + " line " + me.getLineNumber() );
 	}
 	
 	public DescribeReservedInstancesResult describeReservedInstances(
@@ -657,10 +651,6 @@ public class MockAmazonEC2 implements AmazonEC2 {
 			RunInstancesRequest runInstancesRequest)
 			throws AmazonServiceException, AmazonClientException {
 		printcall();
-		System.out.println("runInstances, request instancetype " + runInstancesRequest.getInstanceType() +
-				" keyname " + runInstancesRequest.getKeyName() + " imageid " + runInstancesRequest.getImageId() +
-				" securitygroup " + runInstancesRequest.getSecurityGroups().get(0)
-				+ " userdata " + runInstancesRequest.getUserData() );
 
 		Instance instance = new Instance();
 		Random random = new Random();
@@ -668,15 +658,17 @@ public class MockAmazonEC2 implements AmazonEC2 {
 		InstanceState instanceState = new InstanceState();
 		instanceState.setName(InstanceStateName.Running);
 		instance.setState(instanceState);
-		System.out.println("runinstances() instance " + instance );
 
 		ArrayList<Instance> instances = new ArrayList<Instance>();
 		instances.add(instance);
 		this.instances.add(instance);
+
 		Reservation reservation = new Reservation();
 		reservation.setInstances(instances);
+
 		RunInstancesResult runInstancesResult = new RunInstancesResult();
 		runInstancesResult.setReservation(reservation);
+
 		return runInstancesResult;
 	}
 
@@ -701,7 +693,6 @@ public class MockAmazonEC2 implements AmazonEC2 {
 			DescribeInstancesRequest describeInstancesRequest)
 			throws AmazonServiceException, AmazonClientException {
 		printcall();
-		System.out.println("describeInstances()");
 		DescribeInstancesResult describeInstancesResult = new DescribeInstancesResult();
 		if( instances.size() == 0 ) {
 			return describeInstancesResult;
@@ -712,17 +703,6 @@ public class MockAmazonEC2 implements AmazonEC2 {
 		describeInstancesResult.setReservations(reservations);
 		reservation.setInstances(instances);
 
-		System.out.println("dumping instances:");
-		for( Reservation _reservation : describeInstancesResult.getReservations() ) {
-			System.out.println("reservation id " + _reservation.getReservationId());
-		System.out.println("dumping instances");
-			for( Instance instance : _reservation.getInstances() ) {
-				System.out.println("instance instanceid " + instance.getInstanceId() + 
-						" imageid " + instance.getImageId() + " state " + instance.getState() );
-			}
-		}
-
-		//		DescribeInstancesResult describeInstancesResult = Mockito.mock(DescribeInstancesResult.class);
 		return describeInstancesResult;
 	}
 
@@ -1416,22 +1396,10 @@ public class MockAmazonEC2 implements AmazonEC2 {
 		printcall();
 		DescribeInstancesResult describeInstancesResult = new DescribeInstancesResult();
 		ArrayList<Reservation> reservations = new ArrayList<Reservation>();
-		System.out.println("dumping instances:");
-		for( Reservation reservation : reservations ) {
-			System.out.println("reservation id " + reservation.getReservationId());
-			for( Instance instance : reservation.getInstances() ) {
-				System.out.println("instance instanceid " + instance.getInstanceId() + 
-						" imageid " + instance.getImageId() + " state " + instance.getState() );
-			}
-		}
 		describeInstancesResult.setReservations(reservations);
 		Reservation reservation = new Reservation();
-//		Reservation reservation = Mockito.mock(Reservation.class);
 		reservation.setInstances(instances);
-//		when(reservation.getInstances()).thenReturn(instances);
 		reservations.add(reservation);
-//		DescribeInstancesResult describeInstancesResult = Mockito.mock(DescribeInstancesResult.class);
-//		when(describeInstancesResult.getReservations()).thenReturn(new ArrayList<Reservation>());
 		return describeInstancesResult;
 	}
 
@@ -1493,9 +1461,6 @@ public class MockAmazonEC2 implements AmazonEC2 {
 		KeyPairInfo myKey = new KeyPairInfo();
 		myKey.setKeyFingerprint(fingerprint);
 		myKey.setKeyName(keyName);
-//		myKey.setKeyFingerprint("mymockfingerprint");
-//		myKey.setKeyName("mymockkeyname");
-		System.out.println("mock keypair: fingerprint: mymockfingerprint, keyname: mymockkeyname");
 		keyPairs.add(myKey);
 		describeKeyPairsResult.setKeyPairs(keyPairs);
 		return describeKeyPairsResult;

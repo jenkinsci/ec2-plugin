@@ -47,8 +47,6 @@ public class SlaveTemplateForTests extends SlaveTemplate {
 
 	@Override
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-		System.out.println("SlaveTemplateForTests.EC2OndemandSlave " + inst.getInstanceId() );
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS + "/" + inst.getInstanceId(), getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName);
          EC2OndemandSlave ec2OndemandSlave = new EC2OndemandSlave(inst.getInstanceId(), description, 
         		remoteFS + "/" + inst.getInstanceId(), getSshPort(), getNumExecutors(), labels, 
         		mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate,
