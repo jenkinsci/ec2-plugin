@@ -115,6 +115,13 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 		return instanceId;
 	}
 
+	@Override
+	public void onConnected() {
+		// The spot request has been fulfilled and is connected. If the Spot
+		// request had tags, we want those on the instance.
+		pushLiveInstancedata();
+	}
+
 	@Extension
 	public static final class DescriptorImpl extends EC2AbstractSlave.DescriptorImpl {
 		
