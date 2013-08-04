@@ -76,18 +76,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String subnetId;
     public final String idleTerminationMinutes;
     public final String iamInstanceProfile;
+    public final boolean useEphemeralDevices;
     public int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
-    
+
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -117,6 +118,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
+        this.useEphemeralDevices = useEphemeralDevices;
 
         readResolve(); // initialize
     }
@@ -264,6 +266,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
            
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
+            setupDeviceMapping(riRequest);
+
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
             
@@ -375,7 +379,59 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
     }
-    
+
+    private void setupDeviceMapping(RunInstancesRequest riRequest) {
+
+        if (!useEphemeralDevices) return;
+
+        final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
+
+        final Set<String> occupiedDevices = new HashSet<String>();
+        for (final BlockDeviceMapping mapping: oldDeviceMapping ) {
+
+            occupiedDevices.add(mapping.getDeviceName());
+        }
+
+        final List<String> available = new ArrayList<String>(Arrays.asList(
+                "ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"
+        ));
+
+        final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<BlockDeviceMapping>(4);
+        for (char suffix = 'b'; suffix <= 'z' && !available.isEmpty(); suffix++) {
+
+            final String deviceName = String.format("/dev/xvd%s", suffix);
+
+            if (occupiedDevices.contains(deviceName)) continue;
+
+            final BlockDeviceMapping newMapping = new BlockDeviceMapping()
+                    .withDeviceName(deviceName)
+                    .withVirtualName(available.get(0))
+            ;
+
+            newDeviceMapping.add(newMapping);
+            available.remove(0);
+        }
+
+        riRequest.withBlockDeviceMappings(newDeviceMapping);
+    }
+
+    private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
+
+        /*
+         * AmazonEC2#describeImageAttribute does not work due to a bug
+         * https://forums.aws.amazon.com/message.jspa?messageID=231972
+         */
+        for (final Image image: getParent().connect().describeImages().getImages()) {
+
+            if (ami.equals(image.getImageId())) {
+
+                return image.getBlockDeviceMappings();
+            }
+        }
+
+        throw new AmazonClientException("Unable to get AMI device mapping for " + ami);
+    }
+
     /**
 	 * Provision a new slave for an EC2 spot instance to call back to Jenkins
 	 */
