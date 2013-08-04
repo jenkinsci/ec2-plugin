@@ -261,6 +261,13 @@ public abstract class EC2AbstractSlave extends Slave {
         return stopOnTerminate;
     }
 
+	/**
+	 * Called when the slave is connected to Jenkins
+	 */
+	public void onConnected() {
+		// Do nothing by default.
+	}
+
     protected boolean isAlive(boolean force) {
         fetchLiveInstanceData(force);
         if (lastFetchInstance == null) 
