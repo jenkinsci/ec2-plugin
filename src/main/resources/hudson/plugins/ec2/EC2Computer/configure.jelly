@@ -107,7 +107,7 @@ THE SOFTWARE.
 
         <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
             <f:repeatable field="tags">
-                <st:include page="../EC2Tag/config.jelly" />
+                <st:include page="config.jelly" class="hudson.plugins.ec2.EC2Tag" />
             </f:repeatable>
         </f:entry>
 
