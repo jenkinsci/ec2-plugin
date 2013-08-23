@@ -471,12 +471,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 				/* If we have a subnet ID then we can only use VPC security groups */
 				if (!securityGroupSet.isEmpty()) {
-					List<String> group_ids = getEc2SecurityGroups(ec2);
+                    List<String> group_ids = getEc2SecurityGroups(ec2);
+                    ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
 
-					if (!group_ids.isEmpty()) {
-						launchSpecification.setSecurityGroups(group_ids);
-					}
-				}
+                    for (String group_id : group_ids) {
+                      GroupIdentifier group = new GroupIdentifier();
+                      group.setGroupId(group_id);
+                      groups.add(group);
+                    }
+
+                    if (!groups.isEmpty())
+                        launchSpecification.setAllSecurityGroups(groups);
+                }
 			} else {
 				/* No subnet: we can use standard security groups by name */
 				if (securityGroupSet.size() > 0)
