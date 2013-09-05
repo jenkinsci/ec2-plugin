@@ -204,8 +204,15 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
+        final int timeout = computer.getNode().getLaunchTimeoutInMillis();
+        final long startTime = System.currentTimeMillis();
         while(true) {
             try {
+                long waitTime = System.currentTimeMillis() - startTime;
+                if ( waitTime > timeout )
+                {
+                    throw new AmazonClientException("Timed out after "+ (waitTime / 1000) + " seconds of waiting for ssh to become available. (maximum timeout configured is "+ (timeout / 1000) + ")" );
+                }
                 Instance instance = computer.updateInstanceDescription();
                 String vpc_id = instance.getVpcId();
                 String host;

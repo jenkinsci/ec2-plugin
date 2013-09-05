@@ -94,12 +94,13 @@ public abstract class EC2AbstractSlave extends Slave {
      * For data read from old Hudson, this is 0, so we use that to indicate 22.
      */
     protected final int sshPort;
+    protected final int launchTimeout;
 
     public static final String TEST_ZONE = "testZone";
     
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
@@ -114,6 +115,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.tags = tags;
         this.usePrivateDnsName = usePrivateDnsName;
         cloud = (EC2Cloud) Hudson.getInstance().getCloud(cloudName);
+        this.launchTimeout = launchTimeout;
     }
 
     protected Object readResolve() {
@@ -237,6 +239,10 @@ public abstract class EC2AbstractSlave extends Slave {
     	}
     }
 
+    public int getLaunchTimeoutInMillis() {
+        return launchTimeout * 1000;
+    }
+
     String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
             return "root";
@@ -301,6 +307,7 @@ public abstract class EC2AbstractSlave extends Slave {
             tags.add(new EC2Tag(t.getKey(), t.getValue()));
         }
     }
+
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
     protected void clearLiveInstancedata() throws AmazonClientException {
@@ -376,14 +383,14 @@ public abstract class EC2AbstractSlave extends Slave {
 		}
 		return model;
 	}
-    
+
     /*
-     * Used to determine if the slave is On Demand or Spot 
+     * Used to determine if the slave is On Demand or Spot
      */
     abstract public String getEc2Type();
-    
+
 	public static abstract class DescriptorImpl extends SlaveDescriptor {
-	    
+
     	@Override
 		public abstract String getDisplayName();
 

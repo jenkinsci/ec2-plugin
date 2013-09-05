@@ -84,12 +84,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
 
+    public String launchTimeout;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeout) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -97,6 +98,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.remoteFS = remoteFS;
         this.sshPort = sshPort;
         this.type = type;
+        this.launchTimeout = launchTimeout;
         this.labels = Util.fixNull(labelString);
         this.mode = mode;
         this.description = description;
@@ -123,7 +125,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         readResolve(); // initialize
     }
-    
+
     public EC2Cloud getParent() {
         return parent;
     }
@@ -549,11 +551,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName);
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout());
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName);
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getSshPort(), getNumExecutors(), mode, initScript, labels, remoteAdmin, rootCommandPrefix, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout());
     }
 
     /**
@@ -636,7 +638,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     protected Object readResolve() {
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
-	
+
         /**
          * In releases of this plugin prior to 1.18, template-specific instance caps could be configured
          * but were not enforced. As a result, it was possible to have the instance cap for a template
@@ -654,6 +656,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public Descriptor<SlaveTemplate> getDescriptor() {
         return Hudson.getInstance().getDescriptor(getClass());
+    }
+
+    public int getLaunchTimeout() {
+        if( StringUtils.isEmpty(launchTimeout) || Integer.parseInt(launchTimeout) <= 0 )
+            launchTimeout = "" + Integer.MAX_VALUE;
+        return Integer.parseInt(launchTimeout);
     }
 
     @Extension
@@ -706,7 +714,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("No such AMI, or not usable with this accessId: "+ami);
                     }
                     String ownerAlias = img.get(0).getImageOwnerAlias();
-                    return FormValidation.ok(img.get(0).getImageLocation() + 
+                    return FormValidation.ok(img.get(0).getImageLocation() +
                     		(ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
                 		return FormValidation.error(e.getMessage());
@@ -749,21 +757,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			}
 			return FormValidation.error("Not a correct bid price");
 		}
-		
+
 		// Retrieve the availability zones for the region
 		private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2)  {
 			ArrayList<String> availabilityZones = new ArrayList<String>();
-				
+
 			DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
 			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
 
 			for (AvailabilityZone z : zoneList) {
 				availabilityZones.add(z.getZoneName());
 			}
-			
+
 			return availabilityZones;
 		}
-		
+
 		/**
 		* Populates the Bid Type Drop down on the slave template config.
 		* @return
@@ -772,17 +780,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			ListBoxModel items = new ListBoxModel();
 			items.add(SpotInstanceType.OneTime.toString());
 			items.add(SpotInstanceType.Persistent.toString());
-			return items;      
+			return items;
 		}
-		
+
 		/* Check the current Spot price of the selected instance type for the selected region */
 		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
 				@QueryParameter String region, @QueryParameter String type,
 				@QueryParameter String zone ) throws IOException, ServletException {
-			
+
 			String cp = "";
 			String zoneStr = "";
-			
+
 			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
 			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
@@ -799,7 +807,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 					} else {
 						zoneStr = region + " region";
 					}
-					
+
 					/*
 					 * Iterate through the AWS instance types to see if can find a match for the databound
 					 * String type. This is necessary because the AWS API needs the instance type
@@ -814,7 +822,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 							break;
 						}
 					}
-					
+
 					/*
 					 * If the type string cannot be matched with an instance type,
 					 * throw a Form error
@@ -836,7 +844,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 						cp = currentPrice.getSpotPrice();
 					}
-					
+
 				} catch (AmazonClientException e) {
 					return FormValidation.error(e.getMessage());
 				}
@@ -851,7 +859,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 			} else {
 				cp = cp.substring(0, cp.length() - 3);
 
-				return FormValidation.ok("The current Spot price for a " + type + 
+				return FormValidation.ok("The current Spot price for a " + type +
 						" in the " + zoneStr + " is $" + cp );
 			}
 		}
