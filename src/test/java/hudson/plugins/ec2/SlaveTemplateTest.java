@@ -153,13 +153,24 @@ public class SlaveTemplateTest extends HudsonTestCase {
     }
 
 
-    public void testNullTimeoutShouldReturnEmptyConstant(){
+    public void testNullTimeoutShouldReturnMaxInt(){
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
-    public void test0TimeoutShouldReturnEmptyConstant(){
+    public void test0TimeoutShouldReturnMaxInt(){
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "0");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
+
+    public void testNegativeTimeoutShouldReturnMaxInt(){
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "-1");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    public void testNonNumericTimeoutShouldReturnMaxInt(){
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
 }

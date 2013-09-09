@@ -204,7 +204,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
-        final int timeout = computer.getNode().getLaunchTimeoutInMillis();
+        final long timeout = computer.getNode().getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
         while(true) {
             try {

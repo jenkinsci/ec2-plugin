@@ -239,8 +239,9 @@ public abstract class EC2AbstractSlave extends Slave {
     	}
     }
 
-    public int getLaunchTimeoutInMillis() {
-        return launchTimeout * 1000;
+    public long getLaunchTimeoutInMillis() {
+        // this should be fine as long as launchTimeout remains an int type
+        return (long)launchTimeout * 1000L;
     }
 
     String getRemoteAdmin() {

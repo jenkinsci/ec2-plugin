@@ -659,9 +659,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public int getLaunchTimeout() {
-        if( StringUtils.isEmpty(launchTimeout) || Integer.parseInt(launchTimeout) <= 0 )
-            launchTimeout = "" + Integer.MAX_VALUE;
-        return Integer.parseInt(launchTimeout);
+        int parsedTimeout = Integer.MAX_VALUE;
+        try {
+            parsedTimeout = Integer.parseInt(launchTimeout);
+        } catch (NumberFormatException nfe ) {
+
+            launchTimeout = Integer.toString(Integer.MAX_VALUE);
+        }
+
+        return parsedTimeout <= 0 ? Integer.MAX_VALUE : parsedTimeout;
     }
 
     @Extension
