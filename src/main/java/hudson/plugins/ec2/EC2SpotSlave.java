@@ -92,9 +92,22 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 		AmazonEC2 ec2 = cloud.connect();
 
 		DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(spotRequestId);
-		DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
-		List<SpotInstanceRequest> siRequests = dsirResult.getSpotInstanceRequests();
-		if (siRequests.size() <= 0) return null;
+		DescribeSpotInstanceRequestsResult dsirResult = null;
+		List<SpotInstanceRequest> siRequests = null;
+
+		try{
+			dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
+			siRequests = dsirResult.getSpotInstanceRequests();
+
+		} catch (AmazonServiceException e){
+			// Spot request is no longer valid
+			LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + spotRequestId);
+		} catch (AmazonClientException e){
+			// Spot request is no longer valid
+			LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + spotRequestId);
+		}
+
+		if (dsirResult == null || siRequests.size() <= 0) return null;
 		return siRequests.get(0);
 	}
 
