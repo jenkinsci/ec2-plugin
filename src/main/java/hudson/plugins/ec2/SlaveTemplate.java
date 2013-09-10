@@ -84,13 +84,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
 
-    public String launchTimeout;
+    public int launchTimeout;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeout) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -98,7 +98,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.remoteFS = remoteFS;
         this.sshPort = sshPort;
         this.type = type;
-        this.launchTimeout = launchTimeout;
         this.labels = Util.fixNull(labelString);
         this.mode = mode;
         this.description = description;
@@ -118,6 +117,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
+        }
+
+        try {
+            this.launchTimeout = Integer.parseInt(launchTimeoutStr);
+        } catch (NumberFormatException nfe ) {
+            this.launchTimeout = Integer.MAX_VALUE;
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
@@ -659,15 +664,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public int getLaunchTimeout() {
-        int parsedTimeout = Integer.MAX_VALUE;
-        try {
-            parsedTimeout = Integer.parseInt(launchTimeout);
-        } catch (NumberFormatException nfe ) {
+        return launchTimeout <= 0 ? Integer.MAX_VALUE : launchTimeout;
+    }
 
-            launchTimeout = Integer.toString(Integer.MAX_VALUE);
+    public String getLaunchTimeoutStr() {
+        if (launchTimeout==Integer.MAX_VALUE) {
+            return "";
+        } else {
+            return String.valueOf(launchTimeout);
         }
-
-        return parsedTimeout <= 0 ? Integer.MAX_VALUE : parsedTimeout;
     }
 
     @Extension
@@ -747,7 +752,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch ( NumberFormatException nfe ) {}
             return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
         }
-        
+
+        public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
+            if (value == null || value.trim() == "") return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0) return FormValidation.ok();
+            } catch ( NumberFormatException nfe ) {}
+            return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
+        }
+
         public ListBoxModel doFillZoneItems( @QueryParameter String accessId,
                                              @QueryParameter String secretKey,
                                              @QueryParameter String region)
