@@ -72,10 +72,10 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 		} catch (AmazonServiceException e){
 			// Spot request is no longer valid
-			LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId);
+			LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
 		} catch (AmazonClientException e){
 			// Spot request is no longer valid
-			LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId);
+			LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
 		}
 
 		try{
