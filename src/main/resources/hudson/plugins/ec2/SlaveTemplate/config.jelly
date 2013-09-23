@@ -141,6 +141,11 @@ THE SOFTWARE.
     <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">
       <f:checkbox />
     </f:entry>
+
+    <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
+      <f:textbox />
+    </f:entry>
+
   </f:advanced>
 
   <f:entry title="">
