@@ -52,6 +52,7 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import jenkins.slaves.iterators.api.NodeIterator;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -320,12 +321,12 @@ public abstract class EC2Cloud extends Cloud {
 	public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
             // Count number of pending executors from spot requests
-			for(Node n : Hudson.getInstance().getNodes()){
+			for(EC2SpotSlave n : NodeIterator.nodes(EC2SpotSlave.class)){
 				// If the slave is online then it is already counted by Jenkins
 				// We only want to count potential additional Spot instance slaves
-				if (n instanceof EC2SpotSlave && ((EC2SpotSlave) n).getComputer().isOffline()){
+				if (n.getComputer().isOffline()){
 					DescribeSpotInstanceRequestsRequest dsir =
-							new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(((EC2SpotSlave) n).getSpotInstanceRequestId());
+							new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(n.getSpotInstanceRequestId());
 
 					for(SpotInstanceRequest sir : connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests()) {
 						// Count Spot requests that are open and still have a chance to be active
