@@ -71,6 +71,25 @@ THE SOFTWARE.
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>node-iterator-api</artifactId>
       <version>1.1</version>
+		</dependency>
+    <dependency>
+	    <groupId>jcifs</groupId>
+	    <artifactId>jcifs</artifactId>
+	    <version>1.3.17</version>
+		</dependency>
+		<!-- force version 4.1.1 because of 4.1 bug:
+		     https://issues.apache.org/jira/browse/HTTPCLIENT-1056
+		     that prevents authentication caching, resulting in very
+				 poor performances for WinRM -->
+    <dependency>
+    	<groupId>org.apache.httpcomponents</groupId>
+    	<artifactId>httpclient</artifactId>
+    	<version>4.1.1</version>
+    </dependency>
+    <dependency>
+    	<groupId>org.apache.httpcomponents</groupId>
+    	<artifactId>httpcore</artifactId>
+    	<version>4.1.1</version>
     </dependency>
   </dependencies>
 
@@ -102,6 +121,7 @@ THE SOFTWARE.
       <url>http://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
+  
   <build>
   	<pluginManagement>
   		<plugins>

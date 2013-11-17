@@ -76,9 +76,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
-    <f:textbox/>
-  </f:entry>
+ <f:dropdownDescriptorSelector title="${%AMI Type}" field="amiType" descriptors="${descriptor.getAMITypeDescriptors()}" />
 
   <f:entry title="${%Labels}" field="labelString">
     <f:textbox />
@@ -106,10 +104,6 @@ THE SOFTWARE.
 
     <f:entry title="${%JVM Options}" field="jvmopts">
       <f:textbox/>
-    </f:entry>
-
-    <f:entry title="${%Remote ssh port}" field="sshPort">
-      <f:textbox />
     </f:entry>
 
     <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
