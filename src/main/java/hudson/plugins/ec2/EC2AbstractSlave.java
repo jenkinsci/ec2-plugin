@@ -74,7 +74,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
     public List<EC2Tag> tags;
-    public EC2Cloud cloud;
+    public final String cloudName;
 
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
@@ -114,7 +114,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
         this.usePrivateDnsName = usePrivateDnsName;
-        cloud = (EC2Cloud) Hudson.getInstance().getCloud(cloudName);
+        this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
     }
 
@@ -129,6 +129,10 @@ public abstract class EC2AbstractSlave extends Slave {
     		instanceId = getNodeName();
     	}
     	return this;
+    }
+    
+    public EC2Cloud getCloud() {
+    	return (EC2Cloud) Hudson.getInstance().getCloud(cloudName);
     }
 
     /**
@@ -189,21 +193,21 @@ public abstract class EC2AbstractSlave extends Slave {
     
     void stop() {
         try {
-            AmazonEC2 ec2 = cloud.connect();
+            AmazonEC2 ec2 = getCloud().connect();
             StopInstancesRequest request = new StopInstancesRequest(
                     Collections.singletonList(getInstanceId()));
             ec2.stopInstances(request);
             LOGGER.info("EC2 instance stopped: " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
-            Instance i = getInstance(getInstanceId(), cloud);
+            Instance i = getInstance(getInstanceId(), getCloud());
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
         }
     }
 
     boolean terminateInstance() {
         try {
-            AmazonEC2 ec2 = cloud.connect();
+            AmazonEC2 ec2 = getCloud().connect();
             TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
             ec2.terminateInstances(request);
             LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
@@ -293,7 +297,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        Instance i = getInstance(getInstanceId(), cloud);
+        Instance i = getInstance(getInstanceId(), getCloud());
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -312,7 +316,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
 	/* Clears all existing tag data so that we can force the instance into a known state */
     protected void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId(), cloud);
+        Instance inst = getInstance(getInstanceId(), getCloud());
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -324,14 +328,14 @@ public abstract class EC2AbstractSlave extends Slave {
 
             DeleteTagsRequest tag_request = new DeleteTagsRequest();
             tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            cloud.connect().deleteTags(tag_request);
+            getCloud().connect().deleteTags(tag_request);
         }
     }
 
 
     /* Sets tags on an instance.  This will not clear existing tag data, so call clearLiveInstancedata if needed */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId(), cloud);
+        Instance inst = getInstance(getInstanceId(), getCloud());
 
         /* Now that we have our instance, we can set tags on it */
         if (tags != null && !tags.isEmpty()) {
@@ -343,7 +347,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
             CreateTagsRequest tag_request = new CreateTagsRequest();
             tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            cloud.connect().createTags(tag_request);
+            getCloud().connect().createTags(tag_request);
         }
     }
     
