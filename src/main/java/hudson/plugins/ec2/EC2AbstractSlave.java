@@ -54,7 +54,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
-
 /**
  * Slave running on EC2.
  *
@@ -62,7 +61,7 @@ import com.amazonaws.services.ec2.model.*;
  */
 public abstract class EC2AbstractSlave extends Slave {
     protected String instanceId;
-    
+
     /**
      * Comes from {@link SlaveTemplate#initScript}.
      */
@@ -97,7 +96,7 @@ public abstract class EC2AbstractSlave extends Slave {
     protected final int launchTimeout;
 
     public static final String TEST_ZONE = "testZone";
-    
+
 
     @DataBoundConstructor
     public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
@@ -142,14 +141,24 @@ public abstract class EC2AbstractSlave extends Slave {
         case M1Large:       return 4;
         case C1Medium:      return 5;
         case M2Xlarge:      return 6;
+        case C3Large:       return 7;
         case M1Xlarge:      return 8;
         case M22xlarge:     return 13;
         case M3Xlarge:      return 13;
+        case C3Xlarge:      return 14;
         case C1Xlarge:      return 20;
         case M24xlarge:     return 26;
         case M32xlarge:     return 26;
+        case G22xlarge:     return 26;
+        case C32xlarge:     return 28;
         case Cc14xlarge:    return 33;
         case Cg14xlarge:    return 33;
+        case Hi14xlarge:    return 35;
+        case Hs18xlarge:    return 35;
+        case C34xlarge:     return 55;
+        case Cc28xlarge:    return 88;
+        case Cr18xlarge:    return 88;
+        case C38xlarge:     return 108;
         default:            throw new AssertionError();
         }
     }
@@ -186,7 +195,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Terminates the instance in EC2.
      */
     public abstract void terminate();
-    
+
     void stop() {
         try {
             AmazonEC2 ec2 = cloud.connect();
@@ -241,7 +250,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public long getLaunchTimeoutInMillis() {
         // this should be fine as long as launchTimeout remains an int type
-        return (long)launchTimeout * 1000L;
+        return launchTimeout * 1000L;
     }
 
     String getRemoteAdmin() {
@@ -277,9 +286,9 @@ public abstract class EC2AbstractSlave extends Slave {
 
     protected boolean isAlive(boolean force) {
         fetchLiveInstanceData(force);
-        if (lastFetchInstance == null) 
+        if (lastFetchInstance == null)
         	return false;
-        if (lastFetchInstance.getState().getName().equals(InstanceStateName.Terminated.toString())) 
+        if (lastFetchInstance.getState().getName().equals(InstanceStateName.Terminated.toString()))
         	return false;
         return true;
     }
@@ -346,7 +355,7 @@ public abstract class EC2AbstractSlave extends Slave {
             cloud.connect().createTags(tag_request);
         }
     }
-    
+
     public String getPublicDNS() {
         fetchLiveInstanceData(false);
         return publicDNS;
@@ -365,7 +374,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
-    
+
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
