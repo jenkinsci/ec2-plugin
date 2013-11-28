@@ -48,7 +48,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	@Override
 	public void terminate() {
 		// Cancel the spot request
-		AmazonEC2 ec2 = cloud.connect();
+		AmazonEC2 ec2 = getCloud().connect();
 
 		String instanceId = getInstanceId();
 		List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
@@ -91,7 +91,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	 * @return SpotInstanceRequest object for the requestId, or null
 	 */
 	private SpotInstanceRequest getSpotRequest(String spotRequestId){
-		AmazonEC2 ec2 = cloud.connect();
+		AmazonEC2 ec2 = getCloud().connect();
 
 		DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(spotRequestId);
 		DescribeSpotInstanceRequestsResult dsirResult = null;
