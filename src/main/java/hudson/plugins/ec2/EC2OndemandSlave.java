@@ -30,11 +30,11 @@ import com.amazonaws.services.ec2.model.*;
 public final class EC2OndemandSlave extends EC2AbstractSlave {
 	
     public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName,int launchTimeout) throws FormException, IOException {
-    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, Mode.NORMAL, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout);
+    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, mode, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout);
     }
     
     public EC2OndemandSlave(String instanceId, String description, String remoteFS, int sshPort, int numExecutors, String labelString, Mode mode, String initScript, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
-    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, Mode.NORMAL, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, launchTimeout);
+    	this(description + " (" + instanceId + ")", instanceId, description, remoteFS, sshPort, numExecutors, labelString, mode, initScript, Collections.<NodeProperty<?>>emptyList(), remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, launchTimeout);
     } 	 
 
     @DataBoundConstructor
