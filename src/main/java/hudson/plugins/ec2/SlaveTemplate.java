@@ -251,19 +251,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-
-    /**
-     * Does this contain the given label?
-     *
-     * @param l
-     *      can be null to indicate "don't care".
-     */
-    public boolean containsLabel(Label l) {
-        return l==null || labelSet.contains(l);
-    }
-
-    
-    
     /**
      * Provisions a new EC2 slave.
      *
