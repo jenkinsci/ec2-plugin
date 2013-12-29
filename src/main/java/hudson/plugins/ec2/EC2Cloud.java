@@ -173,9 +173,15 @@ public abstract class EC2Cloud extends Cloud {
      */
     public SlaveTemplate getTemplate(Label label) {
         for (SlaveTemplate t : templates) {
-        	if(label == null || label.matches(t.getLabelSet())) {
-                return t;
-        	}
+            if(t.getMode() == Node.Mode.NORMAL) {
+                if(label == null || label.matches(t.getLabelSet())) {
+                    return t;
+                }
+            } else if (t.getMode() == Node.Mode.EXCLUSIVE){
+                if(label != null && label.matches(t.getLabelSet())) {
+                    return t;
+                }
+            }
         }
         return null;
     }

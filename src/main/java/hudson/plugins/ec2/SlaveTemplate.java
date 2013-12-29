@@ -752,6 +752,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();   // can't test
         }
 
+        public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
+            if (mode == Node.Mode.EXCLUSIVE && (value == null || value.trim() == "")) {
+                return FormValidation.warning("Probably you should assign labels" +
+                        " when usage is 'Leave this machine for tied jobs only'" +
+                        " because this slave cannot be tied jobs without labels");
+            }
+
+            return FormValidation.ok();
+        }
+
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
             if (value == null || value.trim() == "") return FormValidation.ok();
             try {
