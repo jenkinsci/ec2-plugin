@@ -114,11 +114,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     logger.println("init script failed: exit code="+exitStatus);
                     return;
                 }
+                sess.close();
 
                 // Needs a tty to run sudo.
                 sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
                 sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
+                sess.close();
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
