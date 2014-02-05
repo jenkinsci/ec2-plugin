@@ -59,7 +59,7 @@ THE SOFTWARE.
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk</artifactId>
-      <version>1.6.7</version>
+      <version>1.7.0</version>
       <exclusions>
         <exclusion>
           <groupId>commons-codec</groupId>
