@@ -68,9 +68,11 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
                 ec2.terminateInstances(request);
                 LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
             }
-            Hudson.getInstance().removeNode(this);
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
+        }
+        try {
+            Hudson.getInstance().removeNode(this);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
         }
