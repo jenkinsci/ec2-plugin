@@ -62,15 +62,31 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 	public synchronized long check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
-        if  (idleTerminationMinutes == 0)
+        if  (idleTerminationMinutes == 0) {
         	return 1;
-        
+        }
+
         if (c.isIdle() && c.isOnline() && !disabled) {
-            // TODO: really think about the right strategy here
-            final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-                LOGGER.info("Idle timeout: "+c.getName());
-                c.getNode().idleTimeout();
+            if (idleTerminationMinutes > 0) {
+                // TODO: really think about the right strategy here
+                final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+                if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
+                    LOGGER.info("Idle timeout: "+c.getName());
+                    c.getNode().idleTimeout();
+                }
+            } else {
+                final long uptime;
+                try {
+                    uptime = c.getUptime();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                final int freeSecondsLeft = (60*60) - (int)(TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60*60));
+                // if we have less "free" (aka already paid for) time left than our idle time, stop/terminate the instance
+                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes*60))) {
+                    LOGGER.info("Idle timeout: "+c.getName());
+                    c.getNode().idleTimeout();
+                }
             }
         }
         return 1;
