@@ -735,10 +735,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (value == null || value.trim() == "") return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
-                if (val >= 0) return FormValidation.ok();
+                if (val >= -59) return FormValidation.ok();
             }
             catch ( NumberFormatException nfe ) {}
-            return FormValidation.error("Idle Termination time must be a non-negative integer (or null)");
+            return FormValidation.error("Idle Termination time must be a greater than -59 (or null)");
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
