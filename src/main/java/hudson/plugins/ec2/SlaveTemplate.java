@@ -84,6 +84,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
     protected transient EC2Cloud parent;
+    public final boolean useDedicatedTenancy;
 
     public int launchTimeout;
 
@@ -91,7 +92,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -113,6 +114,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
+        this.useDedicatedTenancy = useDedicatedTenancy;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -211,6 +213,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return idleTerminationMinutes;
     }
     
+    public boolean getUseDedicatedTenancy() {
+    	return useDedicatedTenancy;
+    }
+    
     public Set<LabelAtom> getLabelSet(){
         return labelSet;
     }
@@ -282,6 +288,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             
             if (StringUtils.isNotBlank(getZone())) {
             	Placement placement = new Placement(getZone());
+            	if (getUseDedicatedTenancy()) {
+            		placement.setTenancy("dedicated");
+            	}
             	riRequest.setPlacement(placement);
                 diFilters.add(new Filter("availability-zone").withValues(getZone()));
             }
@@ -553,7 +562,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	}
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout());
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, useDedicatedTenancy, getLaunchTimeout());
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {

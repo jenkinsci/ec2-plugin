@@ -114,6 +114,10 @@ THE SOFTWARE.
 	    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
     	  <f:checkbox />
     	</f:entry>
+    	
+    	<f:entry title="${%Use dedicated tenancy}" field="useDedicatedTenancy">
+    	  <f:checkbox />
+    	</f:entry>
 
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
