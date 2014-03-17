@@ -59,7 +59,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-	    SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, "");
+	    SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -69,7 +69,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices");
+        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices,useDedicatedTenancy");
     }
 
     public void testConfigRoundtripWithPrivateDns() throws Exception {
@@ -82,7 +82,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -112,7 +112,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.toString());
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "");
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
@@ -139,7 +139,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -154,22 +154,22 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
 
     public void testNullTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void test0TimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "0");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void testNegativeTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "-1");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void testNonNumericTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 

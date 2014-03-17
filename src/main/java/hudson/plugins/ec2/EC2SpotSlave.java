@@ -33,7 +33,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 	@DataBoundConstructor
 	public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String initScript, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
 
-		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout);
+		super(name, "", description, remoteFS, sshPort, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, nodeProperties, remoteAdmin, rootCommandPrefix, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, false, launchTimeout);
 
 		this.name = name;
 		this.spotInstanceRequestId = spotInstanceRequestId;
