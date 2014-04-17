@@ -83,6 +83,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
     public final boolean usePrivateDnsName;
+    public final boolean associatePublicIp;
     protected transient EC2Cloud parent;
     public final boolean useDedicatedTenancy;
 
@@ -91,8 +92,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
 
+
+
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -114,6 +117,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
+        this.associatePublicIp = associatePublicIp;
         this.useDedicatedTenancy = useDedicatedTenancy;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
@@ -204,6 +208,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return subnetId;
     }
 
+    public boolean getAssociatePublicIp() {
+        return associatePublicIp;
+    }
+
     public List<EC2Tag> getTags() {
         if (null == tags) return null;
         return Collections.unmodifiableList(tags);
@@ -280,6 +288,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             KeyPair keyPair = getKeyPair(ec2);
            
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
+            InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             setupDeviceMapping(riRequest);
 
@@ -296,18 +305,28 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             if (StringUtils.isNotBlank(getSubnetId())) {
-               riRequest.setSubnetId(getSubnetId());
-               diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
+                if (getAssociatePublicIp()) {
+                    net.setSubnetId(getSubnetId());
+                }else{
+                    riRequest.setSubnetId(getSubnetId());
+                }
 
-               /* If we have a subnet ID then we can only use VPC security groups */
-               if (!securityGroupSet.isEmpty()) {
-                  List<String> group_ids = getEc2SecurityGroups(ec2);
+                diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
-                  if (!group_ids.isEmpty()) {
-                     riRequest.setSecurityGroupIds(group_ids);
-                     diFilters.add(new Filter("instance.group-id").withValues(group_ids));
-                  }
-               }
+                /* If we have a subnet ID then we can only use VPC security groups */
+                if (!securityGroupSet.isEmpty()) {
+                    List<String> group_ids = getEc2SecurityGroups(ec2);
+
+                    if (!group_ids.isEmpty()) {
+                        if (getAssociatePublicIp()) {
+                            net.setGroups(group_ids);
+                        }else{
+                            riRequest.setSecurityGroupIds(group_ids);
+                        }
+
+                        diFilters.add(new Filter("instance.group-id").withValues(group_ids));
+                    }
+                }
             } else {
                /* No subnet: we can use standard security groups by name */
             	riRequest.setSecurityGroups(securityGroupSet);
@@ -321,6 +340,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
             riRequest.setInstanceType(type.toString());
             diFilters.add(new Filter("instance-type").withValues(type.toString()));
+
+            if (getAssociatePublicIp()) {
+                net.setAssociatePublicIpAddress(true);
+                net.setDeviceIndex(0);
+                riRequest.withNetworkInterfaces(net);
+            }
 
             HashSet<Tag> inst_tags = null;
             if (tags != null && !tags.isEmpty()) {
