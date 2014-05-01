@@ -66,7 +66,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         	return 1;
         }
 
-        if (c.isIdle() && c.isOnline() && !disabled) {
+        if (c.isIdle() && !disabled) {
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here
                 final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
