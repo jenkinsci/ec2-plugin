@@ -27,6 +27,7 @@ import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -41,6 +42,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 	    A value of zero indicates that the instance should never be automatically terminated */
     public final int idleTerminationMinutes;
 
+    private ReentrantLock checkLock = new ReentrantLock(false);
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
@@ -59,7 +61,19 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     @Override
-	public synchronized long check(EC2Computer c) {
+	public long check(EC2Computer c) {
+        if (! checkLock.tryLock()) {
+            return 1;
+        } else {
+            try {
+                return _check(c);
+            } finally {
+                checkLock.unlock();
+            }
+        }
+    }
+
+    private long _check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
         if  (idleTerminationMinutes == 0) {
