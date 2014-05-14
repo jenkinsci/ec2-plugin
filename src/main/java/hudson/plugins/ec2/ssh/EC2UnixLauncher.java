@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2.ssh;
 
+import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.plugins.ec2.EC2ComputerLauncher;
@@ -34,14 +35,18 @@ import hudson.slaves.ComputerLauncher;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 
+import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.KeyPair;
 import com.trilead.ssh2.Connection;
+import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
@@ -237,6 +242,18 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 int port = computer.getSshPort();
                 logger.println("Connecting to " + host + " on port " + port + ". ");
                 Connection conn = new Connection(host, port);
+                ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+                Proxy proxy = proxyConfig.createProxy(host);
+                if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
+                    InetSocketAddress address = (InetSocketAddress) proxy.address();
+                    HTTPProxyData proxyData = null;
+                    if (null != proxyConfig.getUserName()) {
+                        proxyData = new HTTPProxyData(address.getHostName(), address.getPort(), proxyConfig.getUserName(), proxyConfig.getPassword());
+                    } else {
+                        proxyData = new HTTPProxyData(address.getHostName(), address.getPort());
+                    }
+                    conn.setProxyData(proxyData);
+                }
                 // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
                 // hoping that no man-in-the-middle attack is going on.
                 conn.connect(new ServerHostKeyVerifier() {
