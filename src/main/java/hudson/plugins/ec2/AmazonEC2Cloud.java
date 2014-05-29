@@ -70,7 +70,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     
     @DataBoundConstructor
     public AmazonEC2Cloud(boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(CLOUD_ID_PREFIX + region, useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
+        super(CLOUD_ID_PREFIX + accessId + "-" + region, useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
     }
 
@@ -135,8 +135,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
 				List<Region> regionList = regions.getRegions();
 				for (Region r : regionList) {
 					String name = r.getRegionName();
-					if ((region == null || !region.equals(name)) && cloudRegions.contains(name))
-						continue;
 					model.add(name, name);
 				}
 			}
