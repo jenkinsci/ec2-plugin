@@ -754,9 +754,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
             if (mode == Node.Mode.EXCLUSIVE && (value == null || value.trim() == "")) {
-                return FormValidation.warning("Probably you should assign labels" +
-                        " when usage is 'Leave this machine for tied jobs only'" +
-                        " because this slave cannot be tied jobs without labels");
+                return FormValidation.warning("You may want to assign labels to this node;" +
+                        " it's marked to only run jobs that are exclusively tied to itself or a label.");
             }
 
             return FormValidation.ok();
