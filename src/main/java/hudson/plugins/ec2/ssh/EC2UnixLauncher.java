@@ -235,7 +235,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
 
                 int port = computer.getSshPort();
-                logger.println("Connecting to " + host + " on port " + port + ". ");
+                Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", 10000);
+                logger.println("Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout + ".");
                 Connection conn = new Connection(host, port);
                 // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
                 // hoping that no man-in-the-middle attack is going on.
@@ -243,7 +244,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
                         return true;
                     }
-                });
+                }, slaveConnectTimeout, slaveConnectTimeout);
                 logger.println("Connected via SSH.");
                 return conn; // successfully connected
             } catch (IOException e) {
