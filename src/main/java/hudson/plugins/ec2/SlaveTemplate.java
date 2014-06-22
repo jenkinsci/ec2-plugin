@@ -569,14 +569,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 				throw new AmazonClientException("Spot instance request is null");
 			}
 
-			/* Now that we have our Spot request, we can set tags on it */
-			if (inst_tags != null) {
-				updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
-
-				// That was a remote request - we should also update our local instance data.
-				spotInstReq.setTags(inst_tags);
-			}
-
 			logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
 			return newSpotSlave(spotInstReq, slaveName);
