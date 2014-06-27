@@ -211,7 +211,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         while(true) {
             try {
                 long waitTime = System.currentTimeMillis() - startTime;
-                if ( waitTime > timeout )
+                if ( timeout > 0 && waitTime > timeout )
                 {
                     throw new AmazonClientException("Timed out after "+ (waitTime / 1000) + " seconds of waiting for ssh to become available. (maximum timeout configured is "+ (timeout / 1000) + ")" );
                 }
