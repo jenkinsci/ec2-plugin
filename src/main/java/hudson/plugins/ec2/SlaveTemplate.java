@@ -252,19 +252,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-
-    /**
-     * Does this contain the given label?
-     *
-     * @param l
-     *      can be null to indicate "don't care".
-     */
-    public boolean containsLabel(Label l) {
-        return l==null || labelSet.contains(l);
-    }
-
-    
-    
     /**
      * Provisions a new EC2 slave.
      *
@@ -777,6 +764,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             } else
                 return FormValidation.ok();   // can't test
+        }
+
+        public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
+            if (mode == Node.Mode.EXCLUSIVE && (value == null || value.trim() == "")) {
+                return FormValidation.warning("You may want to assign labels to this node;" +
+                        " it's marked to only run jobs that are exclusively tied to itself or a label.");
+            }
+
+            return FormValidation.ok();
         }
 
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
