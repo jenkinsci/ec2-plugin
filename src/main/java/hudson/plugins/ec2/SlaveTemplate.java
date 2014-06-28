@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonServiceException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
@@ -571,7 +572,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 			/* Now that we have our Spot request, we can set tags on it */
 			if (inst_tags != null) {
-				updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
+				for (int i = 0; i < 5; i++) {
+					try {
+						updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
+						break;
+					} catch (AmazonServiceException e) {
+						if (e.getErrorCode().equals("InvalidSpotInstanceRequestID.NotFound")) {
+							Thread.sleep(5000);
+							continue;
+						}
+						throw e;
+					}
+				}
 
 				// That was a remote request - we should also update our local instance data.
 				spotInstReq.setTags(inst_tags);
@@ -583,6 +595,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 		}  catch (FormException e) {
 			throw new AssertionError(); // we should have discovered all configuration issues upfront
+		}  catch (InterruptedException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
