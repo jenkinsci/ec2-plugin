@@ -23,6 +23,8 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.ClientConfiguration;
+import hudson.ProxyConfiguration;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
@@ -38,7 +40,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,6 +56,7 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -420,7 +425,19 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized static AmazonEC2 connect(String accessId, Secret secretKey, URL endpoint) {
     	awsCredentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
-        AmazonEC2 client = new AmazonEC2Client(awsCredentials);
+        ClientConfiguration config = new ClientConfiguration();
+        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        Proxy proxy = proxyConfig.createProxy(endpoint.getHost());
+        if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
+            InetSocketAddress address = (InetSocketAddress) proxy.address();
+            config.setProxyHost(address.getHostName());
+            config.setProxyPort(address.getPort());
+            if(null != proxyConfig.getUserName()) {
+                config.setProxyUsername(proxyConfig.getUserName());
+                config.setProxyPassword(proxyConfig.getPassword());
+            }
+        }
+        AmazonEC2 client = new AmazonEC2Client(awsCredentials, config);
         client.setEndpoint(endpoint.toString());
         return client;
     }
