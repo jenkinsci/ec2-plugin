@@ -42,10 +42,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 	    A value of zero indicates that the instance should never be automatically terminated */
     public final int idleTerminationMinutes;
 
-    private ReentrantLock checkLock = new ReentrantLock(false);
+    private transient ReentrantLock checkLock;
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
+    	readResolve();
         if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
             this.idleTerminationMinutes = 0;
         } else {
@@ -121,6 +122,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 		public String getDisplayName() {
             return "EC2";
         }
+    }
+    
+    protected Object readResolve() {
+    	checkLock = new ReentrantLock(false);
+    	return this;
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
