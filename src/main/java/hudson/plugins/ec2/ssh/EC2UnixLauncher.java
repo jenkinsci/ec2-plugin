@@ -244,7 +244,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logger.println("Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout + ".");
                 Connection conn = new Connection(host, port);
                 ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
-                Proxy proxy = proxyConfig.createProxy(host);
+                Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
                 if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
                     InetSocketAddress address = (InetSocketAddress) proxy.address();
                     HTTPProxyData proxyData = null;

@@ -433,7 +433,7 @@ public abstract class EC2Cloud extends Cloud {
     	awsCredentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
         ClientConfiguration config = new ClientConfiguration();
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
-        Proxy proxy = proxyConfig.createProxy(endpoint.getHost());
+        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
         if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
             InetSocketAddress address = (InetSocketAddress) proxy.address();
             config.setProxyHost(address.getHostName());
