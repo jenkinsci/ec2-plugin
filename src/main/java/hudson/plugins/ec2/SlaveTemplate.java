@@ -621,9 +621,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException{
         List<String> group_ids = new ArrayList<String>();
 
-        DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-        group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
-        DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
+        DescribeSecurityGroupsResult group_result = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
+        if (group_result.getSecurityGroups().size() == 0) {
+            group_result = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
+        }
 
         for (SecurityGroup group : group_result.getSecurityGroups()) {
             if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
@@ -648,6 +649,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         return group_ids;
+    }
+
+    private DescribeSecurityGroupsResult getSecurityGroupsBy(String filterName, Set<String> filterValues, AmazonEC2 ec2) {
+        DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
+        group_req.withFilters(new Filter(filterName).withValues(filterValues));
+        return ec2.describeSecurityGroups(group_req);
     }
 
     /**
