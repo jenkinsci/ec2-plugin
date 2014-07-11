@@ -91,7 +91,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int launchTimeout;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
-	private transient /*almost final*/ Set<String> securityGroupSet;
+    private transient /*almost final*/ Set<String> securityGroupSet;
 
 
 
@@ -142,11 +142,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public EC2Cloud getParent() {
         return parent;
     }
-    
+
     public String getBidType(){
-    	if(spotConfig == null)
-    		return null;
-    	return spotConfig.spotInstanceBidType;
+        if(spotConfig == null)
+            return null;
+        return spotConfig.spotInstanceBidType;
     }
 
     public String getLabelString() {
@@ -221,11 +221,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getidleTerminationMinutes() {
         return idleTerminationMinutes;
     }
-    
+
     public boolean getUseDedicatedTenancy() {
-    	return useDedicatedTenancy;
+        return useDedicatedTenancy;
     }
-    
+
     public Set<LabelAtom> getLabelSet(){
         return labelSet;
     }
@@ -243,11 +243,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getSpotMaxBidPrice(){
-    	if (spotConfig == null)
-    		return null;
-    	return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
-	}
-    
+        if (spotConfig == null)
+            return null;
+        return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
+    }
+
     public String getIamInstanceProfile() {
         return iamInstanceProfile;
     }
@@ -258,12 +258,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     public EC2AbstractSlave provision(TaskListener listener) throws AmazonClientException, IOException {
-    	if (this.spotConfig != null){
-    		return provisionSpot(listener);
-    	}
-    	return provisionOndemand(listener);
+        if (this.spotConfig != null){
+            return provisionSpot(listener);
+        }
+        return provisionOndemand(listener);
     }
-    
+
     /**
      * Provisions new On-demand EC2 slave.
      */
@@ -274,7 +274,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             logger.println("Launching " + ami + " for template " + description);
             KeyPair keyPair = getKeyPair(ec2);
-           
+
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
@@ -282,13 +282,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
-            
+
             if (StringUtils.isNotBlank(getZone())) {
-            	Placement placement = new Placement(getZone());
-            	if (getUseDedicatedTenancy()) {
-            		placement.setTenancy("dedicated");
-            	}
-            	riRequest.setPlacement(placement);
+                Placement placement = new Placement(getZone());
+                if (getUseDedicatedTenancy()) {
+                    placement.setTenancy("dedicated");
+                }
+                riRequest.setPlacement(placement);
                 diFilters.add(new Filter("availability-zone").withValues(getZone()));
             }
 
@@ -317,9 +317,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             } else {
                /* No subnet: we can use standard security groups by name */
-            	riRequest.setSecurityGroups(securityGroupSet);
-            	if (securityGroupSet.size() > 0)
-            		diFilters.add(new Filter("group-name").withValues(securityGroupSet));
+                riRequest.setSecurityGroups(securityGroupSet);
+                if (securityGroupSet.size() > 0)
+                    diFilters.add(new Filter("group-name").withValues(securityGroupSet));
             }
 
             String userDataString = Base64.encodeBase64String(userData.getBytes());
@@ -343,10 +343,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
                 }
             }
-            
+
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
-            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), 
-            		InstanceStateName.Stopping.toString()));
+            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(),
+                    InstanceStateName.Stopping.toString()));
             diRequest.setFilters(diFilters);
             logger.println("Looking for existing instances: "+diRequest);
 
@@ -375,7 +375,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 /* Now that we have our instance, we can set tags on it */
                 if (inst_tags != null) {
-                	updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
+                    updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
 
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
@@ -383,7 +383,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 logger.println("No existing instance found - created: "+inst);
                 return newOndemandSlave(inst);
             }
-            	
+
             logger.println("Found existing stopped instance: "+existingInstance);
             List<String> instances = new ArrayList<String>();
             instances.add(existingInstance.getInstanceId());
@@ -392,16 +392,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logger.println("Starting existing instance: "+existingInstance+ " result:"+siResult);
 
             for (EC2AbstractSlave ec2Node: NodeIterator.nodes(EC2AbstractSlave.class)){
-            	if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
+                if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
                     logger.println("Found existing corresponding: "+ec2Node);
-            		return ec2Node;
-            	}
+                    return ec2Node;
+                }
             }
-            
-            // Existing slave not found 
+
+            // Existing slave not found
             logger.println("Creating new slave for existing instance: "+existingInstance);
             return newOndemandSlave(existingInstance);
-            
+
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
         }
@@ -460,43 +460,43 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-	 * Provision a new slave for an EC2 spot instance to call back to Jenkins
-	 */
-	private EC2AbstractSlave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
-		PrintStream logger = listener.getLogger();
-		AmazonEC2 ec2 = getParent().connect();
+     * Provision a new slave for an EC2 spot instance to call back to Jenkins
+     */
+    private EC2AbstractSlave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
+        PrintStream logger = listener.getLogger();
+        AmazonEC2 ec2 = getParent().connect();
 
-		try{
-			logger.println("Launching " + ami + " for template " + description);
-			KeyPair keyPair = getKeyPair(ec2);
+        try{
+            logger.println("Launching " + ami + " for template " + description);
+            KeyPair keyPair = getKeyPair(ec2);
 
-			RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
+            RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
 
-			// Validate spot bid before making the request
-			if (getSpotMaxBidPrice() == null){
-				// throw new FormException("Invalid Spot price specified: " + getSpotMaxBidPrice(), "spotMaxBidPrice");
-				throw new AmazonClientException("Invalid Spot price specified: " + getSpotMaxBidPrice());
-			}
+            // Validate spot bid before making the request
+            if (getSpotMaxBidPrice() == null){
+                // throw new FormException("Invalid Spot price specified: " + getSpotMaxBidPrice(), "spotMaxBidPrice");
+                throw new AmazonClientException("Invalid Spot price specified: " + getSpotMaxBidPrice());
+            }
 
-			spotRequest.setSpotPrice(getSpotMaxBidPrice());
-			spotRequest.setInstanceCount(Integer.valueOf(1));
-			spotRequest.setType(getBidType());
+            spotRequest.setSpotPrice(getSpotMaxBidPrice());
+            spotRequest.setInstanceCount(Integer.valueOf(1));
+            spotRequest.setType(getBidType());
 
-			LaunchSpecification launchSpecification = new LaunchSpecification();
+            LaunchSpecification launchSpecification = new LaunchSpecification();
 
-			launchSpecification.setImageId(ami);
-			launchSpecification.setInstanceType(type);
+            launchSpecification.setImageId(ami);
+            launchSpecification.setInstanceType(type);
 
-			if (StringUtils.isNotBlank(getZone())) {
-				SpotPlacement placement = new SpotPlacement(getZone());
-				launchSpecification.setPlacement(placement);
-			}
+            if (StringUtils.isNotBlank(getZone())) {
+                SpotPlacement placement = new SpotPlacement(getZone());
+                launchSpecification.setPlacement(placement);
+            }
 
-			if (StringUtils.isNotBlank(getSubnetId())) {
-				launchSpecification.setSubnetId(getSubnetId());
+            if (StringUtils.isNotBlank(getSubnetId())) {
+                launchSpecification.setSubnetId(getSubnetId());
 
-				/* If we have a subnet ID then we can only use VPC security groups */
-				if (!securityGroupSet.isEmpty()) {
+                /* If we have a subnet ID then we can only use VPC security groups */
+                if (!securityGroupSet.isEmpty()) {
                     List<String> group_ids = getEc2SecurityGroups(ec2);
                     ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
 
@@ -509,83 +509,83 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     if (!groups.isEmpty())
                         launchSpecification.setAllSecurityGroups(groups);
                 }
-			} else {
-				/* No subnet: we can use standard security groups by name */
-				if (securityGroupSet.size() > 0)
-					launchSpecification.setSecurityGroups(securityGroupSet);
-			}
+            } else {
+                /* No subnet: we can use standard security groups by name */
+                if (securityGroupSet.size() > 0)
+                    launchSpecification.setSecurityGroups(securityGroupSet);
+            }
 
-			// The slave must know the Jenkins server to register with as well
-			// as the name of the node in Jenkins it should register as. The only
-			// way to give information to the Spot slaves is through the ec2 user data
-			String jenkinsUrl = Hudson.getInstance().getRootUrl();
-			// We must provide a unique node name for the slave to connect to Jenkins.
-			// We don't have the EC2 generated instance ID, or the Spot request ID
-			// until after the instance is requested, which is then too late to set the
-			// user-data for the request. Instead we generate a unique name from UUID
-			// so that the slave has a unique name within Jenkins to register to.
-			String slaveName = UUID.randomUUID().toString();
-			String newUserData = "JENKINS_URL=" + jenkinsUrl +
-					"&SLAVE_NAME=" + slaveName +
-					"&USER_DATA=" + Base64.encodeBase64String(userData.getBytes());
+            // The slave must know the Jenkins server to register with as well
+            // as the name of the node in Jenkins it should register as. The only
+            // way to give information to the Spot slaves is through the ec2 user data
+            String jenkinsUrl = Hudson.getInstance().getRootUrl();
+            // We must provide a unique node name for the slave to connect to Jenkins.
+            // We don't have the EC2 generated instance ID, or the Spot request ID
+            // until after the instance is requested, which is then too late to set the
+            // user-data for the request. Instead we generate a unique name from UUID
+            // so that the slave has a unique name within Jenkins to register to.
+            String slaveName = UUID.randomUUID().toString();
+            String newUserData = "JENKINS_URL=" + jenkinsUrl +
+                    "&SLAVE_NAME=" + slaveName +
+                    "&USER_DATA=" + Base64.encodeBase64String(userData.getBytes());
 
-			String userDataString = Base64.encodeBase64String(newUserData.getBytes());
-			launchSpecification.setUserData(userDataString);
-			launchSpecification.setKeyName(keyPair.getKeyName());
-			launchSpecification.setInstanceType(type.toString());
+            String userDataString = Base64.encodeBase64String(newUserData.getBytes());
+            launchSpecification.setUserData(userDataString);
+            launchSpecification.setKeyName(keyPair.getKeyName());
+            launchSpecification.setInstanceType(type.toString());
 
-			HashSet<Tag> inst_tags = null;
-			if (tags != null && !tags.isEmpty()) {
-				inst_tags = new HashSet<Tag>();
-				for(EC2Tag t : tags) {
-					inst_tags.add(new Tag(t.getName(), t.getValue()));
-				}
-			}
+            HashSet<Tag> inst_tags = null;
+            if (tags != null && !tags.isEmpty()) {
+                inst_tags = new HashSet<Tag>();
+                for(EC2Tag t : tags) {
+                    inst_tags.add(new Tag(t.getName(), t.getValue()));
+                }
+            }
 
-			spotRequest.setLaunchSpecification(launchSpecification);
+            spotRequest.setLaunchSpecification(launchSpecification);
 
-			// Make the request for a new Spot instance
-			RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
+            // Make the request for a new Spot instance
+            RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
 
-			List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
-			if (reqInstances.size() <= 0){
-				throw new AmazonClientException("No spot instances found");
-			}
+            List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
+            if (reqInstances.size() <= 0){
+                throw new AmazonClientException("No spot instances found");
+            }
 
-			SpotInstanceRequest spotInstReq = reqInstances.get(0);
-			if (spotInstReq == null){
-				throw new AmazonClientException("Spot instance request is null");
-			}
+            SpotInstanceRequest spotInstReq = reqInstances.get(0);
+            if (spotInstReq == null){
+                throw new AmazonClientException("Spot instance request is null");
+            }
 
-			/* Now that we have our Spot request, we can set tags on it */
-			if (inst_tags != null) {
-				for (int i = 0; i < 5; i++) {
-					try {
-						updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
-						break;
-					} catch (AmazonServiceException e) {
-						if (e.getErrorCode().equals("InvalidSpotInstanceRequestID.NotFound")) {
-							Thread.sleep(5000);
-							continue;
-						}
-						throw e;
-					}
-				}
+            /* Now that we have our Spot request, we can set tags on it */
+            if (inst_tags != null) {
+                for (int i = 0; i < 5; i++) {
+                    try {
+                        updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
+                        break;
+                    } catch (AmazonServiceException e) {
+                        if (e.getErrorCode().equals("InvalidSpotInstanceRequestID.NotFound")) {
+                            Thread.sleep(5000);
+                            continue;
+                        }
+                        throw e;
+                    }
+                }
 
-				// That was a remote request - we should also update our local instance data.
-				spotInstReq.setTags(inst_tags);
-			}
+                // That was a remote request - we should also update our local instance data.
+                spotInstReq.setTags(inst_tags);
+            }
 
-			logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
+            logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
-			return newSpotSlave(spotInstReq, slaveName);
+            return newSpotSlave(spotInstReq, slaveName);
 
-		}  catch (FormException e) {
-			throw new AssertionError(); // we should have discovered all configuration issues upfront
-		}  catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        }  catch (FormException e) {
+            throw new AssertionError(); // we should have discovered all configuration issues upfront
+        }  catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
         return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getSshPort(), getNumExecutors(), labels, mode, initScript, remoteAdmin, rootCommandPrefix, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, useDedicatedTenancy, getLaunchTimeout());
@@ -599,18 +599,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a KeyPair from the configured information for the slave template
      */
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException{
-    	KeyPair keyPair = parent.getPrivateKey().find(ec2);
-    	if(keyPair==null) {
-        	throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-    	}
-    	return keyPair;
+        KeyPair keyPair = parent.getPrivateKey().find(ec2);
+        if(keyPair==null) {
+            throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+        }
+        return keyPair;
     }
 
     /**
      * Update the tags stored in EC2 with the specified information
      */
     private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String... params) {
-    	CreateTagsRequest tag_request = new CreateTagsRequest();
+        CreateTagsRequest tag_request = new CreateTagsRequest();
         tag_request.withResources(params).setTags(inst_tags);
         ec2.createTags(tag_request);
     }
@@ -619,35 +619,42 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a list of security group ids for the slave
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException{
-    	List<String> group_ids = new ArrayList<String>();
+        List<String> group_ids = new ArrayList<String>();
 
-		DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-		group_req.withFilters(new Filter("group-name").withValues(securityGroupSet));
-		DescribeSecurityGroupsResult group_result = ec2.describeSecurityGroups(group_req);
+        DescribeSecurityGroupsResult group_result = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
+        if (group_result.getSecurityGroups().size() == 0) {
+            group_result = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
+        }
 
-		for (SecurityGroup group : group_result.getSecurityGroups()) {
-			if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
-				List<Filter> filters = new ArrayList<Filter>();
-				filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
-				filters.add(new Filter("state").withValues("available"));
-				filters.add(new Filter("subnet-id").withValues(getSubnetId()));
+        for (SecurityGroup group : group_result.getSecurityGroups()) {
+            if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
+                List<Filter> filters = new ArrayList<Filter>();
+                filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
+                filters.add(new Filter("state").withValues("available"));
+                filters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
-				DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
-				subnet_req.withFilters(filters);
-				DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
+                DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
+                subnet_req.withFilters(filters);
+                DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
 
-				List<Subnet> subnets = subnet_result.getSubnets();
-				if(subnets != null && !subnets.isEmpty()) {
-					group_ids.add(group.getGroupId());
-				}
-			}
-		}
+                List<Subnet> subnets = subnet_result.getSubnets();
+                if(subnets != null && !subnets.isEmpty()) {
+                    group_ids.add(group.getGroupId());
+                }
+            }
+        }
 
-		if (securityGroupSet.size() != group_ids.size()) {
-			throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
-		}
+        if (securityGroupSet.size() != group_ids.size()) {
+            throw new AmazonClientException( "Security groups must all be VPC security groups to work in a VPC context" );
+        }
 
-		return group_ids;
+        return group_ids;
+    }
+
+    private DescribeSecurityGroupsResult getSecurityGroupsBy(String filterName, Set<String> filterValues, AmazonEC2 ec2) {
+        DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
+        group_req.withFilters(new Filter(filterName).withValues(filterValues));
+        return ec2.describeSecurityGroups(group_req);
     }
 
     /**
@@ -685,7 +692,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * the cap to zero, this block will override such a setting to a value that means 'no cap'.
          */
         if (instanceCap == 0) {
-        	instanceCap = Integer.MAX_VALUE;
+            instanceCap = Integer.MAX_VALUE;
         }
 
         return this;
@@ -721,9 +728,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public String getHelpFile(String fieldName) {
             String p = super.getHelpFile(fieldName);
             if (p==null)
-            	p = Hudson.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
+                p = Hudson.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
             if (p==null)
-            	p = Hudson.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
+                p = Hudson.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
             return p;
         }
 
@@ -736,12 +743,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 final @QueryParameter String ami) throws IOException, ServletException {
             AmazonEC2 ec2;
             if (region != null) {
-			    ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
-		    } else {
-			    ec2 = EC2Cloud.connect(accessId, secretKey, new URL(ec2endpoint));
-		    }
+                ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            } else {
+                ec2 = EC2Cloud.connect(accessId, secretKey, new URL(ec2endpoint));
+            }
             if(ec2!=null) {
-            	try {
+                try {
                     List<String> images = new LinkedList<String>();
                     images.add(ami);
                     List<String> owners = new LinkedList<String>();
@@ -758,9 +765,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     }
                     String ownerAlias = img.get(0).getImageOwnerAlias();
                     return FormValidation.ok(img.get(0).getImageLocation() +
-                    		(ownerAlias != null ? " by " + ownerAlias : ""));
+                            (ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
-                		return FormValidation.error(e.getMessage());
+                        return FormValidation.error(e.getMessage());
                 }
             } else
                 return FormValidation.ok();   // can't test
@@ -812,118 +819,118 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         /* Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001 */
-		public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
-			if(SpotConfiguration.normalizeBid(spotMaxBidPrice) != null){
-				return FormValidation.ok();
-			}
-			return FormValidation.error("Not a correct bid price");
-		}
+        public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
+            if(SpotConfiguration.normalizeBid(spotMaxBidPrice) != null){
+                return FormValidation.ok();
+            }
+            return FormValidation.error("Not a correct bid price");
+        }
 
-		// Retrieve the availability zones for the region
-		private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2)  {
-			ArrayList<String> availabilityZones = new ArrayList<String>();
+        // Retrieve the availability zones for the region
+        private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2)  {
+            ArrayList<String> availabilityZones = new ArrayList<String>();
 
-			DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
-			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
+            DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
+            List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
 
-			for (AvailabilityZone z : zoneList) {
-				availabilityZones.add(z.getZoneName());
-			}
+            for (AvailabilityZone z : zoneList) {
+                availabilityZones.add(z.getZoneName());
+            }
 
-			return availabilityZones;
-		}
+            return availabilityZones;
+        }
 
-		/**
-		* Populates the Bid Type Drop down on the slave template config.
-		* @return
-		*/
-		public ListBoxModel doFillBidTypeItems() {
-			ListBoxModel items = new ListBoxModel();
-			items.add(SpotInstanceType.OneTime.toString());
-			items.add(SpotInstanceType.Persistent.toString());
-			return items;
-		}
+        /**
+        * Populates the Bid Type Drop down on the slave template config.
+        * @return
+        */
+        public ListBoxModel doFillBidTypeItems() {
+            ListBoxModel items = new ListBoxModel();
+            items.add(SpotInstanceType.OneTime.toString());
+            items.add(SpotInstanceType.Persistent.toString());
+            return items;
+        }
 
-		/* Check the current Spot price of the selected instance type for the selected region */
-		public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
-				@QueryParameter String region, @QueryParameter String type,
-				@QueryParameter String zone ) throws IOException, ServletException {
+        /* Check the current Spot price of the selected instance type for the selected region */
+        public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
+                @QueryParameter String region, @QueryParameter String type,
+                @QueryParameter String zone ) throws IOException, ServletException {
 
-			String cp = "";
-			String zoneStr = "";
+            String cp = "";
+            String zoneStr = "";
 
-			// Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
-			AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            // Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
+            AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
-			if(ec2!=null) {
+            if(ec2!=null) {
 
-				try {
-					// Build a new price history request with the currently selected type
-					DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
-					// If a zone is specified, set the availability zone in the request
-					// Else, proceed with no availability zone which will result with the cheapest Spot price
-					if(getAvailabilityZones(ec2).contains(zone)){
-						request.setAvailabilityZone(zone);
-						zoneStr = zone + " availability zone";
-					} else {
-						zoneStr = region + " region";
-					}
+                try {
+                    // Build a new price history request with the currently selected type
+                    DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
+                    // If a zone is specified, set the availability zone in the request
+                    // Else, proceed with no availability zone which will result with the cheapest Spot price
+                    if(getAvailabilityZones(ec2).contains(zone)){
+                        request.setAvailabilityZone(zone);
+                        zoneStr = zone + " availability zone";
+                    } else {
+                        zoneStr = region + " region";
+                    }
 
-					/*
-					 * Iterate through the AWS instance types to see if can find a match for the databound
-					 * String type. This is necessary because the AWS API needs the instance type
-					 * string formatted a particular way to retrieve prices and the form gives us the strings
-					 * in a different format. For example "T1Micro" vs "t1.micro".
-					 */
-					InstanceType ec2Type = null;
+                    /*
+                     * Iterate through the AWS instance types to see if can find a match for the databound
+                     * String type. This is necessary because the AWS API needs the instance type
+                     * string formatted a particular way to retrieve prices and the form gives us the strings
+                     * in a different format. For example "T1Micro" vs "t1.micro".
+                     */
+                    InstanceType ec2Type = null;
 
-					for(InstanceType it : InstanceType.values()){
-						if (it.name().toString().equals(type)){
-							ec2Type = it;
-							break;
-						}
-					}
+                    for(InstanceType it : InstanceType.values()){
+                        if (it.name().toString().equals(type)){
+                            ec2Type = it;
+                            break;
+                        }
+                    }
 
-					/*
-					 * If the type string cannot be matched with an instance type,
-					 * throw a Form error
-					 */
-					if(ec2Type == null){
-						return FormValidation.error("Could not resolve instance type: " + type);
-					}
+                    /*
+                     * If the type string cannot be matched with an instance type,
+                     * throw a Form error
+                     */
+                    if(ec2Type == null){
+                        return FormValidation.error("Could not resolve instance type: " + type);
+                    }
 
-					Collection<String> instanceType = new ArrayList<String>();
-					instanceType.add(ec2Type.toString());
-					request.setInstanceTypes(instanceType);
-					request.setStartTime(new Date());
+                    Collection<String> instanceType = new ArrayList<String>();
+                    instanceType.add(ec2Type.toString());
+                    request.setInstanceTypes(instanceType);
+                    request.setStartTime(new Date());
 
-					// Retrieve the price history request result and store the current price
-					DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
+                    // Retrieve the price history request result and store the current price
+                    DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
 
-					if(!result.getSpotPriceHistory().isEmpty()){
-						SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
+                    if(!result.getSpotPriceHistory().isEmpty()){
+                        SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
 
-						cp = currentPrice.getSpotPrice();
-					}
+                        cp = currentPrice.getSpotPrice();
+                    }
 
-				} catch (AmazonClientException e) {
-					return FormValidation.error(e.getMessage());
-				}
-			}
-			/*
-			 * If we could not return the current price of the instance display an error
-			 * Else, remove the additional zeros from the current price and return it to the interface
-			 * in the form of a message
-			 */
-			if(cp.isEmpty()){
-				return FormValidation.error("Could not retrieve current Spot price");
-			} else {
-				cp = cp.substring(0, cp.length() - 3);
+                } catch (AmazonClientException e) {
+                    return FormValidation.error(e.getMessage());
+                }
+            }
+            /*
+             * If we could not return the current price of the instance display an error
+             * Else, remove the additional zeros from the current price and return it to the interface
+             * in the form of a message
+             */
+            if(cp.isEmpty()){
+                return FormValidation.error("Could not retrieve current Spot price");
+            } else {
+                cp = cp.substring(0, cp.length() - 3);
 
-				return FormValidation.ok("The current Spot price for a " + type +
-						" in the " + zoneStr + " is $" + cp );
-			}
-		}
+                return FormValidation.ok("The current Spot price for a " + type +
+                        " in the " + zoneStr + " is $" + cp );
+            }
+        }
     }
 }
 
