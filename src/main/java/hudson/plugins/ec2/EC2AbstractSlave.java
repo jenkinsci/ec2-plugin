@@ -165,7 +165,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case Cc28xlarge:    return 88;
         case Cr18xlarge:    return 88;
         case C38xlarge:     return 108;
-        default:            throw new AssertionError();
+        //We don't have a suggestion, but we don't want to fail completely surely?
+        default:            return 1;
         }
     }
 
