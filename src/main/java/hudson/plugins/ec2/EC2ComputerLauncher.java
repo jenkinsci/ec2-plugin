@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -51,28 +52,47 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             EC2Computer computer = (EC2Computer)_computer;
             PrintStream logger = listener.getLogger();
 
+            final String baseMsg = "Node " + computer.getName() + "("+computer.getInstanceId()+")";
+            String msg;
+
             OUTER:
             while(true) {
                 switch (computer.getState()) {
                     case PENDING:
                     case STOPPING:
                         Thread.sleep(5000); // check every 5 secs
+                        // and report to system log and console
+                        msg = baseMsg + " is still stopping, waiting 5s";
+                        LOGGER.finest(msg);
+                        logger.println(msg);
                         continue OUTER;
                     case RUNNING:
+                        msg = baseMsg + " is ready";
+                        LOGGER.finer(msg);
+                        logger.println(msg);
                         break OUTER;
                     case STOPPED:
+                        msg = baseMsg + " is stopped, sending start request";
+                        LOGGER.finer(msg);
+                        logger.println(msg);
+
                     	AmazonEC2 ec2 = computer.getCloud().connect();
                         List<String> instances = new ArrayList<String>();
                         instances.add(computer.getInstanceId());
 
                         StartInstancesRequest siRequest = new StartInstancesRequest(instances);
                         StartInstancesResult siResult = ec2.startInstances(siRequest);
-                        logger.println("Starting existing instance: "+computer.getInstanceId()+ " result:"+siResult);
+
+                        msg = baseMsg + ": sent start request, result: " + siResult;
+                        LOGGER.finer(baseMsg);
+                        logger.println(baseMsg);
                         continue OUTER;
                     case SHUTTING_DOWN:
                     case TERMINATED:
                         // abort
-                        logger.println("The instance "+computer.getInstanceId()+" appears to be shut down. Aborting launch.");
+                        msg = baseMsg + " is terminated or terminating, aborting launch";
+                        LOGGER.info(msg);
+                        logger.println(msg);
                         return;
                 }
             }
@@ -93,4 +113,6 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
      */
     protected abstract void launch(EC2Computer computer, PrintStream logger, Instance inst)
             throws AmazonClientException, IOException, InterruptedException;
+
+    private static final Logger LOGGER = Logger.getLogger(EC2ComputerLauncher.class.getName());
 }
