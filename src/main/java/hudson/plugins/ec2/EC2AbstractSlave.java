@@ -208,8 +208,9 @@ public abstract class EC2AbstractSlave extends Slave {
             AmazonEC2 ec2 = getCloud().connect();
             StopInstancesRequest request = new StopInstancesRequest(
                     Collections.singletonList(getInstanceId()));
+	        LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
-            LOGGER.info("EC2 instance stopped: " + getInstanceId());
+            LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
             Instance i = getInstance(getInstanceId(), getCloud());
@@ -221,8 +222,9 @@ public abstract class EC2AbstractSlave extends Slave {
         try {
             AmazonEC2 ec2 = getCloud().connect();
             TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+	        LOGGER.fine("Sending terminate request for " + getInstanceId());
             ec2.terminateInstances(request);
-            LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
+            LOGGER.info("EC2 instance terminate request sent for "+getInstanceId());
             return true;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
