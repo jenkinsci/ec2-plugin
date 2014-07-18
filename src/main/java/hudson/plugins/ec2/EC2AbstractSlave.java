@@ -213,7 +213,7 @@ public abstract class EC2AbstractSlave extends Slave {
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
             Instance i = getInstance(getInstanceId(), getCloud());
-            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
+            LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
         }
     }
 
