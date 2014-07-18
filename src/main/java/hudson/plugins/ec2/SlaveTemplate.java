@@ -542,6 +542,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
+            if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+                launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+            }
+
             spotRequest.setLaunchSpecification(launchSpecification);
 
             // Make the request for a new Spot instance
