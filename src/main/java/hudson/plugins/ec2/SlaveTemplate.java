@@ -253,7 +253,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions a new EC2 slave.
+     * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
@@ -265,14 +265,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions new On-demand EC2 slave.
+     * Provisions an On-demand EC2 slave by launching a new instance or 
+     * starting a previously-stopped instance.
      */
     private EC2AbstractSlave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            logger.println("Launching " + ami + " for template " + description);
+	        String msg = "Launching " + ami + " for template " + description;
+            logger.println(msg);
+            LOGGER.info(msg);
+
             KeyPair keyPair = getKeyPair(ec2);
 
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
@@ -348,7 +352,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(),
                     InstanceStateName.Stopping.toString()));
             diRequest.setFilters(diFilters);
-            logger.println("Looking for existing instances: "+diRequest);
+
+            msg = "Looking for existing instances with describe-instance: "+diRequest;
+            logger.println(msg);
+            LOGGER.fine(msg);
 
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
 
@@ -380,26 +387,38 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
                 }
-                logger.println("No existing instance found - created: "+inst);
+                msg = "No existing instance found - created: "+inst;
+                logger.println(msg);
+                LOGGER.info(msg);
                 return newOndemandSlave(inst);
             }
 
-            logger.println("Found existing stopped instance: "+existingInstance);
+            msg = "Found existing stopped instance: "+existingInstance;
+            logger.println(msg);
+            LOGGER.info(msg);
+
             List<String> instances = new ArrayList<String>();
             instances.add(existingInstance.getInstanceId());
             StartInstancesRequest siRequest = new StartInstancesRequest(instances);
             StartInstancesResult siResult = ec2.startInstances(siRequest);
-            logger.println("Starting existing instance: "+existingInstance+ " result:"+siResult);
+
+            msg = "Starting existing instance: "+existingInstance+ " result:"+siResult;
+            logger.println(msg);
+            LOGGER.fine(msg);
 
             for (EC2AbstractSlave ec2Node: NodeIterator.nodes(EC2AbstractSlave.class)){
                 if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
-                    logger.println("Found existing corresponding: "+ec2Node);
+                    msg = "Found existing corresponding Jenkins slave: "+ec2Node;
+                    logger.println(msg);
+                    LOGGER.finer(msg);
                     return ec2Node;
                 }
             }
 
             // Existing slave not found
-            logger.println("Creating new slave for existing instance: "+existingInstance);
+            msg = "Creating new Jenkins slave for existing instance: "+existingInstance;
+            logger.println(msg);
+            LOGGER.info(msg);
             return newOndemandSlave(existingInstance);
 
         } catch (FormException e) {
@@ -932,5 +951,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
     }
+
+    private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 }
 
