@@ -22,8 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    Check this if you want the instance to be stopped instead of terminated when it times out
+    <p>Check this if you want the instance to be stopped instead of terminated when it times out
     due to being idle. This allows existing instances to be used when provisioning a slave.
     You would use this option to preserve the state of the instance, including that of the 
-    EBS volume connections.
+    EBS volume connections.</p>
+    <p>Note that instance store content is lost, as are running processess and the contents of memory.</p>
+    <p><b>Stopping and starting an instance starts a new hourly billing cycle, so short stop timeouts are counterproductive.</b></p>
 </div>
