@@ -69,7 +69,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             // TODO: really think about the right strategy here
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
             if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-                LOGGER.info("Idle timeout: "+c.getName());
+                LOGGER.info("Idle timeout: " + c.getName() + " after " + idleTerminationMinutes + " minutes (idle since time_t " + (int)(c.getIdleStartMilliseconds() / 1000) + ")");
                 c.getNode().idleTimeout();
             }
         }
