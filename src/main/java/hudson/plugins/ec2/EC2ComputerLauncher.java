@@ -59,10 +59,11 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             while(true) {
                 switch (computer.getState()) {
                     case PENDING:
+                        msg = baseMsg + " is still pending/launching, waiting 5s";
                     case STOPPING:
+                        msg = baseMsg + " is still stopping, waiting 5s";
                         Thread.sleep(5000); // check every 5 secs
                         // and report to system log and console
-                        msg = baseMsg + " is still stopping, waiting 5s";
                         LOGGER.finest(msg);
                         logger.println(msg);
                         continue OUTER;
