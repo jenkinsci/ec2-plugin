@@ -79,9 +79,6 @@ public class DeviceMappingParser {
         if (StringUtils.isNotBlank(getOrEmpty(parts, 4))) {
             ebs.setIops(Integer.valueOf(parts[4]));
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 5))) {
-            ebs.setEncrypted(parts[5].equals("encrypted"));
-        }
 
         return ebs;
     }

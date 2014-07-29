@@ -102,22 +102,6 @@ public class DeviceMappingParserTest  extends HudsonTestCase {
         assertEquals(expected, actual);
     }
 
-    public void testParserWithEncrypted() throws Exception {
-        List<BlockDeviceMapping> expected = new ArrayList<BlockDeviceMapping>();
-        expected.add(
-                new BlockDeviceMapping().
-                        withDeviceName("/dev/sdd").
-                        withEbs(
-                                new EbsBlockDevice().
-                                        withVolumeSize(120).
-                                        withEncrypted(true)
-                        )
-        );
-
-        String customDeviceMappings = "/dev/sdd=:120::::encrypted";
-        List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
-        assertEquals(expected, actual);
-    }
 
     public void testParserWithMultiple() throws Exception {
         List<BlockDeviceMapping> expected = new ArrayList<BlockDeviceMapping>();
@@ -127,7 +111,7 @@ public class DeviceMappingParserTest  extends HudsonTestCase {
                         withEbs(
                                 new EbsBlockDevice().
                                         withVolumeSize(120).
-                                        withEncrypted(true)
+                                        withVolumeType("io1")
                         )
         );
         expected.add(
@@ -139,7 +123,7 @@ public class DeviceMappingParserTest  extends HudsonTestCase {
                         )
         );
 
-        String customDeviceMappings = "/dev/sdd=:120::::encrypted,/dev/sdc=:120";
+        String customDeviceMappings = "/dev/sdd=:120::io1,/dev/sdc=:120";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
         assertEquals(expected, actual);
     }
