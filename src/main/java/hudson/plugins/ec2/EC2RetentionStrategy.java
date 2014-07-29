@@ -82,6 +82,14 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         	return 1;
         }
 
+        /*
+         * Don't idle-out instances that're offline, per JENKINS-23792. This
+         * prevents a node from being idled down while it's still starting up.
+         */
+        if (c.isOffline()) {
+            return 1;
+        }
+
         if (c.isIdle() && !disabled) {
 		    final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
             if (idleTerminationMinutes > 0) {
