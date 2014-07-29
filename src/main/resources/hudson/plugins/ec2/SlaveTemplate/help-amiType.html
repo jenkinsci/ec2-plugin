@@ -1,0 +1,37 @@
+<div>
+  Choose the type of AMI this slave uses:
+  <ul>
+    <li>Unix: connected to with ssh.</li>
+    <li>Windows: connected to with CIFS and WinRM/WinRS.</li>
+  </ul>
+  
+  <hr/>
+  Notes for Windows AMI:
+  <br/>
+  EC2 Windows slaves are accessed with CIFS (to send the initial Jenkins slave.jar) and WinRM to launch and connect
+to the slave afterward.
+
+  This windows AMI must be configured with:
+	<ul>
+	  <li>a security group allowing SMB over TCP (incoming TCP port 445) and WinRM (incoming TCP port 5985)</li>
+	  <li>windows firewall should allow incoming SMB over TCP</li>
+	  <li>java should be installed and available in the %PATH%</li>
+	  <li>WinRM should be enabled with the following commands (for more information see: <a href="http://support.microsoft.com/kb/555966">Microsoft article 555966</a>):
+	    <ul>
+	      <li>winrm quickconfig</li>
+	      <li>winrm set winrm/config/service/Auth @{Basic="true"}</li>
+	      <li>winrm set winrm/config/service @{AllowUnencrypted="true"}</li>
+	      <li>winrm set winrm/config/winrs @{MaxMemoryPerShellMB="1024"}</li>
+		  <li>For https:
+		     <ul>
+		         <li><a href="http://www.hansolav.net/blog/SelfsignedSSLCertificatesOnIIS7AndCommonNames.aspx">Generate a windows certificate</a></li>
+		         <li><a href="http://support.microsoft.com/kb/2019527">Install the certificate</a></li>
+		         <li>winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="HOSTNAME"; CertificateThumbprint="THUMBPRINT"}</li>
+		     </ul>
+		   </li>
+	    </ul>
+	  </li>
+	</ul>
+
+    Finally make sure to set the username to Administrator and enter the administrator password.
+</div>

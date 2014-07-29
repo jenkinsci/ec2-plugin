@@ -25,6 +25,7 @@ package hudson.plugins.ec2;
 
 import hudson.Util;
 import hudson.model.Computer;
+import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Descriptor.FormException;
@@ -67,7 +68,8 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     public final String initScript;
     public final String remoteAdmin; // e.g. 'ubuntu'
-    public final String rootCommandPrefix; // e.g. 'sudo'
+    
+    
     public final String jvmopts; //e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
@@ -75,6 +77,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final boolean useDedicatedTenancy;
     public List<EC2Tag> tags;
     public final String cloudName;
+    public AMITypeData amiType;
 
     // Temporary stuff that is obtained live from EC2
     public String publicDNS;
@@ -90,26 +93,28 @@ public abstract class EC2AbstractSlave extends Slave {
     protected static final long MIN_FETCH_TIME = 20 * 1000;
 
 
-    /**
-     * For data read from old Hudson, this is 0, so we use that to indicate 22.
-     */
-    protected final int sshPort;
     protected final int launchTimeout;
+
+    // Deprecated by the AMITypeData data structure
+    @Deprecated
+    protected transient int sshPort;
+    @Deprecated
+    public transient String rootCommandPrefix; // e.g. 'sudo'
+
+    private transient long createdTime;
 
     public static final String TEST_ZONE = "testZone";
 
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
         this.instanceId = instanceId;
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
-        this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
-        this.sshPort = sshPort;
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
@@ -117,6 +122,8 @@ public abstract class EC2AbstractSlave extends Slave {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
+        this.amiType = amiType;
+        readResolve();
     }
 
     protected Object readResolve() {
@@ -129,6 +136,11 @@ public abstract class EC2AbstractSlave extends Slave {
     	if (instanceId == null) {
     		instanceId = getNodeName();
     	}
+    	
+    	if (amiType == null) {
+    	    amiType = new UnixData(rootCommandPrefix, Integer.toString(sshPort));
+    	}
+
     	return this;
     }
     
@@ -264,14 +276,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
     String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
-            return "root";
+            return amiType.isWindows() ? "Administrator" : "root";
         return remoteAdmin;
     }
 
     String getRootCommandPrefix() {
-        if (rootCommandPrefix == null || rootCommandPrefix.length() == 0)
+        String commandPrefix = amiType.isUnix() ? ((UnixData)amiType).getRootCommandPrefix() : "";
+        if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
-        return rootCommandPrefix + " ";
+        return commandPrefix + " ";
     }
 
     String getJvmopts() {
@@ -279,7 +292,16 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getSshPort() {
-        return sshPort!=0 ? sshPort : 22;
+        String sshPort = amiType.isUnix() ? ((UnixData)amiType).getSshPort() : "22";
+        if (sshPort == null || sshPort.length() == 0)
+            return 22;
+        
+        int port = 0;
+        try {
+            port = Integer.parseInt(sshPort);
+        } catch (Exception e) {
+        }
+        return port!=0 ? port : 22;
     }
 
     public boolean getStopOnTerminate() {
@@ -320,6 +342,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
         publicDNS = i.getPublicDnsName();
         privateDNS = i.getPrivateIpAddress();
+        createdTime = i.getLaunchTime().getTime();
         tags = new LinkedList<EC2Tag>();
 
         for (Tag t : i.getTags()) {
@@ -380,8 +403,25 @@ public abstract class EC2AbstractSlave extends Slave {
         return Collections.unmodifiableList(tags);
     }
 
+    public long getCreatedTime() {
+        fetchLiveInstanceData(false);
+        return createdTime;
+    }
+
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
+    }
+    
+    public String getAdminPassword() {
+        return amiType.isWindows() ? ((WindowsData)amiType).getPassword() : "";
+    }
+
+    public boolean isUseHTTPS() {
+        return amiType.isWindows() ? ((WindowsData)amiType).isUseHTTPS() : false;
+    }
+
+    public int getBootDelay() {
+        return amiType.isWindows() ? ((WindowsData)amiType).getBootDelayInMillis() : 0;
     }
 
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
@@ -408,7 +448,7 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     abstract public String getEc2Type();
 
-	public static abstract class DescriptorImpl extends SlaveDescriptor {
+    public static abstract class DescriptorImpl extends SlaveDescriptor {
 
     	@Override
 		public abstract String getDisplayName();
@@ -423,7 +463,13 @@ public abstract class EC2AbstractSlave extends Slave {
 				ServletException {
 			return fillZoneItems(accessId, secretKey, region);
 		}
+		
+		public List<Descriptor<AMITypeData>> getAMITypeDescriptors()
+		{
+		    return Hudson.getInstance().<AMITypeData,Descriptor<AMITypeData>>getDescriptorList(AMITypeData.class);
+		}
 	}
 
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
+
 }
