@@ -34,6 +34,7 @@ import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import hudson.plugins.ec2.util.DeviceMappingParser;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
@@ -81,6 +82,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String idleTerminationMinutes;
     public final String iamInstanceProfile;
     public final boolean useEphemeralDevices;
+    public final String customDeviceMapping;
     public int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
@@ -97,7 +99,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         String sshPort, InstanceType type, String labelString, Node.Mode mode, String description,
+                         String initScript, String userData, String numExecutors, String remoteAdmin,
+                         String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId,
+                         List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName,
+                         String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+                         boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -136,6 +145,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         this.iamInstanceProfile = iamInstanceProfile;
         this.useEphemeralDevices = useEphemeralDevices;
+        this.customDeviceMapping = customDeviceMapping;
 
         readResolve(); // initialize
     }
@@ -283,7 +293,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
-            setupDeviceMapping(riRequest);
+            if (useEphemeralDevices) {
+                setupEphemeralDeviceMapping(riRequest);
+            }
+            else {
+                setupCustomDeviceMapping(riRequest);
+            }
 
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
@@ -427,9 +442,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private void setupDeviceMapping(RunInstancesRequest riRequest) {
-
-        if (!useEphemeralDevices) return;
+    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
 
@@ -477,6 +490,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         throw new AmazonClientException("Unable to get AMI device mapping for " + ami);
+    }
+
+    private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
+        if (StringUtils.isNotBlank(customDeviceMapping)) {
+            riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+        }
     }
 
     /**

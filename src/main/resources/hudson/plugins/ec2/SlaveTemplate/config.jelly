@@ -39,7 +39,7 @@ THE SOFTWARE.
   </f:entry>
 
   <f:entry title="${%Availability Zone}" field="zone">
-    <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12 
+    <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12
          See: https://groups.google.com/group/jenkinsci-dev/t/af37fa7fe2769b0c -->
     <!-- <f:select/>-->
     <f:textbox/>
@@ -52,13 +52,13 @@ THE SOFTWARE.
     </f:description>
     <f:description>Slaves designated as Spot slaves will initially show up as disconnected. The state
     will change to connecting when a Spot request has been fulfilled. </f:description>
-    
+
     <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="accessId,secretKey,region,type,zone" />
-    
+
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
     </f:entry>
-    
+
     <f:entry field="bidType" title="Choose Bid Type">
       <f:select />
     </f:entry>
@@ -88,7 +88,7 @@ THE SOFTWARE.
 
   <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
     <f:textbox default="30" />
-  </f:entry>  
+  </f:entry>
 
   <f:entry title="${%Init script}" field="initScript">
     <f:textarea />
@@ -119,7 +119,7 @@ THE SOFTWARE.
     <f:entry title="${%Subnet ID for VPC}" field="subnetId">
        <f:textbox />
     </f:entry>
-    
+
     <f:entry title="${%Use dedicated tenancy}" field="useDedicatedTenancy">
       <f:checkbox />
     </f:entry>
@@ -144,6 +144,10 @@ THE SOFTWARE.
 
     <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">
       <f:checkbox />
+    </f:entry>
+
+    <f:entry title="${%Block device mapping}" field="customDeviceMapping">
+      <f:textbox />
     </f:entry>
 
     <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
