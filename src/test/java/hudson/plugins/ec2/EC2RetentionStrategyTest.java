@@ -2,7 +2,6 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import hudson.slaves.NodeProperty;
-import jenkins.model.Jenkins;
 import org.jvnet.hudson.test.HudsonTestCase;
 
 import java.util.ArrayList;
@@ -39,7 +38,7 @@ public class EC2RetentionStrategyTest extends HudsonTestCase {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name","id","description","fs",22,1,null,"label",null,null,"init", new ArrayList<NodeProperty<?>>(),"remote","root","jvm",false,"idle",null,"cloud",false,false,Integer.MAX_VALUE ) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name","id","description","fs",1,null,"label",null,null,"init", new ArrayList<NodeProperty<?>>(),"remote","jvm",false,"idle",null,"cloud",false,false,Integer.MAX_VALUE,null) {
             @Override
             public void terminate() {
             }
