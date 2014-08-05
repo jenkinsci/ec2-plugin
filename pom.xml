@@ -47,6 +47,7 @@ THE SOFTWARE.
   <scm>
     <connection>scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:jenkinsci/ec2-plugin.git</developerConnection>
+    <url>https://github.com/jenkinsci/ec2-plugin</url>
   </scm>
 
   <dependencies>
