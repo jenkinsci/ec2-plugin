@@ -333,6 +333,17 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
+        if (getInstanceId() == null || getInstanceId() == ""){
+          /* The getInstanceId() implementation on EC2SpotSlave can return null if the spot request doesn't
+           * yet know the instance id that it is starting. What happens is that null is passed to getInstanceId()
+           * which searches AWS but without an instanceID the search returns some random box. We then fetch
+           * its metadata, including tags, and then later, when the spot request eventually gets the
+           * instanceID correctly we push the saved tags from that random box up to the new spot resulting in
+           * confusion and delay.
+           */
+          return;
+        }
+
         Instance i = getInstance(getInstanceId(), getCloud());
 
         lastFetchTime = now;
