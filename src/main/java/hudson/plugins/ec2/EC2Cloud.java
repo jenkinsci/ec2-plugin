@@ -296,9 +296,8 @@ public abstract class EC2Cloud extends Cloud {
      * Check for the count of EC2 slaves and determine if a new slave can be added.
      * Takes into account both what Amazon reports as well as an internal count
      * of slaves currently being "provisioned".
-     * @param tags 
      */
-    private boolean addProvisionedSlave(String ami, List<EC2Tag> tags, int amiCap) throws AmazonClientException {
+    private boolean addProvisionedSlave(String ami, int amiCap) throws AmazonClientException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null);
         int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
 
@@ -389,7 +388,7 @@ public abstract class EC2Cloud extends Cloud {
 
             while (excessWorkload>0) {
 
-                if (!addProvisionedSlave(t.ami, t.getTags(), amiCap)) {
+                if (!addProvisionedSlave(t.ami, amiCap)) {
                     break;
                 }
 
