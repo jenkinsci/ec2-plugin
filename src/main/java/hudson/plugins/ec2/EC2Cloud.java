@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.ClientConfiguration;
+
 import hudson.ProxyConfiguration;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -58,6 +59,8 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
+
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -76,6 +79,7 @@ import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -206,20 +210,73 @@ public abstract class EC2Cloud extends Cloud {
      * @param ami If AMI is left null, then all instances are counted.
      * <p>
      * This includes those instances that may be started outside Hudson.
+     * @param tags 
      */
-    public int countCurrentEC2Slaves(String ami) throws AmazonClientException {
+    public int countCurrentEC2Slaves(String ami, List<EC2Tag> tags) throws AmazonClientException {
         int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (ami == null || ami.equals(i.getImageId())) {
+                if (looksLikeEc2ProvisionedSlave(i, tags, ami)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
+                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
                         n++;
+                    }
                 }
             }
         }
         return n;
     }
+
+	/**
+	 * This method does check if the slave might be provisionde by this plugin. It does so by 
+	 * checking if the slave has the same AMI id and the tags match the tags as configured by 
+	 * the plugin. If there are no tags configured, the tags are ignored.
+	 * 
+	 * JENKINS-19845
+	 * 
+	 * @param i
+	 * @param tags 
+	 * @param ami
+	 * @return
+	 */
+	private boolean looksLikeEc2ProvisionedSlave(Instance i, List<EC2Tag> tags, String ami) {
+		// Check if the ami matches
+		if (ami == null || StringUtils.equals(ami, i.getImageId())) {
+			if (tags == null || tags.isEmpty()) {
+				return true;
+			}
+			return equalsTags(tags, i.getTags());
+		}
+		return false;
+	}
+
+	/**
+	 * Returns true if there is a tag where both the key and value are equal.
+	 * @param configuredTags
+	 * @param instanceTags
+	 * @return true if there is a tag where both the key and value are equal.
+	 */
+	private boolean equalsTags(List<EC2Tag> configuredTags, List<Tag> instanceTags) {
+		for (Tag instanceTag : instanceTags) {
+			for (EC2Tag ec2Tag : configuredTags) {
+				if (equalsTag(instanceTag, ec2Tag)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns true if both the key and value are equal.
+	 * @param instanceTag
+	 * @param ec2Tag
+	 * @return true if both the key and value are equal
+	 */
+	private boolean equalsTag(Tag instanceTag, EC2Tag ec2Tag) {
+		return StringUtils.equals(instanceTag.getKey(), ec2Tag.getName())
+			&& StringUtils.equals(instanceTag.getValue(), ec2Tag.getValue());
+	}
 
     /**
      * Debug command to attach to a running instance.
@@ -266,10 +323,11 @@ public abstract class EC2Cloud extends Cloud {
      * Check for the count of EC2 slaves and determine if a new slave can be added.
      * Takes into account both what Amazon reports as well as an internal count
      * of slaves currently being "provisioned".
+     * @param tags 
      */
-    private boolean addProvisionedSlave(String ami, int amiCap) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
+    private boolean addProvisionedSlave(String ami, List<EC2Tag> tags, int amiCap) throws AmazonClientException {
+        int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
+        int estimatedAmiSlaves = countCurrentEC2Slaves(ami, tags);
 
         synchronized (provisioningAmis) {
             int currentProvisioning;
@@ -358,7 +416,7 @@ public abstract class EC2Cloud extends Cloud {
 
             while (excessWorkload>0) {
 
-                if (!addProvisionedSlave(t.ami, amiCap)) {
+                if (!addProvisionedSlave(t.ami, t.getTags(), amiCap)) {
                     break;
                 }
 
