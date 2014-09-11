@@ -24,7 +24,6 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.ClientConfiguration;
-
 import hudson.ProxyConfiguration;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -226,30 +225,33 @@ public abstract class EC2Cloud extends Cloud {
         return n;
     }
 
-	/**
-	 * This method checks if the slave is provisioned by this plugin. 
-	 * It does so by: 1) checking if the ami matches and 2) checking
-	 * for a tag with the key jenkins_slave_type. The value of the tag will be ignored.
-	 * 
-	 * See also JENKINS-19845
-	 * 
-	 * @param i
-	 * @param ami
-	 * @return
-	 */
-	private boolean isEc2ProvisionedSlave(Instance i, String ami) {
-		// Check if the ami matches
-		if (ami == null || StringUtils.equals(ami, i.getImageId())) {
-			// Check if there is a ec2slave tag...
-			for (Tag tag : i.getTags()) {
-				if (StringUtils.equals(tag.getKey(), "jenkins_slave_type")) {
-					return true;
-				}
-			}
-			return false;
-		}
-		return false;
-	}
+    /**
+     * This method checks if the slave is provisioned by this plugin. 
+     * An instance is a provisioned slave if:
+     * <ol>
+     *  <li>The AMI id matches.</li>
+     *  <li>There is a tag with the key name {@link EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE}</li>.
+     *  </ol>
+     * 
+     * @see JENKINS-19845 (https://issues.jenkins-ci.org/browse/JENKINS-19845)
+     * 
+     * @param i the instance to be checked.
+     * @param ami the ami id. 
+     * @return true if the instance is a provisioned slave
+     */
+    protected boolean isEc2ProvisionedSlave(Instance i, String ami) {
+        // Check if the ami matches
+        if (ami == null || StringUtils.equals(ami, i.getImageId())) {
+            // Check if there is a ec2slave tag...
+            for (Tag tag : i.getTags()) {
+                if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
+    }
 
     /**
      * Debug command to attach to a running instance.

@@ -62,8 +62,7 @@ import com.amazonaws.services.ec2.model.*;
  * @author Kohsuke Kawaguchi
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
-    public static final String TAG_NAME_JENKINS_SLAVE_TYPE = "jenkins_slave_type";
-	public final String ami;
+    public final String ami;
     public final String description;
     public final String zone;
     public final SpotConfiguration spotConfig;
@@ -372,13 +371,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 for(EC2Tag t : tags) {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
-                    if (StringUtils.equals(t.getName(), TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                     	hasCustomTypeTag = true;
                     }
                 }
             }
             if (!hasCustomTypeTag) {
-            	inst_tags.add(new Tag(TAG_NAME_JENKINS_SLAVE_TYPE, "demand"));
+            	inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "demand"));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
@@ -596,13 +595,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 inst_tags = new HashSet<Tag>();
                 for(EC2Tag t : tags) {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
-                    if (StringUtils.equals(t.getName(), TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                     	hasCustomTypeTag = true;
                     }
                 }
             }
             if (!hasCustomTypeTag) {
-            	inst_tags.add(new Tag(TAG_NAME_JENKINS_SLAVE_TYPE, "spot"));
+            	inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "spot"));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
