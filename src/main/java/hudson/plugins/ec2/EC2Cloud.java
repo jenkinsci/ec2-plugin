@@ -210,13 +210,12 @@ public abstract class EC2Cloud extends Cloud {
      * @param ami If AMI is left null, then all instances are counted.
      * <p>
      * This includes those instances that may be started outside Hudson.
-     * @param tags 
      */
-    public int countCurrentEC2Slaves(String ami, List<EC2Tag> tags) throws AmazonClientException {
+    public int countCurrentEC2Slaves(String ami) throws AmazonClientException {
         int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (looksLikeEc2ProvisionedSlave(i, tags, ami)) {
+                if (isEc2ProvisionedSlave(i, ami)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
                         n++;
@@ -228,54 +227,28 @@ public abstract class EC2Cloud extends Cloud {
     }
 
 	/**
-	 * This method does check if the slave might be provisionde by this plugin. It does so by 
-	 * checking if the slave has the same AMI id and the tags match the tags as configured by 
-	 * the plugin. If there are no tags configured, the tags are ignored.
+	 * This method does check if the slave is provisioned by this plugin. 
+	 * It does so by checking for a tag with the key ec2slave, the 
+	 * value of the tag will be ignored.
 	 * 
-	 * JENKINS-19845
+	 * See also JENKINS-19845
 	 * 
 	 * @param i
-	 * @param tags 
 	 * @param ami
 	 * @return
 	 */
-	private boolean looksLikeEc2ProvisionedSlave(Instance i, List<EC2Tag> tags, String ami) {
+	private boolean isEc2ProvisionedSlave(Instance i, String ami) {
 		// Check if the ami matches
 		if (ami == null || StringUtils.equals(ami, i.getImageId())) {
-			if (tags == null || tags.isEmpty()) {
-				return true;
-			}
-			return equalsTags(tags, i.getTags());
-		}
-		return false;
-	}
-
-	/**
-	 * Returns true if there is a tag where both the key and value are equal.
-	 * @param configuredTags
-	 * @param instanceTags
-	 * @return true if there is a tag where both the key and value are equal.
-	 */
-	private boolean equalsTags(List<EC2Tag> configuredTags, List<Tag> instanceTags) {
-		for (Tag instanceTag : instanceTags) {
-			for (EC2Tag ec2Tag : configuredTags) {
-				if (equalsTag(instanceTag, ec2Tag)) {
+			// Check if there is a ec2slave tag...
+			for (Tag tag : i.getTags()) {
+				if (StringUtils.equals(tag.getKey(), "ec2slave")) {
 					return true;
 				}
 			}
+			return false;
 		}
 		return false;
-	}
-
-	/**
-	 * Returns true if both the key and value are equal.
-	 * @param instanceTag
-	 * @param ec2Tag
-	 * @return true if both the key and value are equal
-	 */
-	private boolean equalsTag(Tag instanceTag, EC2Tag ec2Tag) {
-		return StringUtils.equals(instanceTag.getKey(), ec2Tag.getName())
-			&& StringUtils.equals(instanceTag.getValue(), ec2Tag.getValue());
 	}
 
     /**
@@ -326,8 +299,8 @@ public abstract class EC2Cloud extends Cloud {
      * @param tags 
      */
     private boolean addProvisionedSlave(String ami, List<EC2Tag> tags, int amiCap) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(ami, tags);
+        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
+        int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
 
         synchronized (provisioningAmis) {
             int currentProvisioning;

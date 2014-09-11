@@ -372,6 +372,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
                 }
             }
+            
+            inst_tags.add(new Tag("ec2slave", "demand"));
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
             diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(),
@@ -589,6 +591,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
                 }
             }
+            
+            inst_tags.add(new Tag("ec2slave", "spot"));
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
