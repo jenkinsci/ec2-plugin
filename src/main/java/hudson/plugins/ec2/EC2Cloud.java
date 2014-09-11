@@ -227,9 +227,9 @@ public abstract class EC2Cloud extends Cloud {
     }
 
 	/**
-	 * This method does check if the slave is provisioned by this plugin. 
-	 * It does so by checking for a tag with the key ec2slave, the 
-	 * value of the tag will be ignored.
+	 * This method checks if the slave is provisioned by this plugin. 
+	 * It does so by: 1) check if the ami matches and 2) by checking
+	 * for a tag with the key ec2slave. The value of the tag will be ignored.
 	 * 
 	 * See also JENKINS-19845
 	 * 
