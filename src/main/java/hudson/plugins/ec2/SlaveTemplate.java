@@ -62,7 +62,8 @@ import com.amazonaws.services.ec2.model.*;
  * @author Kohsuke Kawaguchi
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
-    public final String ami;
+    public static final String TAG_NAME_JENKINS_SLAVE_TYPE = "jenkins_slave_type";
+	public final String ami;
     public final String description;
     public final String zone;
     public final SpotConfiguration spotConfig;
@@ -364,16 +365,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.withNetworkInterfaces(net);
             }
 
+            boolean hasCustomTypeTag = false;
             HashSet<Tag> inst_tags = null;
             if (tags != null && !tags.isEmpty()) {
                 inst_tags = new HashSet<Tag>();
                 for(EC2Tag t : tags) {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
+                    if (StringUtils.equals(t.getName(), TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    	hasCustomTypeTag = true;
+                    }
                 }
             }
-            
-            inst_tags.add(new Tag("ec2slave", "demand"));
+            if (!hasCustomTypeTag) {
+            	inst_tags.add(new Tag(TAG_NAME_JENKINS_SLAVE_TYPE, "demand"));
+            }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
             diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(),
@@ -584,15 +590,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecification.setKeyName(keyPair.getKeyName());
             launchSpecification.setInstanceType(type.toString());
 
+            boolean hasCustomTypeTag = false;
             HashSet<Tag> inst_tags = null;
             if (tags != null && !tags.isEmpty()) {
                 inst_tags = new HashSet<Tag>();
                 for(EC2Tag t : tags) {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
+                    if (StringUtils.equals(t.getName(), TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    	hasCustomTypeTag = true;
+                    }
                 }
             }
-            
-            inst_tags.add(new Tag("ec2slave", "spot"));
+            if (!hasCustomTypeTag) {
+            	inst_tags.add(new Tag(TAG_NAME_JENKINS_SLAVE_TYPE, "spot"));
+            }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));

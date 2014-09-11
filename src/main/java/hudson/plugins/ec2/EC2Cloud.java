@@ -229,7 +229,7 @@ public abstract class EC2Cloud extends Cloud {
 	/**
 	 * This method checks if the slave is provisioned by this plugin. 
 	 * It does so by: 1) checking if the ami matches and 2) checking
-	 * for a tag with the key ec2slave. The value of the tag will be ignored.
+	 * for a tag with the key jenkins_slave_type. The value of the tag will be ignored.
 	 * 
 	 * See also JENKINS-19845
 	 * 
@@ -242,7 +242,7 @@ public abstract class EC2Cloud extends Cloud {
 		if (ami == null || StringUtils.equals(ami, i.getImageId())) {
 			// Check if there is a ec2slave tag...
 			for (Tag tag : i.getTags()) {
-				if (StringUtils.equals(tag.getKey(), "ec2slave")) {
+				if (StringUtils.equals(tag.getKey(), "jenkins_slave_type")) {
 					return true;
 				}
 			}
