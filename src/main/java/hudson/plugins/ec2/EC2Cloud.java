@@ -499,10 +499,16 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         public FormValidation doCheckAccessId(@QueryParameter String value) throws IOException, ServletException {
+            if (value.trim().length() != 20) {
+                return FormValidation.error(Messages.EC2Cloud_InvalidAccessId());
+            }
             return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidAccessId());
         }
 
         public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
+            if (value.trim().length() != 40) {
+                return FormValidation.error(Messages.EC2Cloud_InvalidAccessId());
+            }
             return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
         }
 
