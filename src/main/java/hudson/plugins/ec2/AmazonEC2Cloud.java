@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
+import hudson.Util;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -146,6 +147,11 @@ public class AmazonEC2Cloud extends EC2Cloud {
                  @QueryParameter String accessId,
                  @QueryParameter String secretKey,
                  @QueryParameter String privateKey) throws IOException, ServletException {
+
+            if (Util.fixEmpty(region) == null) {
+                region = DEFAULT_EC2_HOST;
+            }
+
             return super.doTestConnection(getEc2EndpointUrl(region),accessId,secretKey,privateKey);
         }
 
