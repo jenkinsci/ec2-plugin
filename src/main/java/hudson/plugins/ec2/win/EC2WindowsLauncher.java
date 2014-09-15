@@ -95,16 +95,14 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     host = instance.getPrivateDnsName();
                     ip = instance.getPrivateIpAddress(); // SmbFile doesn't quite work with hostnames
                 } else {
-                    /*
-                     * VPC hosts don't have public DNS names, so we need to use
-                     * an IP address instead
-                     */
-                    if (vpc_id == null || vpc_id.equals("")) {
+                    host = instance.getPublicDnsName();
+                    if (host == null || host.equals("")) {
+                        host = instance.getPrivateDnsName();
+                        ip = instance.getPrivateIpAddress(); // SmbFile doesn't quite work with hostnames
+                    }
+                    else {
                         host = instance.getPublicDnsName();
                         ip = instance.getPublicIpAddress(); // SmbFile doesn't quite work with hostnames
-                    } else {
-                        host = instance.getPrivateDnsName();
-                        ip = instance.getPrivateIpAddress();
                     }
                 }
 
