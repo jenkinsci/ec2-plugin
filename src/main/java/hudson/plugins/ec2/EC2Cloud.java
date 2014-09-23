@@ -58,6 +58,8 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
+
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -76,6 +78,7 @@ import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -211,14 +214,43 @@ public abstract class EC2Cloud extends Cloud {
         int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (ami == null || ami.equals(i.getImageId())) {
+                if (isEc2ProvisionedSlave(i, ami)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
+                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
                         n++;
+                    }
                 }
             }
         }
         return n;
+    }
+
+    /**
+     * This method checks if the slave is provisioned by this plugin. 
+     * An instance is a provisioned slave if:
+     * <ol>
+     *  <li>The AMI id matches.</li>
+     *  <li>There is a tag with the key name {@link EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE}</li>.
+     *  </ol>
+     * 
+     * @see JENKINS-19845 (https://issues.jenkins-ci.org/browse/JENKINS-19845)
+     * 
+     * @param i the instance to be checked.
+     * @param ami the ami id. 
+     * @return true if the instance is a provisioned slave
+     */
+    protected boolean isEc2ProvisionedSlave(Instance i, String ami) {
+        // Check if the ami matches
+        if (ami == null || StringUtils.equals(ami, i.getImageId())) {
+            // Check if there is a ec2slave tag...
+            for (Tag tag : i.getTags()) {
+                if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
     }
 
     /**
