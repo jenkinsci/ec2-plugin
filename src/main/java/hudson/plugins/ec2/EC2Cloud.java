@@ -507,7 +507,7 @@ public abstract class EC2Cloud extends Cloud {
 
         public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
             if (value.trim().length() != 40) {
-                return FormValidation.error(Messages.EC2Cloud_InvalidAccessId());
+                return FormValidation.error(Messages.EC2Cloud_InvalidSecretKey());
             }
             return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
         }
