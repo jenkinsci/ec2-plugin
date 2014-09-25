@@ -33,6 +33,7 @@ import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 
@@ -60,6 +61,7 @@ import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -82,6 +84,8 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+
+import static javax.servlet.http.HttpServletResponse.*;
 
 
 /**
@@ -268,16 +272,14 @@ public abstract class EC2Cloud extends Cloud {
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
 
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String template) throws ServletException, IOException {
+    public HttpResponse doProvision(@QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if(template==null) {
-            sendError("The 'template' query parameter is missing",req,rsp);
-            return;
+            throw HttpResponses.error(SC_BAD_REQUEST,"The 'template' query parameter is missing");
         }
         SlaveTemplate t = getTemplate(template);
         if(t==null) {
-            sendError("No such template: "+template,req,rsp);
-            return;
+            throw HttpResponses.error(SC_BAD_REQUEST,"No such template: "+template);
         }
 
         StringWriter sw = new StringWriter();
@@ -286,10 +288,9 @@ public abstract class EC2Cloud extends Cloud {
             EC2AbstractSlave node = t.provision(listener);
             Hudson.getInstance().addNode(node);
 
-            rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
+            return HttpResponses.redirectViaContextPath("/computer/"+node.getNodeName());
         } catch (AmazonClientException e) {
-            req.setAttribute("exception", e);
-            sendError(e.getMessage(),req,rsp);
+            throw HttpResponses.error(SC_INTERNAL_SERVER_ERROR,e);
         }
     }
 
