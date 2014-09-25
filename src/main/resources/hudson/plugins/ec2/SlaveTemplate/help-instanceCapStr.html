@@ -1,0 +1,10 @@
+<div>
+    Limit the total number of running instances launched from this AMI and associated configurations.
+    Primarily useful to control the EC2 cost. Once the the instance number reaches the cap, the additional
+    workload will sit in the queue and those projects will get less frequent builds.
+
+    <p>
+    Note that this cap is local to this specific AMI and associated configurations, and not to be
+    confused with the global instance cap that you can specify at the cloud level, which affects
+    the total number of instances this cloud will provision, across all the AMIs.
+</div>
