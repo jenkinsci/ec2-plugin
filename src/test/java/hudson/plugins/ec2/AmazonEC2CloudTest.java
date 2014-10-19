@@ -29,6 +29,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import hudson.util.Secret;
+
 import java.util.Collections;
 
 /**

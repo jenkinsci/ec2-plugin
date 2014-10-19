@@ -23,21 +23,6 @@
  */
 package hudson.plugins.ec2.ssh;
 
-import hudson.FilePath;
-import hudson.Util;
-import hudson.ProxyConfiguration;
-import hudson.model.Descriptor;
-import hudson.model.TaskListener;
-import hudson.plugins.ec2.EC2AbstractSlave;
-import hudson.plugins.ec2.EC2Cloud;
-import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.SlaveTemplate;
-import hudson.remoting.Channel;
-import hudson.remoting.Channel.Listener;
-import hudson.slaves.CommandLauncher;
-import hudson.slaves.ComputerLauncher;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -47,10 +32,9 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import jenkins.model.Jenkins;
 
 import org.apache.commons.io.IOUtils;
 
@@ -62,6 +46,22 @@ import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
+
+import hudson.FilePath;
+import hudson.ProxyConfiguration;
+import hudson.Util;
+import hudson.model.Descriptor;
+import hudson.model.TaskListener;
+import hudson.plugins.ec2.EC2AbstractSlave;
+import hudson.plugins.ec2.EC2Cloud;
+import hudson.plugins.ec2.EC2Computer;
+import hudson.plugins.ec2.EC2ComputerLauncher;
+import hudson.plugins.ec2.SlaveTemplate;
+import hudson.remoting.Channel;
+import hudson.remoting.Channel.Listener;
+import hudson.slaves.CommandLauncher;
+import hudson.slaves.ComputerLauncher;
+import jenkins.model.Jenkins;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -88,6 +88,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private final int FAILED = -1;
+    private final int SAMEUSER = 0;
 
     protected void log(Level level, EC2Computer computer, TaskListener listener, String message) {
         EC2Cloud cloud = computer.getCloud();
@@ -117,139 +118,189 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     @Override
-    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
-            AmazonClientException, InterruptedException {
-        final Connection bootstrapConn;
-        final Connection conn;
+    protected void launch(EC2Computer computer, TaskListener listener, Instance inst)
+            throws IOException, AmazonClientException, InterruptedException {
+
         Connection cleanupConn = null; // java's code path analysis for final
                                        // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
         logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
-        try {
-            boolean isBootstrapped = bootstrap(computer, listener);
-            if (isBootstrapped) {
-                // connect fresh as ROOT
-                logInfo(computer, listener, "connect fresh as root");
-                cleanupConn = connectToSsh(computer, listener);
-                KeyPair key = computer.getCloud().getKeyPair();
-                if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
-                    logWarning(computer, listener, "Authentication failed");
-                    return; // failed to connect as root.
-                }
-            } else {
-                logWarning(computer, listener, "bootstrapresult failed");
-                return; // bootstrap closed for us.
-            }
-            conn = cleanupConn;
 
-            SCPClient scp = conn.createSCPClient();
-            String initScript = computer.getNode().initScript;
-            String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir
-                    : "/tmp");
-
-            logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
-            conn.exec("mkdir -p " + tmpDir, logger);
-
-            if (initScript != null && initScript.trim().length() > 0
-                    && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
-                logInfo(computer, listener, "Executing init script");
-                scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");
-                Session sess = conn.openSession();
-                sess.requestDumbPTY(); // so that the remote side bundles stdout
-                                       // and stderr
-                sess.execCommand(buildUpCommand(computer, tmpDir + "/init.sh"));
-
-                sess.getStdin().close(); // nothing to write here
-                sess.getStderr().close(); // we are not supposed to get anything
-                                          // from stderr
-                IOUtils.copy(sess.getStdout(), logger);
-
-                int exitStatus = waitCompletion(sess);
-                if (exitStatus != 0) {
-                    logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+        for (;;) {
+            try {
+                final Connection bootstrapConn = connectToSsh(computer, listener);
+                int bootstrapResult = bootstrap(bootstrapConn, computer, listener);
+                if (bootstrapResult == FAILED) {
+                    logWarning(computer, listener, "bootstrapresult failed");
                     return;
-                }
-                sess.close();
-
-                // Needs a tty to run sudo.
-                sess = conn.openSession();
-                sess.requestDumbPTY(); // so that the remote side bundles stdout
-                                       // and stderr
-                sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
-                sess.close();
-            }
-
-            // TODO: parse the version number. maven-enforcer-plugin might help
-            logInfo(computer, listener, "Verifying that java exists");
-            if (conn.exec("java -fullversion", logger) != 0) {
-                logInfo(computer, listener, "Installing Java");
-
-                String jdk = "java1.6.0_12";
-                String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
-
-                URL url = computer.getCloud().buildPresignedURL(path);
-                if (conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
-                    logWarning(computer, listener, "Failed to download Java");
-                    return;
-                }
-
-                if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to install Java");
-                    return;
-                }
-
-                if (conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to symlink Java");
-                    return;
-                }
-            }
-
-            // TODO: on Windows with ec2-sshd, this scp command ends up just
-            // putting slave.jar as c:\tmp
-            // bug in ec2-sshd?
-
-            logInfo(computer, listener, "Copying slave.jar");
-            scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
-
-            String jvmopts = computer.getNode().jvmopts;
-            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
-
-            SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-
-            if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
-                EC2AbstractSlave node = computer.getNode();
-                File identityKeyFile = createIdentityKeyFile(computer);
-
-                try {
-                    // Obviously the master must have an installed ssh client.
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
-
-                    logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
-                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
-                    commandLauncher.launch(computer, listener);
-                } finally {
-                    identityKeyFile.delete();
-                }
-            } else {
-                logInfo(computer, listener, "Launching slave agent (via Trilead SSH2 Connection): " + launchString);
-                final Session sess = conn.openSession();
-                sess.execCommand(launchString);
-                computer.setChannel(sess.getStdout(), sess.getStdin(), logger, new Listener() {
-                    @Override
-                    public void onClosed(Channel channel, IOException cause) {
-                        sess.close();
-                        conn.close();
+                } else if (bootstrapResult == SAMEUSER) {
+                    cleanupConn = bootstrapConn; // take over the connection
+                    logger.println("take over connection");
+                } else {
+                    // connect fresh as ROOT
+                    logInfo(computer, listener, "connect fresh as root");
+                    cleanupConn = connectToSsh(computer, listener);
+                    KeyPair key = computer.getCloud().getKeyPair();
+                    if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(),
+                            key.getKeyMaterial().toCharArray(), "")) {
+                        logWarning(computer, listener, "Authentication failed");
+                        return; // failed to connect as root.
                     }
-                });
-            }
+                }
+                final Connection conn = cleanupConn;
 
-            successful = true;
-        } finally {
-            if (cleanupConn != null && !successful)
-                cleanupConn.close();
+                SCPClient scp = conn.createSCPClient();
+                String initScript = computer.getNode().initScript;
+                String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir
+                        : "/tmp");
+
+                logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
+                conn.exec("mkdir -p " + tmpDir, logger);
+
+                if (initScript != null && initScript.trim().length() > 0
+                        && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
+                    logInfo(computer, listener, "Executing init script");
+                    scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");
+                    Session sess = conn.openSession();
+                    try {
+                        sess.requestDumbPTY(); // so that the remote side
+                                               // bundles
+                                               // stdout
+                                               // and stderr
+                        sess.execCommand(buildUpCommand(computer, tmpDir + "/init.sh"));
+
+                        sess.getStdin().close(); // nothing to write here
+                        sess.getStderr().close(); // we are not supposed to get
+                                                  // anything
+                                                  // from stderr
+                        IOUtils.copy(sess.getStdout(), logger);
+
+                        int exitStatus = waitCompletion(sess);
+                        if (exitStatus != 0) {
+                            logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                            return;
+                        }
+                    } finally {
+                        sess.close();
+                    }
+                    // Needs a tty to run sudo.
+                    sess = conn.openSession();
+                    try {
+                        sess.requestDumbPTY(); // so that the remote side
+                                               // bundles
+                                               // stdout
+                                               // and stderr
+                        sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
+                    } finally {
+                        sess.close();
+                    }
+                }
+
+                // TODO: parse the version number. maven-enforcer-plugin might
+                // help
+                logInfo(computer, listener, "Verifying that java exists");
+                if (conn.exec("java -fullversion", logger) != 0) {
+                    logInfo(computer, listener, "Java not found. Installing Java...");
+
+
+                    String jdk = "java1.6.0_12";
+                    String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
+
+                    URL url = computer.getCloud().buildPresignedURL(path);
+                    if (conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
+                        logWarning(computer, listener, "Failed to download Java");
+                        return;
+                    }
+
+                    if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"),
+                            logger) != 0) {
+                        logWarning(computer, listener, "Failed to install Java");
+                        return;
+                    }
+
+                    if (conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
+                        logWarning(computer, listener, "Failed to symlink Java");
+                        return;
+                    }
+                }
+
+                // TODO: on Windows with ec2-sshd, this scp command ends up just
+                // putting slave.jar as c:\tmp
+                // bug in ec2-sshd?
+
+                logInfo(computer, listener, "Copying slave.jar");
+                scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
+
+                String jvmopts = computer.getNode().jvmopts;
+                String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar '" + tmpDir + "/slave.jar'"
+                        + " -slaveLog '" + tmpDir + "/slave.log'";
+
+                SlaveTemplate slaveTemplate = getSlaveTemplate(computer);
+
+                if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
+                    EC2AbstractSlave node = computer.getNode();
+                    File identityKeyFile = createIdentityKeyFile(computer);
+
+                    try {
+                        // Obviously the master must have an installed ssh
+                        // client.
+                        String sshClientLaunchString = String.format(
+                                "ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s",
+                                identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst),
+                                node.getSshPort(), launchString);
+
+                        logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
+                        CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
+                        commandLauncher.launch(computer, listener);
+                    } finally {
+                        identityKeyFile.delete();
+                    }
+                } else {
+                    logInfo(computer, listener, "Launching slave agent (via Trilead SSH2 Connection): " + launchString);
+                    final Session sess = conn.openSession();
+                    sess.execCommand(launchString);
+                    computer.setChannel(sess.getStdout(), sess.getStdin(), logger, new Listener() {
+                        @Override
+                        public void onClosed(Channel channel, IOException cause) {
+                            sess.close();
+                            conn.close();
+                        }
+                    });
+                }
+
+                successful = true;
+                return;
+            } catch(IOException e) {
+                logger.println("Connection to the slave failed, will retry");
+                e.printStackTrace(logger);
+            } finally {
+                if (cleanupConn != null && !successful)
+                    cleanupConn.close();
+            }
         }
+    }
+
+    /**
+     * Return the first {@link SlaveTemplate} from the given {@link EC2Computer}
+     * instance.
+     * 
+     * @param computer
+     * @return
+     */
+    private SlaveTemplate getSlaveTemplate(EC2Computer computer) {
+        // TODO: I don't get these templates. How are they named/labeled and
+        // when will there be multiples?
+        // Need to find out how to map this stuff onto the EC2AbstractSlave
+        // instance as it seems to have
+        // some of the same props.
+        List<SlaveTemplate> templates = computer.getCloud().getTemplates();
+        SlaveTemplate slaveTemplate = null;
+        if (templates != null && !templates.isEmpty()) {
+            slaveTemplate = templates.get(0);
+        }
+        return slaveTemplate;
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
@@ -275,10 +326,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener) throws IOException,
+    private int bootstrap(Connection bootstrapConn, EC2Computer computer, TaskListener listener) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
-        Connection bootstrapConn = null;
+        boolean closeBootstrap = true;
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
@@ -288,13 +339,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     + key.getKeyMaterial().substring(0, 160));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
-                try {
-                    bootstrapConn = connectToSsh(computer, listener);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
-                } catch(IOException e) {
-                    logException(computer, listener, "Exception trying to authenticate", e);
-                    bootstrapConn.close();
-                }
+                isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
                 if (isAuthenticated) {
                     break;
                 }
@@ -303,12 +348,15 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
             if (!isAuthenticated) {
                 logWarning(computer, listener, "Authentication failed");
-                return false;
+                return FAILED;
             }
+            closeBootstrap = false;
+            return SAMEUSER;
         } finally {
-            bootstrapConn.close();
+            if(closeBootstrap) {
+                bootstrapConn.close();
+            }
         }
-        return true;
     }
 
     private Connection connectToSsh(EC2Computer computer, TaskListener listener) throws AmazonClientException,

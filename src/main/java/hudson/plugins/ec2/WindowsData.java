@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
+import hudson.util.Secret;
 
 import hudson.util.Secret;
 import org.kohsuke.stapler.DataBoundConstructor;
