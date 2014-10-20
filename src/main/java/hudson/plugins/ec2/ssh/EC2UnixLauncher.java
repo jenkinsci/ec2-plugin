@@ -156,7 +156,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     "slave.jar","/tmp");
 
             String jvmopts = computer.getNode().jvmopts;
-            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar /tmp/slave.jar";
+            String launchString = "while :; do java " + (jvmopts != null ? jvmopts : "") + " -jar /tmp/slave.jar; done";
             logger.println("Launching slave agent: " + launchString);
             final Session sess = conn.openSession();
             sess.execCommand(launchString);
