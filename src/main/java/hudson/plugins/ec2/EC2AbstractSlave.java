@@ -80,14 +80,14 @@ public abstract class EC2AbstractSlave extends Slave {
     public AMITypeData amiType;
 
     // Temporary stuff that is obtained live from EC2
-    public String publicDNS;
-    public String privateDNS;
+    public transient String publicDNS;
+    public transient String privateDNS;
 
     /* The last instance data to be fetched for the slave */
-    protected Instance lastFetchInstance = null;
+    protected transient Instance lastFetchInstance = null;
 
     /* The time at which we fetched the last instance data */
-    protected long lastFetchTime = 0;
+    protected transient long lastFetchTime;
 
     /* The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked for it */
     protected static final long MIN_FETCH_TIME = 20 * 1000;
