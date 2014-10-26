@@ -377,6 +377,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
             if (!hasCustomTypeTag) {
+                if (inst_tags == null){
+                    inst_tags = new HashSet<Tag>();
+                }
             	inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "demand"));
             }
 
