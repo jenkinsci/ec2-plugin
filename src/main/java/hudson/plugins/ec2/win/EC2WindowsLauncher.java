@@ -30,13 +30,17 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
         try {
             String initScript = computer.getNode().initScript;
-
-            if(initScript!=null && initScript.trim().length()>0 && !connection.exists("C:\\Windows\\Temp\\.jenkins-init")) {
+            String tmpDir = (computer.getNode().tmpDir != null ? computer.getNode().tmpDir : "C:\\Windows\\Temp\\");
+            
+            logger.println("Creating tmp directory if it does not exist");
+            connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
+            
+            if(initScript!=null && initScript.trim().length()>0 && !connection.exists(tmpDir + ".jenkins-init")) {
                 logger.println("Executing init script");
-                OutputStream init = connection.putFile("C:\\Windows\\Temp\\init.bat");
+                OutputStream init = connection.putFile(tmpDir + "init.bat");
                 init.write(initScript.getBytes("utf-8"));
                 
-                WindowsProcess initProcess = connection.execute("cmd /c C:\\Windows\\Temp\\init.bat");
+                WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
                 IOUtils.copy(initProcess.getStdout(),logger);
 
                 int exitStatus = initProcess.waitFor();
@@ -45,19 +49,19 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     return;
                 }
 
-                OutputStream initGuard = connection.putFile("C:\\Windows\\Temp\\.jenkins-init");
+                OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
                 initGuard.write("init ran".getBytes());
                 logger.println("init script failed ran successfully");
             }
 
             
-            OutputStream slaveJar = connection.putFile("C:\\Windows\\Temp\\slave.jar");
+            OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
             slaveJar.write(Hudson.getInstance().getJnlpJars("slave.jar").readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
             
             final String jvmopts = computer.getNode().jvmopts;
-            final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar C:\\Windows\\Temp\\slave.jar", 86400);
+            final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "slave.jar", 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
                 public void onClosed(Channel channel, IOException cause) {

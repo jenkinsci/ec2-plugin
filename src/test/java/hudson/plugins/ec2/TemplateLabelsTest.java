@@ -51,7 +51,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
 		tags.add( tag1 );
 		tags.add( tag2 );
 
-		SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, label, mode,"foo ami", "bar", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
+		SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, label, mode,"foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
 		List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
 		templates.add(template);
 
