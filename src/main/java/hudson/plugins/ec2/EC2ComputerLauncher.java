@@ -60,13 +60,10 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                 switch (computer.getState()) {
                     case PENDING:
                         msg = baseMsg + " is still pending/launching, waiting 5s";
+                        break;
                     case STOPPING:
                         msg = baseMsg + " is still stopping, waiting 5s";
-                        Thread.sleep(5000); // check every 5 secs
-                        // and report to system log and console
-                        LOGGER.finest(msg);
-                        logger.println(msg);
-                        continue OUTER;
+                        break;
                     case RUNNING:
                         msg = baseMsg + " is ready";
                         LOGGER.finer(msg);
@@ -95,7 +92,16 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                         LOGGER.info(msg);
                         logger.println(msg);
                         return;
+                    default:
+                        msg = baseMsg + " is in an unknown state, retrying in 5s";
+                        break;
                 }
+
+                // check every 5 secs
+                Thread.sleep(5000);
+                // and report to system log and console
+                LOGGER.finest(msg);
+                logger.println(msg);
             }
 
             launch(computer, logger, computer.describeInstance());
