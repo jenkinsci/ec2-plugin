@@ -541,6 +541,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             spotRequest.setType(getBidType());
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
+            InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             launchSpecification.setImageId(ami);
             launchSpecification.setInstanceType(type);
@@ -551,21 +552,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             if (StringUtils.isNotBlank(getSubnetId())) {
-                launchSpecification.setSubnetId(getSubnetId());
+                if (getAssociatePublicIp()) {
+                    net.setSubnetId(getSubnetId());
+                }else{
+                    launchSpecification.setSubnetId(getSubnetId());
+                }
 
                 /* If we have a subnet ID then we can only use VPC security groups */
                 if (!securityGroupSet.isEmpty()) {
                     List<String> group_ids = getEc2SecurityGroups(ec2);
-                    ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
+                    if (!group_ids.isEmpty()){
+                        if (getAssociatePublicIp()) {
+                            net.setGroups(group_ids);
+                        }else{
+                            ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
 
-                    for (String group_id : group_ids) {
-                      GroupIdentifier group = new GroupIdentifier();
-                      group.setGroupId(group_id);
-                      groups.add(group);
+                            for (String group_id : group_ids) {
+                              GroupIdentifier group = new GroupIdentifier();
+                              group.setGroupId(group_id);
+                              groups.add(group);
+                            }
+                             if (!groups.isEmpty())
+                                launchSpecification.setAllSecurityGroups(groups);
+                        }
                     }
-
-                    if (!groups.isEmpty())
-                        launchSpecification.setAllSecurityGroups(groups);
                 }
             } else {
                 /* No subnet: we can use standard security groups by name */
@@ -591,6 +601,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecification.setUserData(userDataString);
             launchSpecification.setKeyName(keyPair.getKeyName());
             launchSpecification.setInstanceType(type.toString());
+
+             if (getAssociatePublicIp()) {
+                net.setAssociatePublicIpAddress(true);
+                net.setDeviceIndex(0);
+                launchSpecification.withNetworkInterfaces(net);
+            }
 
             boolean hasCustomTypeTag = false;
             HashSet<Tag> inst_tags = null;
