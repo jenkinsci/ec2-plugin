@@ -368,7 +368,7 @@ public abstract class EC2Cloud extends Cloud {
 			for(EC2SpotSlave n : NodeIterator.nodes(EC2SpotSlave.class)){
 				// If the slave is online then it is already counted by Jenkins
 				// We only want to count potential additional Spot instance slaves
-				if (n.getComputer().isOffline()){
+				if (n.getComputer().isOffline() && label.matches(n.getAssignedLabels())){
 					DescribeSpotInstanceRequestsRequest dsir =
 							new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(n.getSpotInstanceRequestId());
 
