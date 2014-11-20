@@ -583,11 +583,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             // user-data for the request. Instead we generate a unique name from UUID
             // so that the slave has a unique name within Jenkins to register to.
             String slaveName = UUID.randomUUID().toString();
-            String newUserData = "JENKINS_URL=" + jenkinsUrl +
-                    "&SLAVE_NAME=" + slaveName +
-                    "&USER_DATA=" + Base64.encodeBase64String(userData.getBytes());
+            String newUserData = "";
+
+            // We want to allow node configuration with cloud-init and user-data,
+            // while maintaining backward compatibility with old ami's
+            // The 'new' way is triggered by the presence of '${SLAVE_NAME}'' in the user data 
+            // (which is not too much to ask)
+            if (userData.contains("${SLAVE_NAME}")) {
+                // The cloud-init compatible way
+                newUserData = new String(userData);
+                newUserData = newUserData.replace("${SLAVE_NAME}", slaveName);
+                newUserData = newUserData.replace("${JENKINS_URL}", jenkinsUrl);
+            } else {
+                // The 'old' way - maitain full backward compatibility
+                newUserData = "JENKINS_URL=" + jenkinsUrl +
+                        "&SLAVE_NAME=" + slaveName +
+                        "&USER_DATA=" + Base64.encodeBase64String(userData.getBytes());
+            }
 
             String userDataString = Base64.encodeBase64String(newUserData.getBytes());
+
             launchSpecification.setUserData(userDataString);
             launchSpecification.setKeyName(keyPair.getKeyName());
             launchSpecification.setInstanceType(type.toString());
