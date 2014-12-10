@@ -415,9 +415,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
+
                 /* Now that we have our instance, we can set tags on it */
                 if (inst_tags != null) {
-                    updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
+                    for (int i = 0; i < 5; i++) {
+                        try {
+                            updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
+                            break;
+                        } catch (AmazonServiceException e) {
+                            if (e.getErrorCode().equals("InvalidSpotInstanceRequestID.NotFound")) {
+                                Thread.sleep(5000);
+                                continue;
+                            }
+                            throw e;
+                        }
+                    }
 
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
@@ -458,6 +470,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all configuration issues upfront
+        }  catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
