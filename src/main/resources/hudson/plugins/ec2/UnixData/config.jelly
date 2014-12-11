@@ -1,7 +1,7 @@
 <!--
 The MIT License
 
-Copyright (c) 2004-, Kohsuke Kawaguchi, Sun Microsystems, Inc., and a number of other of contributors
+Copyright (c) 2010, InfraDNA, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,11 +21,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
-<div>
-    <p>Check this if you want the instance to be stopped instead of terminated when it times out
-    due to being idle. This allows existing instances to be used when provisioning a slave.
-    You would use this option to preserve the state of the instance, including that of the 
-    EBS volume connections.</p>
-    <p>Note that instance store content is lost, as are running processess and the contents of memory.</p>
-    <p><b>Stopping and starting an instance starts a new hourly billing cycle, so short stop timeouts are counterproductive.</b></p>
-</div>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson" xmlns:f="/lib/form">	  
+      <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
+	    <f:textbox/>
+	  </f:entry>
+      <f:entry title="${%Remote ssh port}" field="sshPort">
+        <f:textbox />
+      </f:entry>
+</j:jelly>

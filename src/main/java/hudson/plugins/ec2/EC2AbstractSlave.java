@@ -25,6 +25,7 @@ package hudson.plugins.ec2;
 
 import hudson.Util;
 import hudson.model.Computer;
+import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Descriptor.FormException;
@@ -67,54 +68,62 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     public final String initScript;
     public final String remoteAdmin; // e.g. 'ubuntu'
-    public final String rootCommandPrefix; // e.g. 'sudo'
+    
+    
     public final String jvmopts; //e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
+    public final boolean useDedicatedTenancy;
     public List<EC2Tag> tags;
     public final String cloudName;
+    public AMITypeData amiType;
 
     // Temporary stuff that is obtained live from EC2
-    public String publicDNS;
-    public String privateDNS;
+    public transient String publicDNS;
+    public transient String privateDNS;
 
     /* The last instance data to be fetched for the slave */
-    protected Instance lastFetchInstance = null;
+    protected transient Instance lastFetchInstance = null;
 
     /* The time at which we fetched the last instance data */
-    protected long lastFetchTime = 0;
+    protected transient long lastFetchTime;
 
     /* The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked for it */
     protected static final long MIN_FETCH_TIME = 20 * 1000;
 
 
-    /**
-     * For data read from old Hudson, this is 0, so we use that to indicate 22.
-     */
-    protected final int sshPort;
     protected final int launchTimeout;
+
+    // Deprecated by the AMITypeData data structure
+    @Deprecated
+    protected transient int sshPort;
+    @Deprecated
+    public transient String rootCommandPrefix; // e.g. 'sudo'
+
+    private transient long createdTime;
 
     public static final String TEST_ZONE = "testZone";
 
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int sshPort, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
         this.instanceId = instanceId;
         this.initScript  = initScript;
         this.remoteAdmin = remoteAdmin;
-        this.rootCommandPrefix = rootCommandPrefix;
         this.jvmopts = jvmopts;
-        this.sshPort = sshPort;
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
         this.usePrivateDnsName = usePrivateDnsName;
+        this.useDedicatedTenancy = useDedicatedTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
+        this.amiType = amiType;
+        readResolve();
     }
 
     protected Object readResolve() {
@@ -127,6 +136,11 @@ public abstract class EC2AbstractSlave extends Slave {
     	if (instanceId == null) {
     		instanceId = getNodeName();
     	}
+    	
+    	if (amiType == null) {
+    	    amiType = new UnixData(rootCommandPrefix, Integer.toString(sshPort));
+    	}
+
     	return this;
     }
     
@@ -163,7 +177,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case Cc28xlarge:    return 88;
         case Cr18xlarge:    return 88;
         case C38xlarge:     return 108;
-        default:            throw new AssertionError();
+        //We don't have a suggestion, but we don't want to fail completely surely?
+        default:            return 1;
         }
     }
 
@@ -205,12 +220,13 @@ public abstract class EC2AbstractSlave extends Slave {
             AmazonEC2 ec2 = getCloud().connect();
             StopInstancesRequest request = new StopInstancesRequest(
                     Collections.singletonList(getInstanceId()));
+	        LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
-            LOGGER.info("EC2 instance stopped: " + getInstanceId());
+            LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
             Instance i = getInstance(getInstanceId(), getCloud());
-            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
+            LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: "+getInstanceId() + " info: "+((i != null)?i:"") , e);
         }
     }
 
@@ -218,8 +234,9 @@ public abstract class EC2AbstractSlave extends Slave {
         try {
             AmazonEC2 ec2 = getCloud().connect();
             TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+	        LOGGER.fine("Sending terminate request for " + getInstanceId());
             ec2.terminateInstances(request);
-            LOGGER.info("Terminated EC2 instance (terminated): "+getInstanceId());
+            LOGGER.info("EC2 instance terminate request sent for "+getInstanceId());
             return true;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING,"Failed to terminate EC2 instance: "+getInstanceId(),e);
@@ -259,14 +276,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
     String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
-            return "root";
+            return amiType.isWindows() ? "Administrator" : "root";
         return remoteAdmin;
     }
 
     String getRootCommandPrefix() {
-        if (rootCommandPrefix == null || rootCommandPrefix.length() == 0)
+        String commandPrefix = amiType.isUnix() ? ((UnixData)amiType).getRootCommandPrefix() : "";
+        if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
-        return rootCommandPrefix + " ";
+        return commandPrefix + " ";
     }
 
     String getJvmopts() {
@@ -274,7 +292,16 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getSshPort() {
-        return sshPort!=0 ? sshPort : 22;
+        String sshPort = amiType.isUnix() ? ((UnixData)amiType).getSshPort() : "22";
+        if (sshPort == null || sshPort.length() == 0)
+            return 22;
+        
+        int port = 0;
+        try {
+            port = Integer.parseInt(sshPort);
+        } catch (Exception e) {
+        }
+        return port!=0 ? port : 22;
     }
 
     public boolean getStopOnTerminate() {
@@ -306,6 +333,17 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
+        if (getInstanceId() == null || getInstanceId() == ""){
+          /* The getInstanceId() implementation on EC2SpotSlave can return null if the spot request doesn't
+           * yet know the instance id that it is starting. What happens is that null is passed to getInstanceId()
+           * which searches AWS but without an instanceID the search returns some random box. We then fetch
+           * its metadata, including tags, and then later, when the spot request eventually gets the
+           * instanceID correctly we push the saved tags from that random box up to the new spot resulting in
+           * confusion and delay.
+           */
+          return;
+        }
+
         Instance i = getInstance(getInstanceId(), getCloud());
 
         lastFetchTime = now;
@@ -315,6 +353,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
         publicDNS = i.getPublicDnsName();
         privateDNS = i.getPrivateIpAddress();
+        createdTime = i.getLaunchTime().getTime();
         tags = new LinkedList<EC2Tag>();
 
         for (Tag t : i.getTags()) {
@@ -375,8 +414,25 @@ public abstract class EC2AbstractSlave extends Slave {
         return Collections.unmodifiableList(tags);
     }
 
+    public long getCreatedTime() {
+        fetchLiveInstanceData(false);
+        return createdTime;
+    }
+
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
+    }
+    
+    public String getAdminPassword() {
+        return amiType.isWindows() ? ((WindowsData)amiType).getPassword() : "";
+    }
+
+    public boolean isUseHTTPS() {
+        return amiType.isWindows() ? ((WindowsData)amiType).isUseHTTPS() : false;
+    }
+
+    public int getBootDelay() {
+        return amiType.isWindows() ? ((WindowsData)amiType).getBootDelayInMillis() : 0;
     }
 
     public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
@@ -403,7 +459,7 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     abstract public String getEc2Type();
 
-	public static abstract class DescriptorImpl extends SlaveDescriptor {
+    public static abstract class DescriptorImpl extends SlaveDescriptor {
 
     	@Override
 		public abstract String getDisplayName();
@@ -418,7 +474,13 @@ public abstract class EC2AbstractSlave extends Slave {
 				ServletException {
 			return fillZoneItems(accessId, secretKey, region);
 		}
+		
+		public List<Descriptor<AMITypeData>> getAMITypeDescriptors()
+		{
+		    return Hudson.getInstance().<AMITypeData,Descriptor<AMITypeData>>getDescriptorList(AMITypeData.class);
+		}
 	}
 
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
+
 }

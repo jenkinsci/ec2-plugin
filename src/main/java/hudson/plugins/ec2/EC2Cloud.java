@@ -23,6 +23,8 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.ClientConfiguration;
+import hudson.ProxyConfiguration;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
@@ -31,6 +33,7 @@ import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 
@@ -38,7 +41,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,7 +57,11 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
+
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -71,9 +80,12 @@ import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+
+import static javax.servlet.http.HttpServletResponse.*;
 
 
 /**
@@ -173,9 +185,15 @@ public abstract class EC2Cloud extends Cloud {
      */
     public SlaveTemplate getTemplate(Label label) {
         for (SlaveTemplate t : templates) {
-        	if(label == null || label.matches(t.getLabelSet())) {
-                return t;
-        	}
+            if(t.getMode() == Node.Mode.NORMAL) {
+                if(label == null || label.matches(t.getLabelSet())) {
+                    return t;
+                }
+            } else if (t.getMode() == Node.Mode.EXCLUSIVE){
+                if(label != null && label.matches(t.getLabelSet())) {
+                    return t;
+                }
+            }
         }
         return null;
     }
@@ -200,14 +218,43 @@ public abstract class EC2Cloud extends Cloud {
         int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (ami == null || ami.equals(i.getImageId())) {
+                if (isEc2ProvisionedSlave(i, ami)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running)
+                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
                         n++;
+                    }
                 }
             }
         }
         return n;
+    }
+
+    /**
+     * This method checks if the slave is provisioned by this plugin. 
+     * An instance is a provisioned slave if:
+     * <ol>
+     *  <li>The AMI id matches.</li>
+     *  <li>There is a tag with the key name {@link EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE}</li>.
+     *  </ol>
+     * 
+     * @see JENKINS-19845 (https://issues.jenkins-ci.org/browse/JENKINS-19845)
+     * 
+     * @param i the instance to be checked.
+     * @param ami the ami id. 
+     * @return true if the instance is a provisioned slave
+     */
+    protected boolean isEc2ProvisionedSlave(Instance i, String ami) {
+        // Check if the ami matches
+        if (ami == null || StringUtils.equals(ami, i.getImageId())) {
+            // Check if there is a ec2slave tag...
+            for (Tag tag : i.getTags()) {
+                if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
     }
 
     /**
@@ -225,16 +272,14 @@ public abstract class EC2Cloud extends Cloud {
         rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
     }
 
-    public void doProvision(StaplerRequest req, StaplerResponse rsp, @QueryParameter String template) throws ServletException, IOException {
+    public HttpResponse doProvision(@QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if(template==null) {
-            sendError("The 'template' query parameter is missing",req,rsp);
-            return;
+            throw HttpResponses.error(SC_BAD_REQUEST,"The 'template' query parameter is missing");
         }
         SlaveTemplate t = getTemplate(template);
         if(t==null) {
-            sendError("No such template: "+template,req,rsp);
-            return;
+            throw HttpResponses.error(SC_BAD_REQUEST,"No such template: "+template);
         }
 
         StringWriter sw = new StringWriter();
@@ -243,10 +288,9 @@ public abstract class EC2Cloud extends Cloud {
             EC2AbstractSlave node = t.provision(listener);
             Hudson.getInstance().addNode(node);
 
-            rsp.sendRedirect2(req.getContextPath()+"/computer/"+node.getNodeName());
+            return HttpResponses.redirectViaContextPath("/computer/"+node.getNodeName());
         } catch (AmazonClientException e) {
-            req.setAttribute("exception", e);
-            sendError(e.getMessage(),req,rsp);
+            throw HttpResponses.error(SC_INTERNAL_SERVER_ERROR,e);
         }
     }
 
@@ -420,7 +464,19 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized static AmazonEC2 connect(String accessId, Secret secretKey, URL endpoint) {
     	awsCredentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
-        AmazonEC2 client = new AmazonEC2Client(awsCredentials);
+        ClientConfiguration config = new ClientConfiguration();
+        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
+        if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
+            InetSocketAddress address = (InetSocketAddress) proxy.address();
+            config.setProxyHost(address.getHostName());
+            config.setProxyPort(address.getPort());
+            if(null != proxyConfig.getUserName()) {
+                config.setProxyUsername(proxyConfig.getUserName());
+                config.setProxyPassword(proxyConfig.getPassword());
+            }
+        }
+        AmazonEC2 client = new AmazonEC2Client(awsCredentials, config);
         client.setEndpoint(endpoint.toString());
         return client;
     }
@@ -476,10 +532,16 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         public FormValidation doCheckAccessId(@QueryParameter String value) throws IOException, ServletException {
+            if (value.trim().length() != 20) {
+                return FormValidation.error(Messages.EC2Cloud_InvalidAccessId());
+            }
             return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidAccessId());
         }
 
         public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
+            if (value.trim().length() != 40) {
+                return FormValidation.error(Messages.EC2Cloud_InvalidSecretKey());
+            }
             return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
         }
 

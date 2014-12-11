@@ -27,6 +27,7 @@ import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -38,12 +39,15 @@ import org.kohsuke.stapler.DataBoundConstructor;
  */
 public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     /** Number of minutes of idleness before an instance should be terminated.
-	    A value of zero indicates that the instance should never be automatically terminated */
+	    A value of zero indicates that the instance should never be automatically terminated.
+		Negative values are times in remaining minutes before end of billing period. */
     public final int idleTerminationMinutes;
 
+    private transient ReentrantLock checkLock;
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
+    	readResolve();
         if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
             this.idleTerminationMinutes = 0;
         } else {
@@ -59,18 +63,57 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     @Override
-	public synchronized long check(EC2Computer c) {
+	public long check(EC2Computer c) {
+        if (! checkLock.tryLock()) {
+            return 1;
+        } else {
+            try {
+                return _check(c);
+            } finally {
+                checkLock.unlock();
+            }
+        }
+    }
+
+    private long _check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
-        if  (idleTerminationMinutes == 0)
+        if  (idleTerminationMinutes == 0) {
         	return 1;
-        
-        if (c.isIdle() && c.isOnline() && !disabled) {
-            // TODO: really think about the right strategy here
-            final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
-            if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-                LOGGER.info("Idle timeout: " + c.getName() + " after " + idleTerminationMinutes + " minutes (idle since time_t " + (int)(c.getIdleStartMilliseconds() / 1000) + ")");
-                c.getNode().idleTimeout();
+        }
+
+        /*
+         * Don't idle-out instances that're offline, per JENKINS-23792. This
+         * prevents a node from being idled down while it's still starting up.
+         */
+        if (c.isOffline()) {
+            return 1;
+        }
+
+        if (c.isIdle() && !disabled) {
+		    final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+            if (idleTerminationMinutes > 0) {
+                // TODO: really think about the right strategy here, see JENKINS-23792
+                if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
+                    LOGGER.info("Idle timeout of "+c.getName() + " after " + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes");
+                    c.getNode().idleTimeout();
+                }
+            } else {
+                final long uptime;
+                try {
+                    uptime = c.getUptime();
+                } catch (InterruptedException e) {
+                    // We'll just retry next time we test for idleness.
+                    LOGGER.fine("Interrupted while checking host uptime for " + c.getName() + ", will retry next check. Interrupted by: " + e);
+					return 1;
+                }
+                final int freeSecondsLeft = (60*60) - (int)(TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60*60));
+                // if we have less "free" (aka already paid for) time left than our idle time, stop/terminate the instance
+                // See JENKINS-23821
+                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes*60))) {
+                    LOGGER.info("Idle timeout of "+c.getName()+" after " + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with " + TimeUnit2.MILLISECONDS.toMinutes(freeSecondsLeft) + " minutes remaining in billing period");
+                    c.getNode().idleTimeout();
+                }
             }
         }
         return 1;
@@ -81,6 +124,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
      */
     @Override
     public void start(EC2Computer c) {
+		LOGGER.info("Start requested for " + c.getName());
         c.connect(false);
     }
 
@@ -91,6 +135,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 		public String getDisplayName() {
             return "EC2";
         }
+    }
+    
+    protected Object readResolve() {
+    	checkLock = new ReentrantLock(false);
+    	return this;
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());

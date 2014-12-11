@@ -22,10 +22,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    <p>Check this if you want the instance to be stopped instead of terminated when it times out
-    due to being idle. This allows existing instances to be used when provisioning a slave.
-    You would use this option to preserve the state of the instance, including that of the 
-    EBS volume connections.</p>
-    <p>Note that instance store content is lost, as are running processess and the contents of memory.</p>
-    <p><b>Stopping and starting an instance starts a new hourly billing cycle, so short stop timeouts are counterproductive.</b></p>
+    Specify the mapping of block devices. Has effect only when <b>Use ephemeral devices</b> is NOT checked. Format:
+    <pre>
+        &lt;device&gt;=&lt;block-device&gt;[,&lt;device&gt;=&lt;block-device&gt;]*
+    </pre>
+
+    Where block-device format is:
+    <pre>
+        [&lt;snapshot-id&gt;]:[&lt;size&gt;]:[&lt;delete-on-termination&gt;]:[&lt;type&gt;]:[&lt;iops&gt;]:[encrypted]
+    </pre>
+
+    Examples:
+    <pre>
+        /dev/sdb=snap-7eb96d16
+        /dev/sdc=snap-7eb96d16:80:false
+        /dev/sdc=snap-7eb96d16:80:false:io1:100
+        /dev/sdd=:120
+        /dev/sdd=:120::::encrypted
+        /dev/sdd=:120::::encrypted,/dev/sdc=:120
+    </pre>
 </div>

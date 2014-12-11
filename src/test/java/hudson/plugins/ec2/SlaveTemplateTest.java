@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import hudson.model.Node;
-import hudson.util.FormValidation;
 
 import org.jvnet.hudson.test.HudsonTestCase;
 
@@ -59,7 +58,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-	    SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, "");
+	    SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -69,7 +68,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices");
+        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices,useDedicatedTenancy");
     }
 
     public void testConfigRoundtripWithPrivateDns() throws Exception {
@@ -82,7 +81,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10",  "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -112,7 +111,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.toString());
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
@@ -126,7 +125,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
     /**
      * Test to make sure the IAM Role is set properly.
-     * 
+     *
      * @throws Exception
      */
     public void testConfigRoundtripIamRole() throws Exception {
@@ -139,7 +138,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         tags.add( tag1 );
         tags.add( tag2 );
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, false, "", false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -154,23 +153,80 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
 
     public void testNullTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, null);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void test0TimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "0");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void testNegativeTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "-1");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     public void testNonNumericTimeoutShouldReturnMaxInt(){
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "fff", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
+    public void testAssociatePublicIpSetting(){
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        assertEquals(true, st.getAssociatePublicIp());
+    }
+
+    public void testBackwardCompatibleUnixData(){
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "aaa", "10", "rrr", "sudo", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        assertFalse(st.isWindowsSlave());
+        assertEquals(22, st.getSshPort());
+        assertEquals("sudo", st.getRootCommandPrefix());
+    }
+
+    public void testWindowsConfigRoundTrip() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag( "name1", "value1" );
+        EC2Tag tag2 = new EC2Tag( "name2", "value2" );
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add( tag1 );
+        tags.add( tag2 );
+
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", new WindowsData("password", false, ""), "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("abc", "def", "us-east-1", "ghi", "3", templates);
+        hudson.clouds.add(ac);
+
+        submit(createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
+        assertEqualBeans(orig, received, "amiType");
+    }
+
+    public void testUnixConfigRoundTrip() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag( "name1", "value1" );
+        EC2Tag tag2 = new EC2Tag( "name2", "value2" );
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add( tag1 );
+        tags.add( tag2 );
+
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, description, "bar", "aaa", "10", "rrr", new UnixData("sudo", "22"), "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("abc", "def", "us-east-1", "ghi", "3", templates);
+        hudson.clouds.add(ac);
+
+        submit(createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud)hudson.clouds.iterator().next()).getTemplate(description);
+        assertEqualBeans(orig, received, "amiType");
+    }
 }

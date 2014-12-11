@@ -22,10 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    <p>Check this if you want the instance to be stopped instead of terminated when it times out
-    due to being idle. This allows existing instances to be used when provisioning a slave.
-    You would use this option to preserve the state of the instance, including that of the 
-    EBS volume connections.</p>
-    <p>Note that instance store content is lost, as are running processess and the contents of memory.</p>
-    <p><b>Stopping and starting an instance starts a new hourly billing cycle, so short stop timeouts are counterproductive.</b></p>
+    Create instance using dedicated hardware instead of shared.  Additional charges will apply, please see
+    here: http://aws.amazon.com/dedicated-instances/.
+    <p>
+    This only applies if you have specified a VPC, Availability-Zone and this is an On-Demand 
+    Instance (not Spot Instance).
 </div>
