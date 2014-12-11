@@ -423,7 +423,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
                             break;
                         } catch (AmazonServiceException e) {
-                            if (e.getErrorCode().equals("InvalidSpotInstanceRequestID.NotFound")) {
+                            if (e.getErrorCode().equals("InvalidInstanceRequestID.NotFound")) {
                                 Thread.sleep(5000);
                                 continue;
                             }
