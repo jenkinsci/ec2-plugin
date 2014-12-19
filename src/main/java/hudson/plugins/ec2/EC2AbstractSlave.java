@@ -53,6 +53,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 /**
@@ -435,15 +436,15 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.isWindows() ? ((WindowsData)amiType).getBootDelayInMillis() : 0;
     }
 
-    public static ListBoxModel fillZoneItems(String accessId, String secretKey, String region) throws IOException, ServletException {
+    public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
 			model.add(TEST_ZONE);
 			return model;
 		}
 
-		if (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey) && !StringUtils.isEmpty(region)) {
-			AmazonEC2 client = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+		if (!StringUtils.isEmpty(region)) {
+			AmazonEC2 client = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 			DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
 			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
 			model.add("<not specified>", "");
@@ -469,10 +470,10 @@ public abstract class EC2AbstractSlave extends Slave {
 			return false;
 		}
 
-		public ListBoxModel doFillZoneItems(@QueryParameter String accessId,
-				@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-				ServletException {
-			return fillZoneItems(accessId, secretKey, region);
+		public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
+				@QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region) {
+			AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+			return fillZoneItems(credentialsProvider, region);
 		}
 		
 		public List<Descriptor<AMITypeData>> getAMITypeDescriptors()

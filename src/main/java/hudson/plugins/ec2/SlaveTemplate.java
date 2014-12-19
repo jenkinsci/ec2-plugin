@@ -53,6 +53,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 
@@ -848,14 +849,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Check that the AMI requested is available in the cloud and can be used.
          */
         public FormValidation doValidateAmi(
+                @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String accessId, @QueryParameter String secretKey,
                 @QueryParameter String ec2endpoint,  @QueryParameter String region,
-                final @QueryParameter String ami) throws IOException, ServletException {
+                final @QueryParameter String ami) throws IOException {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
             AmazonEC2 ec2;
             if (region != null) {
-                ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+                ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
             } else {
-                ec2 = EC2Cloud.connect(accessId, secretKey, new URL(ec2endpoint));
+                ec2 = EC2Cloud.connect(credentialsProvider, new URL(ec2endpoint));
             }
             if(ec2!=null) {
                 try {
@@ -920,12 +923,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
-        public ListBoxModel doFillZoneItems( @QueryParameter String accessId,
+        public ListBoxModel doFillZoneItems( @QueryParameter boolean useInstanceProfileForCredentials,
+                                             @QueryParameter String accessId,
                                              @QueryParameter String secretKey,
                                              @QueryParameter String region)
                                              throws IOException, ServletException
         {
-            return EC2AbstractSlave.fillZoneItems(accessId, secretKey, region);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
         /* Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001 */
@@ -962,7 +967,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         /* Check the current Spot price of the selected instance type for the selected region */
-        public FormValidation doCurrentSpotPrice( @QueryParameter String accessId, @QueryParameter String secretKey,
+        public FormValidation doCurrentSpotPrice( @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String accessId, @QueryParameter String secretKey,
                 @QueryParameter String region, @QueryParameter String type,
                 @QueryParameter String zone ) throws IOException, ServletException {
 
@@ -970,7 +976,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String zoneStr = "";
 
             // Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
-            AmazonEC2 ec2 = EC2Cloud.connect(accessId, secretKey, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if(ec2!=null) {
 

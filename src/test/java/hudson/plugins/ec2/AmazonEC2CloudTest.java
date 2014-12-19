@@ -43,12 +43,12 @@ public class AmazonEC2CloudTest extends HudsonTestCase {
 	}
 
 	public void testConfigRoundtrip() throws Exception {
-		AmazonEC2Cloud orig = new AmazonEC2Cloud("abc", "def", "us-east-1",
+		AmazonEC2Cloud orig = new AmazonEC2Cloud(true, "abc", "def", "us-east-1",
 				"ghi", "3", Collections.<SlaveTemplate> emptyList());
 		hudson.clouds.add(orig);
 		submit(createWebClient().goTo("configure").getFormByName("config"));
 
 		assertEqualBeans(orig, hudson.clouds.iterator().next(),
-				"region,accessId,secretKey,privateKey,instanceCap");
+				"region,useInstanceProfileForCredentials,accessId,secretKey,privateKey,instanceCap");
 	}
 }

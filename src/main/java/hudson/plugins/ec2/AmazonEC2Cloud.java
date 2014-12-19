@@ -46,6 +46,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.amazonaws.services.ec2.model.Region;
@@ -68,8 +69,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     
     
     @DataBoundConstructor
-    public AmazonEC2Cloud(String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(CLOUD_ID_PREFIX + region, accessId, secretKey, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+        super(CLOUD_ID_PREFIX + region, useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
     }
 
@@ -112,9 +113,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return "Amazon EC2";
         }
 
-		public ListBoxModel doFillRegionItems(@QueryParameter String accessId,
-				@QueryParameter String secretKey, @QueryParameter String region) throws IOException,
-				ServletException {
+		public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials,
+				@QueryParameter String accessId, @QueryParameter String secretKey,
+				@QueryParameter String region) throws IOException, ServletException {
 			ListBoxModel model = new ListBoxModel();
 			if (testMode) {
 				model.add(DEFAULT_EC2_HOST);
@@ -128,8 +129,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
 					cloudRegions.add(c.name.substring(prefixLen));
 				}
 				
-				AmazonEC2 client = connect(accessId, secretKey, new URL(
-						"http://ec2.amazonaws.com"));
+				AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+				AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
 				DescribeRegionsResult regions = client.describeRegions();
 				List<Region> regionList = regions.getRegions();
 				for (Region r : regionList) {
@@ -143,7 +144,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
 		}
 
         public FormValidation doTestConnection(
-                @QueryParameter String region,
+                 @QueryParameter String region,
+                 @QueryParameter boolean useInstanceProfileForCredentials,
                  @QueryParameter String accessId,
                  @QueryParameter String secretKey,
                  @QueryParameter String privateKey) throws IOException, ServletException {
@@ -152,12 +154,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region),accessId,secretKey,privateKey);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey, privateKey);
         }
 
-        public FormValidation doGenerateKey(
-                StaplerResponse rsp, @QueryParameter String region, @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
-            return super.doGenerateKey(rsp,getEc2EndpointUrl(region),accessId,secretKey);
+        public FormValidation doGenerateKey(StaplerResponse rsp,
+                @QueryParameter String region,
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String accessId,
+                @QueryParameter String secretKey) throws IOException, ServletException {
+            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey);
         }
     }
 }

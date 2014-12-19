@@ -68,7 +68,10 @@ import org.kohsuke.stapler.StaplerResponse;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
+import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
@@ -98,6 +101,7 @@ public abstract class EC2Cloud extends Cloud {
 	public static final String DEFAULT_EC2_HOST = "us-east-1";
 	public static final String EC2_URL_HOST = "ec2.amazonaws.com";
 
+	private final boolean useInstanceProfileForCredentials;
     private final String accessId;
     private final Secret secretKey;
     protected final EC2PrivateKey privateKey;
@@ -111,15 +115,16 @@ public abstract class EC2Cloud extends Cloud {
 
     protected transient AmazonEC2 connection;
 
-	private static AWSCredentials awsCredentials;
+    private static AWSCredentialsProvider awsCredentialsProvider;
 
     /* Track the count per-AMI identifiers for AMIs currently being
      * provisioned, but not necessarily reported yet by Amazon.
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
-    protected EC2Cloud(String id, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
+        this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
         this.privateKey = new EC2PrivateKey(privateKey);
@@ -146,6 +151,10 @@ public abstract class EC2Cloud extends Cloud {
         for (SlaveTemplate t : templates)
             t.parent = this;
         return this;
+    }
+
+    public boolean isUseInstanceProfileForCredentials() {
+        return useInstanceProfileForCredentials;
     }
 
     public String getAccessId() {
@@ -436,13 +445,35 @@ public abstract class EC2Cloud extends Cloud {
         return getTemplate(label)!=null;
     }
 
+    private AWSCredentialsProvider createCredentialsProvider() {
+        return createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+    }
+
+    public static AWSCredentialsProvider createCredentialsProvider(
+            final boolean useInstanceProfileForCredentials,
+            final String accessId, final String secretKey) {
+        return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
+    }
+
+    public static AWSCredentialsProvider createCredentialsProvider(
+            final boolean useInstanceProfileForCredentials,
+            final String accessId, final Secret secretKey) {
+
+        if (useInstanceProfileForCredentials) {
+            return new InstanceProfileCredentialsProvider();
+        }
+
+        BasicAWSCredentials credentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
+        return new StaticCredentialsProvider(credentials);
+    }
+
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
     public synchronized AmazonEC2 connect() throws AmazonClientException {
         try {
             if (connection == null) {
-                connection = connect(accessId, secretKey, getEc2EndpointUrl());
+                connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
             }
             return connection;
         } catch (IOException e) {
@@ -454,16 +485,8 @@ public abstract class EC2Cloud extends Cloud {
      * Connect to an EC2 instance.
      * @return {@link AmazonEC2} client
      */
-    public static AmazonEC2 connect(String accessId, String secretKey, URL endpoint) {
-        return connect(accessId, Secret.fromString(secretKey), endpoint);
-    }
-
-    /***
-     * Connect to an EC2 instance.
-     * @return {@link AmazonEC2} client
-     */
-    public synchronized static AmazonEC2 connect(String accessId, Secret secretKey, URL endpoint) {
-    	awsCredentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
+    public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
+        awsCredentialsProvider = credentialsProvider;
         ClientConfiguration config = new ClientConfiguration();
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
         Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
@@ -476,7 +499,7 @@ public abstract class EC2Cloud extends Cloud {
                 config.setProxyPassword(proxyConfig.getPassword());
             }
         }
-        AmazonEC2 client = new AmazonEC2Client(awsCredentials, config);
+        AmazonEC2 client = new AmazonEC2Client(credentialsProvider.getCredentials(), config);
         client.setEndpoint(endpoint.toString());
         return client;
     }
@@ -508,11 +531,12 @@ public abstract class EC2Cloud extends Cloud {
      * @param path
      *      String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
      */
-    public URL buildPresignedURL(String path) throws IOException, AmazonClientException {
+    public URL buildPresignedURL(String path) throws AmazonClientException {
+        AWSCredentials credentials = awsCredentialsProvider.getCredentials();
         long expires = System.currentTimeMillis()+60*60*1000;
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(path, Secret.toString(secretKey));
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(path, credentials.getAWSSecretKey());
         request.setExpiration(new Date(expires));
-        AmazonS3 s3 = new AmazonS3Client(awsCredentials);
+        AmazonS3 s3 = new AmazonS3Client(credentials);
         return s3.generatePresignedUrl(request);
     }
 
@@ -563,15 +587,12 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         protected FormValidation doTestConnection( URL ec2endpoint,
-                                     String accessId, String secretKey, String privateKey) throws IOException, ServletException {
-            try {
-                AmazonEC2 ec2 = connect(accessId, secretKey, ec2endpoint);
+                boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey) throws IOException, ServletException {
+               try {
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+                AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
-                if(accessId==null)
-                    return FormValidation.error("Access ID is not specified");
-                if(secretKey==null)
-                    return FormValidation.error("Secret key is not specified");
                 if(privateKey==null)
                     return FormValidation.error("Private key is not specified. Click 'Generate Key' to generate one.");
 
@@ -589,10 +610,11 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, String accessId, String secretKey)
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String accessId, String secretKey)
         		throws IOException, ServletException {
             try {
-                AmazonEC2 ec2 = connect(accessId, secretKey, ec2EndpointUrl);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+                AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
                 int n = 0;

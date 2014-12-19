@@ -28,6 +28,9 @@ THE SOFTWARE.
   <f:entry title="${%Eucalyptus S3 URL}" field="s3endpoint">
     <f:textbox />
   </f:entry>
+  <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
+    <f:checkbox />
+  </f:entry>
   <f:entry title="${%Access ID}" field="accessId">
     <f:textbox />
   </f:entry>
