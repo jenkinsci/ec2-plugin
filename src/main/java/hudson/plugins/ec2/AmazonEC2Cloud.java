@@ -121,8 +121,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
 				model.add(DEFAULT_EC2_HOST);
 				return model;
 			}
-				
-			if (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey)) {
+
+			if (useInstanceProfileForCredentials || (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey))) {
 				int prefixLen = CLOUD_ID_PREFIX.length();
 				Set<String> cloudRegions = new HashSet<String>();
 				for (Cloud c : Jenkins.getInstance().clouds) {
