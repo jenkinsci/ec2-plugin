@@ -195,18 +195,22 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public static Instance getInstance(String instanceId, EC2Cloud cloud) {
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-    	request.setInstanceIds(Collections.<String>singletonList(instanceId));
-        if (cloud == null)
-        	return null;
-        AmazonEC2 ec2 = cloud.connect();
-    	List<Reservation> reservations = ec2.describeInstances(request).getReservations();
         Instance i = null;
-    	if (reservations.size() > 0) {
-    		List<Instance> instances = reservations.get(0).getInstances();
-    		if (instances.size() > 0)
-    			i = instances.get(0);
-    	}
+        try {
+            DescribeInstancesRequest request = new DescribeInstancesRequest();
+            request.setInstanceIds(Collections.<String>singletonList(instanceId));
+            if (cloud == null)
+                return null;
+            AmazonEC2 ec2 = cloud.connect();
+            List<Reservation> reservations = ec2.describeInstances(request).getReservations();
+            if (reservations.size() > 0) {
+                List<Instance> instances = reservations.get(0).getInstances();
+                if (instances.size() > 0)
+                    i = instances.get(0);
+            }
+        } catch (AmazonClientException e) {
+            LOGGER.log(Level.WARNING,"Failed to fetch EC2 instance: "+instanceId,e);
+        }
     	return i;
     }
 
