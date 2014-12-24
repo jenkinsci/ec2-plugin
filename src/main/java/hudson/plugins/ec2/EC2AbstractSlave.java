@@ -67,6 +67,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Comes from {@link SlaveTemplate#initScript}.
      */
     public final String initScript;
+    public final String tmpDir;
     public final String remoteAdmin; // e.g. 'ubuntu'
     
     
@@ -107,12 +108,13 @@ public abstract class EC2AbstractSlave extends Slave {
 
 
     @DataBoundConstructor
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType) throws FormException, IOException {
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType) throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
         this.instanceId = instanceId;
         this.initScript  = initScript;
+        this.tmpDir  = tmpDir;
         this.remoteAdmin = remoteAdmin;
         this.jvmopts = jvmopts;
         this.stopOnTerminate = stopOnTerminate;
