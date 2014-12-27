@@ -569,6 +569,18 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.validateBase64(value,false,false,Messages.EC2Cloud_InvalidSecretKey());
         }
 
+        public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
+            if (value) {
+                try {
+                    new InstanceProfileCredentialsProvider().getCredentials();
+                } catch (AmazonClientException e) {
+                    return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentailsFromEC2(), e.getMessage());
+                }
+            }
+
+            return FormValidation.ok();
+        }
+
         public FormValidation doCheckPrivateKey(@QueryParameter String value) throws IOException, ServletException {
             boolean hasStart=false,hasEnd=false;
             BufferedReader br = new BufferedReader(new StringReader(value));
