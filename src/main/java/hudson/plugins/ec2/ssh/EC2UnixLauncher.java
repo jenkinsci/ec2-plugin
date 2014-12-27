@@ -102,13 +102,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
+            String tmpDir = (computer.getNode().tmpDir != null ? computer.getNode().tmpDir : "/tmp");
+                                    
+            logger.println("Creating tmp directory (" + tmpDir + ") if it does not exist");
+            conn.exec("mkdir -p " + tmpDir, logger);            
 
             if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e ~/.hudson-run-init", logger) !=0) {
                 logger.println("Executing init script");
-                scp.put(initScript.getBytes("UTF-8"),"init.sh","/tmp","0700");
+                scp.put(initScript.getBytes("UTF-8"),"init.sh",tmpDir,"0700");
                 Session sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
-                sess.execCommand(buildUpCommand(computer, "/tmp/init.sh"));
+                sess.execCommand(buildUpCommand(computer, tmpDir + "/init.sh"));
 
                 sess.getStdin().close();    // nothing to write here
                 sess.getStderr().close();   // we are not supposed to get anything from stderr
@@ -137,12 +141,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
 
                 URL url = computer.getCloud().buildPresignedURL(path);
-                if(conn.exec("wget -nv -O /tmp/" + jdk + ".tgz '" + url + "'", logger) !=0) {
+                if(conn.exec("wget -nv -O " + tmpDir + jdk + ".tgz '" + url + "'", logger) !=0) {
                     logger.println("Failed to download Java");
                     return;
                 }
 
-                if(conn.exec(buildUpCommand(computer, "tar xz -C /usr -f /tmp/" + jdk + ".tgz"), logger) !=0) {
+                if(conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + jdk + ".tgz"), logger) !=0) {
                     logger.println("Failed to install Java");
                     return;
                 }
@@ -158,10 +162,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             logger.println("Copying slave.jar");
             scp.put(Hudson.getInstance().getJnlpJars("slave.jar").readFully(),
-                    "slave.jar","/tmp");
+                    "slave.jar",tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
-            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar /tmp/slave.jar";
+            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
             logger.println("Launching slave agent: " + launchString);
             final Session sess = conn.openSession();
             sess.execCommand(launchString);
