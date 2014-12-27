@@ -28,6 +28,9 @@ THE SOFTWARE.
   <f:entry title="${%Secret Access Key}" field="secretKey">
     <f:password />
   </f:entry>
+  <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
+    <f:checkbox />
+  </f:entry>
   <f:description>The regions will be populated once the keys above are entered. Since at most one cloud can be defined per
   region, region names which are associated with other clouds are not shown here.
   </f:description>
@@ -42,6 +45,6 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,secretKey,accessId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,secretKey,accessId,privateKey" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,secretKey,accessId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,secretKey,accessId,privateKey" />
 </j:jelly>
