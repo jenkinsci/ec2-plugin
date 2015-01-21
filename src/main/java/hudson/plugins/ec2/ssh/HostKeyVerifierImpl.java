@@ -28,12 +28,6 @@ import java.util.logging.Logger;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.crypto.digest.MD5;
 
-/**
- * {@link ServerHostKeyVerifier} that makes sure that the host key fingerprint
- * showed up in {@link ConsoleOutput#getOutput()}.
- * 
- * @author Kohsuke Kawaguchi
- */
 public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
     private final String console;
 

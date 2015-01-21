@@ -27,7 +27,7 @@ public final class SpotConfiguration {
 	/**
 	 * Check if the specified value is a valid bid price to make a Spot request
 	 * and return the normalized string for the float of the specified bid
-	 * Bids must be >= .001
+	 * Bids must be &gt;= .001
 	 * @param bid - price to check
 	 * @return The normalized string for a Float if possible, otherwise null
 	 */

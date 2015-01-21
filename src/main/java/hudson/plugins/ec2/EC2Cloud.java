@@ -238,20 +238,6 @@ public abstract class EC2Cloud extends Cloud {
         return n;
     }
 
-    /**
-     * This method checks if the slave is provisioned by this plugin. 
-     * An instance is a provisioned slave if:
-     * <ol>
-     *  <li>The AMI id matches.</li>
-     *  <li>There is a tag with the key name {@link EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE}</li>.
-     *  </ol>
-     * 
-     * @see JENKINS-19845 (https://issues.jenkins-ci.org/browse/JENKINS-19845)
-     * 
-     * @param i the instance to be checked.
-     * @param ami the ami id. 
-     * @return true if the instance is a provisioned slave
-     */
     protected boolean isEc2ProvisionedSlave(Instance i, String ami) {
         // Check if the ami matches
         if (ami == null || StringUtils.equals(ami, i.getImageId())) {
@@ -517,7 +503,7 @@ public abstract class EC2Cloud extends Cloud {
 
     /***
      * Convert a user entered string into a port number
-     * "" -> -1 to indicate default based on SSL setting
+     * "" -&gt; -1 to indicate default based on SSL setting
      */
     public static Integer convertPort(String ec2Port) {
         if (ec2Port == null || ec2Port.length() == 0)
