@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2.ssh;
 
+import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
@@ -40,6 +41,7 @@ import java.net.Proxy;
 import java.net.URL;
 
 import jenkins.model.Jenkins;
+
 import org.apache.commons.io.IOUtils;
 
 import com.amazonaws.AmazonClientException;
@@ -102,7 +104,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
-            String tmpDir = (computer.getNode().tmpDir != null ? computer.getNode().tmpDir : "/tmp");
+            String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir : "/tmp");
                                     
             logger.println("Creating tmp directory (" + tmpDir + ") if it does not exist");
             conn.exec("mkdir -p " + tmpDir, logger);            
