@@ -50,6 +50,7 @@ import jenkins.slaves.iterators.api.NodeIterator;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
@@ -92,6 +93,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean useDedicatedTenancy;
     public AMITypeData amiType;
     public int launchTimeout;
+    public boolean connectBySSHProcess;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
 	private transient /*almost final*/ Set<String> securityGroupSet;
@@ -157,7 +159,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     {
     	this(ami, zone, spotConfig, securityGroups, remoteFS, type, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, false, launchTimeoutStr, false, null); 
     }
-    
+
+    public boolean isConnectBySSHProcess() {
+        // See src/main/resources/hudson/plugins/ec2/SlaveTemplate/help-connectBySSHProcess.html
+        return connectBySSHProcess;
+    }
+
+    @DataBoundSetter
+    public void setConnectBySSHProcess(boolean connectBySSHProcess) {
+        // See src/main/resources/hudson/plugins/ec2/SlaveTemplate/help-connectBySSHProcess.html
+        this.connectBySSHProcess = connectBySSHProcess;
+    }
+
     public EC2Cloud getParent() {
         return parent;
     }

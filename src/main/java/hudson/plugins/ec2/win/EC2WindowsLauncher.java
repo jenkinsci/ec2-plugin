@@ -2,6 +2,7 @@ package hudson.plugins.ec2.win;
 
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
+import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
@@ -24,8 +25,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
     
     @Override
-    protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException,
+    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException, AmazonClientException,
     InterruptedException {
+        final PrintStream logger = listener.getLogger();
         final WinConnection connection = connectToWinRM(computer, logger);
 
         try {
