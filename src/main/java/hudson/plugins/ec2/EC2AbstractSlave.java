@@ -478,7 +478,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
 		public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
 				@QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region) {
-			AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+			AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
 			return fillZoneItems(credentialsProvider, region);
 		}
 		

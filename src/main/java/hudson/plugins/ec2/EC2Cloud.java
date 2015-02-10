@@ -432,21 +432,23 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private AWSCredentialsProvider createCredentialsProvider() {
-        return createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+        return createCredentialsProvider(useInstanceProfileForCredentials, true, accessId, secretKey);
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(
             final boolean useInstanceProfileForCredentials,
+            final boolean regularlyUpdateInstanceProfileCredentials,
             final String accessId, final String secretKey) {
-        return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
+        return createCredentialsProvider(useInstanceProfileForCredentials, regularlyUpdateInstanceProfileCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(
             final boolean useInstanceProfileForCredentials,
+            final boolean regularlyUpdateInstanceProfileCredentials,
             final String accessId, final Secret secretKey) {
 
         if (useInstanceProfileForCredentials) {
-            return new InstanceProfileCredentialsProvider();
+            return new InstanceProfileCredentialsProvider(regularlyUpdateInstanceProfileCredentials);
         }
 
         BasicAWSCredentials credentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
@@ -584,7 +586,7 @@ public abstract class EC2Cloud extends Cloud {
         protected FormValidation doTestConnection( URL ec2endpoint,
                 boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey) throws IOException, ServletException {
                try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
@@ -608,7 +610,7 @@ public abstract class EC2Cloud extends Cloud {
         public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String accessId, String secretKey)
         		throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 

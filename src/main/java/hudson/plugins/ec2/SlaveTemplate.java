@@ -886,7 +886,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 @QueryParameter String accessId, @QueryParameter String secretKey,
                 @QueryParameter String ec2endpoint,  @QueryParameter String region,
                 final @QueryParameter String ami) throws IOException {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -962,7 +962,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                                              @QueryParameter String region)
                                              throws IOException, ServletException
         {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1009,7 +1009,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String zoneStr = "";
 
             // Connect to the EC2 cloud with the access id, secret key, and region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if(ec2!=null) {

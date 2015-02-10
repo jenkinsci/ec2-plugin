@@ -129,7 +129,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 					cloudRegions.add(c.name.substring(prefixLen));
 				}
 				
-				AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+				AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
 				AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
 				DescribeRegionsResult regions = client.describeRegions();
 				List<Region> regionList = regions.getRegions();
