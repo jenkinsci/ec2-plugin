@@ -25,6 +25,7 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.Failure;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -32,11 +33,8 @@ import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
@@ -63,15 +61,28 @@ public class AmazonEC2Cloud extends EC2Cloud {
     private String region;
 
     public static final String CLOUD_ID_PREFIX = "ec2-";
-    
+
     // Used when running unit tests
     public static boolean testMode;
-    
-    
+
+
     @DataBoundConstructor
-    public AmazonEC2Cloud(boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(CLOUD_ID_PREFIX + region, useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
+    }
+
+    public String getCloudName() {
+        return this.name.substring(CLOUD_ID_PREFIX.length());
+    }
+
+    @Override
+    public String getDisplayName() {
+        return getCloudName();
+    }
+
+    private static String createCloudId(String cloudName) {
+        return CLOUD_ID_PREFIX + cloudName.trim();
     }
 
     public String getRegion() {
@@ -91,7 +102,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 			throw new Error(e); // Impossible
 		}
     }
-    
+
     @Override
     public URL getEc2EndpointUrl() {
     	return getEc2EndpointUrl(getRegion());
@@ -108,9 +119,30 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
+
         @Override
 		public String getDisplayName() {
             return "Amazon EC2";
+        }
+
+        public FormValidation doCheckCloudName(@QueryParameter String value) {
+            try {
+                Jenkins.checkGoodName(value);
+            } catch (Failure e){
+                return FormValidation.error(e.getMessage());
+            }
+
+            String cloudId = createCloudId(value);
+            int found = 0;
+            for (Cloud c : Jenkins.getInstance().clouds) {
+                if (c.name.equals(cloudId)) {
+                    found++;
+                }
+            }
+            if (found>1) {
+                return FormValidation.error(Messages.AmazonEC2Cloud_NonUniqName());
+            }
+            return FormValidation.ok();
         }
 
 		public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials,
@@ -123,20 +155,12 @@ public class AmazonEC2Cloud extends EC2Cloud {
 			}
 
 			if (useInstanceProfileForCredentials || (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey))) {
-				int prefixLen = CLOUD_ID_PREFIX.length();
-				Set<String> cloudRegions = new HashSet<String>();
-				for (Cloud c : Jenkins.getInstance().clouds) {
-					cloudRegions.add(c.name.substring(prefixLen));
-				}
-				
 				AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
 				AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
 				DescribeRegionsResult regions = client.describeRegions();
 				List<Region> regionList = regions.getRegions();
 				for (Region r : regionList) {
 					String name = r.getRegionName();
-					if ((region == null || !region.equals(name)) && cloudRegions.contains(name))
-						continue;
 					model.add(name, name);
 				}
 			}
