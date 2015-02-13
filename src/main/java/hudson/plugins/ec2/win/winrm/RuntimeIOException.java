@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.win.winrm;
 
+@SuppressWarnings("serial")
 public class RuntimeIOException extends RuntimeException {
     public RuntimeIOException() {
         super();

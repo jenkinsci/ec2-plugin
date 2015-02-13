@@ -27,9 +27,8 @@ import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
-import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
+import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
@@ -55,15 +54,14 @@ import com.trilead.ssh2.Session;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private final int FAILED=-1;
     private final int SAMEUSER=0;
-    private final int RECONNECT=-2;
-    
+
     protected String buildUpCommand(EC2Computer computer, String command) {
     	if (!computer.getRemoteAdmin().equals("root")) {
     		command = computer.getRootCommandPrefix() + " " + command;
@@ -78,7 +76,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
         boolean successful = false;
-        
+
         try {
             bootstrapConn = connectToSsh(computer, logger);
             int bootstrapResult = bootstrap(bootstrapConn, computer, logger);
@@ -105,9 +103,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
             String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir : "/tmp");
-                                    
+
             logger.println("Creating tmp directory (" + tmpDir + ") if it does not exist");
-            conn.exec("mkdir -p " + tmpDir, logger);            
+            conn.exec("mkdir -p " + tmpDir, logger);
 
             if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e ~/.hudson-run-init", logger) !=0) {
                 logger.println("Executing init script");
@@ -178,7 +176,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     conn.close();
                 }
             });
-            
+
             successful = true;
         } finally {
             if(cleanupConn != null && !successful)
@@ -227,7 +225,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     throw new AmazonClientException("Timed out after "+ (waitTime / 1000) + " seconds of waiting for ssh to become available. (maximum timeout configured is "+ (timeout / 1000) + ")" );
                 }
                 Instance instance = computer.updateInstanceDescription();
-                String vpc_id = instance.getVpcId();
                 String host;
 
                 if (computer.getNode().usePrivateDnsName) {

@@ -73,7 +73,7 @@ public class EC2PrivateKey {
      */
     public String getFingerprint() throws IOException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        Reader r = new BufferedReader(new StringReader(privateKey.toString()));
+        Reader r = new BufferedReader(new StringReader(privateKey.getPlainText()));
         PEMReader pem = new PEMReader(r,new PasswordFinder() {
             public char[] getPassword() {
                 throw PRIVATE_KEY_WITH_PASSWORD;
@@ -89,12 +89,14 @@ public class EC2PrivateKey {
             if (e==PRIVATE_KEY_WITH_PASSWORD)
                 throw new IOException("This private key is password protected, which isn't supported yet");
             throw e;
+        } finally {
+            pem.close();
         }
     }
 
     public String getPublicFingerprint() throws IOException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        Reader r = new BufferedReader(new StringReader(privateKey.toString()));
+        Reader r = new BufferedReader(new StringReader(privateKey.getPlainText()));
         PEMReader pem = new PEMReader(r,new PasswordFinder() {
             public char[] getPassword() {
                 throw PRIVATE_KEY_WITH_PASSWORD;
@@ -110,6 +112,8 @@ public class EC2PrivateKey {
             if (e==PRIVATE_KEY_WITH_PASSWORD)
                 throw new IOException("This private key is password protected, which isn't supported yet");
             throw e;
+        } finally {
+            pem.close();
         }
     }
 
@@ -117,7 +121,7 @@ public class EC2PrivateKey {
      * Is this file really a private key?
      */
     public boolean isPrivateKey() throws IOException {
-        BufferedReader br = new BufferedReader(new StringReader(privateKey.toString()));
+        BufferedReader br = new BufferedReader(new StringReader(privateKey.getPlainText()));
         String line;
         while ((line = br.readLine()) != null) {
             if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
@@ -163,7 +167,7 @@ public class EC2PrivateKey {
 
     @Override
     public String toString() {
-        return privateKey.toString();
+        return privateKey.getPlainText();
     }
 
     /*package*/ static String digest(PrivateKey k) throws IOException {

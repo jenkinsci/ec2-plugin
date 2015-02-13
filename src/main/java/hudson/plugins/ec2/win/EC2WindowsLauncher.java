@@ -22,7 +22,7 @@ import com.amazonaws.services.ec2.model.Instance;
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
     final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
-    
+
     @Override
     protected void launch(EC2Computer computer, PrintStream logger, Instance inst) throws IOException, AmazonClientException,
     InterruptedException {
@@ -31,15 +31,15 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         try {
             String initScript = computer.getNode().initScript;
             String tmpDir = (computer.getNode().tmpDir != null ? computer.getNode().tmpDir : "C:\\Windows\\Temp\\");
-            
+
             logger.println("Creating tmp directory if it does not exist");
             connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
-            
+
             if(initScript!=null && initScript.trim().length()>0 && !connection.exists(tmpDir + ".jenkins-init")) {
                 logger.println("Executing init script");
                 OutputStream init = connection.putFile(tmpDir + "init.bat");
                 init.write(initScript.getBytes("utf-8"));
-                
+
                 WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
                 IOUtils.copy(initProcess.getStdout(),logger);
 
@@ -54,12 +54,12 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("init script failed ran successfully");
             }
 
-            
+
             OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
             slaveJar.write(Hudson.getInstance().getJnlpJars("slave.jar").readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
-            
+
             final String jvmopts = computer.getNode().jvmopts;
             final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "slave.jar", 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
@@ -81,7 +81,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     InterruptedException {
         final long timeout = computer.getNode().getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
-        
+
         logger.println(computer.getNode().getDisplayName() + " booted at " + computer.getNode().getCreatedTime());
         boolean alreadyBooted = (startTime - computer.getNode().getCreatedTime()) > TimeUnit.MINUTES.toMillis(3);
         while (true) {
@@ -92,7 +92,6 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for winrm to be connected");
                 }
                 Instance instance = computer.updateInstanceDescription();
-                String vpc_id = instance.getVpcId();
                 String ip, host;
 
                 if (computer.getNode().usePrivateDnsName) {
@@ -124,7 +123,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     Thread.sleep(sleepBetweenAttemps);
                     continue;
                 }
-                
+
                 if (!alreadyBooted || computer.getNode().stopOnTerminate) {
                     logger.println("WinRM service responded. Waiting for WinRM service to stabilize on " + computer.getNode().getDisplayName());
                     Thread.sleep(computer.getNode().getBootDelay());

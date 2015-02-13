@@ -26,9 +26,9 @@ package hudson.plugins.ec2;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Node;
-import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
@@ -37,13 +37,11 @@ import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
-import java.util.LinkedList;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.servlet.ServletException;
 
 import net.sf.json.JSONObject;
 
@@ -55,12 +53,24 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DeleteTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 /**
  * Slave running on EC2.
  *
  * @author Kohsuke Kawaguchi
  */
+@SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
     protected String instanceId;
 
@@ -70,8 +80,8 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String initScript;
     public final String tmpDir;
     public final String remoteAdmin; // e.g. 'ubuntu'
-    
-    
+
+
     public final String jvmopts; //e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
@@ -129,6 +139,7 @@ public abstract class EC2AbstractSlave extends Slave {
         readResolve();
     }
 
+    @Override
     protected Object readResolve() {
     	/*
     	 * If instanceId is null, this object was deserialized from an old
@@ -139,14 +150,14 @@ public abstract class EC2AbstractSlave extends Slave {
     	if (instanceId == null) {
     		instanceId = getNodeName();
     	}
-    	
+
     	if (amiType == null) {
     	    amiType = new UnixData(rootCommandPrefix, Integer.toString(sshPort));
     	}
 
     	return this;
     }
-    
+
     public EC2Cloud getCloud() {
     	return (EC2Cloud) Hudson.getInstance().getCloud(cloudName);
     }
@@ -302,7 +313,7 @@ public abstract class EC2AbstractSlave extends Slave {
         String sshPort = amiType.isUnix() ? ((UnixData)amiType).getSshPort() : "22";
         if (sshPort == null || sshPort.length() == 0)
             return 22;
-        
+
         int port = 0;
         try {
             port = Integer.parseInt(sshPort);
@@ -429,7 +440,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
-    
+
     public String getAdminPassword() {
         return amiType.isWindows() ? ((WindowsData)amiType).getPassword() : "";
     }
@@ -481,7 +492,7 @@ public abstract class EC2AbstractSlave extends Slave {
 			AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
 			return fillZoneItems(credentialsProvider, region);
 		}
-		
+
 		public List<Descriptor<AMITypeData>> getAMITypeDescriptors()
 		{
 		    return Hudson.getInstance().<AMITypeData,Descriptor<AMITypeData>>getDescriptorList(AMITypeData.class);

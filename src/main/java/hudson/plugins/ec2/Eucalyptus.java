@@ -25,34 +25,16 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.util.FormValidation;
-import hudson.util.IOException2;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.GeneralSecurityException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.X509Certificate;
 import java.util.List;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import javax.servlet.ServletException;
 
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.Element;
-import org.dom4j.io.SAXReader;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
-
-import com.amazonaws.auth.AWSCredentialsProvider;
 
 /**
  * Eucalyptus.
@@ -83,12 +65,12 @@ public class Eucalyptus extends EC2Cloud {
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
         @Override
-		public String getDisplayName() {
+        public String getDisplayName() {
             return "Eucalyptus";
         }
 
         @Override
-		public FormValidation doTestConnection(
+        public FormValidation doTestConnection(
                 @QueryParameter URL ec2endpoint,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String accessId,
@@ -97,7 +79,8 @@ public class Eucalyptus extends EC2Cloud {
             return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, accessId, secretKey, privateKey);
         }
 
-		public FormValidation doGenerateKey(
+        @Override
+        public FormValidation doGenerateKey(
                 StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
             return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, accessId, secretKey);
         }
