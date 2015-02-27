@@ -442,7 +442,7 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.isWindows() ? ((WindowsData)amiType).getBootDelayInMillis() : 0;
     }
 
-    public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
+    public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region, boolean useSignerOverride) {
 		ListBoxModel model = new ListBoxModel();
 		if (AmazonEC2Cloud.testMode) {
 			model.add(TEST_ZONE);
@@ -450,7 +450,7 @@ public abstract class EC2AbstractSlave extends Slave {
 		}
 
 		if (!StringUtils.isEmpty(region)) {
-			AmazonEC2 client = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+			AmazonEC2 client = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region), useSignerOverride);
 			DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
 			List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
 			model.add("<not specified>", "");
@@ -477,9 +477,10 @@ public abstract class EC2AbstractSlave extends Slave {
 		}
 
 		public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
+		        @QueryParameter boolean useSignerOverride,
 				@QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region) {
-			AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
-			return fillZoneItems(credentialsProvider, region);
+			AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
+			return fillZoneItems(credentialsProvider, region, useSignerOverride);
 		}
 		
 		public List<Descriptor<AMITypeData>> getAMITypeDescriptors()
