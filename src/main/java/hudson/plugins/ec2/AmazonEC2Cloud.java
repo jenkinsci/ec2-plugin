@@ -69,8 +69,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     
     
     @DataBoundConstructor
-    public AmazonEC2Cloud(boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(CLOUD_ID_PREFIX + region, useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(boolean useInstanceProfileForCredentials, boolean useSignerOverride, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+        super(CLOUD_ID_PREFIX + region, useInstanceProfileForCredentials, useSignerOverride, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.region = region;
     }
 
@@ -114,6 +114,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
         }
 
 		public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials,
+		        @QueryParameter boolean useSignerOverride,
 				@QueryParameter String accessId, @QueryParameter String secretKey,
 				@QueryParameter String region) throws IOException, ServletException {
 			ListBoxModel model = new ListBoxModel();
@@ -130,7 +131,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 				}
 				
 				AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
-				AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+				AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"), useSignerOverride);
 				DescribeRegionsResult regions = client.describeRegions();
 				List<Region> regionList = regions.getRegions();
 				for (Region r : regionList) {
@@ -146,6 +147,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
         public FormValidation doTestConnection(
                  @QueryParameter String region,
                  @QueryParameter boolean useInstanceProfileForCredentials,
+                 @QueryParameter boolean useSignerOverride,
                  @QueryParameter String accessId,
                  @QueryParameter String secretKey,
                  @QueryParameter String privateKey) throws IOException, ServletException {
@@ -154,15 +156,16 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey, privateKey);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, useSignerOverride, accessId, secretKey, privateKey);
         }
 
         public FormValidation doGenerateKey(StaplerResponse rsp,
                 @QueryParameter String region,
                 @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter boolean useSignerOverride,
                 @QueryParameter String accessId,
                 @QueryParameter String secretKey) throws IOException, ServletException {
-            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey);
+            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, useSignerOverride, accessId, secretKey);
         }
     }
 }

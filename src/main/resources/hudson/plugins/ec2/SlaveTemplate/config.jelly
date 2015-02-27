@@ -32,7 +32,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="secretKey,accessId,region,ec2endpoint,ami" />
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,useSignerOverride,secretKey,accessId,region,ec2endpoint,ami" />
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
@@ -53,7 +53,7 @@ THE SOFTWARE.
     <f:description>Slaves designated as Spot slaves will initially show up as disconnected. The state
     will change to connecting when a Spot request has been fulfilled. </f:description>
 
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="accessId,secretKey,region,type,zone" />
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,useSignerOverride,accessId,secretKey,region,type,zone" />
 
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />

@@ -22,6 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <f:entry title="${%Use query string signer}" field="useSignerOverride">
+    <f:checkbox />
+  </f:entry>
   <f:entry title="${%Access Key ID}" field="accessId">
     <f:textbox />
   </f:entry>
@@ -45,6 +48,6 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,secretKey,accessId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,secretKey,accessId,privateKey" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,useSignerOverride,secretKey,accessId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,useSignerOverride,secretKey,accessId,privateKey" />
 </j:jelly>

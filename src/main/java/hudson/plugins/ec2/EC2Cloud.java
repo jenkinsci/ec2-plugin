@@ -101,6 +101,8 @@ public abstract class EC2Cloud extends Cloud {
 	public static final String DEFAULT_EC2_HOST = "us-east-1";
 	public static final String EC2_URL_HOST = "ec2.amazonaws.com";
 
+    private final boolean useSignerOverride;
+
 	private final boolean useInstanceProfileForCredentials;
     private final String accessId;
     private final Secret secretKey;
@@ -113,8 +115,6 @@ public abstract class EC2Cloud extends Cloud {
     private final List<? extends SlaveTemplate> templates;
     private transient KeyPair usableKeyPair;
 
-    protected transient AmazonEC2 connection;
-
     private static AWSCredentialsProvider awsCredentialsProvider;
 
     /* Track the count per-AMI identifiers for AMIs currently being
@@ -122,8 +122,9 @@ public abstract class EC2Cloud extends Cloud {
      */
     private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
-    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, boolean useSignerOverride, String accessId, String secretKey, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
+        this.useSignerOverride = useSignerOverride;
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.accessId = accessId.trim();
         this.secretKey = Secret.fromString(secretKey.trim());
@@ -155,6 +156,10 @@ public abstract class EC2Cloud extends Cloud {
 
     public boolean isUseInstanceProfileForCredentials() {
         return useInstanceProfileForCredentials;
+    }
+
+    public boolean isUseSignerOverride() {
+        return useSignerOverride;
     }
 
     public String getAccessId() {
@@ -460,10 +465,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized AmazonEC2 connect() throws AmazonClientException {
         try {
-            if (connection == null) {
-                connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
-            }
-            return connection;
+            return connect(createCredentialsProvider(), getEc2EndpointUrl(), useSignerOverride);
         } catch (IOException e) {
             throw new AmazonClientException("Failed to retrieve the endpoint",e);
         }
@@ -473,7 +475,7 @@ public abstract class EC2Cloud extends Cloud {
      * Connect to an EC2 instance.
      * @return {@link AmazonEC2} client
      */
-    public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
+    public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint, boolean overrideSigner) {
         awsCredentialsProvider = credentialsProvider;
         ClientConfiguration config = new ClientConfiguration();
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
@@ -486,6 +488,11 @@ public abstract class EC2Cloud extends Cloud {
                 config.setProxyUsername(proxyConfig.getUserName());
                 config.setProxyPassword(proxyConfig.getPassword());
             }
+        }
+        if (overrideSigner) {
+            // Needed to correctly sign requests in some regions with the newer AWS Java SDK versions
+            // See: https://forums.aws.amazon.com/thread.jspa?messageID=574914&tstart=0
+            config.setSignerOverride("QueryStringSignerType");
         }
         AmazonEC2 client = new AmazonEC2Client(credentialsProvider.getCredentials(), config);
         client.setEndpoint(endpoint.toString());
@@ -584,10 +591,10 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         protected FormValidation doTestConnection( URL ec2endpoint,
-                boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey) throws IOException, ServletException {
+                boolean useInstanceProfileForCredentials, boolean useSignerOverride, String accessId, String secretKey, String privateKey) throws IOException, ServletException {
                try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
-                AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
+                AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint, useSignerOverride);
                 ec2.describeInstances();
 
                 if(privateKey==null)
@@ -607,11 +614,11 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String accessId, String secretKey)
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, boolean useSignerOverride, String accessId, String secretKey)
         		throws IOException, ServletException {
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, false, accessId, secretKey);
-                AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
+                AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl, useSignerOverride);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
                 int n = 0;
