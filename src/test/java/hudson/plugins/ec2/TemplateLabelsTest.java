@@ -55,7 +55,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
 		List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
 		templates.add(template);
 
-		ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
+		ac = new AmazonEC2Cloud("us-east-1", false, false, "us-east-1", "abc", "def", "ghi", "3", templates);
 	}
 
 	public void testLabelAtom() throws Exception{

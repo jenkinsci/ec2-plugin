@@ -25,6 +25,9 @@ THE SOFTWARE.
   <f:entry title="${%Name}" field="cloudName">
     <f:textbox />
   </f:entry>
+  <f:entry title="${%Use query string signer}" field="useSignerOverride">
+    <f:checkbox />
+  </f:entry>
   <f:entry title="${%Access Key ID}" field="accessId">
     <f:textbox />
   </f:entry>
@@ -47,6 +50,6 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,secretKey,accessId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,secretKey,accessId,privateKey" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,useSignerOverride,secretKey,accessId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,useSignerOverride,secretKey,accessId,privateKey" />
 </j:jelly>
