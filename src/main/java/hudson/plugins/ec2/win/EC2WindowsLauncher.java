@@ -30,7 +30,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
         try {
             String initScript = computer.getNode().initScript;
-            String tmpDir = (computer.getNode().tmpDir != null ? computer.getNode().tmpDir : "C:\\Windows\\Temp\\");
+            String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.equals("") ? computer.getNode().tmpDir : "C:\\Windows\\Temp\\");
             
             logger.println("Creating tmp directory if it does not exist");
             connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
