@@ -45,6 +45,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
+import java.util.List;
 
 import jenkins.model.Jenkins;
 
@@ -179,9 +180,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             // TODO: I don't get these templates. How are they named/labeled and when will there be multiples?
             // Need to find out how to map this stuff onto the EC2AbstractSlave instance as it seems to have
             // some of the same props.
-            SlaveTemplate slaveTemplate = computer.getCloud().getTemplates().get(0);
+            List<SlaveTemplate> templates = computer.getCloud().getTemplates();
+            SlaveTemplate slaveTemplate = null;
+            if (templates != null && !templates.isEmpty()) {
+                slaveTemplate = templates.get(0);
+            }
 
-            if (slaveTemplate.isConnectBySSHProcess()) {
+            if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
                 EC2AbstractSlave node = computer.getNode();
                 File identityKeyFile = createIdentityKeyFile(computer);
 
