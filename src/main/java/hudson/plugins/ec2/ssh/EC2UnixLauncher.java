@@ -196,7 +196,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s",
                                     identityKeyFile.getAbsolutePath(),
                                     node.remoteAdmin,
-                                    getEC2HostName(computer, inst),
+                                    getEC2HostAddress(computer, inst),
                                     node.getSshPort(),
                                     launchString);
 
@@ -288,7 +288,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     throw new AmazonClientException("Timed out after "+ (waitTime / 1000) + " seconds of waiting for ssh to become available. (maximum timeout configured is "+ (timeout / 1000) + ")" );
                 }
                 Instance instance = computer.updateInstanceDescription();
-                String host = getEC2HostName(computer, instance);
+                String host = getEC2HostAddress(computer, instance);
 
                 if ("0.0.0.0".equals(host)) {
                     logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
@@ -328,7 +328,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private String getEC2HostName(EC2Computer computer, Instance inst) {
+    private String getEC2HostAddress(EC2Computer computer, Instance inst) {
         if (computer.getNode().usePrivateDnsName) {
             return inst.getPrivateDnsName();
         } else {
