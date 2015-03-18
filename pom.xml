@@ -53,6 +53,12 @@ THE SOFTWARE.
 
   <dependencies>
     <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->
       <groupId>bouncycastle</groupId>
       <artifactId>bcprov-jdk15</artifactId>
