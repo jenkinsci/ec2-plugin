@@ -474,6 +474,7 @@ public abstract class EC2Cloud extends Cloud {
     public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
         awsCredentialsProvider = credentialsProvider;
         ClientConfiguration config = new ClientConfiguration();
+        config.setSignerOverride("QueryStringSignerType");
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
         Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
         if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
