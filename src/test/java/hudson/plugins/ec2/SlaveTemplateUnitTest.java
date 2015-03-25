@@ -6,19 +6,23 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.Tag;
 import hudson.model.Node;
-import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-/**
- * Created by christophbeckmann on 3/17/15.
- */
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+
 public class SlaveTemplateUnitTest {
 
     Logger logger;
@@ -68,8 +72,9 @@ public class SlaveTemplateUnitTest {
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
-        orig.updateRemoteTags(ec2, awsTags, "InvalidInstanceRequestID.NotFound", instanceId);
-        Assert.assertEquals(0, handler.getRecords().size());
+        final Object params[] = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", instanceId};
+        Whitebox.invokeMethod(orig, "updateRemoteTags", params);
+        assertEquals(0, handler.getRecords().size());
     }
 
     @Test
@@ -104,13 +109,15 @@ public class SlaveTemplateUnitTest {
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
-        orig.updateRemoteTags(ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", instanceId);
-        Assert.assertEquals(5, handler.getRecords().size());
+        final Object params[] = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", instanceId};
+        Whitebox.invokeMethod(orig, "updateRemoteTags", params);
+
+        assertEquals(5, handler.getRecords().size());
 
         Iterator<LogRecord> logs = handler.getRecords().iterator();
         while (logs.hasNext()) {
             String log = logs.next().getMessage();
-            Assert.assertTrue(log.contains("Instance not found - InvalidInstanceRequestID.NotFound"));
+            assertTrue(log.contains("Instance not found - InvalidInstanceRequestID.NotFound"));
         }
 
     }

@@ -711,7 +711,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @param params
      * @throws InterruptedException
      */
-    protected void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String catchErrorCode, String... params) throws InterruptedException {
+    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String catchErrorCode, String... params) throws InterruptedException {
         for (int i = 0; i < 5; i++) {
             try {
                 CreateTagsRequest tag_request = new CreateTagsRequest();

@@ -51,7 +51,23 @@ THE SOFTWARE.
     <tag>HEAD</tag>
   </scm>
 
+  <properties>
+      <powermock.version>1.6.2</powermock.version>
+  </properties>
+
   <dependencies>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-junit4</artifactId>
+      <version>${powermock.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <version>${powermock.version}</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
