@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
@@ -421,18 +422,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 /* Now that we have our instance, we can set tags on it */
                 if (inst_tags != null) {
-                    for (int i = 0; i < 5; i++) {
-                        try {
-                            updateRemoteTags(ec2, inst_tags, inst.getInstanceId());
-                            break;
-                        } catch (AmazonServiceException e) {
-                            if (e.getErrorCode().equals("InvalidInstanceRequestID.NotFound")) {
-                                Thread.sleep(5000);
-                                continue;
-                            }
-                            throw e;
-                        }
-                    }
+                    updateRemoteTags(ec2, inst_tags, "InvalidInstanceID.NotFound", inst.getInstanceId());
 
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
@@ -676,18 +666,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             /* Now that we have our Spot request, we can set tags on it */
             if (inst_tags != null) {
-                for (int i = 0; i < 5; i++) {
-                    try {
-                        updateRemoteTags(ec2, inst_tags, spotInstReq.getSpotInstanceRequestId());
-                        break;
-                    } catch (AmazonServiceException e) {
-                        if (e.getErrorCode().equals("InvalidSpotInstanceRequestID.NotFound")) {
-                            Thread.sleep(5000);
-                            continue;
-                        }
-                        throw e;
-                    }
-                }
+                updateRemoteTags(ec2, inst_tags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
 
                 // That was a remote request - we should also update our local instance data.
                 spotInstReq.setTags(inst_tags);
@@ -724,12 +703,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Update the tags stored in EC2 with the specified information
+     * Update the tags stored in EC2 with the specified information.
+     * Re-try 5 times if instances isn't up by catchErrorCode - e.g. InvalidSpotInstanceRequestID.NotFound or InvalidInstanceRequestID.NotFound
+     * @param ec2
+     * @param inst_tags
+     * @param catchErrorCode
+     * @param params
+     * @throws InterruptedException
      */
-    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String... params) {
-        CreateTagsRequest tag_request = new CreateTagsRequest();
-        tag_request.withResources(params).setTags(inst_tags);
-        ec2.createTags(tag_request);
+    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String catchErrorCode, String... params) throws InterruptedException {
+        for (int i = 0; i < 5; i++) {
+            try {
+                CreateTagsRequest tag_request = new CreateTagsRequest();
+                tag_request.withResources(params).setTags(inst_tags);
+                ec2.createTags(tag_request);
+                break;
+            } catch (AmazonServiceException e) {
+                if (e.getErrorCode().equals(catchErrorCode)) {
+                    Thread.sleep(5000);
+                    continue;
+                }
+                LOGGER.log(Level.SEVERE, e.getErrorMessage(), e);
+            }
+        }
     }
 
     /**
