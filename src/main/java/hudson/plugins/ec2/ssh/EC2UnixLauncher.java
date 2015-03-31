@@ -260,6 +260,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                         proxyData = new HTTPProxyData(address.getHostName(), address.getPort());
                     }
                     conn.setProxyData(proxyData);
+                    logger.println("Using HTTP Proxy Configuration");
                 }
                 // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
                 // hoping that no man-in-the-middle attack is going on.
@@ -272,6 +273,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 return conn; // successfully connected
             } catch (IOException e) {
                 // keep retrying until SSH comes up
+                logger.println("Failed to connect via ssh: " + e.getMessage());
                 logger.println("Waiting for SSH to come up. Sleeping 5.");
                 Thread.sleep(5000);
             }
