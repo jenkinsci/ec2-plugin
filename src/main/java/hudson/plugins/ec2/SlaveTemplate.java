@@ -297,9 +297,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-	        String msg = "Launching " + ami + " for template " + description;
-            logger.println(msg);
-            LOGGER.info(msg);
+	        logger.println("Launching " + ami + " for template " + description);
+            LOGGER.info("Launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -392,9 +391,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     InstanceStateName.Stopping.toString()));
             diRequest.setFilters(diFilters);
 
-            msg = "Looking for existing instances with describe-instance: "+diRequest;
-            logger.println(msg);
-            LOGGER.fine(msg);
+            logger.println("Looking for existing instances with describe-instance: "+diRequest);
+            LOGGER.fine("Looking for existing instances with describe-instance: "+diRequest);
 
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
 
@@ -427,38 +425,33 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     // That was a remote request - we should also update our local instance data.
                     inst.setTags(inst_tags);
                 }
-                msg = "No existing instance found - created: "+inst;
-                logger.println(msg);
-                LOGGER.info(msg);
+                logger.println("No existing instance found - created: "+inst);
+                LOGGER.info("No existing instance found - created: "+inst);
                 return newOndemandSlave(inst);
             }
 
-            msg = "Found existing stopped instance: "+existingInstance;
-            logger.println(msg);
-            LOGGER.info(msg);
+            logger.println("Found existing stopped instance: "+existingInstance);
+            LOGGER.info("Found existing stopped instance: "+existingInstance);
 
             List<String> instances = new ArrayList<String>();
             instances.add(existingInstance.getInstanceId());
             StartInstancesRequest siRequest = new StartInstancesRequest(instances);
             StartInstancesResult siResult = ec2.startInstances(siRequest);
 
-            msg = "Starting existing instance: "+existingInstance+ " result:"+siResult;
-            logger.println(msg);
-            LOGGER.fine(msg);
+            logger.println("Starting existing instance: "+existingInstance+ " result:"+siResult);
+            LOGGER.fine("Starting existing instance: "+existingInstance+ " result:"+siResult);
 
             for (EC2AbstractSlave ec2Node: NodeIterator.nodes(EC2AbstractSlave.class)){
                 if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
-                    msg = "Found existing corresponding Jenkins slave: "+ec2Node;
-                    logger.println(msg);
-                    LOGGER.finer(msg);
+                    logger.println("Found existing corresponding Jenkins slave: "+ec2Node);
+                    LOGGER.finer("Found existing corresponding Jenkins slave: "+ec2Node);
                     return ec2Node;
                 }
             }
 
             // Existing slave not found
-            msg = "Creating new Jenkins slave for existing instance: "+existingInstance;
-            logger.println(msg);
-            LOGGER.info(msg);
+            logger.println("Creating new Jenkins slave for existing instance: "+existingInstance);
+            LOGGER.info("Creating new Jenkins slave for existing instance: "+existingInstance);
             return newOndemandSlave(existingInstance);
 
         } catch (FormException e) {
@@ -532,7 +525,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         AmazonEC2 ec2 = getParent().connect();
 
         try{
-            logger.println("Launching " + ami + " for template " + description);
+    	    logger.println("Launching " + ami + " for template " + description);
+            LOGGER.info("Launching " + ami + " for template " + description);
+
             KeyPair keyPair = getKeyPair(ec2);
 
             RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
@@ -673,6 +668,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
+            LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
             return newSpotSlave(spotInstReq, slaveName);
 
@@ -780,6 +776,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         try {
             logger.println("Attaching to "+instanceId);
+            LOGGER.info("Attaching to "+instanceId);
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));
             Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
