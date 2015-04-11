@@ -38,11 +38,13 @@ import com.amazonaws.services.ec2.model.SpotInstanceType;
  */
 public class SlaveTemplateTest extends HudsonTestCase {
 
+    @Override
     protected void setUp() throws Exception {
         super.setUp();
         AmazonEC2Cloud.testMode = true;
     }
 
+    @Override
     protected void tearDown() throws Exception {
         super.tearDown();
         AmazonEC2Cloud.testMode = false;
@@ -63,7 +65,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -86,7 +88,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -115,7 +117,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -143,7 +145,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -199,7 +201,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
@@ -222,7 +224,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
         hudson.clouds.add(ac);
 
         submit(createWebClient().goTo("configure").getFormByName("config"));

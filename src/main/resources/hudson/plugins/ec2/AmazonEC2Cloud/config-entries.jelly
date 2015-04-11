@@ -22,6 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <f:entry title="${%Name}" field="cloudName">
+    <f:textbox />
+  </f:entry>
   <f:entry title="${%Access Key ID}" field="accessId">
     <f:textbox />
   </f:entry>
@@ -31,8 +34,7 @@ THE SOFTWARE.
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
     <f:checkbox />
   </f:entry>
-  <f:description>The regions will be populated once the keys above are entered. Since at most one cloud can be defined per
-  region, region names which are associated with other clouds are not shown here.
+  <f:description>The regions will be populated once the keys above are entered.
   </f:description>
   <f:entry title="${%Region}" field="region">
     <f:select/>

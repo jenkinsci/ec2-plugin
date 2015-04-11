@@ -32,23 +32,25 @@ import java.util.Collections;
  */
 public class AmazonEC2CloudTest extends HudsonTestCase {
 
-	protected void setUp() throws Exception {
-		super.setUp();
-		AmazonEC2Cloud.testMode = true;
-	}
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+        AmazonEC2Cloud.testMode = true;
+    }
 
-	protected void tearDown() throws Exception {
-		super.tearDown();
-		AmazonEC2Cloud.testMode = false;
-	}
+    @Override
+    protected void tearDown() throws Exception {
+        super.tearDown();
+        AmazonEC2Cloud.testMode = false;
+    }
 
-	public void testConfigRoundtrip() throws Exception {
-		AmazonEC2Cloud orig = new AmazonEC2Cloud(true, "abc", "def", "us-east-1",
-				"ghi", "3", Collections.<SlaveTemplate> emptyList());
-		hudson.clouds.add(orig);
-		submit(createWebClient().goTo("configure").getFormByName("config"));
+    public void testConfigRoundtrip() throws Exception {
+        AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "def", "us-east-1",
+                "ghi", "3", Collections.<SlaveTemplate> emptyList());
+        hudson.clouds.add(orig);
+        submit(createWebClient().goTo("configure").getFormByName("config"));
 
-		assertEqualBeans(orig, hudson.clouds.iterator().next(),
-				"region,useInstanceProfileForCredentials,accessId,secretKey,privateKey,instanceCap");
-	}
+        assertEqualBeans(orig, hudson.clouds.iterator().next(),
+                "cloudName,region,useInstanceProfileForCredentials,accessId,secretKey,privateKey,instanceCap");
+    }
 }
