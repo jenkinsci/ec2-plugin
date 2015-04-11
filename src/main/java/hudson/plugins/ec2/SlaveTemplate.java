@@ -84,6 +84,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String iamInstanceProfile;
     public final boolean useEphemeralDevices;
     public final String customDeviceMapping;
+    public final boolean terminateOnShutdown;
     public int instanceCap;
     public final boolean stopOnTerminate;
     private final List<EC2Tag> tags;
@@ -107,7 +108,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 	public transient String rootCommandPrefix;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean terminateOnShutdown) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -131,6 +132,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.usePrivateDnsName = usePrivateDnsName;
         this.associatePublicIp = associatePublicIp;
         this.useDedicatedTenancy = useDedicatedTenancy;
+        this.terminateOnShutdown = terminateOnShutdown;
 
         if (null == instanceCapStr || instanceCapStr.equals("")) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -156,7 +158,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr)
     {
-    	this(ami, zone, spotConfig, securityGroups, remoteFS, type, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, false, launchTimeoutStr, false, null); 
+    	this(ami, zone, spotConfig, securityGroups, remoteFS, type, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, false, launchTimeoutStr, false, null, false);
     }
     
     public EC2Cloud getParent() {
@@ -395,6 +397,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             LOGGER.fine("Looking for existing instances with describe-instance: "+diRequest);
 
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
+
+            if(terminateOnShutdown) {
+                riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
+            }
 
             Instance existingInstance = null;
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {

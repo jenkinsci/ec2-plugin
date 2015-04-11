@@ -156,6 +156,10 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
+    <f:entry title="${%Terminate on Instance Initiated Shutdown}" field="terminateOnShutdown">
+      <f:checkbox />
+    </f:entry>
+
   </f:advanced>
 
   <f:entry title="">
