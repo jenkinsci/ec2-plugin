@@ -151,12 +151,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
 
                 URL url = computer.getCloud().buildPresignedURL(path);
-                if(conn.exec("wget -nv -O " + tmpDir + jdk + ".tgz '" + url + "'", logger) !=0) {
+                if(conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) !=0) {
                     logger.println("Failed to download Java");
                     return;
                 }
 
-                if(conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + jdk + ".tgz"), logger) !=0) {
+                if(conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) !=0) {
                     logger.println("Failed to install Java");
                     return;
                 }
