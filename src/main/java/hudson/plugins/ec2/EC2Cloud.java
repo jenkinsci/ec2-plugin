@@ -486,7 +486,7 @@ public abstract class EC2Cloud extends Cloud {
                 config.setProxyPassword(proxyConfig.getPassword());
             }
         }
-        AmazonEC2 client = new AmazonEC2Client(credentialsProvider.getCredentials(), config);
+        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, config);
         client.setEndpoint(endpoint.toString());
         return client;
     }
