@@ -53,7 +53,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
                 OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
                 initGuard.write("init ran".getBytes());
-                logger.println("init script failed ran successfully");
+                logger.println("init script ran successfully");
             }
 
             
