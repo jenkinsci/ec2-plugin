@@ -119,6 +119,7 @@ public class WinConnection {
             test.connect();
             return true;
         } catch (Exception e) {
+            log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
             return false;
         }
     }
