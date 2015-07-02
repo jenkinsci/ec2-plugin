@@ -23,16 +23,14 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import org.jvnet.hudson.test.HudsonTestCase;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.jvnet.hudson.test.HudsonTestCase;
-
-import com.amazonaws.services.ec2.model.InstanceType;
 
 public class TemplateLabelsTest extends HudsonTestCase{
 
@@ -51,7 +49,7 @@ public class TemplateLabelsTest extends HudsonTestCase{
 		tags.add( tag1 );
 		tags.add( tag2 );
 
-		SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, label, mode,"foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
+		SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, false, label, mode,"foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
 		List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
 		templates.add(template);
 

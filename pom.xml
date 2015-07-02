@@ -30,7 +30,7 @@ THE SOFTWARE.
     <artifactId>plugin</artifactId>
       <version>1.447</version>
   </parent>
-  
+
   <artifactId>ec2</artifactId>
   <version>1.29-SNAPSHOT</version>
   <packaging>hpi</packaging>
@@ -83,7 +83,7 @@ THE SOFTWARE.
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk</artifactId>
-      <version>1.10.0</version>
+      <version>1.10.2</version>
       <exclusions>
         <exclusion>
           <groupId>commons-codec</groupId>
@@ -138,14 +138,14 @@ THE SOFTWARE.
       <url>http://repo.jenkins-ci.org/public/</url>
     </repository>
   </repositories>
-  
+
   <pluginRepositories>
     <pluginRepository>
       <id>repo.jenkins-ci.org</id>
       <url>http://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
-  
+
   <build>
     <plugins>
       <plugin>
@@ -290,4 +290,4 @@ THE SOFTWARE.
   		</plugins>
   	</pluginManagement>
   </build>
-</project>  
+</project>
