@@ -159,6 +159,15 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
+    public void testUpdateAmi(){
+        SlaveTemplate st = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        assertEquals("ami1", st.getAmi());
+        st.setAmi("ami2");
+        assertEquals("ami2", st.getAmi());
+        st.ami = "ami3";
+        assertEquals("ami3", st.getAmi());
+    }
+
     public void test0TimeoutShouldReturnMaxInt(){
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
