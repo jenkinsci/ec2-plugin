@@ -64,7 +64,7 @@ import com.amazonaws.services.ec2.model.*;
  * @author Kohsuke Kawaguchi
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
-    public final String ami;
+    public String ami;
     public final String description;
     public final String zone;
     public final SpotConfiguration spotConfig;
@@ -263,6 +263,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public Set<LabelAtom> getLabelSet(){
         return labelSet;
+    }
+
+    public String getAmi() {
+        return ami;
+    }
+
+    public void setAmi(String ami) {
+        this.ami = ami;
     }
 
     public int getInstanceCap() {
