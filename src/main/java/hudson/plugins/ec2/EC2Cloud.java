@@ -395,7 +395,7 @@ public abstract class EC2Cloud extends Cloud {
                             public Node call() throws Exception {
                                 // TODO: record the output somewhere
                                 try {
-                                    EC2AbstractSlave s = t.provision(new StreamTaskListener(System.out));
+                                    EC2AbstractSlave s = t.provision(StreamTaskListener.fromStdout());
                                     Hudson.getInstance().addNode(s);
                                     // EC2 instances may have a long init script. If we declare
                                     // the provisioning complete by returning without the connect

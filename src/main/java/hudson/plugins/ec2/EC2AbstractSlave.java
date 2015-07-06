@@ -26,9 +26,9 @@ package hudson.plugins.ec2;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
+import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Node;
-import hudson.model.Descriptor.FormException;
 import hudson.model.Slave;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
@@ -37,13 +37,11 @@ import hudson.util.ListBoxModel;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
-import java.util.LinkedList;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.servlet.ServletException;
 
 import net.sf.json.JSONObject;
 
@@ -55,12 +53,24 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DeleteTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 /**
  * Slave running on EC2.
  *
  * @author Kohsuke Kawaguchi
  */
+@SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
     protected String instanceId;
 
@@ -129,6 +139,7 @@ public abstract class EC2AbstractSlave extends Slave {
         readResolve();
     }
 
+    @Override
     protected Object readResolve() {
     	/*
     	 * If instanceId is null, this object was deserialized from an old

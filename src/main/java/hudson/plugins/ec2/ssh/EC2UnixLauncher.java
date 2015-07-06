@@ -62,15 +62,14 @@ import com.trilead.ssh2.Session;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private final int FAILED=-1;
     private final int SAMEUSER=0;
-    private final int RECONNECT=-2;
-    
+
     protected String buildUpCommand(EC2Computer computer, String command) {
     	if (!computer.getRemoteAdmin().equals("root")) {
     		command = computer.getRootCommandPrefix() + " " + command;
@@ -113,9 +112,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
             String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir : "/tmp");
-                                    
+
             logger.println("Creating tmp directory (" + tmpDir + ") if it does not exist");
-            conn.exec("mkdir -p " + tmpDir, logger);            
+            conn.exec("mkdir -p " + tmpDir, logger);
 
             if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e ~/.hudson-run-init", logger) !=0) {
                 logger.println("Executing init script");

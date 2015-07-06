@@ -4,13 +4,10 @@ import hudson.plugins.ec2.win.winrm.request.RequestFactory;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.io.PipedOutputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.ConnectException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -20,17 +17,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.net.ssl.SSLException;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.params.AuthPolicy;
 import org.apache.http.client.protocol.ClientContext;
@@ -43,10 +36,8 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.params.CoreConnectionPNames;
 import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.protocol.ExecutionContext;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.dom4j.Document;
@@ -215,14 +206,14 @@ public class WinRMClient {
         if (retry > 3) {
             throw new RuntimeException("Too many retry for request");
         }
-        
+
         DefaultHttpClient httpclient = buildHTTPClient();
         HttpContext context = new BasicHttpContext();
-        
+
         if (authCache.get() == null) {
             authCache.set(new BasicAuthCache());
         }
-        
+
         context.setAttribute(ClientContext.AUTH_CACHE, authCache.get());
 
         if (useHTTPS) {

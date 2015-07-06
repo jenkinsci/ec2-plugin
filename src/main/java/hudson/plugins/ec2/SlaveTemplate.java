@@ -96,16 +96,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public boolean connectBySSHProcess;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
-	private transient /*almost final*/ Set<String> securityGroupSet;
-	
-	/* 
-	 * Necessary to handle reading from old configurations. The UnixData object is
-	 * created in readResolve()
-	 */
-	@Deprecated
-	public transient String sshPort;
-	@Deprecated
-	public transient String rootCommandPrefix;
+    private transient /*almost final*/ Set<String> securityGroupSet;
+
+    /*
+     * Necessary to handle reading from old configurations. The UnixData object is
+     * created in readResolve()
+     */
+    @Deprecated
+    public transient String sshPort;
+    @Deprecated
+    public transient String rootCommandPrefix;
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean connectBySSHProcess) {
@@ -162,7 +162,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr)
     {
-    	this(ami, zone, spotConfig, securityGroups, remoteFS, type, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, false, launchTimeoutStr, false, null); 
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
     public boolean isConnectBySSHProcess() {
@@ -222,10 +222,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getSshPort() {
         try {
-        	String sshPort = "";
-        	if (amiType.isUnix()) {
-        		sshPort = ((UnixData)amiType).getSshPort();
-        	}
+            String sshPort = "";
+            if (amiType.isUnix()) {
+                sshPort = ((UnixData)amiType).getSshPort();
+            }
             return Integer.parseInt(sshPort);
         } catch (NumberFormatException e) {
             return 22;
@@ -308,7 +308,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions an On-demand EC2 slave by launching a new instance or 
+     * Provisions an On-demand EC2 slave by launching a new instance or
      * starting a previously-stopped instance.
      */
     private EC2AbstractSlave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
@@ -316,8 +316,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-	        logger.println("Launching " + ami + " for template " + description);
-            LOGGER.info("Launching " + ami + " for template " + description);
+            String msg = "Launching " + ami + " for template " + description;
+            logger.println(msg);
+            LOGGER.info(msg);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -367,7 +368,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     }
                 }
             } else {
-               /* No subnet: we can use standard security groups by name */
+                /* No subnet: we can use standard security groups by name */
                 riRequest.setSecurityGroups(securityGroupSet);
                 if (securityGroupSet.size() > 0)
                     diFilters.add(new Filter("instance.group-name").withValues(securityGroupSet));
@@ -394,7 +395,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:"+t.getName()).withValues(t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                    	hasCustomTypeTag = true;
+                        hasCustomTypeTag = true;
                     }
                 }
             }
@@ -402,7 +403,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (inst_tags == null){
                     inst_tags = new HashSet<Tag>();
                 }
-            	inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "demand"));
+                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "demand"));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
@@ -420,14 +421,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 // cannot filter on IAM Instance Profile, so search in result
                 reservationLoop:
-                for (Reservation reservation : diResult.getReservations()) {
-                    for (Instance instance : reservation.getInstances()) {
-                        if (instance.getIamInstanceProfile() != null && instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
-                            existingInstance = instance;
-                            break reservationLoop;
+                    for (Reservation reservation : diResult.getReservations()) {
+                        for (Instance instance : reservation.getInstances()) {
+                            if (instance.getIamInstanceProfile() != null && instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
+                                existingInstance = instance;
+                                break reservationLoop;
+                            }
                         }
                     }
-                }
             } else if (diResult.getReservations().size() > 0) {
                 existingInstance = diResult.getReservations().get(0).getInstances().get(0);
             }
@@ -492,7 +493,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         final List<String> available = new ArrayList<String>(Arrays.asList(
                 "ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"
-        ));
+                ));
 
         final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<BlockDeviceMapping>(4);
         for (char suffix = 'b'; suffix <= 'z' && !available.isEmpty(); suffix++) {
@@ -502,8 +503,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (occupiedDevices.contains(deviceName)) continue;
 
             final BlockDeviceMapping newMapping = new BlockDeviceMapping()
-                    .withDeviceName(deviceName)
-                    .withVirtualName(available.get(0))
+            .withDeviceName(deviceName)
+            .withVirtualName(available.get(0))
             ;
 
             newDeviceMapping.add(newMapping);
@@ -589,11 +590,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
 
                             for (String group_id : group_ids) {
-                              GroupIdentifier group = new GroupIdentifier();
-                              group.setGroupId(group_id);
-                              groups.add(group);
+                                GroupIdentifier group = new GroupIdentifier();
+                                group.setGroupId(group_id);
+                                groups.add(group);
                             }
-                             if (!groups.isEmpty())
+                            if (!groups.isEmpty())
                                 launchSpecification.setAllSecurityGroups(groups);
                         }
                     }
@@ -618,7 +619,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             // We want to allow node configuration with cloud-init and user-data,
             // while maintaining backward compatibility with old ami's
-            // The 'new' way is triggered by the presence of '${SLAVE_NAME}'' in the user data 
+            // The 'new' way is triggered by the presence of '${SLAVE_NAME}'' in the user data
             // (which is not too much to ask)
             if (userData.contains("${SLAVE_NAME}")) {
                 // The cloud-init compatible way
@@ -638,7 +639,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecification.setKeyName(keyPair.getKeyName());
             launchSpecification.setInstanceType(type.toString());
 
-             if (getAssociatePublicIp()) {
+            if (getAssociatePublicIp()) {
                 net.setAssociatePublicIpAddress(true);
                 net.setDeviceIndex(0);
                 launchSpecification.withNetworkInterfaces(net);
@@ -651,7 +652,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 for(EC2Tag t : tags) {
                     inst_tags.add(new Tag(t.getName(), t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                    	hasCustomTypeTag = true;
+                        hasCustomTypeTag = true;
                     }
                 }
             }
@@ -826,7 +827,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (amiType == null) {
-        	amiType = new UnixData(rootCommandPrefix, sshPort);
+            amiType = new UnixData(rootCommandPrefix, sshPort);
         }
         return this;
     }
@@ -849,20 +850,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean isWindowsSlave()
     {
-      return amiType.isWindows();
+        return amiType.isWindows();
     }
 
     public boolean isUnixSlave()
     {
-      return amiType.isUnix();
+        return amiType.isUnix();
     }
 
     public String getAdminPassword()
     {
-      return amiType.isWindows() ? ((WindowsData)amiType).getPassword() : "";
+        return amiType.isWindows() ? ((WindowsData)amiType).getPassword() : "";
     }
-    
-    private boolean isUseHTTPS() {
+
+    public boolean isUseHTTPS() {
         return amiType.isWindows() ? ((WindowsData)amiType).isUseHTTPS() : false;
     }
 
@@ -877,7 +878,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         {
             return Hudson.getInstance().<AMITypeData,Descriptor<AMITypeData>>getDescriptorList(AMITypeData.class);
         }
-        
+
         /**
          * Since this shares much of the configuration with {@link EC2Computer}, check its help page, too.
          */
@@ -926,7 +927,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     return FormValidation.ok(img.get(0).getImageLocation() +
                             (ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
-                        return FormValidation.error(e.getMessage());
+                    return FormValidation.error(e.getMessage());
                 }
             } else
                 return FormValidation.ok();   // can't test
@@ -970,14 +971,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public ListBoxModel doFillZoneItems( @QueryParameter boolean useInstanceProfileForCredentials,
-                                             @QueryParameter String accessId,
-                                             @QueryParameter String secretKey,
-                                             @QueryParameter String region)
-                                             throws IOException, ServletException
-        {
+                @QueryParameter String accessId,
+                @QueryParameter String secretKey,
+                @QueryParameter String region)
+                        throws IOException, ServletException
+                        {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
-        }
+                        }
 
         /* Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001 */
         public FormValidation doCheckSpotMaxBidPrice( @QueryParameter String spotMaxBidPrice ) {
@@ -1002,9 +1003,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         /**
-        * Populates the Bid Type Drop down on the slave template config.
-        * @return
-        */
+         * Populates the Bid Type Drop down on the slave template config.
+         * @return
+         */
         public ListBoxModel doFillBidTypeItems() {
             ListBoxModel items = new ListBoxModel();
             items.add(SpotInstanceType.OneTime.toString());
