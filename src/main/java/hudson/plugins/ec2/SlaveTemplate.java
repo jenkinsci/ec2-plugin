@@ -23,6 +23,29 @@
  */
 package hudson.plugins.ec2;
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.ServletException;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -64,41 +87,21 @@ import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
 import com.amazonaws.services.ec2.model.Tag;
+
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.TaskListener;
+import hudson.model.Descriptor.FormException;
 import hudson.model.labels.LabelAtom;
 import hudson.plugins.ec2.util.DeviceMappingParser;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.slaves.iterators.api.NodeIterator;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -137,6 +140,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public AMITypeData amiType;
     public int launchTimeout;
     public boolean connectBySSHProcess;
+    public final boolean connectUsingPublicIp;
 
     private transient /*almost final*/ Set<LabelAtom> labelSet;
     private transient /*almost final*/ Set<String> securityGroupSet;
@@ -151,7 +155,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public transient String rootCommandPrefix;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean connectBySSHProcess) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -175,6 +179,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.usePrivateDnsName = usePrivateDnsName;
         this.associatePublicIp = associatePublicIp;
+        this.connectUsingPublicIp = connectUsingPublicIp;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
 
@@ -195,6 +200,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
 
         readResolve(); // initialize
+    }
+    
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean connectBySSHProcess) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
@@ -290,6 +299,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean getAssociatePublicIp() {
         return associatePublicIp;
+    }
+
+    public boolean isConnectUsingPublicIp()
+    {
+        return connectUsingPublicIp;
     }
 
     public List<EC2Tag> getTags() {

@@ -23,13 +23,15 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.SpotInstanceType;
-import hudson.model.Node;
-import org.jvnet.hudson.test.HudsonTestCase;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import org.jvnet.hudson.test.HudsonTestCase;
+
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.SpotInstanceType;
+
+import hudson.model.Node;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -184,6 +186,16 @@ public class SlaveTemplateTest extends HudsonTestCase {
     public void testAssociatePublicIpSetting(){
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
         assertEquals(true, st.getAssociatePublicIp());
+    }
+
+    public void testConnectUsingPublicIpSetting(){
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "", false, true);
+        assertTrue(st.isConnectUsingPublicIp());
+    }
+
+    public void testConnectUsingPublicIpSettingWithDefaultSetting(){
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        assertFalse(st.isConnectUsingPublicIp());
     }
 
     public void testBackwardCompatibleUnixData(){
