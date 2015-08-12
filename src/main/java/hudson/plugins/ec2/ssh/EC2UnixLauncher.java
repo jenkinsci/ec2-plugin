@@ -176,14 +176,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             String jvmopts = computer.getNode().jvmopts;
             String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
 
-            // TODO: I don't get these templates. How are they named/labeled and when will there be multiples?
-            // Need to find out how to map this stuff onto the EC2AbstractSlave instance as it seems to have
-            // some of the same props.
-            List<SlaveTemplate> templates = computer.getCloud().getTemplates();
-            SlaveTemplate slaveTemplate = null;
-            if (templates != null && !templates.isEmpty()) {
-                slaveTemplate = templates.get(0);
-            }
+            SlaveTemplate slaveTemplate = getSlaveTemplate(computer);
 
             if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
                 EC2AbstractSlave node = computer.getNode();
@@ -223,6 +216,24 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if(cleanupConn != null && !successful)
                 cleanupConn.close();
         }
+    }
+    
+    /**
+     * Return the first {@link SlaveTemplate} from the given {@link EC2Computer} instance.
+     * @param computer
+     * @return
+     */
+    private SlaveTemplate getSlaveTemplate(EC2Computer computer)
+    {
+        // TODO: I don't get these templates. How are they named/labeled and when will there be multiples?
+        // Need to find out how to map this stuff onto the EC2AbstractSlave instance as it seems to have
+        // some of the same props.
+        List<SlaveTemplate> templates = computer.getCloud().getTemplates();
+        SlaveTemplate slaveTemplate = null;
+        if (templates != null && !templates.isEmpty()) {
+            slaveTemplate = templates.get(0);
+        }
+        return slaveTemplate;
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
@@ -334,10 +345,20 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             return inst.getPrivateDnsName();
         } else {
             String host = inst.getPublicDnsName();
-            // If we fail to get a public DNS name, use the private IP.
+            // If we fail to get a public DNS name, try to get the public IP
+            // (but only if the plugin config let us use the public IP to connect to the slave).
+            if (host == null || host.equals("")) {
+                SlaveTemplate slaveTemplate = getSlaveTemplate(computer);
+                if (inst.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp())
+                {
+                    host = inst.getPublicIpAddress();
+                }
+            }
+            // If we fail to get a public DNS name or public IP, use the private IP.
             if (host == null || host.equals("")) {
                 host = inst.getPrivateIpAddress();
             }
+            
             return host;
         }
     }
