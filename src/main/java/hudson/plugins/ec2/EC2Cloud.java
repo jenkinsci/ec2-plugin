@@ -24,7 +24,6 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.ClientConfiguration;
-
 import hudson.ProxyConfiguration;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -303,15 +302,12 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-<<<<<<< HEAD
      * Check for the count of EC2 slaves and determine if a new slave can be added. Takes into account both what Amazon
      * reports as well as an internal count of slaves currently being "provisioned".
-=======
      * Check for the count of EC2 slaves and determine if a new slave can be added.
      * Takes into account both what Amazon reports as well as an internal count
      * of slaves currently being "provisioned".
      * @param templateDesc 
->>>>>>> fix for instance caps which are calculated solely based on AMI as of now.
      */
     private boolean addProvisionedSlave(String ami, int amiCap, String templateDesc) throws AmazonClientException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
