@@ -99,6 +99,8 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String DEFAULT_EC2_HOST = "us-east-1";
     public static final String EC2_URL_HOST = "ec2.amazonaws.com";
+    public static final String EC2_SLAVE_TYPE_SPOT = "spot";
+    public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
 
     private final boolean useInstanceProfileForCredentials;
     private final String accessId;
@@ -248,10 +250,11 @@ public abstract class EC2Cloud extends Cloud {
                 if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                 	if (ami == null || templateDesc == null) {
                 		return true;
-                	} else if (StringUtils.equals(tag.getValue(), "demand") || StringUtils.equals(tag.getValue(), "spot")) {
+                	} else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND) || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
                 		// To handle cases where description is null and also upgrade cases for existing slave nodes.
                 		return true;
-                	} else if (StringUtils.equals(tag.getValue(), "demand_"+templateDesc) || StringUtils.equals(tag.getValue(), "spot_"+templateDesc)) {
+                	} else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, templateDesc)) || 
+                			StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, templateDesc))) {
                 		return true;
                 	} else {
                 		return false;
@@ -448,6 +451,10 @@ public abstract class EC2Cloud extends Cloud {
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String accessId, final String secretKey) {
         return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
+    }
+    
+    public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
+    	return templateDescription != null ? slaveType+"_"+templateDescription : slaveType;
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String accessId, final Secret secretKey) {

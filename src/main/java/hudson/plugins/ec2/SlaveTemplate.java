@@ -463,7 +463,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     inst_tags = new HashSet<Tag>();
                 }
                 // Append template description as well to identify slaves provisioned per template
-                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, description != null ? "demand_"+description : "demand"));
+                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
@@ -725,7 +725,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             if (!hasCustomTypeTag) {
                 if (inst_tags != null)
-            	    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, description != null ? "spot_"+description : "spot"));
+            	    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
