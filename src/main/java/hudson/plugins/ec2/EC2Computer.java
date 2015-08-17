@@ -52,28 +52,28 @@ public class EC2Computer extends SlaveComputer {
 
     @Override
     public EC2AbstractSlave getNode() {
-        return (EC2AbstractSlave)super.getNode();
+        return (EC2AbstractSlave) super.getNode();
     }
 
     public String getInstanceId() {
         EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
-	return node.getInstanceId();
+        return node.getInstanceId();
     }
 
     public String getEc2Type() {
-    	return getNode().getEc2Type();
+        return getNode().getEc2Type();
     }
 
-    public String getSpotInstanceRequestId(){
-    	if(getNode() instanceof EC2SpotSlave) {
-    		return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
-    	}
-    	return "";
+    public String getSpotInstanceRequestId() {
+        if (getNode() instanceof EC2SpotSlave) {
+            return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
+        }
+        return "";
     }
 
-    public EC2Cloud	getCloud() {
-    	EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
-    	return node.getCloud();
+    public EC2Cloud getCloud() {
+        EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
+        return node.getCloud();
     }
 
     /**
@@ -89,13 +89,13 @@ public class EC2Computer extends SlaveComputer {
      * Obtains the instance state description in EC2.
      *
      * <p>
-     * This method returns a cached state, so it's not suitable to check {@link Instance#getState()}
-     * from the returned instance (but all the other fields are valid as it won't change.)
+     * This method returns a cached state, so it's not suitable to check {@link Instance#getState()} from the returned
+     * instance (but all the other fields are valid as it won't change.)
      *
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
     public Instance describeInstance() throws AmazonClientException, InterruptedException {
-        if(ec2InstanceDescription==null)
+        if (ec2InstanceDescription == null)
             ec2InstanceDescription = _describeInstance();
         return ec2InstanceDescription;
     }
@@ -114,7 +114,7 @@ public class EC2Computer extends SlaveComputer {
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
     public InstanceState getState() throws AmazonClientException, InterruptedException {
-        ec2InstanceDescription=_describeInstance();
+        ec2InstanceDescription = _describeInstance();
         return InstanceState.find(ec2InstanceDescription.getState().getName());
     }
 
@@ -122,7 +122,7 @@ public class EC2Computer extends SlaveComputer {
      * Number of milli-secs since the instance was started.
      */
     public long getUptime() throws AmazonClientException, InterruptedException {
-        return System.currentTimeMillis()-describeInstance().getLaunchTime().getTime();
+        return System.currentTimeMillis() - describeInstance().getLaunchTime().getTime();
     }
 
     /**
@@ -154,7 +154,7 @@ public class EC2Computer extends SlaveComputer {
 
     private Instance _describeInstanceOnce() throws AmazonClientException {
         DescribeInstancesRequest request = new DescribeInstancesRequest();
-        request.setInstanceIds(Collections.<String>singletonList(getNode().getInstanceId()));
+        request.setInstanceIds(Collections.<String> singletonList(getNode().getInstanceId()));
         return getCloud().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
     }
 
@@ -165,11 +165,12 @@ public class EC2Computer extends SlaveComputer {
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
         if (getNode() != null)
-        	getNode().terminate();
+            getNode().terminate();
         return new HttpRedirect("..");
     }
 
-    /** What username to use to run root-like commands
+    /**
+     * What username to use to run root-like commands
      *
      */
     public String getRemoteAdmin() {
@@ -177,18 +178,18 @@ public class EC2Computer extends SlaveComputer {
     }
 
     public int getSshPort() {
-         return getNode().getSshPort();
-     }
+        return getNode().getSshPort();
+    }
 
     public String getRootCommandPrefix() {
         return getNode().getRootCommandPrefix();
     }
 
-	public void onConnected(){
-		EC2AbstractSlave node = getNode();
-		if (node != null) {
-			node.onConnected();
-		}
-	}
+    public void onConnected() {
+        EC2AbstractSlave node = getNode();
+        if (node != null) {
+            node.onConnected();
+        }
+    }
 
 }

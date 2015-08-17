@@ -122,10 +122,13 @@ public class WindowsProcess {
                         int n = 0;
                         try {
                             n = toCallersStdin.read(buf);
-                        } catch(IOException ioe) {
-                            // it's safe to ignore IO Exception coming from Jenkins
-                            // This can happen with PipedInputStream if the writing Thread
-                            // is killed but the input stream is handed to another thread
+                        } catch (IOException ioe) {
+                            // it's safe to ignore IO Exception coming from
+                            // Jenkins
+                            // This can happen with PipedInputStream if the
+                            // writing Thread
+                            // is killed but the input stream is handed to
+                            // another thread
                             // in this case, we can still read from the pipe.
                             continue;
                         }

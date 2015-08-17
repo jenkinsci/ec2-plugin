@@ -29,9 +29,9 @@ import com.amazonaws.services.ec2.model.InstanceType;
 
 public class EC2InstanceTypesTest extends HudsonTestCase {
     public void testListTypes() throws Exception {
-	System.out.println("EC2 Instance Types available:");
-	for (InstanceType t : InstanceType.values()) {
-	    System.out.println(t.toString());
-	}
+        System.out.println("EC2 Instance Types available:");
+        for (InstanceType t : InstanceType.values()) {
+            System.out.println(t.toString());
+        }
     }
 }

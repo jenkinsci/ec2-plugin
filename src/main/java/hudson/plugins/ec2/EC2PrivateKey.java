@@ -62,7 +62,7 @@ public class EC2PrivateKey {
     }
 
     public String getPrivateKey() {
-    	return privateKey.getPlainText();
+        return privateKey.getPlainText();
     }
 
     /**
@@ -74,7 +74,7 @@ public class EC2PrivateKey {
     public String getFingerprint() throws IOException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         Reader r = new BufferedReader(new StringReader(privateKey.getPlainText()));
-        PEMReader pem = new PEMReader(r,new PasswordFinder() {
+        PEMReader pem = new PEMReader(r, new PasswordFinder() {
             public char[] getPassword() {
                 throw PRIVATE_KEY_WITH_PASSWORD;
             }
@@ -82,11 +82,12 @@ public class EC2PrivateKey {
 
         try {
             KeyPair pair = (KeyPair) pem.readObject();
-            if(pair==null)  return null;
+            if (pair == null)
+                return null;
             PrivateKey key = pair.getPrivate();
             return digest(key);
         } catch (RuntimeException e) {
-            if (e==PRIVATE_KEY_WITH_PASSWORD)
+            if (e == PRIVATE_KEY_WITH_PASSWORD)
                 throw new IOException("This private key is password protected, which isn't supported yet");
             throw e;
         } finally {
@@ -97,7 +98,7 @@ public class EC2PrivateKey {
     public String getPublicFingerprint() throws IOException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         Reader r = new BufferedReader(new StringReader(privateKey.getPlainText()));
-        PEMReader pem = new PEMReader(r,new PasswordFinder() {
+        PEMReader pem = new PEMReader(r, new PasswordFinder() {
             public char[] getPassword() {
                 throw PRIVATE_KEY_WITH_PASSWORD;
             }
@@ -105,11 +106,12 @@ public class EC2PrivateKey {
 
         try {
             KeyPair pair = (KeyPair) pem.readObject();
-            if(pair==null)  return null;
+            if (pair == null)
+                return null;
             PublicKey key = pair.getPublic();
-            return digestOpt(key,"MD5");
+            return digestOpt(key, "MD5");
         } catch (RuntimeException e) {
-            if (e==PRIVATE_KEY_WITH_PASSWORD)
+            if (e == PRIVATE_KEY_WITH_PASSWORD)
                 throw new IOException("This private key is password protected, which isn't supported yet");
             throw e;
         } finally {
@@ -136,15 +138,15 @@ public class EC2PrivateKey {
     public com.amazonaws.services.ec2.model.KeyPair find(AmazonEC2 ec2) throws IOException, AmazonClientException {
         String fp = getFingerprint();
         String pfp = getPublicFingerprint();
-        for(KeyPairInfo kp : ec2.describeKeyPairs().getKeyPairs()) {
-            if(kp.getKeyFingerprint().equalsIgnoreCase(fp)) {
-            	com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
-            	keyPair.setKeyName(kp.getKeyName());
-            	keyPair.setKeyFingerprint(fp);
-            	keyPair.setKeyMaterial(Secret.toString(privateKey));
-            	return keyPair;
+        for (KeyPairInfo kp : ec2.describeKeyPairs().getKeyPairs()) {
+            if (kp.getKeyFingerprint().equalsIgnoreCase(fp)) {
+                com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
+                keyPair.setKeyName(kp.getKeyName());
+                keyPair.setKeyFingerprint(fp);
+                keyPair.setKeyMaterial(Secret.toString(privateKey));
+                return keyPair;
             }
-            if(kp.getKeyFingerprint().equalsIgnoreCase(pfp)) {
+            if (kp.getKeyFingerprint().equalsIgnoreCase(pfp)) {
                 com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
                 keyPair.setKeyName(kp.getKeyName());
                 keyPair.setKeyFingerprint(pfp);
@@ -162,7 +164,7 @@ public class EC2PrivateKey {
 
     @Override
     public boolean equals(Object that) {
-        return that instanceof EC2PrivateKey && this.privateKey.equals(((EC2PrivateKey)that).privateKey);
+        return that instanceof EC2PrivateKey && this.privateKey.equals(((EC2PrivateKey) that).privateKey);
     }
 
     @Override
@@ -170,11 +172,11 @@ public class EC2PrivateKey {
         return privateKey.getPlainText();
     }
 
-    /*package*/ static String digest(PrivateKey k) throws IOException {
-        return digestOpt(k,"SHA1");
+    /* package */static String digest(PrivateKey k) throws IOException {
+        return digestOpt(k, "SHA1");
     }
 
-    /*package*/ static String digestOpt(Key k, String dg) throws IOException {
+    /* package */static String digestOpt(Key k, String dg) throws IOException {
         try {
             MessageDigest md5 = MessageDigest.getInstance(dg);
 
@@ -187,9 +189,10 @@ public class EC2PrivateKey {
             }
             StringBuilder buf = new StringBuilder();
             char[] hex = Hex.encodeHex(md5.digest());
-            for( int i=0; i<hex.length; i+=2 ) {
-                if(buf.length()>0)  buf.append(':');
-                buf.append(hex,i,2);
+            for (int i = 0; i < hex.length; i += 2) {
+                if (buf.length() > 0)
+                    buf.append(':');
+                buf.append(hex, i, 2);
             }
             return buf.toString();
         } catch (NoSuchAlgorithmException e) {

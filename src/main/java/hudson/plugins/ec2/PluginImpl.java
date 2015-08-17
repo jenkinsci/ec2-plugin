@@ -38,16 +38,16 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
     @Override
     public void start() throws Exception {
         // backward compatibility with the legacy class name
-        Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Cloud",AmazonEC2Cloud.class);
-        Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Slave",EC2OndemandSlave.class);
+        Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Cloud", AmazonEC2Cloud.class);
+        Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Slave", EC2OndemandSlave.class);
         // backward compatibility with the legacy instance type
         Jenkins.XSTREAM.registerConverter(new InstanceTypeConverter());
-        
+
         load();
     }
 
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl)Hudson.getInstance().getDescriptorOrDie(getClass());
+        return (DescriptorImpl) Hudson.getInstance().getDescriptorOrDie(getClass());
     }
 
     public static PluginImpl get() {

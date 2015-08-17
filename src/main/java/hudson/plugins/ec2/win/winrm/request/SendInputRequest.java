@@ -26,13 +26,11 @@ public class SendInputRequest extends AbstractWinRMRequest {
     @Override
     protected void construct() {
         try {
-            defaultHeader().action(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Send"))
-                            .resourceURI(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd")).shellId(shellId);
+            defaultHeader().action(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Send")).resourceURI(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd")).shellId(shellId);
 
             Element body = DocumentHelper.createElement(QName.get("Send", Namespaces.NS_WIN_SHELL));
             Base64 base64 = new Base64(0);
-            body.addElement(QName.get("Stream", Namespaces.NS_WIN_SHELL)).addAttribute("Name", "stdin")
-                            .addAttribute("CommandId", commandId).addText(base64.encodeToString(input));
+            body.addElement(QName.get("Stream", Namespaces.NS_WIN_SHELL)).addAttribute("Name", "stdin").addAttribute("CommandId", commandId).addText(base64.encodeToString(input));
             setBody(body);
         } catch (URISyntaxException e) {
             throw new RuntimeException("Error while building request content", e);

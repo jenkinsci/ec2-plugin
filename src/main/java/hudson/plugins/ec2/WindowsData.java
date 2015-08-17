@@ -14,11 +14,10 @@ public class WindowsData extends AMITypeData {
     private final String bootDelay;
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay)
-    {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
         this.password = password;
         this.useHTTPS = useHTTPS;
-        this.bootDelay= bootDelay;
+        this.bootDelay = bootDelay;
     }
 
     public boolean isWindows() {
@@ -44,14 +43,13 @@ public class WindowsData extends AMITypeData {
     public int getBootDelayInMillis() {
         try {
             return (int) TimeUnit.SECONDS.toMillis(Integer.parseInt(bootDelay));
-        } catch (NumberFormatException nfe ) {
+        } catch (NumberFormatException nfe) {
             return 0;
         }
     }
 
     @Extension
-    public static class DescriptorImpl extends Descriptor<AMITypeData> 
-    {
+    public static class DescriptorImpl extends Descriptor<AMITypeData> {
         public String getDisplayName() {
             return "windows";
         }

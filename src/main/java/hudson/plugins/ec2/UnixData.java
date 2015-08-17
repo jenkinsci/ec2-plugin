@@ -11,8 +11,7 @@ public class UnixData extends AMITypeData {
     private final String sshPort;
 
     @DataBoundConstructor
-    public UnixData(String rootCommandPrefix, String sshPort)
-    {
+    public UnixData(String rootCommandPrefix, String sshPort) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.sshPort = sshPort;
     }
@@ -26,8 +25,7 @@ public class UnixData extends AMITypeData {
     }
 
     @Extension
-    public static class DescriptorImpl extends Descriptor<AMITypeData> 
-    {
+    public static class DescriptorImpl extends Descriptor<AMITypeData> {
         public String getDisplayName() {
             return "unix";
         }
@@ -45,10 +43,7 @@ public class UnixData extends AMITypeData {
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime
-                        * result
-                        + ((rootCommandPrefix == null) ? 0 : rootCommandPrefix
-                                        .hashCode());
+        result = prime * result + ((rootCommandPrefix == null) ? 0 : rootCommandPrefix.hashCode());
         result = prime * result + ((sshPort == null) ? 0 : sshPort.hashCode());
         return result;
     }

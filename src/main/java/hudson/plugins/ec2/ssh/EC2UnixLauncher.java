@@ -67,22 +67,23 @@ import com.trilead.ssh2.Session;
  */
 public class EC2UnixLauncher extends EC2ComputerLauncher {
 
-    private final int FAILED=-1;
-    private final int SAMEUSER=0;
+    private final int FAILED = -1;
+    private final int SAMEUSER = 0;
 
     protected String buildUpCommand(EC2Computer computer, String command) {
-    	if (!computer.getRemoteAdmin().equals("root")) {
-    		command = computer.getRootCommandPrefix() + " " + command;
-    	}
-    	return command;
+        if (!computer.getRemoteAdmin().equals("root")) {
+            command = computer.getRootCommandPrefix() + " " + command;
+        }
+        return command;
     }
 
-
     @Override
-	protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException, AmazonClientException, InterruptedException {
+    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
+            AmazonClientException, InterruptedException {
         final Connection bootstrapConn;
         final Connection conn;
-        Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
+        Connection cleanupConn = null; // java's code path analysis for final
+                                       // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
 
@@ -90,16 +91,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             bootstrapConn = connectToSsh(computer, logger);
             int bootstrapResult = bootstrap(bootstrapConn, computer, logger);
             if (bootstrapResult == FAILED) {
-            	logger.println("bootstrapresult failed");
+                logger.println("bootstrapresult failed");
                 return; // bootstrap closed for us.
-            }
-            else if (bootstrapResult == SAMEUSER) {
+            } else if (bootstrapResult == SAMEUSER) {
                 cleanupConn = bootstrapConn; // take over the connection
                 logger.println("take over connection");
-            }
-            else {
+            } else {
                 // connect fresh as ROOT
-            	logger.println("connect fresh as root");
+                logger.println("connect fresh as root");
                 cleanupConn = connectToSsh(computer, logger);
                 KeyPair key = computer.getCloud().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
@@ -111,67 +110,72 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             SCPClient scp = conn.createSCPClient();
             String initScript = computer.getNode().initScript;
-            String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir : "/tmp");
+            String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir
+                    : "/tmp");
 
             logger.println("Creating tmp directory (" + tmpDir + ") if it does not exist");
             conn.exec("mkdir -p " + tmpDir, logger);
 
-            if(initScript!=null && initScript.trim().length()>0 && conn.exec("test -e ~/.hudson-run-init", logger) !=0) {
+            if (initScript != null && initScript.trim().length() > 0
+                    && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
                 logger.println("Executing init script");
-                scp.put(initScript.getBytes("UTF-8"),"init.sh",tmpDir,"0700");
+                scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");
                 Session sess = conn.openSession();
-                sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
+                sess.requestDumbPTY(); // so that the remote side bundles stdout
+                                       // and stderr
                 sess.execCommand(buildUpCommand(computer, tmpDir + "/init.sh"));
 
-                sess.getStdin().close();    // nothing to write here
-                sess.getStderr().close();   // we are not supposed to get anything from stderr
-                IOUtils.copy(sess.getStdout(),logger);
+                sess.getStdin().close(); // nothing to write here
+                sess.getStderr().close(); // we are not supposed to get anything
+                                          // from stderr
+                IOUtils.copy(sess.getStdout(), logger);
 
                 int exitStatus = waitCompletion(sess);
-                if (exitStatus!=0) {
-                    logger.println("init script failed: exit code="+exitStatus);
+                if (exitStatus != 0) {
+                    logger.println("init script failed: exit code=" + exitStatus);
                     return;
                 }
                 sess.close();
 
                 // Needs a tty to run sudo.
                 sess = conn.openSession();
-                sess.requestDumbPTY(); // so that the remote side bundles stdout and stderr
+                sess.requestDumbPTY(); // so that the remote side bundles stdout
+                                       // and stderr
                 sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
                 sess.close();
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
             logger.println("Verifying that java exists");
-            if(conn.exec("java -fullversion", logger) !=0) {
+            if (conn.exec("java -fullversion", logger) != 0) {
                 logger.println("Installing Java");
 
                 String jdk = "java1.6.0_12";
                 String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
 
                 URL url = computer.getCloud().buildPresignedURL(path);
-                if(conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) !=0) {
+                if (conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
                     logger.println("Failed to download Java");
                     return;
                 }
 
-                if(conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) !=0) {
+                if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) != 0) {
                     logger.println("Failed to install Java");
                     return;
                 }
 
-                if(conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) !=0) {
+                if (conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
                     logger.println("Failed to symlink Java");
                     return;
                 }
             }
 
-            // TODO: on Windows with ec2-sshd, this scp command ends up just putting slave.jar as c:\tmp
+            // TODO: on Windows with ec2-sshd, this scp command ends up just
+            // putting slave.jar as c:\tmp
             // bug in ec2-sshd?
 
             logger.println("Copying slave.jar");
-            scp.put(Hudson.getInstance().getJnlpJars("slave.jar").readFully(),
-                    "slave.jar",tmpDir);
+            scp.put(Hudson.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
             String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
@@ -184,13 +188,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 try {
                     // Obviously the master must have an installed ssh client.
-                    String sshClientLaunchString =
-                            String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s",
-                                    identityKeyFile.getAbsolutePath(),
-                                    node.remoteAdmin,
-                                    getEC2HostAddress(computer, inst),
-                                    node.getSshPort(),
-                                    launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
 
                     logger.println("Launching slave agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
@@ -202,7 +200,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logger.println("Launching slave agent (via Trilead SSH2 Connection): " + launchString);
                 final Session sess = conn.openSession();
                 sess.execCommand(launchString);
-                computer.setChannel(sess.getStdout(),sess.getStdin(),logger,new Listener() {
+                computer.setChannel(sess.getStdout(), sess.getStdin(), logger, new Listener() {
                     @Override
                     public void onClosed(Channel channel, IOException cause) {
                         sess.close();
@@ -213,20 +211,22 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             successful = true;
         } finally {
-            if(cleanupConn != null && !successful)
+            if (cleanupConn != null && !successful)
                 cleanupConn.close();
         }
     }
-    
+
     /**
      * Return the first {@link SlaveTemplate} from the given {@link EC2Computer} instance.
+     * 
      * @param computer
      * @return
      */
-    private SlaveTemplate getSlaveTemplate(EC2Computer computer)
-    {
-        // TODO: I don't get these templates. How are they named/labeled and when will there be multiples?
-        // Need to find out how to map this stuff onto the EC2AbstractSlave instance as it seems to have
+    private SlaveTemplate getSlaveTemplate(EC2Computer computer) {
+        // TODO: I don't get these templates. How are they named/labeled and
+        // when will there be multiples?
+        // Need to find out how to map this stuff onto the EC2AbstractSlave
+        // instance as it seems to have
         // some of the same props.
         List<SlaveTemplate> templates = computer.getCloud().getTemplates();
         SlaveTemplate slaveTemplate = null;
@@ -257,15 +257,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private int bootstrap(Connection bootstrapConn, EC2Computer computer, PrintStream logger) throws IOException, InterruptedException, AmazonClientException {
-        logger.println("bootstrap()" );
+    private int bootstrap(Connection bootstrapConn, EC2Computer computer, PrintStream logger) throws IOException,
+            InterruptedException, AmazonClientException {
+        logger.println("bootstrap()");
         boolean closeBootstrap = true;
         try {
             int tries = 20;
             boolean isAuthenticated = false;
-            logger.println("Getting keypair..." );
+            logger.println("Getting keypair...");
             KeyPair key = computer.getCloud().getKeyPair();
-            logger.println("Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n" + key.getKeyMaterial().substring(0, 160) );
+            logger.println("Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n"
+                    + key.getKeyMaterial().substring(0, 160));
             while (tries-- > 0) {
                 logger.println("Authenticating as " + computer.getRemoteAdmin());
                 isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
@@ -287,15 +289,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException, InterruptedException {
+    private Connection connectToSsh(EC2Computer computer, PrintStream logger) throws AmazonClientException,
+            InterruptedException {
         final long timeout = computer.getNode().getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
-        while(true) {
+        while (true) {
             try {
                 long waitTime = System.currentTimeMillis() - startTime;
-                if ( timeout > 0 && waitTime > timeout )
-                {
-                    throw new AmazonClientException("Timed out after "+ (waitTime / 1000) + " seconds of waiting for ssh to become available. (maximum timeout configured is "+ (timeout / 1000) + ")" );
+                if (timeout > 0 && waitTime > timeout) {
+                    throw new AmazonClientException("Timed out after " + (waitTime / 1000)
+                            + " seconds of waiting for ssh to become available. (maximum timeout configured is "
+                            + (timeout / 1000) + ")");
                 }
                 Instance instance = computer.updateInstanceDescription();
                 String host = getEC2HostAddress(computer, instance);
@@ -307,11 +311,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 int port = computer.getSshPort();
                 Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", 10000);
-                logger.println("Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout + ".");
+                logger.println("Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
+                        + ".");
                 Connection conn = new Connection(host, port);
                 ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
-                if (! proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
+                if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
                     InetSocketAddress address = (InetSocketAddress) proxy.address();
                     HTTPProxyData proxyData = null;
                     if (null != proxyConfig.getUserName()) {
@@ -322,10 +327,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     conn.setProxyData(proxyData);
                     logger.println("Using HTTP Proxy Configuration");
                 }
-                // currently OpenSolaris offers no way of verifying the host certificate, so just accept it blindly,
+                // currently OpenSolaris offers no way of verifying the host
+                // certificate, so just accept it blindly,
                 // hoping that no man-in-the-middle attack is going on.
                 conn.connect(new ServerHostKeyVerifier() {
-                    public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+                    public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey)
+                            throws Exception {
                         return true;
                     }
                 }, slaveConnectTimeout, slaveConnectTimeout);
@@ -346,35 +353,38 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         } else {
             String host = inst.getPublicDnsName();
             // If we fail to get a public DNS name, try to get the public IP
-            // (but only if the plugin config let us use the public IP to connect to the slave).
+            // (but only if the plugin config let us use the public IP to
+            // connect to the slave).
             if (host == null || host.equals("")) {
                 SlaveTemplate slaveTemplate = getSlaveTemplate(computer);
-                if (inst.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp())
-                {
+                if (inst.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
                     host = inst.getPublicIpAddress();
                 }
             }
-            // If we fail to get a public DNS name or public IP, use the private IP.
+            // If we fail to get a public DNS name or public IP, use the private
+            // IP.
             if (host == null || host.equals("")) {
                 host = inst.getPrivateIpAddress();
             }
-            
+
             return host;
         }
     }
 
     private int waitCompletion(Session session) throws InterruptedException {
-        // I noticed that the exit status delivery often gets delayed. Wait up to 1 sec.
-        for( int i=0; i<10; i++ ) {
+        // I noticed that the exit status delivery often gets delayed. Wait up
+        // to 1 sec.
+        for (int i = 0; i < 10; i++) {
             Integer r = session.getExitStatus();
-            if(r!=null) return r;
+            if (r != null)
+                return r;
             Thread.sleep(100);
         }
         return -1;
     }
 
     @Override
-	public Descriptor<ComputerLauncher> getDescriptor() {
+    public Descriptor<ComputerLauncher> getDescriptor() {
         throw new UnsupportedOperationException();
     }
 }

@@ -43,22 +43,24 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
 
         md5.digest(fingerprint);
         StringBuilder buf = new StringBuilder();
-        for( byte b : fingerprint ) {
-            if(buf.length()>0)  buf.append(':');
-            buf.append(String.format("%02x",b));
+        for (byte b : fingerprint) {
+            if (buf.length() > 0)
+                buf.append(':');
+            buf.append(String.format("%02x", b));
         }
         return buf.toString();
     }
 
-    public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+    public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey)
+            throws Exception {
         String fingerprint = getFingerprint(serverHostKey);
 
-        LOGGER.fine("Host key fingerprint of "+hostname+" is "+fingerprint);
+        LOGGER.fine("Host key fingerprint of " + hostname + " is " + fingerprint);
 
         boolean matches = console.contains(fingerprint);
 
-        if(!matches)
-            LOGGER.severe("No matching fingerprint found in the console output: "+console);
+        if (!matches)
+            LOGGER.severe("No matching fingerprint found in the console output: " + console);
 
         return matches;
     }

@@ -11,6 +11,6 @@ public class EC2OndemandSlaveTest extends HudsonTestCase {
 
         EC2OndemandSlave slaveExclusive = new EC2OndemandSlave("instanceId", "description", "remoteFS", 1, "labelString", Node.Mode.EXCLUSIVE, "initScript", "tmpDir", "remoteAdmin", "jvmopts", false, "30", "publicDNS", "privateDNS", null, "cloudName", false, false, 0, new UnixData("a", "b"));
         assertEquals(Node.Mode.EXCLUSIVE, slaveExclusive.getMode());
-	}
+    }
 
 }

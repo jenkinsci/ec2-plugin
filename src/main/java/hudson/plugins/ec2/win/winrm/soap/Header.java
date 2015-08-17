@@ -17,8 +17,7 @@ public class Header {
     private String resourceURI;
     private ImmutableList<Option> optionSet;
 
-    Header(String to, String replyTo, String maxEnvelopeSize, String timeout, String locale, String id, String action,
-           String shellId, String resourceURI, ImmutableList<Option> optionSet) {
+    Header(String to, String replyTo, String maxEnvelopeSize, String timeout, String locale, String id, String action, String shellId, String resourceURI, ImmutableList<Option> optionSet) {
         this.to = to;
         this.replyTo = replyTo;
         this.maxEnvelopeSize = maxEnvelopeSize;
@@ -37,9 +36,7 @@ public class Header {
         }
 
         if (replyTo != null) {
-            mustUnderstand(
-                           header.addElement(QName.get("ReplyTo", Namespaces.NS_ADDRESSING)).addElement(
-                                                                                                        QName.get("Address", Namespaces.NS_ADDRESSING))).addText(replyTo);
+            mustUnderstand(header.addElement(QName.get("ReplyTo", Namespaces.NS_ADDRESSING)).addElement(QName.get("Address", Namespaces.NS_ADDRESSING))).addText(replyTo);
         }
 
         if (maxEnvelopeSize != null) {
@@ -52,8 +49,7 @@ public class Header {
 
         if (locale != null) {
             mustNotUnderstand(header.addElement(QName.get("Locale", Namespaces.NS_WSMAN_DMTF))).addAttribute("xml:lang", locale);
-            mustNotUnderstand(header.addElement(QName.get("DataLocale", Namespaces.NS_WSMAN_MSFT)))
-            .addAttribute("xml:lang", locale);
+            mustNotUnderstand(header.addElement(QName.get("DataLocale", Namespaces.NS_WSMAN_MSFT))).addAttribute("xml:lang", locale);
         }
 
         if (timeout != null) {
@@ -65,8 +61,7 @@ public class Header {
         }
 
         if (shellId != null) {
-            header.addElement(QName.get("SelectorSet", Namespaces.NS_WSMAN_DMTF))
-            .addElement(QName.get("Selector", Namespaces.NS_WSMAN_DMTF)).addAttribute("Name", "ShellId").addText(shellId);
+            header.addElement(QName.get("SelectorSet", Namespaces.NS_WSMAN_DMTF)).addElement(QName.get("Selector", Namespaces.NS_WSMAN_DMTF)).addAttribute("Name", "ShellId").addText(shellId);
         }
 
         if (resourceURI != null) {
@@ -76,8 +71,7 @@ public class Header {
         if (optionSet != null) {
             final Element set = header.addElement(QName.get("OptionSet", Namespaces.NS_WSMAN_DMTF));
             for (Option p : optionSet) {
-                set.addElement(QName.get("Option", Namespaces.NS_WSMAN_DMTF)).addAttribute("Name", p.getName())
-                .addText(p.getValue());
+                set.addElement(QName.get("Option", Namespaces.NS_WSMAN_DMTF)).addAttribute("Name", p.getName()).addText(p.getValue());
             }
         }
     }

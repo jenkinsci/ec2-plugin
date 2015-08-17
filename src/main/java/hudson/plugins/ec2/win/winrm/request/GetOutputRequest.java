@@ -23,12 +23,10 @@ public class GetOutputRequest extends AbstractWinRMRequest {
     @Override
     protected void construct() {
         try {
-            defaultHeader().action(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive"))
-                            .resourceURI(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd")).shellId(shellId);
+            defaultHeader().action(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive")).resourceURI(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd")).shellId(shellId);
 
             Element body = DocumentHelper.createElement(QName.get("Receive", Namespaces.NS_WIN_SHELL));
-            body.addElement(QName.get("DesiredStream", Namespaces.NS_WIN_SHELL)).addAttribute("CommandId", commandId)
-                            .addText("stdout stderr");
+            body.addElement(QName.get("DesiredStream", Namespaces.NS_WIN_SHELL)).addAttribute("CommandId", commandId).addText("stdout stderr");
             setBody(body);
         } catch (URISyntaxException e) {
             throw new RuntimeException("Error while building request content", e);

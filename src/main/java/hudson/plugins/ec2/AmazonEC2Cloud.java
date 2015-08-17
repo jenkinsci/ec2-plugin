@@ -65,7 +65,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
     // Used when running unit tests
     public static boolean testMode;
 
-
     @DataBoundConstructor
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(createCloudId(cloudName), useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
@@ -91,44 +90,44 @@ public class AmazonEC2Cloud extends EC2Cloud {
         // Handles pre 1.14 region names that used the old AwsRegion enum, note we don't change
         // the region here to keep the meta-data compatible in the case of a downgrade (is that right?)
         if (region.indexOf('_') > 0)
-        	return region.replace('_', '-').toLowerCase(Locale.ENGLISH);
+            return region.replace('_', '-').toLowerCase(Locale.ENGLISH);
         return region;
     }
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-			return new URL("https://" + region + "." + EC2_URL_HOST + "/");
-		} catch (MalformedURLException e) {
-			throw new Error(e); // Impossible
-		}
+            return new URL("https://" + region + "." + EC2_URL_HOST + "/");
+        } catch (MalformedURLException e) {
+            throw new Error(e); // Impossible
+        }
     }
 
     @Override
     public URL getEc2EndpointUrl() {
-    	return getEc2EndpointUrl(getRegion());
+        return getEc2EndpointUrl(getRegion());
     }
 
     @Override
     public URL getS3EndpointUrl() {
         try {
-			return new URL("https://"+getRegion()+".s3.amazonaws.com/");
-		} catch (MalformedURLException e) {
-			throw new Error(e); // Impossible
-		}
+            return new URL("https://" + getRegion() + ".s3.amazonaws.com/");
+        } catch (MalformedURLException e) {
+            throw new Error(e); // Impossible
+        }
     }
 
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
 
         @Override
-		public String getDisplayName() {
+        public String getDisplayName() {
             return "Amazon EC2";
         }
 
         public FormValidation doCheckCloudName(@QueryParameter String value) {
             try {
                 Jenkins.checkGoodName(value);
-            } catch (Failure e){
+            } catch (Failure e) {
                 return FormValidation.error(e.getMessage());
             }
 
@@ -139,40 +138,35 @@ public class AmazonEC2Cloud extends EC2Cloud {
                     found++;
                 }
             }
-            if (found>1) {
+            if (found > 1) {
                 return FormValidation.error(Messages.AmazonEC2Cloud_NonUniqName());
             }
             return FormValidation.ok();
         }
 
-		public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials,
-				@QueryParameter String accessId, @QueryParameter String secretKey,
-				@QueryParameter String region) throws IOException, ServletException {
-			ListBoxModel model = new ListBoxModel();
-			if (testMode) {
-				model.add(DEFAULT_EC2_HOST);
-				return model;
-			}
+        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
+                throws IOException, ServletException {
+            ListBoxModel model = new ListBoxModel();
+            if (testMode) {
+                model.add(DEFAULT_EC2_HOST);
+                return model;
+            }
 
-			if (useInstanceProfileForCredentials || (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey))) {
-				AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
-				AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
-				DescribeRegionsResult regions = client.describeRegions();
-				List<Region> regionList = regions.getRegions();
-				for (Region r : regionList) {
-					String name = r.getRegionName();
-					model.add(name, name);
-				}
-			}
-			return model;
-		}
+            if (useInstanceProfileForCredentials || (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey))) {
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+                DescribeRegionsResult regions = client.describeRegions();
+                List<Region> regionList = regions.getRegions();
+                for (Region r : regionList) {
+                    String name = r.getRegionName();
+                    model.add(name, name);
+                }
+            }
+            return model;
+        }
 
-        public FormValidation doTestConnection(
-                 @QueryParameter String region,
-                 @QueryParameter boolean useInstanceProfileForCredentials,
-                 @QueryParameter String accessId,
-                 @QueryParameter String secretKey,
-                 @QueryParameter String privateKey) throws IOException, ServletException {
+        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String privateKey)
+                throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
                 region = DEFAULT_EC2_HOST;
@@ -181,11 +175,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey, privateKey);
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp,
-                @QueryParameter String region,
-                @QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId,
-                @QueryParameter String secretKey) throws IOException, ServletException {
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey)
+                throws IOException, ServletException {
             return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey);
         }
     }

@@ -39,43 +39,43 @@ import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
  */
 public class InstanceTypeConverter implements Converter {
 
-	private static final Map<String, InstanceType> TYPICAL_INSTANCE_TYPES = new HashMap<String, InstanceType>();
+    private static final Map<String, InstanceType> TYPICAL_INSTANCE_TYPES = new HashMap<String, InstanceType>();
 
-	static {
-		TYPICAL_INSTANCE_TYPES.put("DEFAULT", InstanceType.M1Small);
-		TYPICAL_INSTANCE_TYPES.put("LARGE", InstanceType.M1Large);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE", InstanceType.M1Xlarge);
-		TYPICAL_INSTANCE_TYPES.put("MEDIUM_HCPU", InstanceType.C1Medium);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_HCPU", InstanceType.C1Xlarge);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM", InstanceType.M2Xlarge);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM_M3", InstanceType.M3Xlarge);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_DOUBLE_HMEM", InstanceType.M22xlarge);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM", InstanceType.M24xlarge);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM_M3", InstanceType.M32xlarge);
-		TYPICAL_INSTANCE_TYPES.put("XLARGE_CLUSTER_COMPUTE", InstanceType.Cc14xlarge);
-	}
+    static {
+        TYPICAL_INSTANCE_TYPES.put("DEFAULT", InstanceType.M1Small);
+        TYPICAL_INSTANCE_TYPES.put("LARGE", InstanceType.M1Large);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE", InstanceType.M1Xlarge);
+        TYPICAL_INSTANCE_TYPES.put("MEDIUM_HCPU", InstanceType.C1Medium);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_HCPU", InstanceType.C1Xlarge);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM", InstanceType.M2Xlarge);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM_M3", InstanceType.M3Xlarge);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_DOUBLE_HMEM", InstanceType.M22xlarge);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM", InstanceType.M24xlarge);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM_M3", InstanceType.M32xlarge);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_CLUSTER_COMPUTE", InstanceType.Cc14xlarge);
+    }
 
-	public boolean canConvert(Class type) {
-		return InstanceType.class == type;
-	}
+    public boolean canConvert(Class type) {
+        return InstanceType.class == type;
+    }
 
-	public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
-		InstanceType instanceType = (InstanceType) source;
-		writer.setValue(instanceType.name());
-	}
+    public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
+        InstanceType instanceType = (InstanceType) source;
+        writer.setValue(instanceType.name());
+    }
 
-	public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
-		InstanceType instanceType = null;
+    public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
+        InstanceType instanceType = null;
 
-		String stringValue = reader.getValue();
+        String stringValue = reader.getValue();
 
-		try {
-			instanceType = InstanceType.valueOf(stringValue);
-		} catch (IllegalArgumentException e) {
-			instanceType = TYPICAL_INSTANCE_TYPES.get(stringValue.toUpperCase());
-		}
+        try {
+            instanceType = InstanceType.valueOf(stringValue);
+        } catch (IllegalArgumentException e) {
+            instanceType = TYPICAL_INSTANCE_TYPES.get(stringValue.toUpperCase());
+        }
 
-		return instanceType;
-	}
+        return instanceType;
+    }
 
 }

@@ -35,7 +35,7 @@ public class DeviceMappingParser {
 
         List<BlockDeviceMapping> deviceMappings = new ArrayList<BlockDeviceMapping>();
 
-        for (String mapping: customDeviceMapping.split(",")) {
+        for (String mapping : customDeviceMapping.split(",")) {
             String[] mappingPair = mapping.split("=");
             String device = mappingPair[0];
             String blockDevice = mappingPair[1];
@@ -44,11 +44,9 @@ public class DeviceMappingParser {
 
             if (blockDevice.equals("none")) {
                 deviceMapping.setNoDevice("none");
-            }
-            else if (blockDevice.startsWith("ephemeral")) {
+            } else if (blockDevice.startsWith("ephemeral")) {
                 deviceMapping.setVirtualName(blockDevice);
-            }
-            else {
+            } else {
                 deviceMapping.setEbs(parseEbs(blockDevice));
             }
 
@@ -89,8 +87,7 @@ public class DeviceMappingParser {
     private static String getOrEmpty(String[] arr, int idx) {
         if (idx < arr.length) {
             return arr[idx];
-        }
-        else {
+        } else {
             return "";
         }
     }

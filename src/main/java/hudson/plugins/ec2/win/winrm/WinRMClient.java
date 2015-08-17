@@ -70,7 +70,6 @@ public class WinRMClient {
     private Scheme httpsScheme;
     private BasicCredentialsProvider credsProvider;
 
-
     public WinRMClient(URL url, String username, String password) {
         this.url = url;
         this.username = username;
@@ -139,13 +138,13 @@ public class WinRMClient {
         for (Element e : (List<Element>) xpath.selectNodes(response)) {
             PipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
             final byte[] decode = base64.decode(e.getText());
-            log.log(Level.FINE, "piping " + decode.length + " bytes from " + e.attribute("Name").getText().toLowerCase());
+            log.log(Level.FINE, "piping " + decode.length + " bytes from "
+                    + e.attribute("Name").getText().toLowerCase());
 
             stream.write(decode);
         }
 
-        XPath done = DocumentHelper
-                .createXPath("//*[@State='http://schemas.microsoft.com/wbem/wsman/1/windows/shell/CommandState/Done']");
+        XPath done = DocumentHelper.createXPath("//*[@State='http://schemas.microsoft.com/wbem/wsman/1/windows/shell/CommandState/Done']");
         done.setNamespaceContext(namespaceContext);
         if (Iterables.isEmpty(done.selectNodes(response))) {
             log.log(Level.FINE, "keep going baby!");
@@ -172,8 +171,7 @@ public class WinRMClient {
 
     private void setupHTTPClient() {
         credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials(
-                username, password));
+        credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials(username, password));
 
         if (useHTTPS) {
             SSLSocketFactory socketFactory;
@@ -188,13 +186,12 @@ public class WinRMClient {
         }
     }
 
-    private DefaultHttpClient buildHTTPClient()
-    {
+    private DefaultHttpClient buildHTTPClient() {
         DefaultHttpClient httpclient = new DefaultHttpClient();
-        //httpclient.getAuthSchemes().unregister(AuthPolicy.SPNEGO);
+        // httpclient.getAuthSchemes().unregister(AuthPolicy.SPNEGO);
         httpclient.setCredentialsProvider(credsProvider);
         httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
-        //httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
+        // httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
         return httpclient;
     }
 
@@ -235,14 +232,14 @@ public class WinRMClient {
                 // check for possible timeout
 
                 if (response.getStatusLine().getStatusCode() == 500
-                        && (responseEntity.getContentType() != null && entity.getContentType().getValue()
-                        .startsWith("application/soap+xml"))) {
+                        && (responseEntity.getContentType() != null && entity.getContentType().getValue().startsWith("application/soap+xml"))) {
                     String respStr = EntityUtils.toString(responseEntity);
                     if (respStr.contains("TimedOut")) {
                         return DocumentHelper.parseText(respStr);
                     }
                 } else {
-                    // this shouldn't happen, as httpclient knows how to auth the request
+                    // this shouldn't happen, as httpclient knows how to auth
+                    // the request
                     // but I've seen it. I blame keep-alive, so we're just going
                     // to scrap the connections, and try again
                     if (response.getStatusLine().getStatusCode() == 401) {
@@ -258,14 +255,16 @@ public class WinRMClient {
                         return sendRequest(request, ++retry);
                     }
                     log.log(Level.WARNING, "winrm service " + shellId + " unexpected HTTP Response ("
-                            + response.getStatusLine().getReasonPhrase() + "): " + EntityUtils.toString(response.getEntity()));
+                            + response.getStatusLine().getReasonPhrase() + "): "
+                            + EntityUtils.toString(response.getEntity()));
 
-                    throw new RuntimeException("Unexpected HTTP response " + response.getStatusLine().getStatusCode() + " on "
-                            + url + ": " + response.getStatusLine().getReasonPhrase());
+                    throw new RuntimeException("Unexpected HTTP response " + response.getStatusLine().getStatusCode()
+                            + " on " + url + ": " + response.getStatusLine().getReasonPhrase());
                 }
             }
 
-            if (responseEntity.getContentType() == null || !entity.getContentType().getValue().startsWith("application/soap+xml")) {
+            if (responseEntity.getContentType() == null
+                    || !entity.getContentType().getValue().startsWith("application/soap+xml")) {
                 throw new RuntimeException("Unexepected WinRM content type: " + entity.getContentType());
             }
 

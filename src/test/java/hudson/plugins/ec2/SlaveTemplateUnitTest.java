@@ -22,7 +22,6 @@ import java.util.logging.Logger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-
 public class SlaveTemplateUnitTest {
 
     Logger logger;
@@ -72,7 +71,7 @@ public class SlaveTemplateUnitTest {
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
-        final Object params[] = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", instanceId};
+        final Object params[] = { ec2, awsTags, "InvalidInstanceRequestID.NotFound", instanceId };
         Whitebox.invokeMethod(orig, "updateRemoteTags", params);
         assertEquals(0, handler.getRecords().size());
     }
@@ -109,7 +108,7 @@ public class SlaveTemplateUnitTest {
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
-        final Object params[] = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", instanceId};
+        final Object params[] = { ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", instanceId };
         Whitebox.invokeMethod(orig, "updateRemoteTags", params);
 
         assertEquals(5, handler.getRecords().size());
@@ -143,4 +142,3 @@ class TestHandler extends Handler {
         return records;
     }
 }
-

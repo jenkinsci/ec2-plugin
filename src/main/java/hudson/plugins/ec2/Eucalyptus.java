@@ -46,7 +46,8 @@ public class Eucalyptus extends EC2Cloud {
     public final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates) throws IOException {
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey, String instanceCapStr, List<SlaveTemplate> templates)
+            throws IOException {
         super("eucalyptus", useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
         this.ec2endpoint = ec2endpoint;
         this.s3endpoint = s3endpoint;
@@ -70,18 +71,14 @@ public class Eucalyptus extends EC2Cloud {
         }
 
         @Override
-        public FormValidation doTestConnection(
-                @QueryParameter URL ec2endpoint,
-                @QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId,
-                @QueryParameter String secretKey,
-                @QueryParameter String privateKey) throws IOException, ServletException {
+        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String privateKey)
+                throws IOException, ServletException {
             return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, accessId, secretKey, privateKey);
         }
 
         @Override
-        public FormValidation doGenerateKey(
-                StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey) throws IOException, ServletException {
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey)
+                throws IOException, ServletException {
             return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, accessId, secretKey);
         }
     }

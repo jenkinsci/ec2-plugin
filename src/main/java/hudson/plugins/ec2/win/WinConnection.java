@@ -72,7 +72,7 @@ public class WinConnection {
         SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
         return smbFile.exists();
     }
-   
+
     private String encodeForSmb(String path) {
         if (!VALIDATE_WINDOWS_PATH.matcher(path).matches()) {
             throw new IllegalArgumentException("Path '" + path + "' is not a valid windows path like C:\\Windows\\Temp");

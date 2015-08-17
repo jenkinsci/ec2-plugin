@@ -24,8 +24,7 @@ public class WinRMMessageTest {
     private SimpleNamespaceContext namespaceContext;
 
     @Before
-    public void before() throws Exception
-    {
+    public void before() throws Exception {
         url = new URL("http://localhost");
         namespaceContext = new SimpleNamespaceContext();
         namespaceContext.addNamespace(Namespaces.NS_WIN_SHELL.getPrefix(), Namespaces.NS_WIN_SHELL.getURI());
@@ -64,7 +63,7 @@ public class WinRMMessageTest {
 
     @Test
     public void testGetOutputMessage() throws Exception {
-        GetOutputRequest r = new GetOutputRequest(url,"SHELLID", "COMMANDID");
+        GetOutputRequest r = new GetOutputRequest(url, "SHELLID", "COMMANDID");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
         assertEquals("SHELLID", xpath("//w:Selector[@Name=\"ShellId\"]", r.build()));
@@ -73,7 +72,7 @@ public class WinRMMessageTest {
 
     @Test
     public void testSendInputMessage() throws Exception {
-        SendInputRequest r = new SendInputRequest(url,new byte[]{31, 32}, "SHELLID", "COMMANDID");
+        SendInputRequest r = new SendInputRequest(url, new byte[] { 31, 32 }, "SHELLID", "COMMANDID");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Send", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
         assertEquals("SHELLID", xpath("//w:Selector[@Name=\"ShellId\"]", r.build()));
@@ -89,8 +88,7 @@ public class WinRMMessageTest {
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/signal/terminate", xpath("//rsp:Signal[@CommandId=\"COMMANDID\"]/rsp:Code", r.build()));
     }
 
-    private String xpath(String xpath, Document doc)
-    {
+    private String xpath(String xpath, Document doc) {
         XPath xp = DocumentHelper.createXPath(xpath);
         xp.setNamespaceContext(namespaceContext);
         return xp.valueOf(doc);

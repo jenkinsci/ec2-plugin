@@ -8,9 +8,9 @@ import hudson.slaves.SlaveComputer;
 
 public class EC2SpotComputerLauncher extends ComputerLauncher {
 
-	@Override
-    public void launch(SlaveComputer _computer, TaskListener listener) {   
-        EC2Computer computer = (EC2Computer)_computer;
+    @Override
+    public void launch(SlaveComputer _computer, TaskListener listener) {
+        EC2Computer computer = (EC2Computer) _computer;
         PrintStream logger = listener.getLogger();
 
         logger.println("The instance " + computer.getNode().getNodeName() + " is a Spot slave.");

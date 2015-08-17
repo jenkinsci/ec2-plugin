@@ -8,10 +8,10 @@ import hudson.slaves.ComputerListener;
 @Extension
 public class EC2ComputerListener extends ComputerListener {
 
-	@Override
-	public void onOnline(Computer c, TaskListener listener) {
-		if(c instanceof EC2Computer){
-			((EC2Computer) c).onConnected();
-		}
-	}
+    @Override
+    public void onOnline(Computer c, TaskListener listener) {
+        if (c instanceof EC2Computer) {
+            ((EC2Computer) c).onConnected();
+        }
+    }
 }

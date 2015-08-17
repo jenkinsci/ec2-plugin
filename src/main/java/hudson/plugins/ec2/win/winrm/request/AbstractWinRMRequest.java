@@ -28,23 +28,14 @@ public abstract class AbstractWinRMRequest implements WinRMRequest {
 
     protected abstract void construct();
 
-
-
     public Document build() {
         construct();
         return message.build();
     }
 
-    protected HeaderBuilder defaultHeader() throws URISyntaxException
-    {
-        return header.to(url.toURI())
-                .replyTo(new URI("http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous"))
-                .maxEnvelopeSize(envelopSize)
-                .id(generateUUID())
-                .locale(locale)
-                .timeout(timeout);
+    protected HeaderBuilder defaultHeader() throws URISyntaxException {
+        return header.to(url.toURI()).replyTo(new URI("http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous")).maxEnvelopeSize(envelopSize).id(generateUUID()).locale(locale).timeout(timeout);
     }
-
 
     protected void setBody(Element body) {
         message.addHeader(header.build());

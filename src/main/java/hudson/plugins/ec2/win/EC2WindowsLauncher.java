@@ -25,29 +25,30 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
 
     @Override
-    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException, AmazonClientException,
-    InterruptedException {
+    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
+            AmazonClientException, InterruptedException {
         final PrintStream logger = listener.getLogger();
         final WinConnection connection = connectToWinRM(computer, logger);
 
         try {
             String initScript = computer.getNode().initScript;
-            String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.equals("") ? computer.getNode().tmpDir : "C:\\Windows\\Temp\\");
+            String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.equals("") ? computer.getNode().tmpDir
+                    : "C:\\Windows\\Temp\\");
 
             logger.println("Creating tmp directory if it does not exist");
             connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
 
-            if(initScript!=null && initScript.trim().length()>0 && !connection.exists(tmpDir + ".jenkins-init")) {
+            if (initScript != null && initScript.trim().length() > 0 && !connection.exists(tmpDir + ".jenkins-init")) {
                 logger.println("Executing init script");
                 OutputStream init = connection.putFile(tmpDir + "init.bat");
                 init.write(initScript.getBytes("utf-8"));
 
                 WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
-                IOUtils.copy(initProcess.getStdout(),logger);
+                IOUtils.copy(initProcess.getStdout(), logger);
 
                 int exitStatus = initProcess.waitFor();
-                if (exitStatus!=0) {
-                    logger.println("init script failed: exit code="+exitStatus);
+                if (exitStatus != 0) {
+                    logger.println("init script failed: exit code=" + exitStatus);
                     return;
                 }
 
@@ -56,14 +57,14 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("init script ran successfully");
             }
 
-
             OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
             slaveJar.write(Hudson.getInstance().getJnlpJars("slave.jar").readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
 
             final String jvmopts = computer.getNode().jvmopts;
-            final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "slave.jar", 86400);
+            final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar "
+                    + tmpDir + "slave.jar", 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
                 public void onClosed(Channel channel, IOException cause) {
@@ -80,7 +81,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     }
 
     private WinConnection connectToWinRM(EC2Computer computer, PrintStream logger) throws AmazonClientException,
-    InterruptedException {
+            InterruptedException {
         final long timeout = computer.getNode().getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
 
@@ -98,16 +99,21 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
                 if (computer.getNode().usePrivateDnsName) {
                     host = instance.getPrivateDnsName();
-                    ip = instance.getPrivateIpAddress(); // SmbFile doesn't quite work with hostnames
+                    ip = instance.getPrivateIpAddress(); // SmbFile doesn't
+                                                         // quite work with
+                                                         // hostnames
                 } else {
                     host = instance.getPublicDnsName();
                     if (host == null || host.equals("")) {
                         host = instance.getPrivateDnsName();
-                        ip = instance.getPrivateIpAddress(); // SmbFile doesn't quite work with hostnames
-                    }
-                    else {
+                        ip = instance.getPrivateIpAddress(); // SmbFile doesn't
+                                                             // quite work with
+                                                             // hostnames
+                    } else {
                         host = instance.getPublicDnsName();
-                        ip = instance.getPublicIpAddress(); // SmbFile doesn't quite work with hostnames
+                        ip = instance.getPublicIpAddress(); // SmbFile doesn't
+                                                            // quite work with
+                                                            // hostnames
                     }
                 }
 
@@ -127,7 +133,8 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 }
 
                 if (!alreadyBooted || computer.getNode().stopOnTerminate) {
-                    logger.println("WinRM service responded. Waiting for WinRM service to stabilize on " + computer.getNode().getDisplayName());
+                    logger.println("WinRM service responded. Waiting for WinRM service to stabilize on "
+                            + computer.getNode().getDisplayName());
                     Thread.sleep(computer.getNode().getBootDelay());
                     alreadyBooted = true;
                     logger.println("WinRM should now be ok on " + computer.getNode().getDisplayName());

@@ -43,20 +43,20 @@ import java.io.IOException;
 @Extension
 public class ZPoolMonitor extends PeriodicWork {
     @Override
-	public long getRecurrencePeriod() {
+    public long getRecurrencePeriod() {
         return TimeUnit2.HOURS.toMillis(1);
     }
 
     @Override
-	protected void doRun() {
-        ZFSFileSystem fs=null;
+    protected void doRun() {
+        ZFSFileSystem fs = null;
         try {
-            if(isInsideEC2())
+            if (isInsideEC2())
                 fs = new LibZFS().getFileSystemByMountPoint(Hudson.getInstance().getRootDir());
         } catch (LinkageError e) {
             // probably not running on OpenSolaris
         }
-        if(fs==null) {
+        if (fs == null) {
             cancel();
             return;
         }
@@ -64,10 +64,11 @@ public class ZPoolMonitor extends PeriodicWork {
         long a = pool.getAvailableSize();
         long t = pool.getSize();
 
-        // if the disk is 90% filled up and the available space is less than 1GB,
+        // if the disk is 90% filled up and the available space is less than
+        // 1GB,
         // notify the user
         ZPoolExpandNotice zen = AdministrativeMonitor.all().get(ZPoolExpandNotice.class);
-        zen.activated = t/a>10 && a<1000L*1000*1000;
+        zen.activated = t / a > 10 && a < 1000L * 1000 * 1000;
     }
 
     private static Boolean isInsideEC2;
@@ -76,7 +77,7 @@ public class ZPoolMonitor extends PeriodicWork {
      * Returns true if this JVM runs inside EC2.
      */
     public static synchronized boolean isInsideEC2() {
-        if(isInsideEC2==null) {
+        if (isInsideEC2 == null) {
             try {
                 new URL("http://169.254.169.254/latest").openStream().close();
                 isInsideEC2 = true;

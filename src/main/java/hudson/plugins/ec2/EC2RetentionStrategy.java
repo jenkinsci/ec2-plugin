@@ -38,16 +38,18 @@ import org.kohsuke.stapler.DataBoundConstructor;
  * @author Kohsuke Kawaguchi
  */
 public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
-    /** Number of minutes of idleness before an instance should be terminated.
-	    A value of zero indicates that the instance should never be automatically terminated.
-		Negative values are times in remaining minutes before end of billing period. */
+    /**
+     * Number of minutes of idleness before an instance should be terminated. A value of zero indicates that the
+     * instance should never be automatically terminated. Negative values are times in remaining minutes before end of
+     * billing period.
+     */
     public final int idleTerminationMinutes;
 
     private transient ReentrantLock checkLock;
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
-    	readResolve();
+        readResolve();
         if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
             this.idleTerminationMinutes = 0;
         } else {
@@ -55,7 +57,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             try {
                 value = Integer.parseInt(idleTerminationMinutes);
             } catch (NumberFormatException nfe) {
-                LOGGER.info("Malformed default idleTermination value: " + idleTerminationMinutes); 
+                LOGGER.info("Malformed default idleTermination value: " + idleTerminationMinutes);
             }
 
             this.idleTerminationMinutes = value;
@@ -63,8 +65,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     }
 
     @Override
-	public long check(EC2Computer c) {
-        if (! checkLock.tryLock()) {
+    public long check(EC2Computer c) {
+        if (!checkLock.tryLock()) {
             return 1;
         } else {
             try {
@@ -78,24 +80,26 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     private long _check(EC2Computer c) {
 
         /* If we've been told never to terminate, then we're done. */
-        if  (idleTerminationMinutes == 0) {
-        	return 1;
+        if (idleTerminationMinutes == 0) {
+            return 1;
         }
 
         /*
-         * Don't idle-out instances that're offline, per JENKINS-23792. This
-         * prevents a node from being idled down while it's still starting up.
+         * Don't idle-out instances that're offline, per JENKINS-23792. This prevents a node from being idled down while
+         * it's still starting up.
          */
         if (c.isOffline()) {
             return 1;
         }
 
         if (c.isIdle() && !disabled) {
-		    final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+            final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
             if (idleTerminationMinutes > 0) {
-                // TODO: really think about the right strategy here, see JENKINS-23792
+                // TODO: really think about the right strategy here, see
+                // JENKINS-23792
                 if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-                    LOGGER.info("Idle timeout of "+c.getName() + " after " + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes");
+                    LOGGER.info("Idle timeout of " + c.getName() + " after "
+                            + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes");
                     c.getNode().idleTimeout();
                 }
             } else {
@@ -104,14 +108,20 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                     uptime = c.getUptime();
                 } catch (InterruptedException e) {
                     // We'll just retry next time we test for idleness.
-                    LOGGER.fine("Interrupted while checking host uptime for " + c.getName() + ", will retry next check. Interrupted by: " + e);
-					return 1;
+                    LOGGER.fine("Interrupted while checking host uptime for " + c.getName()
+                            + ", will retry next check. Interrupted by: " + e);
+                    return 1;
                 }
-                final int freeSecondsLeft = (60*60) - (int)(TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60*60));
-                // if we have less "free" (aka already paid for) time left than our idle time, stop/terminate the instance
+                final int freeSecondsLeft = (60 * 60)
+                        - (int) (TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60 * 60));
+                // if we have less "free" (aka already paid for) time left than
+                // our idle time, stop/terminate the instance
                 // See JENKINS-23821
-                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes*60))) {
-                    LOGGER.info("Idle timeout of "+c.getName()+" after " + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with " + TimeUnit2.MILLISECONDS.toMinutes(freeSecondsLeft) + " minutes remaining in billing period");
+                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes * 60))) {
+                    LOGGER.info("Idle timeout of " + c.getName() + " after "
+                            + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
+                            + TimeUnit2.MILLISECONDS.toMinutes(freeSecondsLeft)
+                            + " minutes remaining in billing period");
                     c.getNode().idleTimeout();
                 }
             }
@@ -124,25 +134,26 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
      */
     @Override
     public void start(EC2Computer c) {
-		LOGGER.info("Start requested for " + c.getName());
+        LOGGER.info("Start requested for " + c.getName());
         c.connect(false);
     }
 
-    // no registration since this retention strategy is used only for EC2 nodes that we provision automatically.
+    // no registration since this retention strategy is used only for EC2 nodes
+    // that we provision automatically.
     // @Extension
     public static class DescriptorImpl extends Descriptor<RetentionStrategy<?>> {
         @Override
-		public String getDisplayName() {
+        public String getDisplayName() {
             return "EC2";
         }
     }
-    
+
     protected Object readResolve() {
-    	checkLock = new ReentrantLock(false);
-    	return this;
+        checkLock = new ReentrantLock(false);
+        return this;
     }
 
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
 
-    public static boolean disabled = Boolean.getBoolean(EC2RetentionStrategy.class.getName()+".disabled");
+    public static boolean disabled = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
 }
