@@ -99,6 +99,8 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String DEFAULT_EC2_HOST = "us-east-1";
     public static final String EC2_URL_HOST = "ec2.amazonaws.com";
+    public static final String EC2_SLAVE_TYPE_SPOT = "spot";
+    public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
 
     private final boolean useInstanceProfileForCredentials;
     private final String accessId;
@@ -218,18 +220,18 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of instances in EC2 currently running that are using the specifed image.
+     * Counts the number of instances in EC2 currently running that are using the specifed image and a template.
      *
-     * @param ami
-     *            If AMI is left null, then all instances are counted.
-     *            <p>
-     *            This includes those instances that may be started outside Hudson.
+     * @param ami If AMI is left null, then all instances are counted and template description is ignored.
+     * <p>
+     * This includes those instances that may be started outside Hudson.
+     * @param templateDesc 
      */
-    public int countCurrentEC2Slaves(String ami) throws AmazonClientException {
-        int n = 0;
+    public int countCurrentEC2Slaves(String ami, String templateDesc) throws AmazonClientException {
+        int n=0;
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (isEc2ProvisionedSlave(i, ami)) {
+                if (isEc2ProvisionedAmiSlave(i, ami, templateDesc)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
                         n++;
@@ -240,13 +242,23 @@ public abstract class EC2Cloud extends Cloud {
         return n;
     }
 
-    protected boolean isEc2ProvisionedSlave(Instance i, String ami) {
+    protected boolean isEc2ProvisionedAmiSlave(Instance i, String ami, String templateDesc) {
         // Check if the ami matches
         if (ami == null || StringUtils.equals(ami, i.getImageId())) {
             // Check if there is a ec2slave tag...
             for (Tag tag : i.getTags()) {
                 if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                    return true;
+                	if (ami == null || templateDesc == null) {
+                		return true;
+                	} else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND) || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
+                		// To handle cases where description is null and also upgrade cases for existing slave nodes.
+                		return true;
+                	} else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, templateDesc)) || 
+                			StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, templateDesc))) {
+                		return true;
+                	} else {
+                		return false;
+                	}
                 }
             }
             return false;
@@ -295,10 +307,14 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Check for the count of EC2 slaves and determine if a new slave can be added. Takes into account both what Amazon
      * reports as well as an internal count of slaves currently being "provisioned".
+     * Check for the count of EC2 slaves and determine if a new slave can be added.
+     * Takes into account both what Amazon reports as well as an internal count
+     * of slaves currently being "provisioned".
+     * @param templateDesc 
      */
-    private boolean addProvisionedSlave(String ami, int amiCap) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(ami);
+    private boolean addProvisionedSlave(String ami, int amiCap, String templateDesc) throws AmazonClientException {
+        int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
+        int estimatedAmiSlaves = countCurrentEC2Slaves(ami, templateDesc);
 
         synchronized (provisioningAmis) {
             int currentProvisioning;
@@ -381,7 +397,7 @@ public abstract class EC2Cloud extends Cloud {
 
             while (excessWorkload > 0) {
 
-                if (!addProvisionedSlave(t.ami, amiCap)) {
+                if (!addProvisionedSlave(t.ami, amiCap, t.description)) {
                     break;
                 }
 
@@ -435,6 +451,10 @@ public abstract class EC2Cloud extends Cloud {
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String accessId, final String secretKey) {
         return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
+    }
+    
+    public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
+    	return templateDescription != null ? slaveType+"_"+templateDescription : slaveType;
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String accessId, final Secret secretKey) {
