@@ -24,7 +24,7 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
   <table width="100%">
 
-  <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html" field="description">
+  <f:entry title="${%Description}" field="description">
     <f:textbox />
   </f:entry>
 
