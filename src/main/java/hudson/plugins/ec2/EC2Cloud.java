@@ -220,11 +220,11 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of instances in EC2 currently running that are using the specifed image and a template.
+     * Counts the number of instances in EC2 currently running that are using the specified image and a template.
      *
      * @param ami If AMI is left null, then all instances are counted and template description is ignored.
      * <p>
-     * This includes those instances that may be started outside Hudson.
+     * This includes those instances that may be started outside Jenkins.
      * @param templateDesc 
      */
     public int countCurrentEC2Slaves(String ami, String templateDesc) throws AmazonClientException {
@@ -234,6 +234,16 @@ public abstract class EC2Cloud extends Cloud {
                 if (isEc2ProvisionedAmiSlave(i, ami, templateDesc)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
+                        EC2AbstractSlave foundSlave = null;
+                        for (EC2AbstractSlave ec2Node : NodeIterator.nodes(EC2AbstractSlave.class)) {
+                            if (ec2Node.getInstanceId().equals(i.getInstanceId())) {
+                                foundSlave = ec2Node;
+                                break;
+                            }
+                        }
+                        // Don't count disconnected slaves as being used, we will connected them later is required
+                        if (foundSlave != null && foundSlave.toComputer().isOffline())
+                            continue;
                         n++;
                     }
                 }
