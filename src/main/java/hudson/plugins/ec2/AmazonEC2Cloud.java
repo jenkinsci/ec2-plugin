@@ -118,7 +118,10 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-            return new URL("https://" + region + "." + EC2_URL_HOST + "/");
+            // http://docs.aws.amazon.com/general/latest/gr/rande.html#ec2_region
+            // us-east-1 > ec2.us-east-1.amazonaws.com
+            // eu-west-1 > ec2.eu-west-1.amazonaws.com
+            return new URL("https://ec2." + region + ".amazonaws.com/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
