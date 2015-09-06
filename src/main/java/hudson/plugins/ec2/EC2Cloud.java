@@ -519,26 +519,6 @@ public abstract class EC2Cloud extends Cloud {
         return client;
     }
 
-    /***
-     * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
-     */
-    public static String convertHostName(String ec2HostName) {
-        if (ec2HostName == null || ec2HostName.length() == 0)
-            ec2HostName = DEFAULT_EC2_HOST;
-        if (!ec2HostName.contains("."))
-            ec2HostName = ec2HostName + "." + EC2_URL_HOST;
-        return ec2HostName;
-    }
-
-    /***
-     * Convert a user entered string into a port number "" -&gt; -1 to indicate default based on SSL setting
-     */
-    public static Integer convertPort(String ec2Port) {
-        if (ec2Port == null || ec2Port.length() == 0)
-            return -1;
-        return Integer.parseInt(ec2Port);
-    }
-
     /**
      * Computes the presigned URL for the given S3 resource.
      *
@@ -552,15 +532,6 @@ public abstract class EC2Cloud extends Cloud {
         request.setExpiration(new Date(expires));
         AmazonS3 s3 = new AmazonS3Client(credentials);
         return s3.generatePresignedUrl(request);
-    }
-
-    /* Parse a url or return a sensible error */
-    public static URL checkEndPoint(String url) throws FormValidation {
-        try {
-            return new URL(url);
-        } catch (MalformedURLException ex) {
-            throw FormValidation.error("Endpoint URL is not a valid URL");
-        }
     }
 
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
