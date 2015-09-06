@@ -108,7 +108,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public String getRegion() {
         if (region == null)
-            region = DEFAULT_EC2_HOST; // Backward compatibility
+            region = DEFAULT_EC2_REGION; // Backward compatibility
         // Handles pre 1.14 region names that used the old AwsRegion enum, note we don't change
         // the region here to keep the meta-data compatible in the case of a downgrade (is that right?)
         if (region.indexOf('_') > 0)
@@ -173,7 +173,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 throws IOException, ServletException {
             ListBoxModel model = new ListBoxModel();
             if (testMode) {
-                model.add(DEFAULT_EC2_HOST);
+                model.add(DEFAULT_EC2_REGION);
                 return model;
             }
 
@@ -194,7 +194,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
-                region = DEFAULT_EC2_HOST;
+                region = DEFAULT_EC2_REGION;
             }
 
             return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey, privateKey);
