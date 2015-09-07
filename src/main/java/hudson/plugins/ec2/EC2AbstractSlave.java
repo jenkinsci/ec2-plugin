@@ -47,6 +47,7 @@ import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -90,7 +91,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
-
+    private boolean onetimeUse;
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
     public transient String privateDNS;
@@ -557,4 +558,12 @@ public abstract class EC2AbstractSlave extends Slave {
 
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
+    public boolean isOnetimeUse() {
+        return onetimeUse;
+    }
+
+    @DataBoundSetter
+    public void setOnetimeUse(boolean onetimeUse) {
+        this.onetimeUse = onetimeUse;
+    }
 }
