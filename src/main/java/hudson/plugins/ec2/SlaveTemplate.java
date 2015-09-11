@@ -44,6 +44,7 @@ import javax.servlet.ServletException;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
@@ -141,6 +142,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int launchTimeout;
     public boolean connectBySSHProcess;
     public final boolean connectUsingPublicIp;
+    private boolean onetimeUse;
 
     private transient/* almost final */Set<LabelAtom> labelSet;
     private transient/* almost final */Set<String> securityGroupSet;
@@ -266,6 +268,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getNumExecutors() {
         try {
+            String numExecutors=this.onetimeUse?"1":this.numExecutors;
             return Integer.parseInt(numExecutors);
         } catch (NumberFormatException e) {
             return EC2AbstractSlave.toNumExecutors(type);
@@ -783,11 +786,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, useDedicatedTenancy, getLaunchTimeout(), amiType);
+        EC2OndemandSlave slave= new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, useDedicatedTenancy, getLaunchTimeout(), amiType);
+        slave.setOnetimeUse(this.onetimeUse);
+        return slave;
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript, tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), amiType);
+        EC2SpotSlave slave=new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript, tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), amiType);
+        slave.setOnetimeUse(this.onetimeUse);
+        return slave;
     }
 
     /**
@@ -1182,6 +1189,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok("The current Spot price for a " + type + " in the " + zoneStr + " is $" + cp);
             }
         }
+    }
+
+    public boolean isOnetimeUse() {
+        return onetimeUse;
+    }
+    @DataBoundSetter
+    public void setOnetimeUse(boolean onetimeUse) {
+        this.onetimeUse = onetimeUse;
     }
 
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());

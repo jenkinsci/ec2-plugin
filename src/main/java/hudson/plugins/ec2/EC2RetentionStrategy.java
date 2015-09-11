@@ -23,8 +23,9 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.model.Descriptor;
+import hudson.model.*;
 import hudson.slaves.RetentionStrategy;
+import hudson.slaves.SlaveComputer;
 import hudson.util.TimeUnit2;
 
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,7 +38,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
  *
  * @author Kohsuke Kawaguchi
  */
-public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
+public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> implements ExecutorListener {
     /**
      * Number of minutes of idleness before an instance should be terminated. A value of zero indicates that the
      * instance should never be automatically terminated. Negative values are times in remaining minutes before end of
@@ -136,6 +137,27 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     public void start(EC2Computer c) {
         LOGGER.info("Start requested for " + c.getName());
         c.connect(false);
+    }
+
+    public void taskAccepted(Executor executor, Queue.Task task) {
+        LOGGER.info("Accepted task " + task.getDisplayName());
+    }
+
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+        postJobAction(executor);
+    }
+
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+        postJobAction(executor);
+    }
+
+    private void postJobAction(Executor executor){
+        EC2Computer computer=(EC2Computer)executor.getOwner();
+        EC2AbstractSlave slaveNode=computer.getNode();
+        if(slaveNode!=null && slaveNode.isOnetimeUse()){
+            computer.setAcceptingTasks(false);
+            slaveNode.terminate();
+        }
     }
 
     // no registration since this retention strategy is used only for EC2 nodes
