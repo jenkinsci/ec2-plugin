@@ -97,7 +97,7 @@ import static javax.servlet.http.HttpServletResponse.*;
  */
 public abstract class EC2Cloud extends Cloud {
 
-    public static final String DEFAULT_EC2_HOST = "us-east-1";
+    public static final String DEFAULT_EC2_REGION = "us-east-1";
     public static final String EC2_URL_HOST = "ec2.amazonaws.com";
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
@@ -225,7 +225,7 @@ public abstract class EC2Cloud extends Cloud {
      * @param ami If AMI is left null, then all instances are counted and template description is ignored.
      * <p>
      * This includes those instances that may be started outside Jenkins.
-     * @param templateDesc 
+     * @param templateDesc
      */
     public int countCurrentEC2Slaves(String ami, String templateDesc) throws AmazonClientException {
         int n=0;
@@ -263,7 +263,7 @@ public abstract class EC2Cloud extends Cloud {
                 	} else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND) || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
                 		// To handle cases where description is null and also upgrade cases for existing slave nodes.
                 		return true;
-                	} else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, templateDesc)) || 
+                	} else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, templateDesc)) ||
                 			StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, templateDesc))) {
                 		return true;
                 	} else {
@@ -320,7 +320,7 @@ public abstract class EC2Cloud extends Cloud {
      * Check for the count of EC2 slaves and determine if a new slave can be added.
      * Takes into account both what Amazon reports as well as an internal count
      * of slaves currently being "provisioned".
-     * @param templateDesc 
+     * @param templateDesc
      */
     private boolean addProvisionedSlave(String ami, int amiCap, String templateDesc) throws AmazonClientException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
@@ -462,7 +462,7 @@ public abstract class EC2Cloud extends Cloud {
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String accessId, final String secretKey) {
         return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
     }
-    
+
     public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
     	return templateDescription != null ? slaveType+"_"+templateDescription : slaveType;
     }
@@ -493,7 +493,7 @@ public abstract class EC2Cloud extends Cloud {
 
     /***
      * Connect to an EC2 instance.
-     * 
+     *
      * @return {@link AmazonEC2} client
      */
     public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
@@ -519,26 +519,6 @@ public abstract class EC2Cloud extends Cloud {
         return client;
     }
 
-    /***
-     * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
-     */
-    public static String convertHostName(String ec2HostName) {
-        if (ec2HostName == null || ec2HostName.length() == 0)
-            ec2HostName = DEFAULT_EC2_HOST;
-        if (!ec2HostName.contains("."))
-            ec2HostName = ec2HostName + "." + EC2_URL_HOST;
-        return ec2HostName;
-    }
-
-    /***
-     * Convert a user entered string into a port number "" -&gt; -1 to indicate default based on SSL setting
-     */
-    public static Integer convertPort(String ec2Port) {
-        if (ec2Port == null || ec2Port.length() == 0)
-            return -1;
-        return Integer.parseInt(ec2Port);
-    }
-
     /**
      * Computes the presigned URL for the given S3 resource.
      *
@@ -552,15 +532,6 @@ public abstract class EC2Cloud extends Cloud {
         request.setExpiration(new Date(expires));
         AmazonS3 s3 = new AmazonS3Client(credentials);
         return s3.generatePresignedUrl(request);
-    }
-
-    /* Parse a url or return a sensible error */
-    public static URL checkEndPoint(String url) throws FormValidation {
-        try {
-            return new URL(url);
-        } catch (MalformedURLException ex) {
-            throw FormValidation.error("Endpoint URL is not a valid URL");
-        }
     }
 
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {

@@ -33,8 +33,11 @@ import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
@@ -59,6 +62,25 @@ public class AmazonEC2Cloud extends EC2Cloud {
      * Represents the region. Can be null for backward compatibility reasons.
      */
     private String region;
+
+    private static final Map<String, String> S3_ENDPOINTS;
+    static {
+        Map<String, String> s3 = new HashMap<String, String>();
+
+        // http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
+
+        s3.put("us-east-1",                     "s3.amazonaws.com");
+        s3.put("us-west-1",           "s3-us-west-1.amazonaws.com");
+        s3.put("us-west-2",           "s3-us-west-2.amazonaws.com");
+        s3.put("eu-west-1",           "s3-eu-west-1.amazonaws.com");
+        s3.put("eu-central-1",     "s3.eu-central-1.amazonaws.com");
+        s3.put("ap-southeast-1", "s3-ap-southeast-1.amazonaws.com");
+        s3.put("ap-southeast-2", "s3-ap-southeast-2.amazonaws.com");
+        s3.put("ap-northeast-1", "s3-ap-northeast-1.amazonaws.com");
+        s3.put("sa-east-1",           "s3-sa-east-1.amazonaws.com");
+
+        S3_ENDPOINTS = Collections.unmodifiableMap(s3);
+    }
 
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
@@ -86,7 +108,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public String getRegion() {
         if (region == null)
-            region = DEFAULT_EC2_HOST; // Backward compatibility
+            region = DEFAULT_EC2_REGION; // Backward compatibility
         // Handles pre 1.14 region names that used the old AwsRegion enum, note we don't change
         // the region here to keep the meta-data compatible in the case of a downgrade (is that right?)
         if (region.indexOf('_') > 0)
@@ -96,7 +118,10 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-            return new URL("https://" + region + "." + EC2_URL_HOST + "/");
+            // http://docs.aws.amazon.com/general/latest/gr/rande.html#ec2_region
+            // us-east-1 > ec2.us-east-1.amazonaws.com
+            // eu-west-1 > ec2.eu-west-1.amazonaws.com
+            return new URL("https://ec2." + region + ".amazonaws.com/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
@@ -110,7 +135,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @Override
     public URL getS3EndpointUrl() {
         try {
-            return new URL("https://" + getRegion() + ".s3.amazonaws.com/");
+            return new URL("https://" + S3_ENDPOINTS.get(getRegion()) + "/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
@@ -148,7 +173,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 throws IOException, ServletException {
             ListBoxModel model = new ListBoxModel();
             if (testMode) {
-                model.add(DEFAULT_EC2_HOST);
+                model.add(DEFAULT_EC2_REGION);
                 return model;
             }
 
@@ -169,7 +194,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
-                region = DEFAULT_EC2_HOST;
+                region = DEFAULT_EC2_REGION;
             }
 
             return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey, privateKey);
