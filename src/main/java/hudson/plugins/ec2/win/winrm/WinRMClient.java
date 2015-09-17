@@ -176,7 +176,10 @@ public class WinRMClient {
 
     private DefaultHttpClient buildHTTPClient() {
         DefaultHttpClient httpclient = new DefaultHttpClient();
-        // httpclient.getAuthSchemes().unregister(AuthPolicy.SPNEGO);
+        if(! (username.contains("\\")|| username.contains("/"))){
+            //user is not a domain user
+            httpclient.getAuthSchemes().register(AuthPolicy.SPNEGO,new NegotiateNTLMSchemaFactory());
+        }
         httpclient.setCredentialsProvider(credsProvider);
         httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
         // httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
