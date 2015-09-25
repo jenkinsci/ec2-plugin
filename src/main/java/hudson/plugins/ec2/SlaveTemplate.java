@@ -554,7 +554,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
 
@@ -580,7 +580,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             available.remove(0);
         }
 
-        riRequest.withBlockDeviceMappings(newDeviceMapping);
+        return newDeviceMapping;
+    }
+
+    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+    }
+
+    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
+        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -603,6 +611,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
             riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+        }
+    }
+
+    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
+        if (StringUtils.isNotBlank(customDeviceMapping)) {
+            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -743,6 +757,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+            }
+
+            if (useEphemeralDevices) {
+                setupEphemeralDeviceMapping(launchSpecification);
+            } else {
+                setupCustomDeviceMapping(launchSpecification);
             }
 
             spotRequest.setLaunchSpecification(launchSpecification);
