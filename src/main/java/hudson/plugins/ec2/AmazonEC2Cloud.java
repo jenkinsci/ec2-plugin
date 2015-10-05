@@ -96,7 +96,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-            return new URL("https://" + region + "." + EC2_URL_HOST + "/");
+            return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }

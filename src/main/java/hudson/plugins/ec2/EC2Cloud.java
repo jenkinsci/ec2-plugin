@@ -98,7 +98,7 @@ import static javax.servlet.http.HttpServletResponse.*;
 public abstract class EC2Cloud extends Cloud {
 
     public static final String DEFAULT_EC2_HOST = "us-east-1";
-    public static final String EC2_URL_HOST = "ec2.amazonaws.com";
+    public static final String AWS_URL_HOST = "amazonaws.com";
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
 
@@ -526,7 +526,7 @@ public abstract class EC2Cloud extends Cloud {
         if (ec2HostName == null || ec2HostName.length() == 0)
             ec2HostName = DEFAULT_EC2_HOST;
         if (!ec2HostName.contains("."))
-            ec2HostName = ec2HostName + "." + EC2_URL_HOST;
+            ec2HostName = "ec2." + ec2HostName + "." + AWS_URL_HOST;
         return ec2HostName;
     }
 
