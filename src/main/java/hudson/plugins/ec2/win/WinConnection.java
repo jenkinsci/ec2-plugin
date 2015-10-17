@@ -7,11 +7,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URLEncoder;
 import java.util.regex.Pattern;
 
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
+import jcifs.util.LogStream;
+
 import static java.util.regex.Pattern.quote;
 
 import java.util.logging.Level;
@@ -30,12 +34,16 @@ public class WinConnection {
     private final NtlmPasswordAuthentication authentication;
 
     private boolean useHTTPS;
+    private static final int TIMEOUT=8000; //8 seconds
 
     public WinConnection(String host, String username, String password) {
         this.host = host;
         this.username = username;
         this.password = password;
         this.authentication = new NtlmPasswordAuthentication(null, username, password);
+        if(log.isLoggable(Level.FINE)){
+            LogStream.level=6;
+        }
     }
 
     public WinRM winrm() {
@@ -72,7 +80,7 @@ public class WinConnection {
         SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
         return smbFile.exists();
     }
-
+   
     private String encodeForSmb(String path) {
         if (!VALIDATE_WINDOWS_PATH.matcher(path).matches()) {
             throw new IllegalArgumentException("Path '" + path + "' is not a valid windows path like C:\\Windows\\Temp");
@@ -114,8 +122,11 @@ public class WinConnection {
     public boolean ping() {
         log.log(Level.FINE, "pinging " + host);
         try {
+            Socket socket=new Socket();
+            socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
+            socket.close();
             winrm().ping();
-            SmbFile test = new SmbFile(encodeForSmb("C:\\"), authentication);
+            SmbFile test = new SmbFile(smbURLPrefix()+"IPC$", authentication);
             test.connect();
             return true;
         } catch (Exception e) {
