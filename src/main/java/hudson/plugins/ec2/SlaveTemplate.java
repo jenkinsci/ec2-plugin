@@ -467,6 +467,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
+            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), InstanceStateName.Stopping.toString()));
             diRequest.setFilters(diFilters);
 
             logger.println("Looking for existing instances with describe-instance: " + diRequest);
@@ -491,10 +492,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 existingInstance = diResult.getReservations().get(0).getInstances().get(0);
             }
 
-            if (existingInstance != null
-                    && (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Terminated.toString()) || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.ShuttingDown.toString())))
-                existingInstance = null;
-
             if (existingInstance == null) {
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
@@ -512,26 +509,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return newOndemandSlave(inst);
             }
 
-            if (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
-                    || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())) {
+            logger.println("Found existing stopped instance: " + existingInstance);
+            LOGGER.info("Found existing stopped instance: " + existingInstance);
 
-                logger.println("Found existing stopped instance: " + existingInstance);
-                LOGGER.info("Found existing stopped instance: " + existingInstance);
+            List<String> instances = new ArrayList<String>();
+            instances.add(existingInstance.getInstanceId());
+            StartInstancesRequest siRequest = new StartInstancesRequest(instances);
+            StartInstancesResult siResult = ec2.startInstances(siRequest);
 
-                List<String> instances = new ArrayList<String>();
-                instances.add(existingInstance.getInstanceId());
-                StartInstancesRequest siRequest = new StartInstancesRequest(instances);
-                StartInstancesResult siResult = ec2.startInstances(siRequest);
-
-                logger.println("Starting existing instance: " + existingInstance + " result:" + siResult);
-                LOGGER.fine("Starting existing instance: " + existingInstance + " result:" + siResult);
-            } else {
-                // Should be pending or running at this point, just let it come up
-                logger.println("Found existing " + existingInstance.getState().getName() + " instance: "
-                        + existingInstance);
-                LOGGER.fine("Found existing " + existingInstance.getState().getName() + " instance: "
-                        + existingInstance);
-            }
+            logger.println("Starting existing instance: " + existingInstance + " result:" + siResult);
+            LOGGER.fine("Starting existing instance: " + existingInstance + " result:" + siResult);
 
             for (EC2AbstractSlave ec2Node : NodeIterator.nodes(EC2AbstractSlave.class)) {
                 if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
@@ -738,7 +725,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             if (!hasCustomTypeTag) {
                 if (inst_tags != null)
-                    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
+            	    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
