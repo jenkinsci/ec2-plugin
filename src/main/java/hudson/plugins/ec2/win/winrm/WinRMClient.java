@@ -172,23 +172,14 @@ public class WinRMClient {
     private void setupHTTPClient() {
         credsProvider = new BasicCredentialsProvider();
         credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials(username, password));
-
-        if (useHTTPS) {
-            SSLSocketFactory socketFactory;
-            try {
-                socketFactory = new SSLSocketFactory(new TrustSelfSignedStrategy(), new AllowAllHostnameVerifier());
-                httpsScheme = new Scheme("https", 443, socketFactory);
-            } catch (KeyManagementException e) {
-            } catch (UnrecoverableKeyException e) {
-            } catch (NoSuchAlgorithmException e) {
-            } catch (KeyStoreException e) {
-            }
-        }
     }
 
     private DefaultHttpClient buildHTTPClient() {
         DefaultHttpClient httpclient = new DefaultHttpClient();
-        // httpclient.getAuthSchemes().unregister(AuthPolicy.SPNEGO);
+        if(! (username.contains("\\")|| username.contains("/"))){
+            //user is not a domain user
+            httpclient.getAuthSchemes().register(AuthPolicy.SPNEGO,new NegotiateNTLMSchemaFactory());
+        }
         httpclient.setCredentialsProvider(credsProvider);
         httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
         // httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
@@ -303,5 +294,18 @@ public class WinRMClient {
 
     public void setUseHTTPS(boolean useHTTPS) {
         this.useHTTPS = useHTTPS;
+        if (useHTTPS) {
+            SSLSocketFactory socketFactory;
+            try {
+                socketFactory = new SSLSocketFactory(new TrustSelfSignedStrategy(), new AllowAllHostnameVerifier());
+                httpsScheme = new Scheme("https", 443, socketFactory);
+            } catch (KeyManagementException e) {
+            } catch (UnrecoverableKeyException e) {
+            } catch (NoSuchAlgorithmException e) {
+            } catch (KeyStoreException e) {
+            }
+        }else{
+            httpsScheme=null;
+        }
     }
 }
