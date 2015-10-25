@@ -1,45 +1,33 @@
 /*
  * The MIT License
- *
+ * 
  * Copyright (c) 2004-, Kohsuke Kawaguchi, Sun Microsystems, Inc., and a number of other of contributors
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+ * Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
+
+import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
@@ -50,58 +38,16 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
-import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.GroupIdentifier;
-import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.LaunchSpecification;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.SpotInstanceType;
-import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.SpotPrice;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StartInstancesResult;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.*;
 
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.model.TaskListener;
+import hudson.model.*;
 import hudson.model.Descriptor.FormException;
 import hudson.model.labels.LabelAtom;
 import hudson.plugins.ec2.util.DeviceMappingParser;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import jenkins.slaves.iterators.api.NodeIterator;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -109,40 +55,73 @@ import jenkins.slaves.iterators.api.NodeIterator;
  * @author Kohsuke Kawaguchi
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
+
     public String ami;
+
     public final String description;
+
     public final String zone;
+
     public final SpotConfiguration spotConfig;
+
     public final String securityGroups;
+
     public final String remoteFS;
+
     public final InstanceType type;
+
     public final boolean ebsOptimized;
+
     public final String labels;
+
     public final Node.Mode mode;
+
     public final String initScript;
+
     public final String tmpDir;
+
     public final String userData;
+
     public final String numExecutors;
+
     public final String remoteAdmin;
+
     public final String jvmopts;
+
     public final String subnetId;
+
     public final String idleTerminationMinutes;
+
     public final String iamInstanceProfile;
+
     public final boolean useEphemeralDevices;
+
     public final String customDeviceMapping;
+
     public int instanceCap;
+
     public final boolean stopOnTerminate;
+
     private final List<EC2Tag> tags;
+
     public final boolean usePrivateDnsName;
+
     public final boolean associatePublicIp;
+
     protected transient EC2Cloud parent;
+
     public final boolean useDedicatedTenancy;
+
     public AMITypeData amiType;
+
     public int launchTimeout;
+
     public boolean connectBySSHProcess;
+
     public final boolean connectUsingPublicIp;
 
     private transient/* almost final */Set<LabelAtom> labelSet;
+
     private transient/* almost final */Set<String> securityGroupSet;
 
     /*
@@ -150,11 +129,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     @Deprecated
     public transient String sshPort;
+
     @Deprecated
     public transient String rootCommandPrefix;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
+            boolean connectBySSHProcess, boolean connectUsingPublicIp) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -201,19 +187,44 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         readResolve(); // initialize
     }
 
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping, boolean connectBySSHProcess) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
+            boolean connectBySSHProcess) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
     }
 
     /**
      * Backward compatible constructor for reloading previous version data
      */
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS, String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices, String launchTimeoutStr) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript, tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices, false, launchTimeoutStr, false, null);
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
+            String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
+            String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+            String launchTimeoutStr) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate,
+                subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
+                useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
     public boolean isConnectBySSHProcess() {
@@ -364,6 +375,37 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return provisionOndemand(listener);
     }
 
+    private boolean checkInstance(Instance existingInstance, EC2AbstractSlave[] returnNode) {
+        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            if (existingInstance.getIamInstanceProfile() != null) {
+                if (!existingInstance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
+                    return false;
+                }
+                // Match, fall through
+            } else {
+                return false;
+            }
+        }
+
+        if (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Terminated.toString())
+                || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.ShuttingDown.toString())) {
+            return false;
+        }
+        // See if we know about this and it has capacity
+        for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
+            if (node.getInstanceId().equals(existingInstance.getInstanceId())) {
+                if (!node.toComputer().isPartiallyIdle()) {
+                    return false;
+                } else {
+                    LOGGER.finer("Found existing corresponding Jenkins slave: " + node);
+                    returnNode[0] = node;
+                    return true;
+                }
+            }
+        }
+        return true;
+    }
+
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
@@ -463,7 +505,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     inst_tags = new HashSet<Tag>();
                 }
                 // Append template description as well to identify slaves provisioned per template
-                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
+                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                        EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
@@ -473,29 +516,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             LOGGER.fine("Looking for existing instances with describe-instance: " + diRequest);
 
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
-
+            EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
             Instance existingInstance = null;
-            if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-                riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
-                // cannot filter on IAM Instance Profile, so search in result
-                reservationLoop: for (Reservation reservation : diResult.getReservations()) {
-                    for (Instance instance : reservation.getInstances()) {
-                        if (instance.getIamInstanceProfile() != null
-                                && instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
-                            existingInstance = instance;
-                            break reservationLoop;
-                        }
+            reservationLoop: for (Reservation reservation : diResult.getReservations()) {
+                for (Instance instance : reservation.getInstances()) {
+                    if (checkInstance(instance, ec2Node)) {
+                        existingInstance = instance;
+                        logger.println("Found existing instance: " + existingInstance + " node: " + ec2Node[0]);
+                        LOGGER.info("Found existing instance: " + existingInstance + " node: " + ec2Node[0]);
+                        break reservationLoop;
                     }
                 }
-            } else if (diResult.getReservations().size() > 0) {
-                existingInstance = diResult.getReservations().get(0).getInstances().get(0);
             }
 
-            if (existingInstance != null
-                    && (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Terminated.toString()) || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.ShuttingDown.toString())))
-                existingInstance = null;
-
             if (existingInstance == null) {
+                if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+                    riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+                }
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
@@ -515,9 +552,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
                     || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())) {
 
-                logger.println("Found existing stopped instance: " + existingInstance);
-                LOGGER.info("Found existing stopped instance: " + existingInstance);
-
                 List<String> instances = new ArrayList<String>();
                 instances.add(existingInstance.getInstanceId());
                 StartInstancesRequest siRequest = new StartInstancesRequest(instances);
@@ -527,19 +561,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 LOGGER.fine("Starting existing instance: " + existingInstance + " result:" + siResult);
             } else {
                 // Should be pending or running at this point, just let it come up
-                logger.println("Found existing " + existingInstance.getState().getName() + " instance: "
-                        + existingInstance);
-                LOGGER.fine("Found existing " + existingInstance.getState().getName() + " instance: "
-                        + existingInstance);
+                logger.println("Found existing " + existingInstance.getState().getName() + " instance: " + existingInstance);
+                LOGGER.fine("Found existing " + existingInstance.getState().getName() + " instance: " + existingInstance);
             }
 
-            for (EC2AbstractSlave ec2Node : NodeIterator.nodes(EC2AbstractSlave.class)) {
-                if (ec2Node.getInstanceId().equals(existingInstance.getInstanceId())) {
-                    logger.println("Found existing corresponding Jenkins slave: " + ec2Node);
-                    LOGGER.finer("Found existing corresponding Jenkins slave: " + ec2Node);
-                    return ec2Node;
-                }
-            }
+            if (ec2Node[0] != null)
+                return ec2Node[0];
 
             // Existing slave not found
             logger.println("Creating new Jenkins slave for existing instance: " + existingInstance);
@@ -564,7 +591,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             occupiedDevices.add(mapping.getDeviceName());
         }
 
-        final List<String> available = new ArrayList<String>(Arrays.asList("ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"));
+        final List<String> available = new ArrayList<String>(
+                Arrays.asList("ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"));
 
         final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<BlockDeviceMapping>(4);
         for (char suffix = 'b'; suffix <= 'z' && !available.isEmpty(); suffix++) {
@@ -574,7 +602,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (occupiedDevices.contains(deviceName))
                 continue;
 
-            final BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(deviceName).withVirtualName(available.get(0));
+            final BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(deviceName).withVirtualName(
+                    available.get(0));
 
             newDeviceMapping.add(newMapping);
             available.remove(0);
@@ -738,7 +767,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             if (!hasCustomTypeTag) {
                 if (inst_tags != null)
-                    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
+                    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                            EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
@@ -783,11 +813,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(), inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName, useDedicatedTenancy, getLaunchTimeout(), amiType);
+        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
+                tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
+                inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName,
+                useDedicatedTenancy, getLaunchTimeout(), amiType);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
-        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript, tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name, usePrivateDnsName, getLaunchTimeout(), amiType);
+        return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript,
+                tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
+                usePrivateDnsName, getLaunchTimeout(), amiType);
     }
 
     /**
@@ -950,6 +985,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
+
         @Override
         public String getDisplayName() {
             return null;
@@ -975,9 +1011,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
-        public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String ec2endpoint, @QueryParameter String region, final @QueryParameter String ami)
-                throws IOException {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+        public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String ec2endpoint,
+                @QueryParameter String region, final @QueryParameter String ami) throws IOException {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
+                    accessId, secretKey);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -1002,8 +1040,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
                     }
                     String ownerAlias = img.get(0).getImageOwnerAlias();
-                    return FormValidation.ok(img.get(0).getImageLocation()
-                            + (ownerAlias != null ? " by " + ownerAlias : ""));
+                    return FormValidation.ok(img.get(0).getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
                     return FormValidation.error(e.getMessage());
                 }
@@ -1056,9 +1093,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
+        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
                 throws IOException, ServletException {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
+                    accessId, secretKey);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1101,15 +1140,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /*
          * Check the current Spot price of the selected instance type for the selected region
          */
-        public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region, @QueryParameter String type, @QueryParameter String zone)
-                throws IOException, ServletException {
+        public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region,
+                @QueryParameter String type, @QueryParameter String zone) throws IOException, ServletException {
 
             String cp = "";
             String zoneStr = "";
 
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
+                    accessId, secretKey);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {
