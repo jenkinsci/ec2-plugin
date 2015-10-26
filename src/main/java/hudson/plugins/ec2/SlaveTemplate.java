@@ -375,35 +375,47 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return provisionOndemand(listener);
     }
 
-    private boolean checkInstance(Instance existingInstance, EC2AbstractSlave[] returnNode) {
+    private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
+        logProvision(logger, "checkInstance: " + existingInstance);
         if (StringUtils.isNotBlank(getIamInstanceProfile())) {
             if (existingInstance.getIamInstanceProfile() != null) {
                 if (!existingInstance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
+                    logProvision(logger, " false - IAM Instance profile does not match");
                     return false;
                 }
                 // Match, fall through
             } else {
+                logProvision(logger, " false - Null IAM Instance profile");
                 return false;
             }
         }
 
         if (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Terminated.toString())
                 || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.ShuttingDown.toString())) {
+            logProvision(logger, " false - Instance is terminated or shutting down");
             return false;
         }
         // See if we know about this and it has capacity
         for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
             if (node.getInstanceId().equals(existingInstance.getInstanceId())) {
+                logProvision(logger, "Found existing corresponding Jenkins slave: " + node.getInstanceId());
                 if (!node.toComputer().isPartiallyIdle()) {
+                    logProvision(logger, " false - Node is not partially idle");
                     return false;
                 } else {
-                    LOGGER.finer("Found existing corresponding Jenkins slave: " + node);
+                    logProvision(logger, " true - Node has capacity - can use it");
                     returnNode[0] = node;
                     return true;
                 }
             }
         }
+        logProvision(logger, " true - Instance has no node, but can be used");
         return true;
+    }
+
+    private void logProvision(PrintStream logger, String message) {
+        logger.println(message);
+        LOGGER.info(message);
     }
 
     /**
@@ -414,9 +426,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            String msg = "Launching " + ami + " for template " + description;
-            logger.println(msg);
-            LOGGER.info(msg);
+            logProvision(logger, "Launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -512,18 +522,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
             diRequest.setFilters(diFilters);
 
-            logger.println("Looking for existing instances with describe-instance: " + diRequest);
-            LOGGER.fine("Looking for existing instances with describe-instance: " + diRequest);
+            logProvision(logger, "Looking for existing instances with describe-instance: " + diRequest);
 
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
             EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
             Instance existingInstance = null;
             reservationLoop: for (Reservation reservation : diResult.getReservations()) {
                 for (Instance instance : reservation.getInstances()) {
-                    if (checkInstance(instance, ec2Node)) {
+                    if (checkInstance(logger, instance, ec2Node)) {
                         existingInstance = instance;
-                        logger.println("Found existing instance: " + existingInstance + " node: " + ec2Node[0]);
-                        LOGGER.info("Found existing instance: " + existingInstance + " node: " + ec2Node[0]);
+                        logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
                         break reservationLoop;
                     }
                 }
@@ -544,8 +552,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     // local instance data.
                     inst.setTags(inst_tags);
                 }
-                logger.println("No existing instance found - created: " + inst);
-                LOGGER.info("No existing instance found - created: " + inst);
+                logProvision(logger, "No existing instance found - created: " + inst);
                 return newOndemandSlave(inst);
             }
 
@@ -557,24 +564,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 StartInstancesRequest siRequest = new StartInstancesRequest(instances);
                 StartInstancesResult siResult = ec2.startInstances(siRequest);
 
-                logger.println("Starting existing instance: " + existingInstance + " result:" + siResult);
-                LOGGER.fine("Starting existing instance: " + existingInstance + " result:" + siResult);
+                logProvision(logger, "Found stopped instance - starting it: " + existingInstance + " result:" + siResult);
             } else {
                 // Should be pending or running at this point, just let it come up
-                logger.println("Found existing " + existingInstance.getState().getName() + " instance: " + existingInstance);
-                LOGGER.fine("Found existing " + existingInstance.getState().getName() + " instance: " + existingInstance);
+                logProvision(logger, "Found existing pending or running: " + existingInstance.getState().getName() + " instance: " + existingInstance);
             }
 
-            if (ec2Node[0] != null)
+            if (ec2Node[0] != null) {
+                logProvision(logger, "Using existing slave: " + ec2Node[0].getInstanceId());
                 return ec2Node[0];
+            }
 
             // Existing slave not found
-            logger.println("Creating new Jenkins slave for existing instance: " + existingInstance);
-            LOGGER.info("Creating new Jenkins slave for existing instance: " + existingInstance);
+            logProvision(logger, "Creating new slave for existing instance: " + existingInstance);
             return newOndemandSlave(existingInstance);
 
         } catch (FormException e) {
-            throw new AssertionError(); // we should have discovered all
+            throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
