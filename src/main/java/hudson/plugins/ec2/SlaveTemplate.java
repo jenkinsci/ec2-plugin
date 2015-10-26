@@ -531,7 +531,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 for (Instance instance : reservation.getInstances()) {
                     if (checkInstance(logger, instance, ec2Node)) {
                         existingInstance = instance;
-                        logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
+                        logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
                         break reservationLoop;
                     }
                 }
