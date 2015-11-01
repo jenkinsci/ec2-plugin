@@ -2,16 +2,25 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import hudson.slaves.NodeProperty;
-import org.jvnet.hudson.test.HudsonTestCase;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class EC2RetentionStrategyTest extends HudsonTestCase {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+public class EC2RetentionStrategyTest {
+
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
 
+    @Test
     public void testOnBillingHourRetention() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         List<int[]> upTime = new ArrayList<int[]>();
