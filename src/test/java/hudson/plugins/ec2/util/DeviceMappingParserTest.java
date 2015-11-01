@@ -25,12 +25,13 @@ package hudson.plugins.ec2.util;
 
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import org.jvnet.hudson.test.HudsonTestCase;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class DeviceMappingParserTest extends HudsonTestCase {
+import static org.junit.Assert.assertEquals;
+
+public class DeviceMappingParserTest {
 
     public void testParserWithAmi() throws Exception {
         List<BlockDeviceMapping> expected = new ArrayList<BlockDeviceMapping>();

@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
