@@ -23,11 +23,12 @@
  */
 package hudson.plugins.ec2;
 
-import org.jvnet.hudson.test.HudsonTestCase;
-
 import com.amazonaws.services.ec2.model.InstanceType;
+import org.junit.Test;
 
-public class EC2InstanceTypesTest extends HudsonTestCase {
+public class EC2InstanceTypesTest {
+
+    @Test
     public void testListTypes() throws Exception {
         System.out.println("EC2 Instance Types available:");
         for (InstanceType t : InstanceType.values()) {

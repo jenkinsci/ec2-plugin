@@ -1,10 +1,18 @@
 package hudson.plugins.ec2;
 
 import hudson.model.Node;
-import org.jvnet.hudson.test.HudsonTestCase;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
-public class EC2OndemandSlaveTest extends HudsonTestCase {
+import static org.junit.Assert.assertEquals;
 
+public class EC2OndemandSlaveTest {
+
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+
+    @Test
     public void testSpecifyMode() throws Exception {
         EC2OndemandSlave slaveNormal = new EC2OndemandSlave("instanceId", "description", "remoteFS", 1, "labelString", Node.Mode.NORMAL, "initScript", "tmpDir", "remoteAdmin", "jvmopts", false, "30", "publicDNS", "privateDNS", null, "cloudName", false, false, 0, new UnixData("a", "b"));
         assertEquals(Node.Mode.NORMAL, slaveNormal.getMode());
