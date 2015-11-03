@@ -27,6 +27,8 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import hudson.util.Secret;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
@@ -981,8 +983,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix();
     }
 
-    public String getAdminPassword() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : "";
+    @CheckForNull
+    public Secret getAdminPassword() {
+        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : null;
     }
 
     public boolean isUseHTTPS() {
