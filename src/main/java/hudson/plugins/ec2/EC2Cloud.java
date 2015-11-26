@@ -502,7 +502,7 @@ public abstract class EC2Cloud extends Cloud {
         config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
                                      // cause problems. Raise it a bit.
         // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
-        config.setSignerOverride("QueryStringSignerType");
+        config.setSignerOverride("AWS4SignerType");
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
         Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
         if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
