@@ -66,8 +66,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     public static boolean testMode;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, accessId, secretKey, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
         this.region = region;
     }
 
@@ -144,7 +144,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
+        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
                 throws IOException, ServletException {
             ListBoxModel model = new ListBoxModel();
             if (testMode) {
@@ -152,32 +152,31 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 return model;
             }
 
-            if (useInstanceProfileForCredentials || (!StringUtils.isEmpty(accessId) && !StringUtils.isEmpty(secretKey))) {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
-                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
-                DescribeRegionsResult regions = client.describeRegions();
-                List<Region> regionList = regions.getRegions();
-                for (Region r : regionList) {
-                    String name = r.getRegionName();
-                    model.add(name, name);
-                }
+            AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+            AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+            DescribeRegionsResult regions = client.describeRegions();
+            List<Region> regionList = regions.getRegions();
+            for (Region r : regionList) {
+                String name = r.getRegionName();
+                model.add(name, name);
             }
             return model;
         }
 
-        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String privateKey)
+
+        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
                 throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey, privateKey);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey);
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey)
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
                 throws IOException, ServletException {
-            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, accessId, secretKey);
+            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId);
         }
     }
 }

@@ -1021,10 +1021,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Check that the AMI requested is available in the cloud and can be used.
          */
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String ec2endpoint,
+                @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
                 @QueryParameter String region, final @QueryParameter String ami) throws IOException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -1103,10 +1103,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
+                @QueryParameter String credentialsId, @QueryParameter String region)
                 throws IOException, ServletException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1150,7 +1150,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Check the current Spot price of the selected instance type for the selected region
          */
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region,
+                @QueryParameter String credentialsId, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone) throws IOException, ServletException {
 
             String cp = "";
@@ -1159,7 +1159,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {
