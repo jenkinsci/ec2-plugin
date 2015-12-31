@@ -107,13 +107,10 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 final long uptime;
                 try {
                     uptime = c.getUptime();
-                } catch (InterruptedException e) {
+                } catch (Exception e) {
                     // We'll just retry next time we test for idleness.
-                    LOGGER.fine("Interrupted while checking host uptime for " + c.getName()
-                            + ", will retry next check. Interrupted by: " + e);
-                    return 1;
-                } catch (NullPointerException e) {
-                    LOGGER.fine("NPE while checking host uptime for " + c.getName() + ", will retry next check. " + e);
+                    LOGGER.fine("Exception while checking host uptime for " + c.getName()
+                            + ", will retry next check. Exception: " + e);
                     return 1;
                 }
                 final int freeSecondsLeft = (60 * 60)
