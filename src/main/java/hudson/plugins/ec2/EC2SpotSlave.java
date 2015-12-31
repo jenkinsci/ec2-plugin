@@ -45,44 +45,52 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
      */
     @Override
     public void terminate() {
-        // Cancel the spot request
-        AmazonEC2 ec2 = getCloud().connect();
+		try {
+			// Cancel the spot request
+			AmazonEC2 ec2 = getCloud().connect();
 
-        String instanceId = getInstanceId();
-        List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
-        CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
-        try {
-            ec2.cancelSpotInstanceRequests(cancelRequest);
-            LOGGER.info("Canceled Spot request: " + spotInstanceRequestId);
+			String instanceId = getInstanceId();
+			List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
+			CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
+			try {
+				ec2.cancelSpotInstanceRequests(cancelRequest);
+				LOGGER.info("Canceled Spot request: " + spotInstanceRequestId);
 
-            // Terminate the slave if it is running
-            if (instanceId != null && !instanceId.equals("")) {
-                if (!isAlive(true)) {
-                    /*
-                     * The node has been killed externally, so we've nothing to do here
-                     */
-                    LOGGER.info("EC2 instance already terminated: " + instanceId);
-                } else {
-                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
-                    ec2.terminateInstances(request);
-                    LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
-                }
+				// Terminate the slave if it is running
+				if (instanceId != null && !instanceId.equals("")) {
+					if (!isAlive(true)) {
+						/*
+						 * The node has been killed externally, so we've nothing to do here
+						 */
+						LOGGER.info("EC2 instance already terminated: " + instanceId);
+					} else {
+						TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
+						ec2.terminateInstances(request);
+						LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
+					}
 
-            }
+				}
 
-        } catch (AmazonServiceException e) {
-            // Spot request is no longer valid
-            LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
-        } catch (AmazonClientException e) {
-            // Spot request is no longer valid
-            LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
-        }
-
-        try {
-            Hudson.getInstance().removeNode(this);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
-        }
+			} catch (AmazonServiceException e) {
+				// Spot request is no longer valid
+				LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
+			} catch (AmazonClientException e) {
+				// Spot request is no longer valid
+				LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
+			}
+		} catch (Exception e) {
+			LOGGER.log(Level.WARNING,"Failed to remove slave: ", e);
+		} finally {
+			// Remove the instance even if deletion failed, otherwise it will hang around forever in
+			// the nodes page. One way for this to occur is that an instance was terminated
+			// manually or a spot instance was killed due to pricing. If we don't remove the node,
+			// we screw up auto-scaling, since it will continue to count against the quota.
+			try {
+				Hudson.getInstance().removeNode(this);
+			} catch (IOException e) {
+				LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
+			}
+		}
     }
 
     /**
