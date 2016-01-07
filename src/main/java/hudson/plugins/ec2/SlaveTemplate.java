@@ -368,11 +368,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             return provisionSpot(listener);
         }
-        return provisionOndemand(listener);
+        return provisionOndemand(listener, allowCreateNew);
     }
 
     private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
@@ -421,7 +421,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -538,6 +538,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             if (existingInstance == null) {
+                if (!allowCreateNew) {
+                    logProvision(logger, "No existing instance found - but cannot create new instance");
+                    return null;
+                }
                 if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                     riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 }
@@ -552,7 +556,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     // local instance data.
                     inst.setTags(inst_tags);
                 }
-                logProvision(logger, "No existing instance found - created: " + inst);
+                logProvision(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
 
