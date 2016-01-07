@@ -23,7 +23,9 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
+import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
 import java.util.Collections;
@@ -172,9 +174,12 @@ public class EC2Computer extends SlaveComputer {
     /**
      * What username to use to run root-like commands
      *
+     * @return remote admin or {@code null} if the associated {@link Node} is {@code null}
      */
+    @CheckForNull
     public String getRemoteAdmin() {
-        return getNode().getRemoteAdmin();
+        EC2AbstractSlave node = getNode();
+        return node == null ? null : node.getRemoteAdmin();
     }
 
     public int getSshPort() {

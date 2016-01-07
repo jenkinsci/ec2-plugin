@@ -162,8 +162,8 @@ public abstract class EC2Cloud extends Cloud {
         return accessId;
     }
 
-    public String getSecretKey() {
-        return secretKey.getEncryptedValue();
+    public Secret getSecretKey() {
+        return secretKey;
     }
 
     public EC2PrivateKey getPrivateKey() {

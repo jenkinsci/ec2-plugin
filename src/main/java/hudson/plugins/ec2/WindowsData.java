@@ -5,17 +5,18 @@ import java.util.concurrent.TimeUnit;
 import hudson.Extension;
 import hudson.model.Descriptor;
 
+import hudson.util.Secret;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class WindowsData extends AMITypeData {
 
-    private final String password;
+    private final Secret password;
     private final boolean useHTTPS;
     private final String bootDelay;
 
     @DataBoundConstructor
     public WindowsData(String password, boolean useHTTPS, String bootDelay) {
-        this.password = password;
+        this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
     }
@@ -28,7 +29,7 @@ public class WindowsData extends AMITypeData {
         return false;
     }
 
-    public String getPassword() {
+    public Secret getPassword() {
         return password;
     }
 

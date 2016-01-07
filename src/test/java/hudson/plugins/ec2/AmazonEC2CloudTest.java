@@ -23,32 +23,39 @@
  */
 package hudson.plugins.ec2;
 
-import org.jvnet.hudson.test.HudsonTestCase;
+import hudson.slaves.Cloud;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Collections;
 
 /**
  * @author Kohsuke Kawaguchi
  */
-public class AmazonEC2CloudTest extends HudsonTestCase {
+public class AmazonEC2CloudTest {
 
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+
+    @Before
+    public void setUp() throws Exception {
         AmazonEC2Cloud.testMode = true;
     }
 
-    @Override
-    protected void tearDown() throws Exception {
-        super.tearDown();
+    @After
+    public void tearDown() throws Exception {
         AmazonEC2Cloud.testMode = false;
     }
 
+    @After
     public void testConfigRoundtrip() throws Exception {
         AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "def", "us-east-1", "ghi", "3", Collections.<SlaveTemplate> emptyList());
-        hudson.clouds.add(orig);
-        submit(createWebClient().goTo("configure").getFormByName("config"));
+        r.jenkins.clouds.add(orig);
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
 
-        assertEqualBeans(orig, hudson.clouds.iterator().next(), "cloudName,region,useInstanceProfileForCredentials,accessId,secretKey,privateKey,instanceCap");
+        Cloud actual = r.jenkins.clouds.iterator().next();
+        r.assertEqualBeans(orig, actual, "cloudName,region,useInstanceProfileForCredentials,accessId,privateKey,instanceCap");
     }
 }
