@@ -3,23 +3,18 @@
  *
  * Copyright (c) 2004-, Kohsuke Kawaguchi, Sun Microsystems, Inc., and a number of other of contributors
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+ * Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
 
@@ -51,6 +46,8 @@ import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
+import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -83,6 +80,7 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -104,7 +102,18 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
-import static javax.servlet.http.HttpServletResponse.*;
+import hudson.ProxyConfiguration;
+import hudson.model.Computer;
+import hudson.model.Descriptor;
+import hudson.model.Hudson;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
+import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
 
 /**
  * Hudson's view of EC2.
@@ -114,12 +123,16 @@ import static javax.servlet.http.HttpServletResponse.*;
 public abstract class EC2Cloud extends Cloud {
 
     public static final String DEFAULT_EC2_HOST = "us-east-1";
+
     public static final String AWS_URL_HOST = "amazonaws.com";
+
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
+
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
 
     private final boolean useInstanceProfileForCredentials;
-    /**
+
+   /**
      * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
      */
     @CheckForNull
@@ -130,24 +143,21 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     @Deprecated
     private transient Secret secretKey;
+
     protected final EC2PrivateKey privateKey;
 
     /**
      * Upper bound on how many instances we may provision.
      */
     public final int instanceCap;
+
     private final List<? extends SlaveTemplate> templates;
+
     private transient KeyPair usableKeyPair;
 
     protected transient AmazonEC2 connection;
 
     private static AWSCredentialsProvider awsCredentialsProvider;
-
-    /*
-     * Track the count per-AMI identifiers for AMIs currently being provisioned, but not necessarily reported yet by
-     * Amazon.
-     */
-    private static HashMap<String, Integer> provisioningAmis = new HashMap<String, Integer>();
 
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
@@ -286,67 +296,10 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of instances in EC2 currently running that are using the specified image and a template.
-     *
-     * @param ami If AMI is left null, then all instances are counted and template description is ignored.
-     * <p>
-     * This includes those instances that may be started outside Jenkins.
-     * @param templateDesc 
-     */
-    public int countCurrentEC2Slaves(String ami, String templateDesc) throws AmazonClientException {
-        int n=0;
-        for (Reservation r : connect().describeInstances().getReservations()) {
-            for (Instance i : r.getInstances()) {
-                if (isEc2ProvisionedAmiSlave(i, ami, templateDesc)) {
-                    InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName == InstanceStateName.Pending || stateName == InstanceStateName.Running) {
-                        EC2AbstractSlave foundSlave = null;
-                        for (EC2AbstractSlave ec2Node : NodeIterator.nodes(EC2AbstractSlave.class)) {
-                            if (ec2Node.getInstanceId().equals(i.getInstanceId())) {
-                                foundSlave = ec2Node;
-                                break;
-                            }
-                        }
-                        // Don't count disconnected slaves as being used, we will connected them later is required
-                        if (foundSlave != null && foundSlave.toComputer().isOffline())
-                            continue;
-                        n++;
-                    }
-                }
-            }
-        }
-        return n;
-    }
-
-    protected boolean isEc2ProvisionedAmiSlave(Instance i, String ami, String templateDesc) {
-        // Check if the ami matches
-        if (ami == null || StringUtils.equals(ami, i.getImageId())) {
-            // Check if there is a ec2slave tag...
-            for (Tag tag : i.getTags()) {
-                if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                	if (ami == null || templateDesc == null) {
-                		return true;
-                	} else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND) || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
-                		// To handle cases where description is null and also upgrade cases for existing slave nodes.
-                		return true;
-                	} else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, templateDesc)) || 
-                			StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, templateDesc))) {
-                		return true;
-                	} else {
-                		return false;
-                	}
-                }
-            }
-            return false;
-        }
-        return false;
-    }
-
-    /**
      * Debug command to attach to a running instance.
      */
-    public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id) throws ServletException,
-            IOException, AmazonClientException {
+    public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id)
+            throws ServletException, IOException, AmazonClientException {
         checkPermission(PROVISION);
         SlaveTemplate t = getTemplates().get(0);
 
@@ -371,7 +324,9 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         try {
-            EC2AbstractSlave node = t.provision(listener);
+            EC2AbstractSlave node = provisionSlaveIfPossible(t);
+            if (node == null)
+                throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
             Hudson.getInstance().addNode(node);
 
             return HttpResponses.redirectViaContextPath("/computer/" + node.getNodeName());
@@ -381,63 +336,83 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Check for the count of EC2 slaves and determine if a new slave can be added. Takes into account both what Amazon
-     * reports as well as an internal count of slaves currently being "provisioned".
-     * Check for the count of EC2 slaves and determine if a new slave can be added.
-     * Takes into account both what Amazon reports as well as an internal count
-     * of slaves currently being "provisioned".
-     * @param templateDesc 
+     * Counts the number of instances in EC2 that can be used with the specified image and a template.
+     *
+     * @param ami If AMI is left null, then all instances are counted and template description is ignored.
      */
-    private boolean addProvisionedSlave(String ami, int amiCap, String templateDesc) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(ami, templateDesc);
-
-        synchronized (provisioningAmis) {
-            int currentProvisioning;
-
-            for (int amiCount : provisioningAmis.values()) {
-                estimatedTotalSlaves += amiCount;
+    public int countCurrentEC2Slaves(String ami, String templateDesc) throws AmazonClientException {
+        int n = 0;
+        for (Reservation r : connect().describeInstances().getReservations()) {
+            for (Instance i : r.getInstances()) {
+                if (isEc2ProvisionedAmiSlave(i, ami, templateDesc)) {
+                    InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
+                    if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
+                        LOGGER.log(Level.INFO, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId() + " Template: " + templateDesc);
+                        n++;
+                    }
+                }
             }
-            try {
-                currentProvisioning = provisioningAmis.get(ami);
-            } catch (NullPointerException npe) {
-                currentProvisioning = 0;
-            }
-
-            estimatedAmiSlaves += currentProvisioning;
-
-            if (estimatedTotalSlaves >= instanceCap) {
-                LOGGER.log(Level.INFO, "Total instance cap of " + instanceCap + " reached, not provisioning.");
-                return false; // maxed out
-            }
-
-            if (estimatedAmiSlaves >= amiCap) {
-                LOGGER.log(Level.INFO, "AMI Instance cap of " + amiCap + " reached for ami " + ami
-                        + ", not provisioning.");
-                return false; // maxed out
-            }
-
-            LOGGER.log(Level.INFO, "Provisioning for AMI " + ami + "; " + "Estimated number of total slaves: "
-                    + String.valueOf(estimatedTotalSlaves) + "; " + "Estimated number of slaves for ami " + ami + ": "
-                    + String.valueOf(estimatedAmiSlaves));
-
-            provisioningAmis.put(ami, currentProvisioning + 1);
-            return true;
         }
+        return n;
+    }
+
+    protected boolean isEc2ProvisionedAmiSlave(Instance i, String ami, String templateDesc) {
+        // Check if the ami matches
+        if (ami == null || StringUtils.equals(ami, i.getImageId())) {
+            // Check if there is a ec2slave tag...
+            for (Tag tag : i.getTags()) {
+                if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    if (ami == null || templateDesc == null) {
+                        return true;
+                    } else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
+                            || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
+                        // To handle cases where description is null and also upgrade cases for existing slave nodes.
+                        return true;
+                    } else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, templateDesc))
+                            || StringUtils.equals(tag.getValue(),
+                            getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, templateDesc))) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+        return false;
     }
 
     /**
-     * Decrease the count of slaves being "provisioned".
+     * Returns the maximum number of possible slaves that can be created.
      */
-    private void decrementAmiSlaveProvision(String ami) {
-        synchronized (provisioningAmis) {
-            int currentProvisioning;
-            try {
-                currentProvisioning = provisioningAmis.get(ami);
-            } catch (NullPointerException npe) {
-                return;
-            }
-            provisioningAmis.put(ami, Math.max(currentProvisioning - 1, 0));
+    private int getPossibleNewSlavesCount(String ami, int amiCap, String templateDesc)
+            throws AmazonClientException {
+        int estimatedTotalSlaves = countCurrentEC2Slaves(null, null);
+        int estimatedAmiSlaves = countCurrentEC2Slaves(ami, templateDesc);
+
+        int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
+        int availableAmiSlaves = amiCap - estimatedAmiSlaves;
+        LOGGER.log(Level.INFO, "Available Total Slaves: " + availableTotalSlaves + " Available AMI slaves: " + availableAmiSlaves + " AMI: " + ami + " TemplateDesc: " + templateDesc);
+
+        return Math.min(availableAmiSlaves, availableTotalSlaves);
+    }
+
+    private synchronized EC2AbstractSlave provisionSlaveIfPossible(SlaveTemplate t) {
+        /*
+         * Note this is synchronized between counting the instances and then allocating the node. Once the node is
+         * allocated, we don't look at that instance as available for provisioning.
+         */
+        int possibleSlavesCount = getPossibleNewSlavesCount(t.ami, t.getInstanceCap(), t.description);
+        if (possibleSlavesCount < 0) {
+            LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
+            return null;
+        }
+
+        try {
+            return t.provision(StreamTaskListener.fromStdout(), possibleSlavesCount > 0);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+            return null;
         }
     }
 
@@ -450,7 +425,8 @@ public abstract class EC2Cloud extends Cloud {
                 // We only want to count potential additional Spot instance
                 // slaves
                 if (n.getComputer().isOffline() && label.matches(n.getAssignedLabels())) {
-                    DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(n.getSpotInstanceRequestId());
+                    DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest()
+                            .withSpotInstanceRequestIds(n.getSpotInstanceRequestId());
 
                     for (SpotInstanceRequest sir : connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests()) {
                         // Count Spot requests that are open and still have a
@@ -464,54 +440,34 @@ public abstract class EC2Cloud extends Cloud {
                     }
                 }
             }
-            LOGGER.log(Level.INFO, "Excess workload after pending Spot instances: " + excessWorkload);
 
             List<PlannedNode> r = new ArrayList<PlannedNode>();
-
             final SlaveTemplate t = getTemplate(label);
-            int amiCap = t.getInstanceCap();
 
             while (excessWorkload > 0) {
+                LOGGER.log(Level.INFO, "Attempting provision, excess workload: " + excessWorkload);
 
-                if (!addProvisionedSlave(t.ami, amiCap, t.description)) {
+                final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
+                // Returned null if a new node could not be created
+                if (slave == null)
                     break;
-                }
-
+                Hudson.getInstance().addNode(slave);
                 r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     public Node call() throws Exception {
-                        // TODO: record the output somewhere
-                        try {
-                            EC2AbstractSlave s = t.provision(StreamTaskListener.fromStdout());
-                            Hudson.getInstance().addNode(s);
-                            // EC2 instances may have a long init script. If we
-                            // declare
-                            // the provisioning complete by returning without
-                            // the connect
-                            // operation, NodeProvisioner may decide that it
-                            // still wants
-                            // one more instance, because it sees that (1) all
-                            // the slaves
-                            // are offline (because it's still being launched)
-                            // and
-                            // (2) there's no capacity provisioned yet.
-                            //
-                            // deferring the completion of provisioning until
-                            // the launch
-                            // goes successful prevents this problem.
-                            s.toComputer().connect(false).get();
-                            return s;
-                        } finally {
-                            decrementAmiSlaveProvision(t.ami);
-                        }
+                        slave.toComputer().connect(false).get();
+                        return slave;
                     }
                 }), t.getNumExecutors()));
 
                 excessWorkload -= t.getNumExecutors();
-
             }
+            LOGGER.log(Level.INFO, "Attempting provision - finished, excess workload: " + excessWorkload);
             return r;
         } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to count the # of live instances on EC2", e);
+            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+            return Collections.emptyList();
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return Collections.emptyList();
         }
     }
@@ -524,9 +480,9 @@ public abstract class EC2Cloud extends Cloud {
     private AWSCredentialsProvider createCredentialsProvider() {
         return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
     }
-    
+
     public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
-    	return templateDescription != null ? slaveType+"_"+templateDescription : slaveType;
+        return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {
@@ -568,16 +524,16 @@ public abstract class EC2Cloud extends Cloud {
 
     /***
      * Connect to an EC2 instance.
-     * 
+     *
      * @return {@link AmazonEC2} client
      */
     public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
         awsCredentialsProvider = credentialsProvider;
         ClientConfiguration config = new ClientConfiguration();
         config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
-                                     // cause problems. Raise it a bit.
+        // cause problems. Raise it a bit.
         // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
-        config.setSignerOverride("QueryStringSignerType");
+        config.setSignerOverride("AWS4SignerType");
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
         Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
         if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
@@ -617,8 +573,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Computes the presigned URL for the given S3 resource.
      *
-     * @param path
-     *            String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
+     * @param path String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
      */
     public URL buildPresignedURL(String path) throws AmazonClientException {
         AWSCredentials credentials = awsCredentialsProvider.getCredentials();
@@ -639,6 +594,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
+
         public InstanceType[] getInstanceTypes() {
             return InstanceType.values();
         }
@@ -668,7 +624,8 @@ public abstract class EC2Cloud extends Cloud {
             if (!hasStart)
                 return FormValidation.error("This doesn't look like a private key at all");
             if (!hasEnd)
-                return FormValidation.error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
+                return FormValidation
+                        .error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
             return FormValidation.ok();
         }
 
@@ -676,6 +633,7 @@ public abstract class EC2Cloud extends Cloud {
                 throws IOException, ServletException {
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
@@ -686,8 +644,9 @@ public abstract class EC2Cloud extends Cloud {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if (pk.find(ec2) == null)
-                        return FormValidation.error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
-                                + pk.getFingerprint() + ")");
+                        return FormValidation
+                                .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
+                                        + pk.getFingerprint() + ")");
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
@@ -719,8 +678,8 @@ public abstract class EC2Cloud extends Cloud {
                 CreateKeyPairRequest request = new CreateKeyPairRequest("hudson-" + n);
                 KeyPair key = ec2.createKeyPair(request).getKeyPair();
 
-                rsp.addHeader("script", "findPreviousFormItem(button,'privateKey').value='"
-                        + key.getKeyMaterial().replace("\n", "\\n") + "'");
+                rsp.addHeader("script",
+                        "findPreviousFormItem(button,'privateKey').value='" + key.getKeyMaterial().replace("\n", "\\n") + "'");
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
             } catch (AmazonClientException e) {
