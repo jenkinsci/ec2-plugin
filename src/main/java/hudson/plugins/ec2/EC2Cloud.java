@@ -18,6 +18,34 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.Credentials;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.CredentialsStore;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import hudson.ProxyConfiguration;
+import hudson.model.Computer;
+import hudson.model.Descriptor;
+import hudson.model.Hudson;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.security.ACL;
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
+import hudson.util.ListBoxModel;
+import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
@@ -34,6 +62,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -102,9 +132,17 @@ public abstract class EC2Cloud extends Cloud {
 
     private final boolean useInstanceProfileForCredentials;
 
-    private final String accessId;
-
-    private final Secret secretKey;
+   /**
+     * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
+     */
+    @CheckForNull
+    private String credentialsId;
+    @CheckForNull
+    @Deprecated
+    private transient String accessId;
+    @CheckForNull
+    @Deprecated
+    private transient Secret secretKey;
 
     protected final EC2PrivateKey privateKey;
 
@@ -121,12 +159,10 @@ public abstract class EC2Cloud extends Cloud {
 
     private static AWSCredentialsProvider awsCredentialsProvider;
 
-    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey,
-                       String instanceCapStr, List<? extends SlaveTemplate> templates) {
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
-        this.accessId = accessId.trim();
-        this.secretKey = Secret.fromString(secretKey.trim());
+        this.credentialsId = credentialsId;
         this.privateKey = new EC2PrivateKey(privateKey);
 
         if (templates == null) {
@@ -151,6 +187,52 @@ public abstract class EC2Cloud extends Cloud {
     protected Object readResolve() {
         for (SlaveTemplate t : templates)
             t.parent = this;
+        if (this.accessId != null && credentialsId == null) {
+            // REPLACE this.accessId and this.secretId by a credential
+
+            SystemCredentialsProvider systemCredentialsProvider = SystemCredentialsProvider.getInstance();
+            // ITERATE ON EXISTING CREDS AND DON'T CREATE IF EXIST
+            for (Credentials credentials: systemCredentialsProvider.getCredentials()) {
+                if (credentials instanceof AmazonWebServicesCredentials) {
+                    AmazonWebServicesCredentials awsCreds = (AmazonWebServicesCredentials) credentials;
+                    AWSCredentials awsCredentials = awsCreds.getCredentials();
+                    if (accessId.equals(awsCredentials.getAWSAccessKeyId()) &&
+                            Secret.toString(this.secretKey).equals(awsCredentials.getAWSSecretKey())) {
+
+                        this.credentialsId = awsCreds.getId();
+                        this.accessId = null;
+                        this.secretKey = null;
+                        return this;
+                    }
+                }
+            }
+            // CREATE
+            for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.getInstance())) {
+
+                if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+
+                    try {
+                        String credsId = UUID.randomUUID().toString();
+                        credentialsStore.addCredentials(Domain.global(), new AWSCredentialsImpl(
+                                CredentialsScope.SYSTEM,
+                                credsId,
+                                this.accessId,
+                                this.secretKey.getEncryptedValue(),
+                                "EC2 Cloud - " + getDisplayName()));
+                        this.credentialsId = credsId;
+                        this.accessId = null;
+                        this.secretKey = null;
+                        return this;
+                    } catch (IOException e) {
+                        this.credentialsId = null;
+                        LOGGER.log(Level.WARNING, "Exception converting legacy configuration to the new credentials API", e);
+                    }
+                }
+
+            }
+            // PROBLEM, GLOBAL STORE NOT FOUND
+            LOGGER.log(Level.WARNING, "EC2 Plugin could not migrate credentials to the Jenkins Global Credentials Store, EC2 Plugin for cloud {0} must be manually reconfigured", getDisplayName());
+        }
         return this;
     }
 
@@ -158,12 +240,8 @@ public abstract class EC2Cloud extends Cloud {
         return useInstanceProfileForCredentials;
     }
 
-    public String getAccessId() {
-        return accessId;
-    }
-
-    public String getSecretKey() {
-        return secretKey.getEncryptedValue();
+    public String getCredentialsId() {
+        return credentialsId;
     }
 
     public EC2PrivateKey getPrivateKey() {
@@ -400,27 +478,34 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private AWSCredentialsProvider createCredentialsProvider() {
-        return createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
-    }
-
-    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials,
-                                                                   final String accessId, final String secretKey) {
-        return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
+        return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
     }
 
     public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
         return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
     }
 
-    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials,
-                                                                   final String accessId, final Secret secretKey) {
+    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {
 
         if (useInstanceProfileForCredentials) {
             return new InstanceProfileCredentialsProvider();
+        } else if (StringUtils.isBlank(credentialsId)) {
+            return new DefaultAWSCredentialsProviderChain();
+        } else {
+            AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
+            return new StaticCredentialsProvider(credentials.getCredentials());
         }
+    }
 
-        BasicAWSCredentials credentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
-        return new StaticCredentialsProvider(credentials);
+    @CheckForNull
+    private static AmazonWebServicesCredentials getCredentials(@Nullable String credentialsId) {
+        if (StringUtils.isBlank(credentialsId)) {
+            return null;
+        }
+        return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
+                        ACL.SYSTEM, Collections.EMPTY_LIST),
+                CredentialsMatchers.withId(credentialsId));
     }
 
     /**
@@ -514,17 +599,6 @@ public abstract class EC2Cloud extends Cloud {
             return InstanceType.values();
         }
 
-        public FormValidation doCheckAccessId(@QueryParameter String value) throws IOException, ServletException {
-            if (value.trim().length() != 20) {
-                return FormValidation.error(Messages.EC2Cloud_InvalidAccessId());
-            }
-            return FormValidation.validateBase64(value, false, false, Messages.EC2Cloud_InvalidAccessId());
-        }
-
-        public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
-            return FormValidation.validateBase64(value, false, false, Messages.EC2Cloud_InvalidSecretKey());
-        }
-
         public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
             if (value) {
                 try {
@@ -555,11 +629,11 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String accessId,
-                                                  String secretKey, String privateKey) throws IOException, ServletException {
+        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey)
+                throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId,
-                        secretKey);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
@@ -582,11 +656,10 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials,
-                                            String accessId, String secretKey) throws IOException, ServletException {
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId)
+                throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId,
-                        secretKey);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
@@ -613,6 +686,17 @@ public abstract class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());
             }
+        }
+
+        public ListBoxModel doFillCredentialsIdItems() {
+            return new StandardListBoxModel()
+                    .withEmptySelection()
+                    .withMatching(
+                            CredentialsMatchers.always(),
+                            CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class,
+                                    Jenkins.getInstance(),
+                                    ACL.SYSTEM,
+                                    Collections.EMPTY_LIST));
         }
     }
 

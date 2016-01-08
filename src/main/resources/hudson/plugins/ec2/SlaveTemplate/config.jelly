@@ -1,18 +1,14 @@
 <!--
 The MIT License
-
 Copyright (c) 2011, CloudBees, Inc.
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,157 +20,157 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
   <table width="100%">
 
-  <f:entry title="${%Description}" field="description">
-    <f:textbox />
-  </f:entry>
-
-  <f:entry title="${%AMI ID}" field="ami">
-    <f:textbox />
-  </f:entry>
-
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,secretKey,accessId,region,ec2endpoint,ami" />
-
-  <f:entry title="${%Instance Type}" field="type">
-    <f:enum>${it.name()}</f:enum>
-  </f:entry>
-
-  <f:entry title="${%EBS Optimized}" field="ebsOptimized">
-    <f:checkbox />
-  </f:entry>
-
-  <f:entry title="${%Availability Zone}" field="zone">
-    <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12
-         See: https://groups.google.com/group/jenkinsci-dev/t/af37fa7fe2769b0c -->
-    <!-- <f:select/>-->
-    <f:textbox/>
-  </f:entry>
-
-  <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:description>Be aware, AMIs used for Spot slaves must be configured to callback to Jenkins when
-    a Spot request has been fulfilled and the instance has become available. The call back script can
-    be found by clicking the following link. <a href="${resURL}/plugin/ec2/AMI-Scripts/ubuntu-ami-setup.sh">Ubuntu-ami-setup</a>
-    </f:description>
-    <f:description>Slaves designated as Spot slaves will initially show up as disconnected. The state
-    will change to connecting when a Spot request has been fulfilled. </f:description>
-
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,accessId,secretKey,region,type,zone" />
-
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+    <f:entry title="${%Description}" field="description">
       <f:textbox />
     </f:entry>
 
-    <f:entry field="bidType" title="Choose Bid Type">
-      <f:select />
-    </f:entry>
-  </f:optionalBlock>
-
-  <f:entry title="${%Security group names}" field="securityGroups">
-    <f:textbox/>
-  </f:entry>
-
-  <f:entry title="${%Remote FS root}" field="remoteFS">
-    <f:textbox />
-  </f:entry>
-
-  <f:entry title="${%Remote user}" field="remoteAdmin">
-    <f:textbox />
-  </f:entry>
-
- <f:dropdownDescriptorSelector title="${%AMI Type}" field="amiType" descriptors="${descriptor.getAMITypeDescriptors()}" />
-
-  <f:entry title="${%Labels}" field="labelString">
-    <f:textbox />
-  </f:entry>
-
-  <f:slave-mode name="mode" node="${instance}" />
-
-  <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
-    <f:textbox default="30" />
-  </f:entry>
-
-  <f:entry title="${%Init script}" field="initScript">
-    <f:textarea />
-  </f:entry>
-
-  <f:advanced>
-      
-    <f:entry title="${%Override temporary dir location}" field="tmpDir">
+    <f:entry title="${%AMI ID}" field="ami">
       <f:textbox />
     </f:entry>
 
-    <f:entry title="${%User Data}" field="userData">
-      <f:textarea />
+    <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami" />
+
+    <f:entry title="${%Instance Type}" field="type">
+      <f:enum>${it.name()}</f:enum>
     </f:entry>
 
-    <f:entry title="${%Number of Executors}" field="numExecutors">
-      <f:textbox />
+    <f:entry title="${%EBS Optimized}" field="ebsOptimized">
+      <f:checkbox />
     </f:entry>
 
-    <f:entry title="${%JVM Options}" field="jvmopts">
+    <f:entry title="${%Availability Zone}" field="zone">
+      <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12
+           See: https://groups.google.com/group/jenkinsci-dev/t/af37fa7fe2769b0c -->
+      <!-- <f:select/>-->
       <f:textbox/>
     </f:entry>
 
-    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
-      <f:checkbox />
+    <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
+      <f:description>Be aware, AMIs used for Spot slaves must be configured to callback to Jenkins when
+        a Spot request has been fulfilled and the instance has become available. The call back script can
+        be found by clicking the following link. <a href="${resURL}/plugin/ec2/AMI-Scripts/ubuntu-ami-setup.sh">Ubuntu-ami-setup</a>
+      </f:description>
+      <f:description>Slaves designated as Spot slaves will initially show up as disconnected. The state
+        will change to connecting when a Spot request has been fulfilled. </f:description>
+
+      <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
+
+      <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry field="bidType" title="Choose Bid Type">
+        <f:select />
+      </f:entry>
+    </f:optionalBlock>
+
+    <f:entry title="${%Security group names}" field="securityGroups">
+      <f:textbox/>
     </f:entry>
 
-    <f:entry title="${%Subnet ID for VPC}" field="subnetId">
-       <f:textbox />
+    <f:entry title="${%Remote FS root}" field="remoteFS">
+      <f:textbox />
     </f:entry>
 
-    <f:entry title="${%Use dedicated tenancy}" field="useDedicatedTenancy">
-      <f:checkbox />
+    <f:entry title="${%Remote user}" field="remoteAdmin">
+      <f:textbox />
     </f:entry>
 
-    <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
-       <f:repeatable field="tags">
+    <f:dropdownDescriptorSelector title="${%AMI Type}" field="amiType" descriptors="${descriptor.getAMITypeDescriptors()}" />
+
+    <f:entry title="${%Labels}" field="labelString">
+      <f:textbox />
+    </f:entry>
+
+    <f:slave-mode name="mode" node="${instance}" />
+
+    <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
+      <f:textbox default="30" />
+    </f:entry>
+
+    <f:entry title="${%Init script}" field="initScript">
+      <f:textarea />
+    </f:entry>
+
+    <f:advanced>
+
+      <f:entry title="${%Override temporary dir location}" field="tmpDir">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%User Data}" field="userData">
+        <f:textarea />
+      </f:entry>
+
+      <f:entry title="${%Number of Executors}" field="numExecutors">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%JVM Options}" field="jvmopts">
+        <f:textbox/>
+      </f:entry>
+
+      <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
+        <f:checkbox />
+      </f:entry>
+
+      <f:entry title="${%Subnet ID for VPC}" field="subnetId">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%Use dedicated tenancy}" field="useDedicatedTenancy">
+        <f:checkbox />
+      </f:entry>
+
+      <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
+        <f:repeatable field="tags">
           <st:include page="config.jelly" class="${descriptor.clazz}" />
-       </f:repeatable>
+        </f:repeatable>
+      </f:entry>
+
+      <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
+        <f:checkbox />
+      </f:entry>
+
+      <f:entry title="${%Instance Cap}" field="instanceCapStr">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%IAM Instance Profile}" field="iamInstanceProfile">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">
+        <f:checkbox />
+      </f:entry>
+
+      <f:entry title="${%Block device mapping}" field="customDeviceMapping">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
+        <f:textbox />
+      </f:entry>
+
+      <f:entry title="${%Associate Public IP}" field="associatePublicIp">
+        <f:checkbox />
+      </f:entry>
+
+      <f:entry title="${%Connect using Public IP}" field="connectUsingPublicIp">
+        <f:checkbox />
+      </f:entry>
+
+      <f:entry title="${%Connect by SSH Process}" field="connectBySSHProcess">
+        <f:checkbox />
+      </f:entry>
+
+    </f:advanced>
+
+    <f:entry title="">
+      <div align="right">
+        <f:repeatableDeleteButton />
+      </div>
     </f:entry>
 
-    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
-      <f:checkbox />
-    </f:entry>
-
-    <f:entry title="${%Instance Cap}" field="instanceCapStr">
-      <f:textbox />
-    </f:entry>
-
-    <f:entry title="${%IAM Instance Profile}" field="iamInstanceProfile">
-      <f:textbox />
-    </f:entry>
-
-    <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">
-      <f:checkbox />
-    </f:entry>
-
-    <f:entry title="${%Block device mapping}" field="customDeviceMapping">
-      <f:textbox />
-    </f:entry>
-
-    <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
-      <f:textbox />
-    </f:entry>
-
-    <f:entry title="${%Associate Public IP}" field="associatePublicIp">
-      <f:checkbox />
-    </f:entry>
-
-    <f:entry title="${%Connect using Public IP}" field="connectUsingPublicIp">
-      <f:checkbox />
-    </f:entry>
-
-    <f:entry title="${%Connect by SSH Process}" field="connectBySSHProcess">
-      <f:checkbox />
-    </f:entry>
-
-  </f:advanced>
-
-  <f:entry title="">
-    <div align="right">
-      <f:repeatableDeleteButton />
-    </div>
-  </f:entry>
-
-</table>
+  </table>
 </j:jelly>
