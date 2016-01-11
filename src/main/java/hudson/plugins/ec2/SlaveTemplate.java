@@ -370,7 +370,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     public EC2AbstractSlave provision(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
-            return provisionSpot(listener);
+            if (allowCreateNew)
+                return provisionSpot(listener);
+            return null;
         }
         return provisionOndemand(listener, allowCreateNew);
     }
