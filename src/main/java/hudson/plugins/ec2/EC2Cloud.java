@@ -337,6 +337,7 @@ public abstract class EC2Cloud extends Cloud {
             if (sir == null) {
                 LOGGER.log(Level.INFO, "Found spot node without request: " + ec2Slave.getSpotInstanceRequestId());
                 n++;
+                continue;
             }
             if (sirSet.contains(sir))
                 continue;
