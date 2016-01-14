@@ -82,6 +82,8 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String tmpDir;
     public final String remoteAdmin; // e.g. 'ubuntu'
 
+    public final String templateDescription;
+
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
@@ -126,6 +128,7 @@ public abstract class EC2AbstractSlave extends Slave {
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
 
         this.instanceId = instanceId;
+        this.templateDescription = description;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
         this.remoteAdmin = remoteAdmin;

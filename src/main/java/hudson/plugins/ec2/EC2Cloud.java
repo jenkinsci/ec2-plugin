@@ -23,12 +23,16 @@ import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,10 +42,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import javax.servlet.ServletException;
 
+import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
@@ -247,8 +254,6 @@ public abstract class EC2Cloud extends Cloud {
             throw HttpResponses.error(SC_BAD_REQUEST, "No such template: " + template);
         }
 
-        StringWriter sw = new StringWriter();
-        StreamTaskListener listener = new StreamTaskListener(sw);
         try {
             EC2AbstractSlave node = provisionSlaveIfPossible(t);
             if (node == null)
@@ -669,6 +674,23 @@ public abstract class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());
             }
+        }
+    }
+
+    private static final SimpleFormatter sf = new SimpleFormatter();
+
+    public static void log(Logger logger, Level level, TaskListener listener, String message) {
+        log(logger, level, listener, message, null);
+    }
+
+    public static void log(Logger logger, Level level, TaskListener listener, String message, Throwable exception) {
+        logger.log(level, message, exception);
+        if (listener != null) {
+            if (exception != null)
+                message += " Exception: " + exception;
+            LogRecord lr = new LogRecord(level, message);
+            PrintStream printStream = listener.getLogger();
+            printStream.print(sf.format(lr));
         }
     }
 

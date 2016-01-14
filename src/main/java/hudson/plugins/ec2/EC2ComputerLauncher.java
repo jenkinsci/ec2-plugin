@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.amazonaws.AmazonClientException;
@@ -50,8 +51,6 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     public void launch(SlaveComputer _computer, TaskListener listener) {
         try {
             EC2Computer computer = (EC2Computer) _computer;
-            PrintStream logger = listener.getLogger();
-
             final String baseMsg = "Node " + computer.getName() + "(" + computer.getInstanceId() + ")";
             String msg;
 
@@ -65,13 +64,11 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                     break;
                 case RUNNING:
                     msg = baseMsg + " is ready";
-                    LOGGER.finer(msg);
-                    logger.println(msg);
+                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINER, listener, msg);
                     break OUTER;
                 case STOPPED:
                     msg = baseMsg + " is stopped, sending start request";
-                    LOGGER.finer(msg);
-                    logger.println(msg);
+                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.INFO, listener, msg);
 
                     AmazonEC2 ec2 = computer.getCloud().connect();
                     List<String> instances = new ArrayList<String>();
@@ -81,15 +78,13 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                     StartInstancesResult siResult = ec2.startInstances(siRequest);
 
                     msg = baseMsg + ": sent start request, result: " + siResult;
-                    LOGGER.finer(baseMsg);
-                    logger.println(baseMsg);
+                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.INFO, listener, msg);
                     continue OUTER;
                 case SHUTTING_DOWN:
                 case TERMINATED:
                     // abort
                     msg = baseMsg + " is terminated or terminating, aborting launch";
-                    LOGGER.info(msg);
-                    logger.println(msg);
+                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.INFO, listener, msg);
                     return;
                 default:
                     msg = baseMsg + " is in an unknown state, retrying in 5s";
@@ -99,8 +94,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                 // check every 5 secs
                 Thread.sleep(5000);
                 // and report to system log and console
-                LOGGER.finest(msg);
-                logger.println(msg);
+                ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
             }
 
             launch(computer, listener, computer.describeInstance());
