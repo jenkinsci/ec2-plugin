@@ -118,8 +118,9 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
             LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + spotRequestId);
         }
 
-        if (dsirResult == null || siRequests.size() <= 0)
+        if (dsirResult == null || siRequests.isEmpty()) {
             return null;
+        }
         return siRequests.get(0);
     }
 
