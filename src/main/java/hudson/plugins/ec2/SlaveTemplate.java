@@ -483,8 +483,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else {
                 /* No subnet: we can use standard security groups by name */
                 riRequest.setSecurityGroups(securityGroupSet);
-                if (securityGroupSet.size() > 0)
+                if (!securityGroupSet.isEmpty()) {
                     diFilters.add(new Filter("instance.group-name").withValues(securityGroupSet));
+                }
             }
 
             String userDataString = Base64.encodeBase64String(userData.getBytes());
@@ -714,8 +715,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             } else {
                 /* No subnet: we can use standard security groups by name */
-                if (securityGroupSet.size() > 0)
+                if (!securityGroupSet.isEmpty()) {
                     launchSpecification.setSecurityGroups(securityGroupSet);
+                }
             }
 
             // The slave must know the Jenkins server to register with as well
@@ -793,7 +795,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
 
             List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
-            if (reqInstances.size() <= 0) {
+            if (reqInstances.isEmpty()) {
                 throw new AmazonClientException("No spot instances found");
             }
 

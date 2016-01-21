@@ -272,10 +272,11 @@ public abstract class EC2AbstractSlave extends Slave {
             request.setInstanceIds(Collections.<String> singletonList(instanceId));
             AmazonEC2 ec2 = cloud.connect();
             List<Reservation> reservations = ec2.describeInstances(request).getReservations();
-            if (reservations.size() > 0) {
+            if (!reservations.isEmpty()) {
                 List<Instance> instances = reservations.get(0).getInstances();
-                if (instances.size() > 0)
+                if (!instances.isEmpty()) {
                     i = instances.get(0);
+                }
             }
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Failed to fetch EC2 instance: " + instanceId, e);
