@@ -71,7 +71,7 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
     public boolean equals(Object o) {
         if (o == null)
             return false;
-        if (!(o instanceof EC2Tag))
+        if (this.getClass() != o.getClass())
             return false;
 
         EC2Tag other = (EC2Tag) o;

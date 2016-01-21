@@ -54,7 +54,7 @@ public class UnixData extends AMITypeData {
             return true;
         if (obj == null)
             return false;
-        if (!(obj instanceof UnixData))
+        if (this.getClass() != obj.getClass())
             return false;
         UnixData other = (UnixData) obj;
         if (rootCommandPrefix == null) {

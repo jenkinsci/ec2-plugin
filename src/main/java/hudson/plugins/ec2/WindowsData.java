@@ -71,7 +71,7 @@ public class WindowsData extends AMITypeData {
             return true;
         if (obj == null)
             return false;
-        if (!(obj instanceof WindowsData))
+        if (this.getClass() != obj.getClass())
             return false;
         WindowsData other = (WindowsData) obj;
         if (bootDelay == null) {

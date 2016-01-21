@@ -164,7 +164,7 @@ public class EC2PrivateKey {
 
     @Override
     public boolean equals(Object that) {
-        return that instanceof EC2PrivateKey && this.privateKey.equals(((EC2PrivateKey) that).privateKey);
+        return this.getClass() == that.getClass() && this.privateKey.equals(((EC2PrivateKey) that).privateKey);
     }
 
     @Override
