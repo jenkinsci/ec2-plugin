@@ -12,7 +12,7 @@ import org.dom4j.QName;
 
 public class SignalRequest extends AbstractWinRMRequest {
 
-    private String commandId, shellId;
+    private final String commandId, shellId;
 
     public SignalRequest(URL url, String shellId, String commandId) {
         super(url);

@@ -3,7 +3,7 @@ package hudson.plugins.ec2.win.winrm.request;
 import java.net.URL;
 
 public class RequestFactory {
-    private URL url;
+    private final URL url;
     private String timeout = "PT60S";
     private int envelopSize = 153600;
     private String locale = "en-US";

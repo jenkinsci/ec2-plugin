@@ -15,8 +15,8 @@ import com.google.common.collect.ImmutableList;
 
 public class ExecuteCommandRequest extends AbstractWinRMRequest {
 
-    private String shellId;
-    private String command;
+    private final String shellId;
+    private final String command;
 
     public ExecuteCommandRequest(URL url, String shellId, String command) {
         super(url);

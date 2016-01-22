@@ -12,7 +12,7 @@ import org.dom4j.QName;
 
 public class GetOutputRequest extends AbstractWinRMRequest {
 
-    private String shellId, commandId;
+    private final String shellId, commandId;
 
     public GetOutputRequest(URL url, String shellId, String commandId) {
         super(url);

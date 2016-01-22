@@ -53,9 +53,9 @@ import com.google.common.collect.Iterables;
 public class WinRMClient {
     private static final Logger log = Logger.getLogger(WinRMClient.class.getName());
 
-    private URL url;
-    private String username;
-    private String password;
+    private final URL url;
+    private final String username;
+    private final String password;
     private String shellId;
 
     private String commandId;
@@ -65,7 +65,7 @@ public class WinRMClient {
 
     private final RequestFactory factory;
 
-    private ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
+    private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
     private boolean useHTTPS;
     private Scheme httpsScheme;
     private BasicCredentialsProvider credsProvider;

@@ -6,7 +6,7 @@ import java.net.URL;
 
 public class DeleteShellRequest extends AbstractWinRMRequest {
 
-    private String shellId;
+    private final String shellId;
 
     public DeleteShellRequest(URL url, String shellId) {
         super(url);

@@ -27,9 +27,9 @@ public class WinConnection {
     // ^[a-zA-Z]\:(\\|\/)([^\\\/\:\*\?\<\>\"\|]+(\\|\/){0,1})+$
     private static final Pattern VALIDATE_WINDOWS_PATH = Pattern.compile("^[A-Za-z]:\\\\[-a-zA-Z0-9_.\\\\]*");
 
-    private String host;
-    private String username;
-    private String password;
+    private final String host;
+    private final String username;
+    private final String password;
 
     private final NtlmPasswordAuthentication authentication;
 

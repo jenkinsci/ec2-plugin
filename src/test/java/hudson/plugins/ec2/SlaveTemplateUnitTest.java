@@ -123,7 +123,7 @@ public class SlaveTemplateUnitTest {
 }
 
 class TestHandler extends Handler {
-    private List<LogRecord> records = new LinkedList<LogRecord>();
+    private final List<LogRecord> records = new LinkedList<LogRecord>();
 
     @Override
     public void close() throws SecurityException {

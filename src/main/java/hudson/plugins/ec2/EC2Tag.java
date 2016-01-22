@@ -34,8 +34,8 @@ import java.util.LinkedList;
 import com.amazonaws.services.ec2.model.Tag;
 
 public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
-    private String name;
-    private String value;
+    private final String name;
+    private final String value;
 
     /**
      * Tag name for the specific jenkings slave type tag, used to identify the EC2 instances provisioned by this plugin.
