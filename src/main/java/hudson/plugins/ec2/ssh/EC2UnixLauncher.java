@@ -75,8 +75,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
     private static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
 
-    private static int bootstrapAuthSleepMs = 10000;
-    private static int bootstrapAuthTries = 20;
+    private static int bootstrapAuthSleepMs = 30000;
+    private static int bootstrapAuthTries = 30;
 
     static  {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
