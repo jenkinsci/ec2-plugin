@@ -273,7 +273,7 @@ public abstract class EC2Cloud extends Cloud {
      * @param template If left null, then all instances are counted.
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
-        LOGGER.log(Level.INFO, "Counting current slaves: " + (template != null ? (" AMI: " + template.getAmi()) : " All AMIS"));
+        LOGGER.log(Level.FINE, "Counting current slaves: " + (template != null ? (" AMI: " + template.getAmi()) : " All AMIS"));
         int n = 0;
         String description = template != null ? template.description : null;
 
@@ -283,7 +283,7 @@ public abstract class EC2Cloud extends Cloud {
                         || template.getAmi().equals(i.getImageId()) && isEc2ProvisionedAmiSlave(i.getTags(), description))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
-                        LOGGER.log(Level.INFO, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
+                        LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                                 + " Template: " + description);
                         n++;
                     }
@@ -307,7 +307,7 @@ public abstract class EC2Cloud extends Cloud {
         for (SpotInstanceRequest sir : sirs) {
             sirSet.add(sir);
             if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                LOGGER.log(Level.INFO, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
+                LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                         + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                 n++;
             } else {
@@ -340,7 +340,7 @@ public abstract class EC2Cloud extends Cloud {
             EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
             SpotInstanceRequest sir = ec2Slave.getSpotRequest(ec2Slave.getSpotInstanceRequestId());
             if (sir == null) {
-                LOGGER.log(Level.INFO, "Found spot node without request: " + ec2Slave.getSpotInstanceRequestId());
+                LOGGER.log(Level.FINE, "Found spot node without request: " + ec2Slave.getSpotInstanceRequestId());
                 n++;
                 continue;
             }
@@ -348,7 +348,7 @@ public abstract class EC2Cloud extends Cloud {
                 continue;
             sirSet.add(sir);
             if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                LOGGER.log(Level.INFO, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
+                LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                         + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                 n++;
             }
@@ -386,7 +386,7 @@ public abstract class EC2Cloud extends Cloud {
 
         int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
         int availableAmiSlaves = template.getInstanceCap() - estimatedAmiSlaves;
-        LOGGER.log(Level.INFO, "Available Total Slaves: " + availableTotalSlaves + " Available AMI slaves: " + availableAmiSlaves
+        LOGGER.log(Level.FINE, "Available Total Slaves: " + availableTotalSlaves + " Available AMI slaves: " + availableAmiSlaves
                 + " AMI: " + template.getAmi() + " TemplateDesc: " + template.description);
 
         return Math.min(availableAmiSlaves, availableTotalSlaves);
@@ -418,7 +418,7 @@ public abstract class EC2Cloud extends Cloud {
             final SlaveTemplate t = getTemplate(label);
 
             while (excessWorkload > 0) {
-                LOGGER.log(Level.INFO, "Attempting provision, excess workload: " + excessWorkload);
+                LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
 
                 final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
                 // Returned null if a new node could not be created

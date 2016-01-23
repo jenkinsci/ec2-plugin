@@ -417,6 +417,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private void logProvision(PrintStream logger, String message) {
         logger.println(message);
+        LOGGER.fine(message);
+    }
+
+    private void logProvisionInfo(PrintStream logger, String message) {
+        logger.println(message);
         LOGGER.info(message);
     }
 
@@ -428,7 +433,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            logProvision(logger, "Launching " + ami + " for template " + description);
+            logProvisionInfo(logger, "Launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -559,7 +564,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     // local instance data.
                     inst.setTags(inst_tags);
                 }
-                logProvision(logger, "No existing instance found - created new instance: " + inst);
+                logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
 
@@ -571,14 +576,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 StartInstancesRequest siRequest = new StartInstancesRequest(instances);
                 StartInstancesResult siResult = ec2.startInstances(siRequest);
 
-                logProvision(logger, "Found stopped instance - starting it: " + existingInstance + " result:" + siResult);
+                logProvisionInfo(logger, "Found stopped instance - starting it: " + existingInstance + " result:" + siResult);
             } else {
                 // Should be pending or running at this point, just let it come up
-                logProvision(logger, "Found existing pending or running: " + existingInstance.getState().getName() + " instance: " + existingInstance);
+                logProvisionInfo(logger, "Found existing pending or running: " + existingInstance.getState().getName() + " instance: " + existingInstance);
             }
 
             if (ec2Node[0] != null) {
-                logProvision(logger, "Using existing slave: " + ec2Node[0].getInstanceId());
+                logProvisionInfo(logger, "Using existing slave: " + ec2Node[0].getInstanceId());
                 return ec2Node[0];
             }
 
