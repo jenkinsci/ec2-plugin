@@ -95,14 +95,13 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
     /**
      * Retrieve the SpotRequest for a requestId
-     * 
-     * @param spotRequestId
-     * @return SpotInstanceRequest object for the requestId, or null
+     *
+     * @return SpotInstanceRequest object for this slave, or null
      */
-    SpotInstanceRequest getSpotRequest(String spotRequestId) {
+    SpotInstanceRequest getSpotRequest() {
         AmazonEC2 ec2 = getCloud().connect();
 
-        DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(spotRequestId);
+        DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
         DescribeSpotInstanceRequestsResult dsirResult = null;
         List<SpotInstanceRequest> siRequests = null;
 
@@ -112,10 +111,10 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
         } catch (AmazonServiceException e) {
             // Spot request is no longer valid
-            LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + spotRequestId);
+            LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + this.spotInstanceRequestId);
         } catch (AmazonClientException e) {
             // Spot request is no longer valid
-            LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + spotRequestId);
+            LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + this.spotInstanceRequestId);
         }
 
         if (dsirResult == null || siRequests.isEmpty()) {
@@ -134,7 +133,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
     @Override
     public String getInstanceId() {
         if (instanceId == null || instanceId.equals("")) {
-            SpotInstanceRequest sr = getSpotRequest(spotInstanceRequestId);
+            SpotInstanceRequest sr = this.getSpotRequest();
             if (sr != null)
                 instanceId = sr.getInstanceId();
         }
@@ -161,7 +160,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
     @Override
     public String getEc2Type() {
-        String spotMaxBidPrice = this.getSpotRequest(spotInstanceRequestId).getSpotPrice();
+        String spotMaxBidPrice = this.getSpotRequest().getSpotPrice();
         return Messages.EC2SpotSlave_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
                 + Messages.EC2SpotSlave_Spot2();
     }
