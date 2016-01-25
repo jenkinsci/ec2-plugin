@@ -15,11 +15,14 @@ import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.SpotInstanceState;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 import hudson.Extension;
 import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
+import hudson.plugins.ec2.ssh.EC2UnixLauncher;
+import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
 
 public final class EC2SpotSlave extends EC2AbstractSlave {
@@ -28,16 +31,23 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
     public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(name, spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, amiType);
+        this(description + " (" + name + ")", spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, amiType);
     }
 
     @DataBoundConstructor
     public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
 
-        super(name, "", description, remoteFS, numExecutors, mode, labelString, new EC2SpotComputerLauncher(), new EC2SpotRetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, false, launchTimeout, amiType);
+        super(name, "", description, remoteFS, numExecutors, mode, labelString, amiType.isWindows() ? new EC2WindowsLauncher() :
+                new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, false, launchTimeout, amiType);
+
         this.name = name;
         this.spotInstanceRequestId = spotInstanceRequestId;
+    }
+
+    @Override
+    protected boolean isAlive(boolean force) {
+        return super.isAlive(force) || !this.isSpotRequestDead();
     }
 
     /**
@@ -58,7 +68,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
 				// Terminate the slave if it is running
 				if (instanceId != null && !instanceId.equals("")) {
-					if (!isAlive(true)) {
+					if (!super.isAlive(true)) {
 						/*
 						 * The node has been killed externally, so we've nothing to do here
 						 */
@@ -121,6 +131,13 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
             return null;
         }
         return siRequests.get(0);
+    }
+
+    public boolean isSpotRequestDead() {
+        SpotInstanceState requestState = SpotInstanceState.fromValue(this.getSpotRequest().getState());
+        return requestState == SpotInstanceState.Cancelled
+                || requestState == SpotInstanceState.Closed
+                || requestState == SpotInstanceState.Failed;
     }
 
     /**

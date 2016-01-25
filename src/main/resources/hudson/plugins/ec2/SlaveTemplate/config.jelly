@@ -50,13 +50,6 @@ THE SOFTWARE.
   </f:entry>
 
   <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:description>Be aware, AMIs used for Spot slaves must be configured to callback to Jenkins when
-    a Spot request has been fulfilled and the instance has become available. The call back script can
-    be found by clicking the following link. <a href="${resURL}/plugin/ec2/AMI-Scripts/ubuntu-ami-setup.sh">Ubuntu-ami-setup</a>
-    </f:description>
-    <f:description>Slaves designated as Spot slaves will initially show up as disconnected. The state
-    will change to connecting when a Spot request has been fulfilled. </f:description>
-
     <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,accessId,secretKey,region,type,zone" />
 
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
