@@ -291,17 +291,16 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
         List<SpotInstanceRequest> sirs;
+        DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest();
         if (template != null) {
             List<Filter> filters = new ArrayList<Filter>();
             List<String> values = new ArrayList<String>();
             values.add(template.getAmi());
             filters.add(new Filter("launch.image-id", values));
-            DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
-            sirs = connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests();
-        } else {
-            sirs = connect().describeSpotInstanceRequests().getSpotInstanceRequests();
+            dsir = dsir.withFilters(filters);
         }
 
+        sirs = connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests();
         Set<SpotInstanceRequest> sirSet = new HashSet();
 
         for (SpotInstanceRequest sir : sirs) {
