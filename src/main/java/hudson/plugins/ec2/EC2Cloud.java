@@ -279,8 +279,8 @@ public abstract class EC2Cloud extends Cloud {
 
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if ((template == null
-                        || template.getAmi().equals(i.getImageId()) && isEc2ProvisionedAmiSlave(i.getTags(), description))) {
+                if (isEc2ProvisionedAmiSlave(i.getTags(), description) && (template == null
+                        || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
