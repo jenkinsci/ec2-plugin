@@ -104,14 +104,14 @@ public class WinRM {
             // more than a week
             int weeks = seconds / 604800;
             seconds -= (604800 * weeks);
-            iso.append(weeks).append("W");
+            iso.append(weeks).append('W');
         }
 
         if (seconds > 86400) {
             // more than a day
             int days = seconds / 86400;
             seconds -= (86400 * days);
-            iso.append(days).append("D");
+            iso.append(days).append('D');
         }
 
         if (seconds > 0) {
@@ -119,14 +119,14 @@ public class WinRM {
             if (seconds > 3600) { // more than an hour
                 int hours = seconds / 3600;
                 seconds -= (3600 * hours);
-                iso.append(hours).append("H");
+                iso.append(hours).append('H');
             }
             if (seconds > 60) { // more than a minute
                 int minutes = seconds / 60;
                 seconds -= (60 * minutes);
-                iso.append(minutes).append("M");
+                iso.append(minutes).append('M');
             }
-            iso.append(seconds).append("S");
+            iso.append(seconds).append('S');
         }
 
         return iso.toString();

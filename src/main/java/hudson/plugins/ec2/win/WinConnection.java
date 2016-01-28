@@ -100,10 +100,10 @@ public class WinConnection {
         StringBuilder prefix = new StringBuilder();
         prefix.append("smb://");
         if (username != null) {
-            prefix.append(urlEncode(username.replaceFirst(quote("\\"), ";")));
-            prefix.append(":");
-            prefix.append(urlEncode(password));
-            prefix.append("@");
+            prefix.append(urlEncode(username.replaceFirst(quote("\\"), ";")))
+                    .append(':')
+                    .append(urlEncode(password))
+                    .append('@');
         }
         // port?
         prefix.append(urlEncode(host));
