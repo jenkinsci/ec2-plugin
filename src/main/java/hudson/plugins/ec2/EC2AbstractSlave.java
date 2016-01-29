@@ -73,6 +73,8 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
  */
 @SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
+    private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
+
     protected String instanceId;
 
     /**
@@ -558,7 +560,5 @@ public abstract class EC2AbstractSlave extends Slave {
             return Hudson.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
         }
     }
-
-    private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
 }

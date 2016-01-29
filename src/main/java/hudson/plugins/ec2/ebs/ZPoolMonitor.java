@@ -42,6 +42,8 @@ import java.io.IOException;
  */
 @Extension
 public class ZPoolMonitor extends PeriodicWork {
+    private static Boolean isInsideEC2;
+
     @Override
     public long getRecurrencePeriod() {
         return TimeUnit2.HOURS.toMillis(1);
@@ -70,8 +72,6 @@ public class ZPoolMonitor extends PeriodicWork {
         ZPoolExpandNotice zen = AdministrativeMonitor.all().get(ZPoolExpandNotice.class);
         zen.activated = t / a > 10 && a < 1000L * 1000 * 1000;
     }
-
-    private static Boolean isInsideEC2;
 
     /**
      * Returns true if this JVM runs inside EC2.

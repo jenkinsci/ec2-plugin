@@ -19,6 +19,7 @@ import com.amazonaws.AmazonClientException;
  */
 @Extension
 public class EC2SlaveMonitor extends AsyncPeriodicWork {
+    private static final Logger LOGGER = Logger.getLogger(EC2SlaveMonitor.class.getName());
 
     private Long recurrencePeriod;
 
@@ -58,7 +59,5 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
             LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Slave.getInstanceId());
         }
     }
-
-    private static final Logger LOGGER = Logger.getLogger(EC2SlaveMonitor.class.getName());
 
 }

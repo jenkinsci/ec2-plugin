@@ -23,6 +23,7 @@ import hudson.model.Descriptor.FormException;
 import hudson.slaves.NodeProperty;
 
 public final class EC2SpotSlave extends EC2AbstractSlave {
+    private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
 
     private final String spotInstanceRequestId;
 
@@ -156,8 +157,6 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
             return Messages.EC2SpotSlave_AmazonEC2SpotInstance();
         }
     }
-
-    private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
 
     @Override
     public String getEc2Type() {

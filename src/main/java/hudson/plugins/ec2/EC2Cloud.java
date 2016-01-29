@@ -111,6 +111,8 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
 
+    private static final SimpleFormatter sf = new SimpleFormatter();
+
     private final boolean useInstanceProfileForCredentials;
 
     private final String accessId;
@@ -675,8 +677,6 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
     }
-
-    private static final SimpleFormatter sf = new SimpleFormatter();
 
     public static void log(Logger logger, Level level, TaskListener listener, String message) {
         log(logger, level, listener, message, null);
