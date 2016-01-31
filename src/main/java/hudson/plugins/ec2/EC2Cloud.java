@@ -290,7 +290,7 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         }
-        List<SpotInstanceRequest> sirs;
+        List<SpotInstanceRequest> sirs = null;
         List<Filter> filters = new ArrayList<Filter>();
         List<String> values;
         if (template != null) {
@@ -304,32 +304,39 @@ public abstract class EC2Cloud extends Cloud {
         filters.add(new Filter("tag-key", values));
 
         DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
-        sirs = connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests();
+        try {
+            sirs = connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests();
+        } catch (Exception ex) {
+            // Some ec2 implementations don't implement spot requests (Eucalyptus)
+            LOGGER.log(Level.FINEST, "Describe spot instance requests failed", ex);
+        }
         Set<SpotInstanceRequest> sirSet = new HashSet();
 
-        for (SpotInstanceRequest sir : sirs) {
-            sirSet.add(sir);
-            if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
-                        + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                n++;
-            } else {
-                // Canceled or otherwise dead
-                for (Node node : Jenkins.getInstance().getNodes()) {
-                    try {
-                        if (!(node instanceof EC2SpotSlave))
-                            continue;
-                        EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
-                        if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
-                            LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
-                                    + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                            Jenkins.getInstance().removeNode(node);
-                            break;
+        if (sirs != null) {
+            for (SpotInstanceRequest sir : sirs) {
+                sirSet.add(sir);
+                if (sir.getState().equals("open") || sir.getState().equals("active")) {
+                    LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
+                            + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+                    n++;
+                } else {
+                    // Canceled or otherwise dead
+                    for (Node node : Jenkins.getInstance().getNodes()) {
+                        try {
+                            if (!(node instanceof EC2SpotSlave))
+                                continue;
+                            EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
+                            if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
+                                LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
+                                        + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+                                Jenkins.getInstance().removeNode(node);
+                                break;
+                            }
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
+                                            + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus(),
+                                    e);
                         }
-                    } catch (IOException e) {
-                        LOGGER.log(Level.WARNING, "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
-                                + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus(),
-                                e);
                     }
                 }
             }
