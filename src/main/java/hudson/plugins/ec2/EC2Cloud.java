@@ -429,7 +429,7 @@ public abstract class EC2Cloud extends Cloud {
             List<PlannedNode> r = new ArrayList<PlannedNode>();
             final SlaveTemplate t = getTemplate(label);
             LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
-            if(label == null) {
+            if (label == null) {
                 LOGGER.log(Level.WARNING, "Label is null");
             }
             while (excessWorkload > 0 && label != null && !itCanTakeTask()) {
@@ -466,6 +466,18 @@ public abstract class EC2Cloud extends Cloud {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return Collections.emptyList();
         }
+    }
+
+    private boolean itCanTakeTask() {
+        List<Node> nodes = Jenkins.getInstance().getNodes();
+        boolean canTakeTask = false;
+        for (final Node node : nodes) {
+            if (node.toComputer().isAcceptingTasks() && (node.toComputer().isIdle() || node.toComputer().isPartiallyIdle())
+                    && !Jenkins.getInstance().getQueue().getBuildableItems(node.toComputer()).isEmpty()) {
+                canTakeTask = true;
+            }
+        }
+        return canTakeTask;
     }
 
     @Override
