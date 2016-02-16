@@ -426,10 +426,11 @@ public abstract class EC2Cloud extends Cloud {
         try {
             List<PlannedNode> r = new ArrayList<PlannedNode>();
             final SlaveTemplate t = getTemplate(label);
-
-            while (excessWorkload > 0) {
-                LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
-
+            LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
+            if(label == null) {
+                LOGGER.log(Level.WARNING, "Label is null");
+            }
+            while (excessWorkload > 0 && label != null && !itCanTakeTask()) {
                 final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
                 // Returned null if a new node could not be created
                 if (slave == null)
