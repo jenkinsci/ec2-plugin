@@ -430,7 +430,7 @@ public abstract class EC2Cloud extends Cloud {
             if (label == null) {
                 LOGGER.log(Level.WARNING, "Label is null");
             }
-            boolean canTakeTask = !itCanTakeTask();
+            boolean canTakeTask = itCanTakeTask();
             while (excessWorkload > 0 && label != null && !canTakeTask) {
                 final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
                 // Returned null if a new node could not be created
