@@ -468,15 +468,15 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private boolean itCanTakeTask() {
-        List<Node> nodes = Jenkins.getInstance().getNodes();
-        boolean canTakeTask = false;
-        for (final Node node : nodes) {
-            if (node.toComputer().isAcceptingTasks() && (node.toComputer().isIdle() || node.toComputer().isPartiallyIdle())
-                    && !Jenkins.getInstance().getQueue().getBuildableItems(node.toComputer()).isEmpty()) {
-                canTakeTask = true;
+        final Jenkins instance = Jenkins.getInstance();
+        for (final Node node : instance.getNodes()) {
+            final Computer computer = node.toComputer();
+            if (computer.isAcceptingTasks() && (computer.isIdle() || computer.isPartiallyIdle())
+                    && !instance.getQueue().getBuildableItems(computer).isEmpty()) {
+                return true;
             }
         }
-        return canTakeTask;
+        return false;
     }
 
     @Override
