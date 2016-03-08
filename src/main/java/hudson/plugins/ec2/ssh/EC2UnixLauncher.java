@@ -96,6 +96,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             cloud.log(LOGGER, level, listener, message);
     }
 
+    protected void logException(EC2Computer computer, TaskListener listener, String message, Throwable exception) {
+        EC2Cloud cloud = computer.getCloud();
+        if (cloud != null)
+            cloud.log(LOGGER, Level.WARNING, listener, message, exception);
+    }
+
     protected void logInfo(EC2Computer computer, TaskListener listener, String message) {
         log(Level.INFO, computer, listener, message);
     }
@@ -285,7 +291,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     + key.getKeyMaterial().substring(0, 160));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
-                isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                try {
+                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                } catch(IOException e) {
+                    logException(computer, listener, "Error during authentication.", e);
+                }
                 if (isAuthenticated) {
                     break;
                 }
