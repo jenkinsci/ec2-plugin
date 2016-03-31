@@ -27,10 +27,10 @@ import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
-import java.lang.NullPointerException;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang.math.NumberUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -51,6 +51,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     public final int idleTerminationMinutes;
 
     private transient ReentrantLock checkLock;
+    //ec2 instances charged by hour, time less than 1 hour is acceptable
+    private int STARTUP_TIMEOUT= NumberUtils.toInt(System.getProperty(EC2RetentionStrategy.class.getCanonicalName()+".startupTimeout","30"),30);
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
@@ -84,20 +86,29 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
     private long _check(EC2Computer c) {
 
-        /* If we've been told never to terminate, then we're done. */
-        if (idleTerminationMinutes == 0) {
+        /*
+        * If we've been told never to terminate, or node is null(deleted), no checks to perform
+        */
+        if (idleTerminationMinutes == 0 || c.getNode()==null) {
             return 1;
         }
 
-        /*
-         * Don't idle-out instances that're offline, per JENKINS-23792. This prevents a node from being idled down while
-         * it's still starting up.
-         */
-        if (c.isOffline()) {
-            return 1;
-        }
 
         if (c.isIdle() && !disabled) {
+            final long uptime;
+            try {
+                uptime = c.getUptime();
+            } catch (Exception e) {
+                // We'll just retry next time we test for idleness.
+                LOGGER.fine("Exception while checking host uptime for " + c.getName()
+                        + ", will retry next check. Exception: " + e);
+                return 1;
+            }
+            //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
+            //need terminate such fault instance by {@link #STARTUP_TIMEOUT}
+            if(c.isOffline() && uptime<TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)){
+                return 1;
+            }
             final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
@@ -108,15 +119,6 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                     c.getNode().idleTimeout();
                 }
             } else {
-                final long uptime;
-                try {
-                    uptime = c.getUptime();
-                } catch (Exception e) {
-                    // We'll just retry next time we test for idleness.
-                    LOGGER.fine("Exception while checking host uptime for " + c.getName()
-                            + ", will retry next check. Exception: " + e);
-                    return 1;
-                }
                 final int freeSecondsLeft = (60 * 60)
                         - (int) (TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60 * 60));
                 // if we have less "free" (aka already paid for) time left than
