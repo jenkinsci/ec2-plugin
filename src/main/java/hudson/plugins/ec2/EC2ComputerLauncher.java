@@ -51,6 +51,26 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     public void launch(SlaveComputer _computer, TaskListener listener) {
         try {
             EC2Computer computer = (EC2Computer) _computer;
+
+            while (true) {
+                String instanceId = computer.getInstanceId();
+                if (instanceId != null && !instanceId.equals("")) {
+                    break;
+                }
+                // Only spot slaves can have no instance id.
+                EC2SpotSlave ec2Slave = (EC2SpotSlave) computer.getNode();
+                if (ec2Slave.isSpotRequestDead()) {
+                    // Terminate launch
+                    return;
+                }
+                final String msg = "Node " + computer.getName() + "(SpotRequest " + computer.getSpotInstanceRequestId() +
+                    ") still requesting the instance, waiting 10s";
+                // report to system log and console
+                ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
+                // check every 10 seconds if in spot request phase
+                Thread.sleep(10000);
+            }
+
             final String baseMsg = "Node " + computer.getName() + "(" + computer.getInstanceId() + ")";
             String msg;
 
@@ -91,10 +111,10 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                     break;
                 }
 
+                // report to system log and console
+                ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
                 // check every 5 secs
                 Thread.sleep(5000);
-                // and report to system log and console
-                ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
             }
 
             launch(computer, listener, computer.describeInstance());
