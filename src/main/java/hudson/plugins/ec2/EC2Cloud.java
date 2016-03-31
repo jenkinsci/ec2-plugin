@@ -428,29 +428,32 @@ public abstract class EC2Cloud extends Cloud {
         try {
             List<PlannedNode> r = new ArrayList<PlannedNode>();
             final SlaveTemplate t = getTemplate(label);
-
+            LOGGER.log(Level.INFO, "Attempting provision, excess workload: " + excessWorkload);
+            if (label == null) {
+                LOGGER.log(Level.WARNING, String.format("Label is null - can't caculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
+            }
             while (excessWorkload > 0) {
-                LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
-
                 final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;
-                Hudson.getInstance().addNode(slave);
+                LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
+                Jenkins.getInstance().addNode(slave);
+                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
                 r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
                     public Node call() throws Exception {
-                        try {
-                            slave.toComputer().connect(false).get();
-                        } catch (Exception e) {
-                            if (t.spotConfig != null) {
-                                LOGGER.log(Level.INFO, "Expected - Spot instance " + slave.getInstanceId()
-                                        + " failed to connect on initial provision");
-                                return slave;
+                        long startTime = System.currentTimeMillis(); // fetch starting time
+                        while (false || (System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+                            try {
+                                return tryToCallSlave(slave, t);
+
+                            } catch (Exception exception) {
+                                // ignore
                             }
-                            throw e;
                         }
-                        return slave;
+                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
+                        return tryToCallSlave(slave, t);
                     }
                 }), t.getNumExecutors()));
 
@@ -465,6 +468,21 @@ public abstract class EC2Cloud extends Cloud {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return Collections.emptyList();
         }
+    }
+    
+    private EC2AbstractSlave tryToCallSlave(EC2AbstractSlave slave, SlaveTemplate template) throws Exception {
+    	try {
+            slave.toComputer().connect(false).get();
+        } catch (Exception e) {
+            if (template.spotConfig != null) {
+            	if(StringUtils.isNotEmpty(slave.getInstanceId()) && slave.isConnected) {
+            		LOGGER.log(Level.INFO, String.format("Instance id: %s for node: %s is connected now.", slave.getInstanceId(), slave.getNodeName()));
+            		return slave;
+            	}
+            }
+            throw e;
+        }
+    	return slave;
     }
 
     @Override
