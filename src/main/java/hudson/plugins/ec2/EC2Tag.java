@@ -75,9 +75,9 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
             return false;
 
         EC2Tag other = (EC2Tag) o;
-        if ((name == null && other.name != null) || !name.equals(other.name))
+        if ((name == null && other.name != null) || (name != null && !name.equals(other.name)))
             return false;
-        if ((value == null && other.value != null) || !value.equals(other.value))
+        if ((value == null && other.value != null) || (value != null && !value.equals(other.value)))
             return false;
 
         return true;
