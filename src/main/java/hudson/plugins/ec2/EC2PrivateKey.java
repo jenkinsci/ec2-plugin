@@ -55,6 +55,8 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
  * @author Kohsuke Kawaguchi
  */
 public class EC2PrivateKey {
+    private static final RuntimeException PRIVATE_KEY_WITH_PASSWORD = new RuntimeException();
+
     private final Secret privateKey;
 
     EC2PrivateKey(String privateKey) {
@@ -200,5 +202,4 @@ public class EC2PrivateKey {
         }
     }
 
-    private static final RuntimeException PRIVATE_KEY_WITH_PASSWORD = new RuntimeException();
 }

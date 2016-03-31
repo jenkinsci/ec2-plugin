@@ -29,6 +29,8 @@ import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.crypto.digest.MD5;
 
 public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
+    private static final Logger LOGGER = Logger.getLogger(HostKeyVerifierImpl.class.getName());
+
     private final String console;
 
     public HostKeyVerifierImpl(String console) {
@@ -65,5 +67,4 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
         return matches;
     }
 
-    private static final Logger LOGGER = Logger.getLogger(HostKeyVerifierImpl.class.getName());
 }

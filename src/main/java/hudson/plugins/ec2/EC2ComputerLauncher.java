@@ -47,6 +47,8 @@ import com.amazonaws.services.ec2.model.StartInstancesResult;
  * @author Kohsuke Kawaguchi
  */
 public abstract class EC2ComputerLauncher extends ComputerLauncher {
+    private static final Logger LOGGER = Logger.getLogger(EC2ComputerLauncher.class.getName());
+
     @Override
     public void launch(SlaveComputer _computer, TaskListener listener) {
         try {
@@ -134,5 +136,4 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     protected abstract void launch(EC2Computer computer, TaskListener listener, Instance inst)
             throws AmazonClientException, IOException, InterruptedException;
 
-    private static final Logger LOGGER = Logger.getLogger(EC2ComputerLauncher.class.getName());
 }

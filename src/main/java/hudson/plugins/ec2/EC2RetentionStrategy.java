@@ -39,6 +39,10 @@ import org.kohsuke.stapler.DataBoundConstructor;
  * @author Kohsuke Kawaguchi
  */
 public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
+    private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
+
+    public static boolean disabled = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
+
     /**
      * Number of minutes of idleness before an instance should be terminated. A value of zero indicates that the
      * instance should never be automatically terminated. Negative values are times in remaining minutes before end of
@@ -154,7 +158,4 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         return this;
     }
 
-    private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
-
-    public static boolean disabled = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
 }

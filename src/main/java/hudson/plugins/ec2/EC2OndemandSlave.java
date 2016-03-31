@@ -29,6 +29,7 @@ import com.amazonaws.services.ec2.model.*;
  * @author Kohsuke Kawaguchi
  */
 public final class EC2OndemandSlave extends EC2AbstractSlave {
+    private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 
     public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
@@ -111,8 +112,6 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
             return Messages.EC2OndemandSlave_AmazonEC2();
         }
     }
-
-    private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 
     @Override
     public String getEc2Type() {

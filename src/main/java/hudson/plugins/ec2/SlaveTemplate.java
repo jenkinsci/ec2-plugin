@@ -55,6 +55,7 @@ import hudson.util.ListBoxModel;
  * @author Kohsuke Kawaguchi
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
+    private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 
     public String ami;
 
@@ -1216,5 +1217,4 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 }
