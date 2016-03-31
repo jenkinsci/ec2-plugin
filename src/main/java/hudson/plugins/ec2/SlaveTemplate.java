@@ -456,6 +456,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 setupCustomDeviceMapping(riRequest);
             }
 
+            if(stopOnTerminate){
+                riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Stop);
+                logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Stop");
+            }else{
+                riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
+                 logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
+            }
+            
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
 
