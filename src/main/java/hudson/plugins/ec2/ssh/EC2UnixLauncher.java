@@ -88,12 +88,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private final int FAILED = -1;
-    private final int SAMEUSER = 0;
 
     protected void log(Level level, EC2Computer computer, TaskListener listener, String message) {
         EC2Cloud cloud = computer.getCloud();
         if (cloud != null)
             cloud.log(LOGGER, level, listener, message);
+    }
+
+    protected void logException(EC2Computer computer, TaskListener listener, String message, Throwable exception) {
+        EC2Cloud cloud = computer.getCloud();
+        if (cloud != null)
+            cloud.log(LOGGER, Level.WARNING, listener, message, exception);
     }
 
     protected void logInfo(EC2Computer computer, TaskListener listener, String message) {
@@ -123,15 +128,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
         try {
-            bootstrapConn = connectToSsh(computer, listener);
-            int bootstrapResult = bootstrap(bootstrapConn, computer, listener);
-            if (bootstrapResult == FAILED) {
-                logWarning(computer, listener, "bootstrapresult failed");
-                return; // bootstrap closed for us.
-            } else if (bootstrapResult == SAMEUSER) {
-                cleanupConn = bootstrapConn; // take over the connection
-                logInfo(computer, listener, "take over connection");
-            } else {
+            boolean isBootstrapped = bootstrap(computer, listener);
+            if (isBootstrapped) {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener);
@@ -140,6 +138,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
+            } else {
+                logWarning(computer, listener, "bootstrapresult failed");
+                return; // bootstrap closed for us.
             }
             conn = cleanupConn;
 
@@ -272,10 +273,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private int bootstrap(Connection bootstrapConn, EC2Computer computer, TaskListener listener) throws IOException,
+    private boolean bootstrap(EC2Computer computer, TaskListener listener) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
-        boolean closeBootstrap = true;
+        Connection bootstrapConn = null;
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
@@ -285,7 +286,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     + key.getKeyMaterial().substring(0, 160));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
-                isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                try {
+                    bootstrapConn = connectToSsh(computer, listener);
+                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                } catch(IOException e) {
+                    logException(computer, listener, "Exception trying to authenticate", e);
+                    bootstrapConn.close();
+                }
                 if (isAuthenticated) {
                     break;
                 }
@@ -294,14 +301,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
             if (!isAuthenticated) {
                 logWarning(computer, listener, "Authentication failed");
-                return FAILED;
+                return false;
             }
-            closeBootstrap = false;
-            return SAMEUSER;
         } finally {
-            if (closeBootstrap)
-                bootstrapConn.close();
+            bootstrapConn.close();
         }
+        return true;
     }
 
     private Connection connectToSsh(EC2Computer computer, TaskListener listener) throws AmazonClientException,
