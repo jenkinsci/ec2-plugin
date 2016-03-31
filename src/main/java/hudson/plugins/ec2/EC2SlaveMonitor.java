@@ -20,7 +20,7 @@ import com.amazonaws.AmazonClientException;
 @Extension
 public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
-    private Long recurrencePeriod;
+    private final Long recurrencePeriod;
 
     public EC2SlaveMonitor() {
         super("EC2 alive slaves monitor");

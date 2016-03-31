@@ -6,16 +6,16 @@ import org.dom4j.QName;
 import com.google.common.collect.ImmutableList;
 
 public class Header {
-    private String to;
-    private String replyTo;
-    private String maxEnvelopeSize;
-    private String timeout;
-    private String locale;
-    private String id;
-    private String action;
-    private String shellId;
-    private String resourceURI;
-    private ImmutableList<Option> optionSet;
+    private final String to;
+    private final  String replyTo;
+    private final  String maxEnvelopeSize;
+    private final  String timeout;
+    private final  String locale;
+    private final  String id;
+    private final  String action;
+    private final  String shellId;
+    private final  String resourceURI;
+    private final  ImmutableList<Option> optionSet;
 
     Header(String to, String replyTo, String maxEnvelopeSize, String timeout, String locale, String id, String action, String shellId, String resourceURI, ImmutableList<Option> optionSet) {
         this.to = to;

@@ -8,9 +8,9 @@ import java.util.logging.Logger;
 public class WinRM {
     private static final Logger log = Logger.getLogger(WinRM.class.getName());
 
-    private String host;
-    private String username;
-    private String password;
+    private final String host;
+    private final String username;
+    private final String password;
     private int timeout = 60;
 
     private boolean useHTTPS;

@@ -24,7 +24,7 @@ public class WindowsProcess {
     private final PipedOutputStream toCallersStderr;
 
     private boolean terminated;
-    private String command;
+    private final String command;
 
     private Thread outputThread;
 

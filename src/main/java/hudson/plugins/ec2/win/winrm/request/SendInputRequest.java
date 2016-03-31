@@ -14,7 +14,7 @@ import org.dom4j.QName;
 public class SendInputRequest extends AbstractWinRMRequest {
 
     byte[] input;
-    private String commandId, shellId;
+    private final String commandId, shellId;
 
     public SendInputRequest(URL url, byte[] input, String shellId, String commandId) {
         super(url);
