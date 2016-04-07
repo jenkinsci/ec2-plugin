@@ -24,10 +24,10 @@
 package hudson.plugins.ec2.ebs;
 
 import hudson.model.PeriodicWork;
-import hudson.model.Hudson;
 import hudson.model.AdministrativeMonitor;
 import hudson.util.TimeUnit2;
 import hudson.Extension;
+import jenkins.model.Jenkins;
 import org.jvnet.solaris.libzfs.LibZFS;
 import org.jvnet.solaris.libzfs.ZFSFileSystem;
 import org.jvnet.solaris.libzfs.ZFSPool;
@@ -54,7 +54,7 @@ public class ZPoolMonitor extends PeriodicWork {
         ZFSFileSystem fs = null;
         try {
             if (isInsideEC2())
-                fs = new LibZFS().getFileSystemByMountPoint(Hudson.getInstance().getRootDir());
+                fs = new LibZFS().getFileSystemByMountPoint(Jenkins.getInstance().getRootDir());
         } catch (LinkageError e) {
             // probably not running on OpenSolaris
         }

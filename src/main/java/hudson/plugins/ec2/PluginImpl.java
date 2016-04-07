@@ -28,7 +28,6 @@ import hudson.Extension;
 import hudson.Plugin;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 
 /**
  * Added to handle backwards compatibility of xstream class name mapping.
@@ -47,11 +46,11 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
     }
 
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl) Hudson.getInstance().getDescriptorOrDie(getClass());
+        return (DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(getClass());
     }
 
     public static PluginImpl get() {
-        return Hudson.getInstance().getPlugin(PluginImpl.class);
+        return Jenkins.getInstance().getPlugin(PluginImpl.class);
     }
 
     @Extension

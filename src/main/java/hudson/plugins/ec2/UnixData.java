@@ -16,16 +16,19 @@ public class UnixData extends AMITypeData {
         this.sshPort = sshPort;
     }
 
+    @Override
     public boolean isWindows() {
         return false;
     }
 
+    @Override
     public boolean isUnix() {
         return true;
     }
 
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
+        @Override
         public String getDisplayName() {
             return "unix";
         }
@@ -36,7 +39,7 @@ public class UnixData extends AMITypeData {
     }
 
     public String getSshPort() {
-        return sshPort == null || sshPort.length() == 0 ? "22" : sshPort;
+        return sshPort == null || sshPort.isEmpty() ? "22" : sshPort;
     }
 
     @Override
@@ -56,7 +59,7 @@ public class UnixData extends AMITypeData {
             return false;
         if (this.getClass() != obj.getClass())
             return false;
-        UnixData other = (UnixData) obj;
+        final UnixData other = (UnixData) obj;
         if (rootCommandPrefix == null) {
             if (other.rootCommandPrefix != null)
                 return false;

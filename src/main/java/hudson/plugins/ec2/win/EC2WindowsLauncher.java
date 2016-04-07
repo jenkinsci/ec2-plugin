@@ -1,7 +1,6 @@
 package hudson.plugins.ec2.win;
 
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.EC2ComputerLauncher;
@@ -15,6 +14,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.TimeUnit;
 
+import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 
 import com.amazonaws.AmazonClientException;
@@ -58,7 +58,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
             }
 
             OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
-            slaveJar.write(Hudson.getInstance().getJnlpJars("slave.jar").readFully());
+            slaveJar.write(Jenkins.getInstance().getJnlpJars("slave.jar").readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
 
@@ -128,7 +128,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
                 logger.println("Connecting to " + host + "(" + ip + ") with WinRM as " + computer.getNode().remoteAdmin);
 
-                WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword());
+                WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword().getPlainText());
                 connection.setUseHTTPS(computer.getNode().isUseHTTPS());
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");

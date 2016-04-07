@@ -23,10 +23,12 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -41,7 +43,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
 
-    public static boolean disabled = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
+    public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
 
     /**
      * Number of minutes of idleness before an instance should be terminated. A value of zero indicates that the
@@ -51,16 +53,19 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     public final int idleTerminationMinutes;
 
     private transient ReentrantLock checkLock;
+    private static final int STARTUP_TIME_DEFAULT_VALUE = 30;
     //ec2 instances charged by hour, time less than 1 hour is acceptable
-    private int STARTUP_TIMEOUT= NumberUtils.toInt(System.getProperty(EC2RetentionStrategy.class.getCanonicalName()+".startupTimeout","30"),30);
+    private static final int STARTUP_TIMEOUT = NumberUtils.toInt(
+            System.getProperty(EC2RetentionStrategy.class.getCanonicalName() + ".startupTimeout",
+                    String.valueOf(STARTUP_TIME_DEFAULT_VALUE)), STARTUP_TIME_DEFAULT_VALUE);
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
         readResolve();
-        if (idleTerminationMinutes == null || idleTerminationMinutes.trim() == "") {
+        if (idleTerminationMinutes == null || idleTerminationMinutes.trim().isEmpty()) {
             this.idleTerminationMinutes = 0;
         } else {
-            int value = 30;
+            int value = STARTUP_TIME_DEFAULT_VALUE;
             try {
                 value = Integer.parseInt(idleTerminationMinutes);
             } catch (NumberFormatException nfe) {
@@ -77,46 +82,45 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             return 1;
         } else {
             try {
-                return _check(c);
+                return internalCheck(c);
             } finally {
                 checkLock.unlock();
             }
         }
     }
 
-    private long _check(EC2Computer c) {
-
+    private long internalCheck(EC2Computer computer) {
         /*
         * If we've been told never to terminate, or node is null(deleted), no checks to perform
         */
-        if (idleTerminationMinutes == 0 || c.getNode()==null) {
+        if (idleTerminationMinutes == 0 || computer.getNode() == null) {
             return 1;
         }
 
 
-        if (c.isIdle() && !disabled) {
+        if (computer.isIdle() && !DISABLED) {
             final long uptime;
             try {
-                uptime = c.getUptime();
-            } catch (Exception e) {
+                uptime = computer.getUptime();
+            } catch (AmazonClientException | InterruptedException e) {
                 // We'll just retry next time we test for idleness.
-                LOGGER.fine("Exception while checking host uptime for " + c.getName()
+                LOGGER.fine("Exception while checking host uptime for " + computer.getName()
                         + ", will retry next check. Exception: " + e);
                 return 1;
             }
             //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
             //need terminate such fault instance by {@link #STARTUP_TIMEOUT}
-            if(c.isOffline() && uptime<TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)){
+            if (computer.isOffline() && uptime < TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)) {
                 return 1;
             }
-            final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
+            final long idleMilliseconds = System.currentTimeMillis() - computer.getIdleStartMilliseconds();
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
                 // JENKINS-23792
                 if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
-                    LOGGER.info("Idle timeout of " + c.getName() + " after "
+                    LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes");
-                    c.getNode().idleTimeout();
+                    computer.getNode().idleTimeout();
                 }
             } else {
                 final int freeSecondsLeft = (60 * 60)
@@ -124,12 +128,12 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 // if we have less "free" (aka already paid for) time left than
                 // our idle time, stop/terminate the instance
                 // See JENKINS-23821
-                if (freeSecondsLeft <= (Math.abs(idleTerminationMinutes * 60))) {
-                    LOGGER.info("Idle timeout of " + c.getName() + " after "
+                if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes))) {
+                    LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
                             + TimeUnit2.MILLISECONDS.toMinutes(freeSecondsLeft)
                             + " minutes remaining in billing period");
-                    c.getNode().idleTimeout();
+                    computer.getNode().idleTimeout();
                 }
             }
         }

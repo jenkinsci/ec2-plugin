@@ -97,7 +97,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 			// manually or a spot instance was killed due to pricing. If we don't remove the node,
 			// we screw up auto-scaling, since it will continue to count against the quota.
 			try {
-				Hudson.getInstance().removeNode(this);
+				Jenkins.getInstance().removeNode(this);
 			} catch (IOException e) {
 				LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
 			}

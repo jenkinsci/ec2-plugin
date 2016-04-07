@@ -226,6 +226,8 @@ public class SlaveTemplateTest extends HudsonTestCase {
 
         submit(createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
+        assertEquals(orig.getAdminPassword(), received.getAdminPassword());
+        assertEquals(orig.amiType, received.amiType);
         assertEqualBeans(orig, received, "amiType");
     }
 
