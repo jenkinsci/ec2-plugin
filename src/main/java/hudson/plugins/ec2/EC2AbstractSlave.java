@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
@@ -163,7 +165,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public EC2Cloud getCloud() {
-        return (EC2Cloud) Hudson.getInstance().getCloud(cloudName);
+        return (EC2Cloud) Jenkins.getInstance().getCloud(cloudName);
     }
 
     /**
@@ -503,12 +505,12 @@ public abstract class EC2AbstractSlave extends Slave {
         return usePrivateDnsName;
     }
 
-    public String getAdminPassword() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : "";
+    public Secret getAdminPassword() {
+        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : Secret.fromString("");
     }
 
     public boolean isUseHTTPS() {
-        return amiType.isWindows() ? ((WindowsData) amiType).isUseHTTPS() : false;
+        return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
     }
 
     public int getBootDelay() {
@@ -555,7 +557,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Hudson.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
+            return Jenkins.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
         }
     }
 

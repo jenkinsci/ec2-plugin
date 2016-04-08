@@ -27,6 +27,8 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
@@ -169,7 +171,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
 
-        if (null == instanceCapStr || instanceCapStr.equals("")) {
+        if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
@@ -692,7 +694,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             spotRequest.setSpotPrice(getSpotMaxBidPrice());
-            spotRequest.setInstanceCount(Integer.valueOf(1));
+            spotRequest.setInstanceCount(1);
             spotRequest.setType(getBidType());
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
@@ -952,7 +954,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Descriptor<SlaveTemplate> getDescriptor() {
-        return Hudson.getInstance().getDescriptor(getClass());
+        return Jenkins.getInstance().getDescriptor(getClass());
     }
 
     public int getLaunchTimeout() {
@@ -975,12 +977,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix();
     }
 
-    public String getAdminPassword() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : "";
+    public Secret getAdminPassword() {
+        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : Secret.fromString("");
     }
 
     public boolean isUseHTTPS() {
-        return amiType.isWindows() ? ((WindowsData) amiType).isUseHTTPS() : false;
+        return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
     }
 
     @Extension
@@ -992,7 +994,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Hudson.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
+            return Jenkins.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
         }
 
         /**
@@ -1002,9 +1004,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public String getHelpFile(String fieldName) {
             String p = super.getHelpFile(fieldName);
             if (p == null)
-                p = Hudson.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
+                p = Jenkins.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
             if (p == null)
-                p = Hudson.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
+                p = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
             return p;
         }
 
@@ -1049,7 +1051,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
-            if (mode == Node.Mode.EXCLUSIVE && (value == null || value.trim() == "")) {
+            if (mode == Node.Mode.EXCLUSIVE && (value == null || value.trim().isEmpty())) {
                 return FormValidation.warning("You may want to assign labels to this node;"
                         + " it's marked to only run jobs that are exclusively tied to itself or a label.");
             }
@@ -1058,7 +1060,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
-            if (value == null || value.trim() == "")
+            if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
@@ -1070,7 +1072,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "")
+            if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
@@ -1082,7 +1084,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
-            if (value == null || value.trim() == "")
+            if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
@@ -1179,7 +1181,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     InstanceType ec2Type = null;
 
                     for (InstanceType it : InstanceType.values()) {
-                        if (it.name().toString().equals(type)) {
+                        if (it.name().equals(type)) {
                             ec2Type = it;
                             break;
                         }
@@ -1207,7 +1209,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         cp = currentPrice.getSpotPrice();
                     }
 
-                } catch (AmazonClientException e) {
+                } catch (AmazonServiceException e) {
                     return FormValidation.error(e.getMessage());
                 }
             }

@@ -148,7 +148,7 @@ public abstract class EC2Cloud extends Cloud {
             this.templates = templates;
         }
 
-        if (instanceCapStr.equals("")) {
+        if (instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
@@ -175,8 +175,8 @@ public abstract class EC2Cloud extends Cloud {
         return accessId;
     }
 
-    public String getSecretKey() {
-        return secretKey.getEncryptedValue();
+    public Secret getSecretKey() {
+        return secretKey;
     }
 
     public EC2PrivateKey getPrivateKey() {
@@ -241,7 +241,7 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         EC2AbstractSlave node = t.attach(id, listener);
-        Hudson.getInstance().addNode(node);
+        Jenkins.getInstance().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
@@ -260,7 +260,7 @@ public abstract class EC2Cloud extends Cloud {
             EC2AbstractSlave node = provisionSlaveIfPossible(t);
             if (node == null)
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
-            Hudson.getInstance().addNode(node);
+            Jenkins.getInstance().addNode(node);
 
             return HttpResponses.redirectViaContextPath("/computer/" + node.getNodeName());
         } catch (AmazonClientException e) {
@@ -436,7 +436,7 @@ public abstract class EC2Cloud extends Cloud {
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;
-                Hudson.getInstance().addNode(slave);
+                Jenkins.getInstance().addNode(slave);
                 r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
                     public Node call() throws Exception {
@@ -492,7 +492,7 @@ public abstract class EC2Cloud extends Cloud {
             return new InstanceProfileCredentialsProvider();
         }
 
-        BasicAWSCredentials credentials = new BasicAWSCredentials(accessId, Secret.toString(secretKey));
+        BasicAWSCredentials credentials = new BasicAWSCredentials(accessId, secretKey.getPlainText());
         return new StaticCredentialsProvider(credentials);
     }
 

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -75,7 +76,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
                 ec2.terminateInstances(request);
                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
             }
-            Hudson.getInstance().removeNode(this);
+            Jenkins.getInstance().removeNode(this);
             LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
@@ -93,7 +94,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
         if (!isAlive(true)) {
             LOGGER.info("EC2 instance terminated externally: " + getInstanceId());
             try {
-                Hudson.getInstance().removeNode(this);
+                Jenkins.getInstance().removeNode(this);
             } catch (IOException ioe) {
                 LOGGER.log(Level.WARNING, "Attempt to reconfigure EC2 instance which has been externally terminated: "
                         + getInstanceId(), ioe);

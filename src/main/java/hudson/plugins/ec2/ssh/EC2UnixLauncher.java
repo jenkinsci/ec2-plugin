@@ -23,12 +23,10 @@
  */
 package hudson.plugins.ec2.ssh;
 
-import com.amazonaws.services.ecs.model.Task;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Cloud;
@@ -211,7 +209,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             // bug in ec2-sshd?
 
             logInfo(computer, listener, "Copying slave.jar");
-            scp.put(Hudson.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
+            scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
             String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
