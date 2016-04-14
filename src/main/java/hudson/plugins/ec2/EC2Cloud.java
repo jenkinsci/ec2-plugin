@@ -18,45 +18,6 @@
  */
 package hudson.plugins.ec2;
 
-import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
-import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.Proxy;
-import java.net.URL;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-import javax.servlet.ServletException;
-
-import hudson.model.TaskListener;
-import jenkins.model.Jenkins;
-
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
@@ -66,33 +27,41 @@ import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.KeyPairInfo;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-
 import hudson.ProxyConfiguration;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
+import hudson.model.*;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.HttpResponses;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+
+import javax.servlet.ServletException;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.Proxy;
+import java.net.URL;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
+import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
+import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 /**
  * Hudson's view of EC2.
@@ -409,7 +378,7 @@ public abstract class EC2Cloud extends Cloud {
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
          */
-        int possibleSlavesCount = getPossibleNewSlavesCount(template);
+        final int possibleSlavesCount = getPossibleNewSlavesCount(template);
         if (possibleSlavesCount < 0) {
             LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
             return null;
@@ -426,24 +395,24 @@ public abstract class EC2Cloud extends Cloud {
     @Override
     public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
-            List<PlannedNode> r = new ArrayList<PlannedNode>();
-            final SlaveTemplate t = getTemplate(label);
+            final List<PlannedNode> plannedNodes = new ArrayList<>();
+            final SlaveTemplate template = getTemplate(label);
 
             while (excessWorkload > 0) {
                 LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
 
-                final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
+                final EC2AbstractSlave slave = provisionSlaveIfPossible(template);
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;
                 Jenkins.getInstance().addNode(slave);
-                r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                plannedNodes.add(new PlannedNode(template.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
                     public Node call() throws Exception {
                         try {
                             slave.toComputer().connect(false).get();
-                        } catch (Exception e) {
-                            if (t.spotConfig != null) {
+                        } catch (ExecutionException | InterruptedException | RuntimeException e) {
+                            if (template.spotConfig != null) {
                                 LOGGER.log(Level.INFO, "Expected - Spot instance " + slave.getInstanceId()
                                         + " failed to connect on initial provision");
                                 return slave;
@@ -452,16 +421,13 @@ public abstract class EC2Cloud extends Cloud {
                         }
                         return slave;
                     }
-                }), t.getNumExecutors()));
+                }), template.getNumExecutors()));
 
-                excessWorkload -= t.getNumExecutors();
+                excessWorkload -= template.getNumExecutors();
             }
             LOGGER.log(Level.INFO, "Attempting provision - finished, excess workload: " + excessWorkload);
-            return r;
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
-            return Collections.emptyList();
-        } catch (IOException e) {
+            return plannedNodes;
+        } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return Collections.emptyList();
         }
@@ -515,7 +481,7 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @return {@link AmazonEC2} client
      */
-    public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
+    public static synchronized AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
         awsCredentialsProvider = credentialsProvider;
         ClientConfiguration config = new ClientConfiguration();
         config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
@@ -581,7 +547,7 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    public static abstract class DescriptorImpl extends Descriptor<Cloud> {
+    public abstract static class DescriptorImpl extends Descriptor<Cloud> {
 
         public InstanceType[] getInstanceTypes() {
             return InstanceType.values();

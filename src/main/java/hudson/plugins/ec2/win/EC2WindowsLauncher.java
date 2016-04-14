@@ -22,7 +22,8 @@ import com.amazonaws.services.ec2.model.Instance;
 
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
-    final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
+    static final long MIN_TIMEOUT = 3000;
+    static final long SLEEP_BETWEEN_ATTEMPS = TimeUnit.SECONDS.toMillis(10);
 
     @Override
     protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
@@ -31,33 +32,33 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         final WinConnection connection = connectToWinRM(computer, logger);
 
         try {
-            String initScript = computer.getNode().initScript;
-            String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.equals("") ? computer.getNode().tmpDir
+            final String initScript = computer.getNode().initScript;
+            final String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.isEmpty() ? computer.getNode().tmpDir
                     : "C:\\Windows\\Temp\\");
 
             logger.println("Creating tmp directory if it does not exist");
             connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
 
-            if (initScript != null && initScript.trim().length() > 0 && !connection.exists(tmpDir + ".jenkins-init")) {
+            if (initScript != null && !initScript.trim().isEmpty() && !connection.exists(tmpDir + ".jenkins-init")) {
                 logger.println("Executing init script");
-                OutputStream init = connection.putFile(tmpDir + "init.bat");
+                final OutputStream init = connection.putFile(tmpDir + "init.bat");
                 init.write(initScript.getBytes("utf-8"));
 
-                WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
+                final WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
                 IOUtils.copy(initProcess.getStdout(), logger);
 
-                int exitStatus = initProcess.waitFor();
+                final int exitStatus = initProcess.waitFor();
                 if (exitStatus != 0) {
                     logger.println("init script failed: exit code=" + exitStatus);
                     return;
                 }
 
-                OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
+                final OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
                 initGuard.write("init ran".getBytes());
                 logger.println("init script ran successfully");
             }
 
-            OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
+            final OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
             slaveJar.write(Jenkins.getInstance().getJnlpJars("slave.jar").readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
@@ -72,9 +73,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     connection.close();
                 }
             });
-        } catch (Throwable ioe) {
+        } catch (IOException e) {
             logger.println("Ouch:");
-            ioe.printStackTrace(logger);
+            e.printStackTrace(logger);
         } finally {
             connection.close();
         }
@@ -82,7 +83,6 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
     private WinConnection connectToWinRM(EC2Computer computer, PrintStream logger) throws AmazonClientException,
             InterruptedException {
-        final long MIN_TIMEOUT = 3000;
         long timeout = computer.getNode().getLaunchTimeoutInMillis(); // timeout is less than 0 when jenkins is booting up.
         if (timeout < MIN_TIMEOUT) {
             timeout = MIN_TIMEOUT;
@@ -93,13 +93,14 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         boolean alreadyBooted = (startTime - computer.getNode().getCreatedTime()) > TimeUnit.MINUTES.toMillis(3);
         while (true) {
             try {
-                long waitTime = System.currentTimeMillis() - startTime;
+                final long waitTime = System.currentTimeMillis() - startTime;
                 if (waitTime > timeout) {
                     throw new AmazonClientException("Timed out after " + (waitTime / 1000)
                             + " seconds of waiting for winrm to be connected");
                 }
-                Instance instance = computer.updateInstanceDescription();
-                String ip, host;
+                final Instance instance = computer.updateInstanceDescription();
+                final String ip;
+                String host;
 
                 if (computer.getNode().usePrivateDnsName) {
                     host = instance.getPrivateDnsName();
@@ -108,7 +109,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                                                          // hostnames
                 } else {
                     host = instance.getPublicDnsName();
-                    if (host == null || host.equals("")) {
+                    if (host == null || host.isEmpty()) {
                         host = instance.getPrivateDnsName();
                         ip = instance.getPrivateIpAddress(); // SmbFile doesn't
                                                              // quite work with
@@ -126,13 +127,13 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     throw new IOException("goto sleep");
                 }
 
-                logger.println("Connecting to " + host + "(" + ip + ") with WinRM as " + computer.getNode().remoteAdmin);
+                logger.println("Connecting to " + host + '(' + ip + ") with WinRM as " + computer.getNode().remoteAdmin);
 
-                WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword().getPlainText());
+                final WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword().getPlainText());
                 connection.setUseHTTPS(computer.getNode().isUseHTTPS());
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                    Thread.sleep(sleepBetweenAttemps);
+                    Thread.sleep(SLEEP_BETWEEN_ATTEMPS);
                     continue;
                 }
 
@@ -144,7 +145,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     logger.println("WinRM should now be ok on " + computer.getNode().getDisplayName());
                     if (!connection.ping()) {
                         logger.println("WinRM not yet up. Sleeping 10s.");
-                        Thread.sleep(sleepBetweenAttemps);
+                        Thread.sleep(SLEEP_BETWEEN_ATTEMPS);
                         continue;
                     }
                 }
@@ -153,7 +154,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 return connection; // successfully connected
             } catch (IOException e) {
                 logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                Thread.sleep(sleepBetweenAttemps);
+                Thread.sleep(SLEEP_BETWEEN_ATTEMPS);
             }
         }
     }

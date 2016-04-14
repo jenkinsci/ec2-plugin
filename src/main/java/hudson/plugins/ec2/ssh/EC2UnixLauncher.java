@@ -45,6 +45,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,6 +61,7 @@ import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
+import org.apache.commons.lang.math.NumberUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -70,46 +72,44 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private static final Logger LOGGER = Logger.getLogger(EC2UnixLauncher.class.getName());
 
-    private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
-    private static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
+    private static final String BOOTSTRAP_AUTH_SLEEP_MS_PROPERTY = "jenkins.ec2.bootstrapAuthSleepMs";
+    private static final String BOOTSTRAP_AUTH_TRIES_PROPERTY = "jenkins.ec2.bootstrapAuthTries";
+    private static final int RETRY_TIME = 5000;
+    private static final int TIMEOUT = 1000;
+    private static final int SLAVE_TIMEOUT = 10000;
+    private static final int READONLY_BY_OWNER = 0400;
 
-    private static int bootstrapAuthSleepMs = 30000;
-    private static int bootstrapAuthTries = 30;
+    private static final int DEFAULT_BOOTSTRAP_AUTH_SLEEP_MS = 30000;
+    private static final int DEFAULT_BOOTSTRAP_AUTH_TRIES = 30;
+    private static int bootstrapAuthSleepMs;
+    private static int bootstrapAuthTries;
 
     static  {
-        String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
-        if (prop != null)
-            bootstrapAuthSleepMs = Integer.parseInt(prop);
-        prop = System.getProperty(BOOTSTRAP_AUTH_TRIES);
-        if (prop != null)
-            bootstrapAuthTries = Integer.parseInt(prop);
+        bootstrapAuthSleepMs = NumberUtils.toInt(System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS_PROPERTY,
+                String.valueOf(DEFAULT_BOOTSTRAP_AUTH_SLEEP_MS)), DEFAULT_BOOTSTRAP_AUTH_SLEEP_MS);
+        bootstrapAuthTries = NumberUtils.toInt(System.getProperty(BOOTSTRAP_AUTH_TRIES_PROPERTY,
+                String.valueOf(DEFAULT_BOOTSTRAP_AUTH_TRIES)), DEFAULT_BOOTSTRAP_AUTH_TRIES);
     }
 
-    private final int FAILED = -1;
-
-    protected void log(Level level, EC2Computer computer, TaskListener listener, String message) {
-        EC2Cloud cloud = computer.getCloud();
-        if (cloud != null)
-            cloud.log(LOGGER, level, listener, message);
+    protected void log(Level level, TaskListener listener, String message) {
+        EC2Cloud.log(LOGGER, level, listener, message);
     }
 
-    protected void logException(EC2Computer computer, TaskListener listener, String message, Throwable exception) {
-        EC2Cloud cloud = computer.getCloud();
-        if (cloud != null)
-            cloud.log(LOGGER, Level.WARNING, listener, message, exception);
+    protected void logException(TaskListener listener, String message, Throwable exception) {
+        EC2Cloud.log(LOGGER, Level.WARNING, listener, message, exception);
     }
 
-    protected void logInfo(EC2Computer computer, TaskListener listener, String message) {
-        log(Level.INFO, computer, listener, message);
+    protected void logInfo(TaskListener listener, String message) {
+        log(Level.INFO, listener, message);
     }
 
-    protected void logWarning(EC2Computer computer, TaskListener listener, String message) {
-        log(Level.WARNING, computer, listener, message);
+    protected void logWarning(TaskListener listener, String message) {
+        log(Level.WARNING, listener, message);
     }
 
     protected String buildUpCommand(EC2Computer computer, String command) {
         if (!computer.getRemoteAdmin().equals("root")) {
-            command = computer.getRootCommandPrefix() + " " + command;
+            command = computer.getRootCommandPrefix() + ' ' + command;
         }
         return command;
     }
@@ -117,42 +117,40 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     @Override
     protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
             AmazonClientException, InterruptedException {
-        final Connection bootstrapConn;
-        final Connection conn;
-        Connection cleanupConn = null; // java's code path analysis for final
-                                       // doesn't work that well.
-        boolean successful = false;
-        PrintStream logger = listener.getLogger();
-        logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
+        final PrintStream logger = listener.getLogger();
+        logInfo(listener, "Launching instance: " + computer.getNode().getInstanceId());
+
+        boolean successful = false;
+        Connection cleanupConn = null; // java's code path analysis for final doesn't work that well.
         try {
-            boolean isBootstrapped = bootstrap(computer, listener);
+            final boolean isBootstrapped = bootstrap(computer, listener);
             if (isBootstrapped) {
                 // connect fresh as ROOT
-                logInfo(computer, listener, "connect fresh as root");
+                logInfo(listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener);
-                KeyPair key = computer.getCloud().getKeyPair();
+                final KeyPair key = computer.getCloud().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
-                    logWarning(computer, listener, "Authentication failed");
+                    logWarning(listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
             } else {
-                logWarning(computer, listener, "bootstrapresult failed");
+                logWarning(listener, "bootstrapresult failed");
                 return; // bootstrap closed for us.
             }
-            conn = cleanupConn;
+            final Connection conn = cleanupConn;
 
-            SCPClient scp = conn.createSCPClient();
-            String initScript = computer.getNode().initScript;
-            String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir
+            final SCPClient scp = conn.createSCPClient();
+            final String initScript = computer.getNode().initScript;
+            final String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir
                     : "/tmp");
 
-            logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
+            logInfo(listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
             conn.exec("mkdir -p " + tmpDir, logger);
 
-            if (initScript != null && initScript.trim().length() > 0
+            if (initScript != null && !initScript.trim().isEmpty()
                     && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
-                logInfo(computer, listener, "Executing init script");
+                logInfo(listener, "Executing init script");
                 scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");
                 Session sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout
@@ -164,9 +162,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                                           // from stderr
                 IOUtils.copy(sess.getStdout(), logger);
 
-                int exitStatus = waitCompletion(sess);
+                final int exitStatus = waitCompletion(sess);
                 if (exitStatus != 0) {
-                    logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                    logWarning(listener, "init script failed: exit code=" + exitStatus);
                     return;
                 }
                 sess.close();
@@ -180,26 +178,26 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            logInfo(computer, listener, "Verifying that java exists");
+            logInfo(listener, "Verifying that java exists");
             if (conn.exec("java -fullversion", logger) != 0) {
-                logInfo(computer, listener, "Installing Java");
+                logInfo(listener, "Installing Java");
 
-                String jdk = "java1.6.0_12";
-                String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
+                final String jdk = "java1.6.0_12";
+                final String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
 
-                URL url = computer.getCloud().buildPresignedURL(path);
-                if (conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
-                    logWarning(computer, listener, "Failed to download Java");
+                final URL url = computer.getCloud().buildPresignedURL(path);
+                if (conn.exec("wget -nv -O " + tmpDir + '/' + jdk + ".tgz '" + url + '\'', logger) != 0) {
+                    logWarning(listener, "Failed to download Java");
                     return;
                 }
 
-                if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to install Java");
+                if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + '/' + jdk + ".tgz"), logger) != 0) {
+                    logWarning(listener, "Failed to install Java");
                     return;
                 }
 
                 if (conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to symlink Java");
+                    logWarning(listener, "Failed to symlink Java");
                     return;
                 }
             }
@@ -208,30 +206,30 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             // putting slave.jar as c:\tmp
             // bug in ec2-sshd?
 
-            logInfo(computer, listener, "Copying slave.jar");
+            logInfo(listener, "Copying slave.jar");
             scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
 
-            String jvmopts = computer.getNode().jvmopts;
-            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
+            final String jvmopts = computer.getNode().jvmopts;
+            final String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
 
-            SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
+            final SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
 
             if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
-                EC2AbstractSlave node = computer.getNode();
-                File identityKeyFile = createIdentityKeyFile(computer);
+                final EC2AbstractSlave node = computer.getNode();
+                final File identityKeyFile = createIdentityKeyFile(computer);
 
                 try {
                     // Obviously the master must have an installed ssh client.
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
+                    final String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
 
-                    logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
-                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
+                    logInfo(listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
+                    final CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
                     commandLauncher.launch(computer, listener);
                 } finally {
                     identityKeyFile.delete();
                 }
             } else {
-                logInfo(computer, listener, "Launching slave agent (via Trilead SSH2 Connection): " + launchString);
+                logInfo(listener, "Launching slave agent (via Trilead SSH2 Connection): " + launchString);
                 final Session sess = conn.openSession();
                 sess.execCommand(launchString);
                 computer.setChannel(sess.getStdout(), sess.getStdin(), logger, new Listener() {
@@ -251,21 +249,18 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        String privateKey = computer.getCloud().getPrivateKey().getPrivateKey();
-        File tempFile = File.createTempFile("ec2_", ".pem");
+        final String privateKey = computer.getCloud().getPrivateKey().getPrivateKey();
+        final File tempFile = File.createTempFile("ec2_", ".pem");
 
         try {
-            FileWriter writer = new FileWriter(tempFile);
-            try {
+            try (FileWriter writer = new FileWriter(tempFile)) {
                 writer.write(privateKey);
                 writer.flush();
-            } finally {
-                writer.close();
             }
-            FilePath filePath = new FilePath(tempFile);
-            filePath.chmod(0400); // octal file mask - readonly by owner
+            final FilePath filePath = new FilePath(tempFile);
+            filePath.chmod(READONLY_BY_OWNER);
             return tempFile;
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             tempFile.delete();
             throw new IOException("Error creating temporary identity key file for connecting to EC2 slave.", e);
         }
@@ -273,36 +268,38 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private boolean bootstrap(EC2Computer computer, TaskListener listener) throws IOException,
             InterruptedException, AmazonClientException {
-        logInfo(computer, listener, "bootstrap()");
+        logInfo(listener, "bootstrap()");
         Connection bootstrapConn = null;
         try {
             int tries = bootstrapAuthTries;
-            boolean isAuthenticated = false;
-            logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
-            logInfo(computer, listener, "Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n"
+            logInfo(listener, "Getting keypair...");
+            final KeyPair key = computer.getCloud().getKeyPair();
+            logInfo(listener, "Using key: " + key.getKeyName() + '\n' + key.getKeyFingerprint() + '\n'
                     + key.getKeyMaterial().substring(0, 160));
+            boolean isAuthenticated = false;
             while (tries-- > 0) {
-                logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
+                logInfo(listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapConn = connectToSsh(computer, listener);
                     isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
                 } catch(IOException e) {
-                    logException(computer, listener, "Exception trying to authenticate", e);
+                    logException(listener, "Exception trying to authenticate", e);
                     bootstrapConn.close();
                 }
                 if (isAuthenticated) {
                     break;
                 }
-                logWarning(computer, listener, "Authentication failed. Trying again...");
+                logWarning(listener, "Authentication failed. Trying again...");
                 Thread.sleep(bootstrapAuthSleepMs);
             }
             if (!isAuthenticated) {
-                logWarning(computer, listener, "Authentication failed");
+                logWarning(listener, "Authentication failed");
                 return false;
             }
         } finally {
-            bootstrapConn.close();
+            if (bootstrapConn != null) {
+                bootstrapConn.close();
+            }
         }
         return true;
     }
@@ -313,37 +310,37 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         final long startTime = System.currentTimeMillis();
         while (true) {
             try {
-                long waitTime = System.currentTimeMillis() - startTime;
+                final long waitTime = System.currentTimeMillis() - startTime;
                 if (timeout > 0 && waitTime > timeout) {
-                    throw new AmazonClientException("Timed out after " + (waitTime / 1000)
+                    throw new AmazonClientException("Timed out after " + TimeUnit.MILLISECONDS.toSeconds(TIMEOUT)
                             + " seconds of waiting for ssh to become available. (maximum timeout configured is "
-                            + (timeout / 1000) + ")");
+                            + TimeUnit.MILLISECONDS.toSeconds(TIMEOUT) + ')');
                 }
-                Instance instance = computer.updateInstanceDescription();
-                String host = getEC2HostAddress(computer, instance);
+                final Instance instance = computer.updateInstanceDescription();
+                final String host = getEC2HostAddress(computer, instance);
 
                 if ("0.0.0.0".equals(host)) {
-                    logWarning(computer, listener, "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
+                    logWarning(listener, "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
                 }
 
-                int port = computer.getSshPort();
-                Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", 10000);
-                logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
-                        + ".");
-                Connection conn = new Connection(host, port);
-                ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
-                Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
+                final int port = computer.getSshPort();
+                final Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", SLAVE_TIMEOUT);
+                logInfo(listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
+                        + '.');
+                final Connection conn = new Connection(host, port);
+                final ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+                final Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
                 if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
-                    InetSocketAddress address = (InetSocketAddress) proxy.address();
-                    HTTPProxyData proxyData = null;
-                    if (null != proxyConfig.getUserName()) {
+                    final InetSocketAddress address = (InetSocketAddress) proxy.address();
+                    final HTTPProxyData proxyData;
+                    if (proxyConfig != null && proxyConfig.getUserName() != null) {
                         proxyData = new HTTPProxyData(address.getHostName(), address.getPort(), proxyConfig.getUserName(), proxyConfig.getPassword());
                     } else {
                         proxyData = new HTTPProxyData(address.getHostName(), address.getPort());
                     }
                     conn.setProxyData(proxyData);
-                    logInfo(computer, listener, "Using HTTP Proxy Configuration");
+                    logInfo(listener, "Using HTTP Proxy Configuration");
                 }
                 // currently OpenSolaris offers no way of verifying the host
                 // certificate, so just accept it blindly,
@@ -354,13 +351,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                         return true;
                     }
                 }, slaveConnectTimeout, slaveConnectTimeout);
-                logInfo(computer, listener, "Connected via SSH.");
+                logInfo(listener, "Connected via SSH.");
                 return conn; // successfully connected
             } catch (IOException e) {
                 // keep retrying until SSH comes up
-                logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
-                logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
-                Thread.sleep(5000);
+                logInfo(listener, "Failed to connect via ssh: " + e.getMessage());
+                logInfo(listener, "Waiting for SSH to come up. Sleeping 5.");
+                Thread.sleep(RETRY_TIME);
             }
         }
     }
@@ -373,15 +370,15 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             // If we fail to get a public DNS name, try to get the public IP
             // (but only if the plugin config let us use the public IP to
             // connect to the slave).
-            if (host == null || host.equals("")) {
-                SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
+            if (host == null || host.isEmpty()) {
+                final SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
                 if (inst.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
                     host = inst.getPublicIpAddress();
                 }
             }
             // If we fail to get a public DNS name or public IP, use the private
             // IP.
-            if (host == null || host.equals("")) {
+            if (host == null || host.isEmpty()) {
                 host = inst.getPrivateIpAddress();
             }
 
@@ -393,7 +390,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         // I noticed that the exit status delivery often gets delayed. Wait up
         // to 1 sec.
         for (int i = 0; i < 10; i++) {
-            Integer r = session.getExitStatus();
+            final Integer r = session.getExitStatus();
             if (r != null)
                 return r;
             Thread.sleep(100);
