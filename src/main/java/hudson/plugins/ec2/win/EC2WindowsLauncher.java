@@ -21,7 +21,8 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.Instance;
 
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
-
+    private static final String SLAVE_JAR = "slave.jar";
+    
     final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
 
     @Override
@@ -57,14 +58,14 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("init script ran successfully");
             }
 
-            OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
-            slaveJar.write(Jenkins.getInstance().getJnlpJars("slave.jar").readFully());
+            OutputStream slaveJar = connection.putFile(tmpDir + SLAVE_JAR);
+            slaveJar.write(Jenkins.getInstance().getJnlpJars(SLAVE_JAR).readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
 
             final String jvmopts = computer.getNode().jvmopts;
             final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar "
-                    + tmpDir + "slave.jar", 86400);
+                    + tmpDir + SLAVE_JAR, 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
                 public void onClosed(Channel channel, IOException cause) {
