@@ -18,6 +18,9 @@ public class Namespaces {
     public static final Namespace NS_WIN_SHELL = Namespace.get("rsp", "http://schemas.microsoft.com/wbem/wsman/1/windows/shell");
     public static final Namespace NS_WSMAN_FAULT = Namespace.get("f", "http://schemas.microsoft.com/wbem/wsman/1/wsmanfault");
 
+    private Namespaces() {
+    }
+
     public static final List<Namespace> mostUsed() {
         return ImmutableList.of(NS_SOAP_ENV, NS_ADDRESSING, NS_WIN_SHELL, NS_WSMAN_DMTF, NS_WSMAN_MSFT);
     }

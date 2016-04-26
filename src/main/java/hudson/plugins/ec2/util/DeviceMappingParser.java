@@ -31,6 +31,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DeviceMappingParser {
+
+    private DeviceMappingParser() {
+    }
+
     public static List<BlockDeviceMapping> parse(String customDeviceMapping) {
 
         List<BlockDeviceMapping> deviceMappings = new ArrayList<BlockDeviceMapping>();
