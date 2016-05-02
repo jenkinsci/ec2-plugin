@@ -444,13 +444,8 @@ public abstract class EC2Cloud extends Cloud {
 
                     public Node call() throws Exception {
                         long startTime = System.currentTimeMillis(); // fetch starting time
-                        while (false || (System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
-                            try {
-                                return tryToCallSlave(slave, t);
-
-                            } catch (Exception exception) {
-                                // ignore
-                            }
+                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+                            return tryToCallSlave(slave, t);
                         }
                         LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
                         return tryToCallSlave(slave, t);
@@ -470,7 +465,7 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    private EC2AbstractSlave tryToCallSlave(EC2AbstractSlave slave, SlaveTemplate template) throws Exception {
+    private EC2AbstractSlave tryToCallSlave(EC2AbstractSlave slave, SlaveTemplate template) {
     	try {
             slave.toComputer().connect(false).get();
         } catch (Exception e) {
@@ -480,7 +475,6 @@ public abstract class EC2Cloud extends Cloud {
             		return slave;
             	}
             }
-            throw e;
         }
     	return slave;
     }
