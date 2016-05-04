@@ -92,6 +92,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
     public final boolean useDedicatedTenancy;
+    public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
@@ -388,7 +389,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Called when the slave is connected to Jenkins
      */
     public void onConnected() {
-        // Do nothing by default.
+        isConnected = true;
     }
 
     protected boolean isAlive(boolean force) {
