@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -552,8 +553,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return false;
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region) {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String region) {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
             return fillZoneItems(credentialsProvider, region);
         }
 

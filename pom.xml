@@ -53,11 +53,16 @@ THE SOFTWARE.
   </scm>
 
   <properties>
-      <powermock.version>1.6.2</powermock.version>
+      <powermock.version>1.6.3</powermock.version>
   </properties>
 
   <dependencies>
-    <dependency>
+	  <dependency>
+	  	<groupId>org.jenkins-ci.plugins</groupId>
+	  	<artifactId>aws-credentials</artifactId>
+	  	<version>1.11</version>
+	  </dependency>
+	  <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-module-junit4</artifactId>
       <version>${powermock.version}</version>
@@ -68,12 +73,36 @@ THE SOFTWARE.
       <artifactId>powermock-api-mockito</artifactId>
       <version>${powermock.version}</version>
       <scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.mockito</groupId>
+					<artifactId>mockito-all</artifactId>
+				</exclusion>
+			</exclusions>
     </dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>1.10.19</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<artifactId>hamcrest-core</artifactId>
+					<groupId>org.hamcrest</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>
       <scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<artifactId>hamcrest-core</artifactId>
+					<groupId>org.hamcrest</groupId>
+				</exclusion>
+			</exclusions>
     </dependency>
     <dependency>
       <!-- we only use this to handle key fingerprint. should be able to replace this with trilead -->

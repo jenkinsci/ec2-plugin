@@ -130,6 +130,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("Connecting to " + host + "(" + ip + ") with WinRM as " + computer.getNode().remoteAdmin);
 
                 WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword().getPlainText());
+
                 connection.setUseHTTPS(computer.getNode().isUseHTTPS());
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");

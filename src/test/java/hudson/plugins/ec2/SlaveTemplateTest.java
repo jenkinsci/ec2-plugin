@@ -26,30 +26,38 @@ package hudson.plugins.ec2;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jvnet.hudson.test.HudsonTestCase;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.SpotInstanceType;
 
 import hudson.model.Node;
+import org.jvnet.hudson.test.JenkinsRule;
 
 /**
  * Basic test to validate SlaveTemplate.
  */
-public class SlaveTemplateTest extends HudsonTestCase {
+public class SlaveTemplateTest {
 
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
+    @Rule public JenkinsRule r = new JenkinsRule();
+
+    @Before
+    public void setUp() throws Exception {
         AmazonEC2Cloud.testMode = true;
     }
 
-    @Override
-    protected void tearDown() throws Exception {
-        super.tearDown();
+    @After
+    public void tearDown() throws Exception {
         AmazonEC2Cloud.testMode = false;
     }
 
+    @Test
     public void testConfigRoundtrip() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
@@ -65,14 +73,15 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
-        hudson.clouds.add(ac);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        r.jenkins.clouds.add(ac);
 
-        submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices,useDedicatedTenancy");
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices,useDedicatedTenancy");
     }
 
+    @Test
     public void testConfigRoundtripWithPrivateDns() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
@@ -88,12 +97,12 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
-        hudson.clouds.add(ac);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        r.jenkins.clouds.add(ac);
 
-        submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     /**
@@ -103,6 +112,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
      * @throws Exception
      *             - Exception that can be thrown by the Jenkins test harness
      */
+    @Test
     public void testConfigWithSpotBidPrice() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
@@ -119,12 +129,12 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
-        hudson.clouds.add(ac);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        r.jenkins.clouds.add(ac);
 
-        submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     /**
@@ -132,6 +142,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
      *
      * @throws Exception
      */
+    @Test
     public void testConfigRoundtripIamRole() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
@@ -147,19 +158,21 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
-        hudson.clouds.add(ac);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        r.jenkins.clouds.add(ac);
 
-        submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,iamInstanceProfile");
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,iamInstanceProfile");
     }
 
+    @Test
     public void testNullTimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
+    @Test
     public void testUpdateAmi() {
         SlaveTemplate st = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
         assertEquals("ami1", st.getAmi());
@@ -169,36 +182,43 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertEquals("ami3", st.getAmi());
     }
 
+    @Test
     public void test0TimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
+    @Test
     public void testNegativeTimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
+    @Test
     public void testNonNumericTimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
+    @Test
     public void testAssociatePublicIpSetting() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
         assertEquals(true, st.getAssociatePublicIp());
     }
 
+    @Test
     public void testConnectUsingPublicIpSetting() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "", false, true);
         assertTrue(st.isConnectUsingPublicIp());
     }
 
+    @Test
     public void testConnectUsingPublicIpSettingWithDefaultSetting() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
         assertFalse(st.isConnectUsingPublicIp());
     }
 
+    @Test
     public void testBackwardCompatibleUnixData() {
         SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
         assertFalse(st.isWindowsSlave());
@@ -206,6 +226,7 @@ public class SlaveTemplateTest extends HudsonTestCase {
         assertEquals("sudo", st.getRootCommandPrefix());
     }
 
+    @Test
     public void testWindowsConfigRoundTrip() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
@@ -221,16 +242,17 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
-        hudson.clouds.add(ac);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        r.jenkins.clouds.add(ac);
 
-        submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         assertEquals(orig.getAdminPassword(), received.getAdminPassword());
         assertEquals(orig.amiType, received.amiType);
-        assertEqualBeans(orig, received, "amiType");
+        r.assertEqualBeans(orig, received, "amiType");
     }
 
+    @Test
     public void testUnixConfigRoundTrip() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
@@ -246,11 +268,11 @@ public class SlaveTemplateTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
-        hudson.clouds.add(ac);
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        r.jenkins.clouds.add(ac);
 
-        submit(createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) hudson.clouds.iterator().next()).getTemplate(description);
-        assertEqualBeans(orig, received, "amiType");
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "amiType");
     }
 }
