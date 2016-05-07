@@ -240,12 +240,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return parent;
     }
 
-    public String getBidType() {
-        if (spotConfig == null)
-            return null;
-        return spotConfig.spotInstanceBidType;
-    }
-
     public String getLabelString() {
         return labels;
     }
@@ -695,7 +689,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             spotRequest.setSpotPrice(getSpotMaxBidPrice());
             spotRequest.setInstanceCount(1);
-            spotRequest.setType(getBidType());
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
@@ -1125,18 +1118,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             return availabilityZones;
-        }
-
-        /**
-         * Populates the Bid Type Drop down on the slave template config.
-         *
-         * @return
-         */
-        public ListBoxModel doFillBidTypeItems() {
-            ListBoxModel items = new ListBoxModel();
-            items.add(SpotInstanceType.OneTime.toString());
-            items.add(SpotInstanceType.Persistent.toString());
-            return items;
         }
 
         /*

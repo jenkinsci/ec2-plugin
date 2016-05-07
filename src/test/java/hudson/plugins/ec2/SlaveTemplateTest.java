@@ -35,7 +35,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.SpotInstanceType;
 
 import hudson.model.Node;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -123,7 +122,7 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SpotConfiguration spotConfig = new SpotConfiguration(".05", SpotInstanceType.OneTime.toString());
+        SpotConfiguration spotConfig = new SpotConfiguration(".05");
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
