@@ -65,6 +65,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -495,12 +496,12 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            int options = 0;
+            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
             if (forceCreateNew)
-                options = SlaveTemplate.PROVISION_FORCE_CREATE_NEW;
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
             else if (possibleSlavesCount > 0)
-                options = SlaveTemplate.PROVISION_ALLOW_CREATE_NEW;
-            return template.provision(StreamTaskListener.fromStdout(), options);
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+            return template.provision(StreamTaskListener.fromStdout(), provisionOptions);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return null;
