@@ -55,10 +55,6 @@ THE SOFTWARE.
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
     </f:entry>
-
-    <f:entry field="bidType" title="Choose Bid Type">
-      <f:select />
-    </f:entry>
   </f:optionalBlock>
 
   <f:entry title="${%Security group names}" field="securityGroups">

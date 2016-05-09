@@ -4,12 +4,10 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public final class SpotConfiguration {
     public final String spotMaxBidPrice;
-    public final String spotInstanceBidType;
 
     @DataBoundConstructor
-    public SpotConfiguration(String spotMaxBidPrice, String bidType) {
+    public SpotConfiguration(String spotMaxBidPrice) {
         this.spotMaxBidPrice = spotMaxBidPrice;
-        this.spotInstanceBidType = bidType;
     }
 
     @Override
@@ -19,8 +17,7 @@ public final class SpotConfiguration {
         }
         final SpotConfiguration config = (SpotConfiguration) obj;
 
-        return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice))
-                && this.spotInstanceBidType.equals(config.spotInstanceBidType);
+        return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
     }
 
     /**
