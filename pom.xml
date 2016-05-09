@@ -132,20 +132,25 @@ THE SOFTWARE.
     </dependency>
   </dependencies>
 
-  <developers>
-	<!-- current maintainer -->
-    <developer>
-      <id>francisu</id>
-      <name>Francis Upton IV</name>
-      <email>fupton@talend.com</email>
-    </developer>
-	<!-- kohsuke did the original implementation -->
-    <developer>
-      <id>kohsuke</id>
-      <name>Kohsuke Kawaguchi</name>
-      <email>kkawaguchi@cloudbees.com</email>
-    </developer>
-  </developers>
+	<developers>
+		<!-- current maintainers -->
+		<developer>
+			<id>francisu</id>
+			<name>Francis Upton IV</name>
+			<email>fupton@talend.com</email>
+		</developer>
+		<developer>
+			<id>johnnyshields</id>
+			<name>Johnny Shields</name>
+			<email>shields@kkvesper.jp</email>
+		</developer>
+		<!-- kohsuke did the original implementation -->
+		<developer>
+			<id>kohsuke</id>
+			<name>Kohsuke Kawaguchi</name>
+			<email>kkawaguchi@cloudbees.com</email>
+		</developer>
+	</developers>
 
   <repositories>
     <repository>
