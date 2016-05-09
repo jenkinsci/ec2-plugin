@@ -490,7 +490,7 @@ public abstract class EC2Cloud extends Cloud {
          * allocated, we don't look at that instance as available for provisioning.
          */
         int possibleSlavesCount = getPossibleNewSlavesCount(template);
-        if (possibleSlavesCount < 0) {
+        if (possibleSlavesCount <= 0) {
             LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
             return null;
         }
