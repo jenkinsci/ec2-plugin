@@ -65,6 +65,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -336,7 +337,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            EC2AbstractSlave node = provisionSlaveIfPossible(t);
+            EC2AbstractSlave node = provisionSlaveIfPossible(t, true);
             if (node == null)
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
             Jenkins.getInstance().addNode(node);
@@ -483,7 +484,7 @@ public abstract class EC2Cloud extends Cloud {
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
-    private synchronized EC2AbstractSlave provisionSlaveIfPossible(SlaveTemplate template) {
+    private synchronized EC2AbstractSlave provisionSlaveIfPossible(SlaveTemplate template, boolean forceCreateNew) {
         /*
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
@@ -495,7 +496,12 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            return template.provision(StreamTaskListener.fromStdout(), possibleSlavesCount > 0);
+            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
+            if (forceCreateNew)
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+            else if (possibleSlavesCount > 0)
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+            return template.provision(StreamTaskListener.fromStdout(), provisionOptions);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return null;
@@ -512,7 +518,7 @@ public abstract class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, String.format("Label is null - can't caculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
             }
             while (excessWorkload > 0) {
-                final EC2AbstractSlave slave = provisionSlaveIfPossible(t);
+                final EC2AbstractSlave slave = provisionSlaveIfPossible(t, false);
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;

@@ -366,18 +366,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
+    enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
-            if (allowCreateNew)
+            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(listener);
             return null;
         }
-        return provisionOndemand(listener, allowCreateNew);
+        return provisionOndemand(listener, provisionOptions);
     }
 
     private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
@@ -438,7 +440,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -553,18 +555,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
             EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
             Instance existingInstance = null;
-            reservationLoop: for (Reservation reservation : diResult.getReservations()) {
-                for (Instance instance : reservation.getInstances()) {
-                    if (checkInstance(logger, instance, ec2Node)) {
-                        existingInstance = instance;
-                        logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
-                        break reservationLoop;
+            if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
+                reservationLoop:
+                for (Reservation reservation : diResult.getReservations()) {
+                    for (Instance instance : reservation.getInstances()) {
+                        if (checkInstance(logger, instance, ec2Node)) {
+                            existingInstance = instance;
+                            logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
+                            break reservationLoop;
+                        }
                     }
                 }
             }
 
             if (existingInstance == null) {
-                if (!allowCreateNew) {
+                if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
+                    !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
                     logProvision(logger, "No existing instance found - but cannot create new instance");
                     return null;
                 }
