@@ -377,6 +377,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
+
+        if (Boolean.getBoolean(SlaveTemplate.class.getName() + ".skipCheckInstance")) {
+            return false;
+        }
+
         logProvision(logger, "checkInstance: " + existingInstance);
         if (StringUtils.isNotBlank(getIamInstanceProfile())) {
             if (existingInstance.getIamInstanceProfile() != null) {
