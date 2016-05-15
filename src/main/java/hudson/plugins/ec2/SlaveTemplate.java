@@ -421,12 +421,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return true;
     }
 
-    private void logProvision(PrintStream logger, String message) {
+    private static void logProvision(PrintStream logger, String message) {
         logger.println(message);
         LOGGER.fine(message);
     }
 
-    private void logProvisionInfo(PrintStream logger, String message) {
+    private static void logProvisionInfo(PrintStream logger, String message) {
         logger.println(message);
         LOGGER.info(message);
     }
@@ -487,16 +487,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                  * If we have a subnet ID then we can only use VPC security groups
                  */
                 if (!securityGroupSet.isEmpty()) {
-                    List<String> group_ids = getEc2SecurityGroups(ec2);
+                    List<String> groupIds = getEc2SecurityGroups(ec2);
 
-                    if (!group_ids.isEmpty()) {
+                    if (!groupIds.isEmpty()) {
                         if (getAssociatePublicIp()) {
-                            net.setGroups(group_ids);
+                            net.setGroups(groupIds);
                         } else {
-                            riRequest.setSecurityGroupIds(group_ids);
+                            riRequest.setSecurityGroupIds(groupIds);
                         }
 
-                        diFilters.add(new Filter("instance.group-id").withValues(group_ids));
+                        diFilters.add(new Filter("instance.group-id").withValues(groupIds));
                     }
                 }
             } else {
@@ -521,11 +521,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             boolean hasCustomTypeTag = false;
-            HashSet<Tag> inst_tags = null;
+            HashSet<Tag> instTags = null;
             if (tags != null && !tags.isEmpty()) {
-                inst_tags = new HashSet<Tag>();
+                instTags = new HashSet<Tag>();
                 for (EC2Tag t : tags) {
-                    inst_tags.add(new Tag(t.getName(), t.getValue()));
+                    instTags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                         hasCustomTypeTag = true;
@@ -533,11 +533,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
             if (!hasCustomTypeTag) {
-                if (inst_tags == null) {
-                    inst_tags = new HashSet<Tag>();
+                if (instTags == null) {
+                    instTags = new HashSet<Tag>();
                 }
                 // Append template description as well to identify slaves provisioned per template
-                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
                         EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
@@ -575,12 +575,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
                 /* Now that we have our instance, we can set tags on it */
-                if (inst_tags != null) {
-                    updateRemoteTags(ec2, inst_tags, "InvalidInstanceID.NotFound", inst.getInstanceId());
+                if (instTags != null) {
+                    updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
 
                     // That was a remote request - we should also update our
                     // local instance data.
-                    inst.setTags(inst_tags);
+                    inst.setTags(instTags);
                 }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
@@ -732,14 +732,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                  * If we have a subnet ID then we can only use VPC security groups
                  */
                 if (!securityGroupSet.isEmpty()) {
-                    List<String> group_ids = getEc2SecurityGroups(ec2);
-                    if (!group_ids.isEmpty()) {
+                    List<String> groupIds = getEc2SecurityGroups(ec2);
+                    if (!groupIds.isEmpty()) {
                         if (getAssociatePublicIp()) {
-                            net.setGroups(group_ids);
+                            net.setGroups(groupIds);
                         } else {
                             ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
 
-                            for (String group_id : group_ids) {
+                            for (String group_id : groupIds) {
                                 GroupIdentifier group = new GroupIdentifier();
                                 group.setGroupId(group_id);
                                 groups.add(group);
@@ -769,19 +769,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             boolean hasCustomTypeTag = false;
-            HashSet<Tag> inst_tags = null;
+            HashSet<Tag> instTags = null;
             if (tags != null && !tags.isEmpty()) {
-                inst_tags = new HashSet<Tag>();
+                instTags = new HashSet<Tag>();
                 for (EC2Tag t : tags) {
-                    inst_tags.add(new Tag(t.getName(), t.getValue()));
+                    instTags.add(new Tag(t.getName(), t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                         hasCustomTypeTag = true;
                     }
                 }
             }
             if (!hasCustomTypeTag) {
-                if (inst_tags != null)
-                    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                if (instTags != null)
+                    instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
                             EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
@@ -812,12 +812,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String slaveName = spotInstReq.getSpotInstanceRequestId();
 
             /* Now that we have our Spot request, we can set tags on it */
-            if (inst_tags != null) {
-                updateRemoteTags(ec2, inst_tags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
+            if (instTags != null) {
+                updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
 
                 // That was a remote request - we should also update our local
                 // instance data.
-                spotInstReq.setTags(inst_tags);
+                spotInstReq.setTags(instTags);
             }
 
             logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
@@ -862,18 +862,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * catchErrorCode - e.g. InvalidSpotInstanceRequestID.NotFound or InvalidInstanceRequestID.NotFound
      *
      * @param ec2
-     * @param inst_tags
+     * @param instTags
      * @param catchErrorCode
      * @param params
      * @throws InterruptedException
      */
-    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String catchErrorCode, String... params)
+    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> instTags, String catchErrorCode, String... params)
             throws InterruptedException {
         for (int i = 0; i < 5; i++) {
             try {
-                CreateTagsRequest tag_request = new CreateTagsRequest();
-                tag_request.withResources(params).setTags(inst_tags);
-                ec2.createTags(tag_request);
+                CreateTagsRequest tagRequest = new CreateTagsRequest();
+                tagRequest.withResources(params).setTags(instTags);
+                ec2.createTags(tagRequest);
                 break;
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals(catchErrorCode)) {
@@ -889,42 +889,42 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a list of security group ids for the slave
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
-        List<String> group_ids = new ArrayList<String>();
+        List<String> groupIds = new ArrayList<String>();
 
-        DescribeSecurityGroupsResult group_result = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
-        if (group_result.getSecurityGroups().size() == 0) {
-            group_result = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
+        DescribeSecurityGroupsResult groupResult = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
+        if (groupResult.getSecurityGroups().size() == 0) {
+            groupResult = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
         }
 
-        for (SecurityGroup group : group_result.getSecurityGroups()) {
+        for (SecurityGroup group : groupResult.getSecurityGroups()) {
             if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
                 List<Filter> filters = new ArrayList<Filter>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
                 filters.add(new Filter("state").withValues("available"));
                 filters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
-                DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
-                subnet_req.withFilters(filters);
-                DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
+                DescribeSubnetsRequest subnetReq = new DescribeSubnetsRequest();
+                subnetReq.withFilters(filters);
+                DescribeSubnetsResult subnetResult = ec2.describeSubnets(subnetReq);
 
-                List<Subnet> subnets = subnet_result.getSubnets();
+                List<Subnet> subnets = subnetResult.getSubnets();
                 if (subnets != null && !subnets.isEmpty()) {
-                    group_ids.add(group.getGroupId());
+                    groupIds.add(group.getGroupId());
                 }
             }
         }
 
-        if (securityGroupSet.size() != group_ids.size()) {
+        if (securityGroupSet.size() != groupIds.size()) {
             throw new AmazonClientException("Security groups must all be VPC security groups to work in a VPC context");
         }
 
-        return group_ids;
+        return groupIds;
     }
 
     private DescribeSecurityGroupsResult getSecurityGroupsBy(String filterName, Set<String> filterValues, AmazonEC2 ec2) {
-        DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-        group_req.withFilters(new Filter(filterName).withValues(filterValues));
-        return ec2.describeSecurityGroups(group_req);
+        DescribeSecurityGroupsRequest groupReq = new DescribeSecurityGroupsRequest();
+        groupReq.withFilters(new Filter(filterName).withValues(filterValues));
+        return ec2.describeSecurityGroups(groupReq);
     }
 
     /**
