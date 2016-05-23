@@ -240,12 +240,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return parent;
     }
 
-    public String getBidType() {
-        if (spotConfig == null)
-            return null;
-        return spotConfig.spotInstanceBidType;
-    }
-
     public String getLabelString() {
         return labels;
     }
@@ -366,18 +360,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
+    enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
-            if (allowCreateNew)
+            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(listener);
             return null;
         }
-        return provisionOndemand(listener, allowCreateNew);
+        return provisionOndemand(listener, provisionOptions);
     }
 
     private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
@@ -438,7 +434,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -553,18 +549,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
             EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
             Instance existingInstance = null;
-            reservationLoop: for (Reservation reservation : diResult.getReservations()) {
-                for (Instance instance : reservation.getInstances()) {
-                    if (checkInstance(logger, instance, ec2Node)) {
-                        existingInstance = instance;
-                        logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
-                        break reservationLoop;
+            if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
+                reservationLoop:
+                for (Reservation reservation : diResult.getReservations()) {
+                    for (Instance instance : reservation.getInstances()) {
+                        if (checkInstance(logger, instance, ec2Node)) {
+                            existingInstance = instance;
+                            logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
+                            break reservationLoop;
+                        }
                     }
                 }
             }
 
             if (existingInstance == null) {
-                if (!allowCreateNew) {
+                if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
+                    !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
                     logProvision(logger, "No existing instance found - but cannot create new instance");
                     return null;
                 }
@@ -617,7 +617,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
 
@@ -645,7 +645,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             available.remove(0);
         }
 
-        riRequest.withBlockDeviceMappings(newDeviceMapping);
+        return newDeviceMapping;
+    }
+
+    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+    }
+
+    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
+        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -668,6 +676,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
             riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+        }
+    }
+
+    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
+        if (StringUtils.isNotBlank(customDeviceMapping)) {
+            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -695,7 +709,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             spotRequest.setSpotPrice(getSpotMaxBidPrice());
             spotRequest.setInstanceCount(1);
-            spotRequest.setType(getBidType());
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
@@ -774,6 +787,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+            }
+
+            if (useEphemeralDevices) {
+                setupEphemeralDeviceMapping(launchSpecification);
+            } else {
+                setupCustomDeviceMapping(launchSpecification);
             }
 
             spotRequest.setLaunchSpecification(launchSpecification);
@@ -1014,10 +1033,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Check that the AMI requested is available in the cloud and can be used.
          */
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String ec2endpoint,
+                @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
                 @QueryParameter String region, final @QueryParameter String ami) throws IOException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -1096,10 +1115,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
+                @QueryParameter String credentialsId, @QueryParameter String region)
                 throws IOException, ServletException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1127,23 +1146,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return availabilityZones;
         }
 
-        /**
-         * Populates the Bid Type Drop down on the slave template config.
-         *
-         * @return
-         */
-        public ListBoxModel doFillBidTypeItems() {
-            ListBoxModel items = new ListBoxModel();
-            items.add(SpotInstanceType.OneTime.toString());
-            items.add(SpotInstanceType.Persistent.toString());
-            return items;
-        }
-
         /*
          * Check the current Spot price of the selected instance type for the selected region
          */
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region,
+                @QueryParameter String credentialsId, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone) throws IOException, ServletException {
 
             String cp = "";
@@ -1152,7 +1159,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {

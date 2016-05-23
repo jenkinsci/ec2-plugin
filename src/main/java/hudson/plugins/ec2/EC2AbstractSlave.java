@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -92,6 +93,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
     public final boolean useDedicatedTenancy;
+    public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
@@ -388,7 +390,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Called when the slave is connected to Jenkins
      */
     public void onConnected() {
-        // Do nothing by default.
+        isConnected = true;
     }
 
     protected boolean isAlive(boolean force) {
@@ -551,8 +553,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return false;
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region) {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String region) {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
             return fillZoneItems(credentialsProvider, region);
         }
 

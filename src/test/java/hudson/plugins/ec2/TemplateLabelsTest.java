@@ -27,12 +27,19 @@ import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
-import org.jvnet.hudson.test.HudsonTestCase;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class TemplateLabelsTest extends HudsonTestCase {
+import static org.junit.Assert.assertEquals;
+
+public class TemplateLabelsTest {
+
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
     private AmazonEC2Cloud ac;
     private final String LABEL1 = "label1";
@@ -53,9 +60,10 @@ public class TemplateLabelsTest extends HudsonTestCase {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(template);
 
-        ac = new AmazonEC2Cloud("us-east-1", false, "abc", "def", "us-east-1", "ghi", "3", templates);
+        ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
     }
 
+    @Test
     public void testLabelAtom() throws Exception {
         setUpCloud(LABEL1 + " " + LABEL2);
 
@@ -65,6 +73,7 @@ public class TemplateLabelsTest extends HudsonTestCase {
         assertEquals(true, ac.canProvision(null));
     }
 
+    @Test
     public void testLabelExpression() throws Exception {
         setUpCloud(LABEL1 + " " + LABEL2);
 
@@ -76,12 +85,14 @@ public class TemplateLabelsTest extends HudsonTestCase {
         assertEquals(false, ac.canProvision(Label.parseExpression("aaa || bbb")));
     }
 
+    @Test
     public void testEmptyLabel() throws Exception {
         setUpCloud("");
 
         assertEquals(true, ac.canProvision(null));
     }
 
+    @Test
     public void testExclusiveMode() throws Exception {
         setUpCloud(LABEL1 + " " + LABEL2, Node.Mode.EXCLUSIVE);
 
@@ -91,6 +102,7 @@ public class TemplateLabelsTest extends HudsonTestCase {
         assertEquals(false, ac.canProvision(null));
     }
 
+    @Test
     public void testExclusiveModeEmptyLabel() throws Exception {
         setUpCloud("", Node.Mode.EXCLUSIVE);
 

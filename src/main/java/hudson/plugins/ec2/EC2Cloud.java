@@ -22,7 +22,7 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -31,14 +31,19 @@ import com.amazonaws.services.ec2.model.*;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.plugins.credentials.*;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.ProxyConfiguration;
 import hudson.model.*;
+import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormValidation;
-import hudson.util.HttpResponses;
-import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
+import hudson.util.*;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.HttpResponse;
@@ -84,9 +89,17 @@ public abstract class EC2Cloud extends Cloud {
 
     private final boolean useInstanceProfileForCredentials;
 
-    private final String accessId;
-
-    private final Secret secretKey;
+    /**
+     * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
+     */
+    @CheckForNull
+    private String credentialsId;
+    @CheckForNull
+    @Deprecated
+    private transient String accessId;
+    @CheckForNull
+    @Deprecated
+    private transient Secret secretKey;
 
     protected final EC2PrivateKey privateKey;
 
@@ -103,12 +116,11 @@ public abstract class EC2Cloud extends Cloud {
 
     private static AWSCredentialsProvider awsCredentialsProvider;
 
-    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String accessId, String secretKey, String privateKey,
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
             String instanceCapStr, List<? extends SlaveTemplate> templates) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
-        this.accessId = accessId.trim();
-        this.secretKey = Secret.fromString(secretKey.trim());
+        this.credentialsId = credentialsId;
         this.privateKey = new EC2PrivateKey(privateKey);
 
         if (templates == null) {
@@ -133,6 +145,52 @@ public abstract class EC2Cloud extends Cloud {
     protected Object readResolve() {
         for (SlaveTemplate t : templates)
             t.parent = this;
+        if (this.accessId != null && credentialsId == null) {
+            // REPLACE this.accessId and this.secretId by a credential
+
+            SystemCredentialsProvider systemCredentialsProvider = SystemCredentialsProvider.getInstance();
+            // ITERATE ON EXISTING CREDS AND DON'T CREATE IF EXIST
+            for (Credentials credentials: systemCredentialsProvider.getCredentials()) {
+                if (credentials instanceof AmazonWebServicesCredentials) {
+                    AmazonWebServicesCredentials awsCreds = (AmazonWebServicesCredentials) credentials;
+                    AWSCredentials awsCredentials = awsCreds.getCredentials();
+                    if (accessId.equals(awsCredentials.getAWSAccessKeyId()) &&
+                            Secret.toString(this.secretKey).equals(awsCredentials.getAWSSecretKey())) {
+
+                        this.credentialsId = awsCreds.getId();
+                        this.accessId = null;
+                        this.secretKey = null;
+                        return this;
+                    }
+                }
+            }
+            // CREATE
+            for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.getInstance())) {
+
+                if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+
+                    try {
+                        String credsId = UUID.randomUUID().toString();
+                        credentialsStore.addCredentials(Domain.global(), new AWSCredentialsImpl(
+                                CredentialsScope.SYSTEM,
+                                credsId,
+                                this.accessId,
+                                this.secretKey.getEncryptedValue(),
+                                "EC2 Cloud - " + getDisplayName()));
+                        this.credentialsId = credsId;
+                        this.accessId = null;
+                        this.secretKey = null;
+                        return this;
+                    } catch (IOException e) {
+                        this.credentialsId = null;
+                        LOGGER.log(Level.WARNING, "Exception converting legacy configuration to the new credentials API", e);
+                    }
+                }
+
+            }
+            // PROBLEM, GLOBAL STORE NOT FOUND
+            LOGGER.log(Level.WARNING, "EC2 Plugin could not migrate credentials to the Jenkins Global Credentials Store, EC2 Plugin for cloud {0} must be manually reconfigured", getDisplayName());
+        }
         return this;
     }
 
@@ -140,12 +198,8 @@ public abstract class EC2Cloud extends Cloud {
         return useInstanceProfileForCredentials;
     }
 
-    public String getAccessId() {
-        return accessId;
-    }
-
-    public Secret getSecretKey() {
-        return secretKey;
+    public String getCredentialsId() {
+        return credentialsId;
     }
 
     public EC2PrivateKey getPrivateKey() {
@@ -226,7 +280,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            EC2AbstractSlave node = provisionSlaveIfPossible(t);
+            EC2AbstractSlave node = provisionSlaveIfPossible(t, true);
             if (node == null)
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
             Jenkins.getInstance().addNode(node);
@@ -373,7 +427,7 @@ public abstract class EC2Cloud extends Cloud {
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
-    private synchronized EC2AbstractSlave provisionSlaveIfPossible(SlaveTemplate template) {
+    private synchronized EC2AbstractSlave provisionSlaveIfPossible(SlaveTemplate template, boolean forceCreateNew) {
         /*
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
@@ -385,7 +439,12 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            return template.provision(StreamTaskListener.fromStdout(), possibleSlavesCount > 0);
+            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
+            if (forceCreateNew)
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+            else if (possibleSlavesCount > 0)
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+            return template.provision(StreamTaskListener.fromStdout(), provisionOptions);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return null;
@@ -397,29 +456,28 @@ public abstract class EC2Cloud extends Cloud {
         try {
             final List<PlannedNode> plannedNodes = new ArrayList<>();
             final SlaveTemplate template = getTemplate(label);
-
+            LOGGER.log(Level.INFO, "Attempting provision, excess workload: " + excessWorkload);
+            if (label == null) {
+                LOGGER.log(Level.WARNING, String.format("Label is null - can't caculate how many executors slave will have. Using %s number of executors", template.getNumExecutors()));
+            }
             while (excessWorkload > 0) {
-                LOGGER.log(Level.FINE, "Attempting provision, excess workload: " + excessWorkload);
+                final EC2AbstractSlave slave = provisionSlaveIfPossible(template, false);
 
-                final EC2AbstractSlave slave = provisionSlaveIfPossible(template);
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;
+                LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
                 Jenkins.getInstance().addNode(slave);
+                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
                 plannedNodes.add(new PlannedNode(template.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
-
+                    @Override
                     public Node call() throws Exception {
-                        try {
-                            slave.toComputer().connect(false).get();
-                        } catch (ExecutionException | InterruptedException | RuntimeException e) {
-                            if (template.spotConfig != null) {
-                                LOGGER.log(Level.INFO, "Expected - Spot instance " + slave.getInstanceId()
-                                        + " failed to connect on initial provision");
-                                return slave;
-                            }
-                            throw e;
+                        final long startTime = System.currentTimeMillis(); // fetch starting time
+                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+                            return tryToCallSlave(slave, template);
                         }
-                        return slave;
+                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
+                        return tryToCallSlave(slave, template);
                     }
                 }), template.getNumExecutors()));
 
@@ -433,33 +491,54 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    private EC2AbstractSlave tryToCallSlave(EC2AbstractSlave slave, SlaveTemplate template) {
+    	try {
+            slave.toComputer().connect(false).get();
+        } catch (InterruptedException | ExecutionException e) {
+            if (template.spotConfig != null) {
+            	if(StringUtils.isNotEmpty(slave.getInstanceId()) && slave.isConnected) {
+            		LOGGER.log(Level.INFO, String.format("Instance id: %s for node: %s is connected now.", slave.getInstanceId(), slave.getNodeName()));
+            		return slave;
+            	}
+            }
+        }
+    	return slave;
+    }
+
     @Override
     public boolean canProvision(Label label) {
         return getTemplate(label) != null;
     }
 
     private AWSCredentialsProvider createCredentialsProvider() {
-        return createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
-    }
-
-    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials,
-            final String accessId, final String secretKey) {
-        return createCredentialsProvider(useInstanceProfileForCredentials, accessId.trim(), Secret.fromString(secretKey.trim()));
+        return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
     }
 
     public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
         return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
     }
 
-    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials,
-            final String accessId, final Secret secretKey) {
+    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {
 
         if (useInstanceProfileForCredentials) {
             return new InstanceProfileCredentialsProvider();
+        } else if (StringUtils.isBlank(credentialsId)) {
+            return new DefaultAWSCredentialsProviderChain();
+        } else {
+            AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
+            return new StaticCredentialsProvider(credentials.getCredentials());
         }
+    }
 
-        BasicAWSCredentials credentials = new BasicAWSCredentials(accessId, secretKey.getPlainText());
-        return new StaticCredentialsProvider(credentials);
+    @CheckForNull
+    private static AmazonWebServicesCredentials getCredentials(@Nullable String credentialsId) {
+        if (StringUtils.isBlank(credentialsId)) {
+            return null;
+        }
+        return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
+                        ACL.SYSTEM, Collections.EMPTY_LIST),
+                CredentialsMatchers.withId(credentialsId));
     }
 
     /**
@@ -553,17 +632,6 @@ public abstract class EC2Cloud extends Cloud {
             return InstanceType.values();
         }
 
-        public FormValidation doCheckAccessId(@QueryParameter String value) throws IOException, ServletException {
-            if (value.trim().length() != 20) {
-                return FormValidation.error(Messages.EC2Cloud_InvalidAccessId());
-            }
-            return FormValidation.validateBase64(value, false, false, Messages.EC2Cloud_InvalidAccessId());
-        }
-
-        public FormValidation doCheckSecretKey(@QueryParameter String value) throws IOException, ServletException {
-            return FormValidation.validateBase64(value, false, false, Messages.EC2Cloud_InvalidSecretKey());
-        }
-
         public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
             if (value) {
                 try {
@@ -594,11 +662,10 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String accessId,
-                String secretKey, String privateKey) throws IOException, ServletException {
+        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey)
+                throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId,
-                        secretKey);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
@@ -621,11 +688,10 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials,
-                String accessId, String secretKey) throws IOException, ServletException {
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId)
+                throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, accessId,
-                        secretKey);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
@@ -652,6 +718,17 @@ public abstract class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());
             }
+        }
+
+        public ListBoxModel doFillCredentialsIdItems() {
+            return new StandardListBoxModel()
+                    .withEmptySelection()
+                    .withMatching(
+                            CredentialsMatchers.always(),
+                            CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class,
+                                    Jenkins.getInstance(),
+                                    ACL.SYSTEM,
+                                    Collections.EMPTY_LIST));
         }
     }
 

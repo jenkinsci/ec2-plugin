@@ -32,7 +32,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,secretKey,accessId,region,ec2endpoint,ami" />
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami" />
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
@@ -50,14 +50,10 @@ THE SOFTWARE.
   </f:entry>
 
   <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,accessId,secretKey,region,type,zone" />
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
 
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
-    </f:entry>
-
-    <f:entry field="bidType" title="Choose Bid Type">
-      <f:select />
     </f:entry>
   </f:optionalBlock>
 
@@ -90,7 +86,7 @@ THE SOFTWARE.
   </f:entry>
 
   <f:advanced>
-      
+
     <f:entry title="${%Override temporary dir location}" field="tmpDir">
       <f:textbox />
     </f:entry>
