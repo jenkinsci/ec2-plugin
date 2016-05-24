@@ -26,6 +26,7 @@ THE SOFTWARE.
     <p>
     Times are expressed in minutes.
     A value of 0 (or an empty string) indicates that idle slaves should never be stopped/terminated.
-    A negative value indicates that the instance should idle up to the billing hour, minus the idle minute time. For example, a value of 
-    -2 means that if an instance will be retained if checked less than 58 minutes into the billing hour, but stopped or terminated if checked between the 58th and 60th active minute.  This strategy keeps slaves alive and available for additional work during already paid for period.
+    A negative value indicates that the instance should idle up to the billing hour, minus the idle minute time. For example, a value of
+    -2 means that an instance will be retained if checked less than 58 minutes into the billing hour and found active, but stopped or
+    terminated if found idle. This strategy keeps slaves alive and available for additional work during already paid for period.
 </div>
