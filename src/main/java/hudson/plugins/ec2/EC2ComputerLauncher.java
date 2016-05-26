@@ -23,14 +23,15 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonServiceException;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,19 +49,21 @@ import com.amazonaws.services.ec2.model.StartInstancesResult;
  */
 public abstract class EC2ComputerLauncher extends ComputerLauncher {
     private static final Logger LOGGER = Logger.getLogger(EC2ComputerLauncher.class.getName());
+    public static final long REQUEST_POLL_TIME = TimeUnit.SECONDS.toMillis(10);
+    public static final long CHECK_POLL_TIME = TimeUnit.SECONDS.toMillis(5);
 
     @Override
-    public void launch(SlaveComputer _computer, TaskListener listener) {
+    public void launch(SlaveComputer slaveComputer, TaskListener listener) {
         try {
-            EC2Computer computer = (EC2Computer) _computer;
+            final EC2Computer computer = (EC2Computer) slaveComputer;
 
             while (true) {
-                String instanceId = computer.getInstanceId();
-                if (instanceId != null && !instanceId.equals("")) {
+                final String instanceId = computer.getInstanceId();
+                if (instanceId != null && !instanceId.isEmpty()) {
                     break;
                 }
                 // Only spot slaves can have no instance id.
-                EC2SpotSlave ec2Slave = (EC2SpotSlave) computer.getNode();
+                final EC2SpotSlave ec2Slave = (EC2SpotSlave) computer.getNode();
                 if (ec2Slave.isSpotRequestDead()) {
                     // Terminate launch
                     return;
@@ -68,63 +71,56 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                 final String msg = "Node " + computer.getName() + "(SpotRequest " + computer.getSpotInstanceRequestId() +
                     ") still requesting the instance, waiting 10s";
                 // report to system log and console
-                ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
-                // check every 10 seconds if in spot request phase
-                Thread.sleep(10000);
+                EC2Cloud.log(LOGGER, Level.FINEST, listener, msg);
+                Thread.sleep(REQUEST_POLL_TIME);
             }
 
-            final String baseMsg = "Node " + computer.getName() + "(" + computer.getInstanceId() + ")";
-            String msg;
+            final String baseMsg = "Node " + computer.getName() + '(' + computer.getInstanceId() + ')';
 
             OUTER: while (true) {
+                String msg;
                 switch (computer.getState()) {
-                case PENDING:
-                    msg = baseMsg + " is still pending/launching, waiting 5s";
-                    break;
-                case STOPPING:
-                    msg = baseMsg + " is still stopping, waiting 5s";
-                    break;
-                case RUNNING:
-                    msg = baseMsg + " is ready";
-                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINER, listener, msg);
-                    break OUTER;
-                case STOPPED:
-                    msg = baseMsg + " is stopped, sending start request";
-                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.INFO, listener, msg);
+                    case PENDING:
+                        msg = baseMsg + " is still pending/launching, waiting 5s";
+                        break;
+                    case STOPPING:
+                        msg = baseMsg + " is still stopping, waiting 5s";
+                        break;
+                    case RUNNING:
+                        msg = baseMsg + " is ready";
+                        EC2Cloud.log(LOGGER, Level.FINER, listener, msg);
+                        break OUTER;
+                    case STOPPED:
+                        msg = baseMsg + " is stopped, sending start request";
+                        EC2Cloud.log(LOGGER, Level.INFO, listener, msg);
 
-                    AmazonEC2 ec2 = computer.getCloud().connect();
-                    List<String> instances = new ArrayList<String>();
-                    instances.add(computer.getInstanceId());
+                        final AmazonEC2 ec2 = computer.getCloud().connect();
+                        final List<String> instances = new ArrayList<String>();
+                        instances.add(computer.getInstanceId());
 
-                    StartInstancesRequest siRequest = new StartInstancesRequest(instances);
-                    StartInstancesResult siResult = ec2.startInstances(siRequest);
+                        final StartInstancesRequest siRequest = new StartInstancesRequest(instances);
+                        final StartInstancesResult siResult = ec2.startInstances(siRequest);
 
-                    msg = baseMsg + ": sent start request, result: " + siResult;
-                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.INFO, listener, msg);
-                    continue OUTER;
-                case SHUTTING_DOWN:
-                case TERMINATED:
-                    // abort
-                    msg = baseMsg + " is terminated or terminating, aborting launch";
-                    ((EC2Computer) _computer).getCloud().log(LOGGER, Level.INFO, listener, msg);
-                    return;
-                default:
-                    msg = baseMsg + " is in an unknown state, retrying in 5s";
-                    break;
+                        msg = baseMsg + ": sent start request, result: " + siResult;
+                        EC2Cloud.log(LOGGER, Level.INFO, listener, msg);
+                        continue OUTER;
+                    case SHUTTING_DOWN:
+                    case TERMINATED:
+                        // abort
+                        msg = baseMsg + " is terminated or terminating, aborting launch";
+                        EC2Cloud.log(LOGGER, Level.INFO, listener, msg);
+                        return;
+                    default:
+                        msg = baseMsg + " is in an unknown state, retrying in 5s";
+                        break;
                 }
-
                 // report to system log and console
-                ((EC2Computer) _computer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
-                // check every 5 secs
-                Thread.sleep(5000);
+                EC2Cloud.log(LOGGER, Level.FINEST, listener, msg);
+                Thread.sleep(CHECK_POLL_TIME);
             }
 
             launch(computer, listener, computer.describeInstance());
-        } catch (AmazonClientException e) {
-            e.printStackTrace(listener.error(e.getMessage()));
-        } catch (IOException e) {
-            e.printStackTrace(listener.error(e.getMessage()));
-        } catch (InterruptedException e) {
+        } catch (AmazonServiceException | IOException | InterruptedException e) {
             e.printStackTrace(listener.error(e.getMessage()));
         }
 
