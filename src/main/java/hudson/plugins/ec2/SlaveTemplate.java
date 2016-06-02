@@ -367,16 +367,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(listener);
             return null;
         }
-        return provisionOndemand(listener, provisionOptions);
+        return provisionOndemand(listener, requiredLabel, provisionOptions);
     }
 
-    private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
+    /**
+     * Determines whether the AMI of the given instance matches the AMI of template and has the required label (if requiredLabel is non-null)
+     */
+    private boolean checkInstance(PrintStream logger, Instance existingInstance, Label requiredLabel, EC2AbstractSlave[] returnNode) {
         logProvision(logger, "checkInstance: " + existingInstance);
         if (StringUtils.isNotBlank(getIamInstanceProfile())) {
             if (existingInstance.getIamInstanceProfile() != null) {
@@ -409,8 +412,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 else if (false && node.toComputer().isOffline()) {
                     logProvision(logger, " false - Node is offline");
                     return false;
-                }
-                else {
+                } else if (requiredLabel != null && !requiredLabel.matches(node.getAssignedLabels())) {
+                    logProvision(logger, " false - we need a Node having label " + requiredLabel);
+                    return false;
+                } else {
                     logProvision(logger, " true - Node has capacity - can use it");
                     returnNode[0] = node;
                     return true;
@@ -434,12 +439,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            logProvisionInfo(logger, "Launching " + ami + " for template " + description);
+            logProvisionInfo(logger, "Considering launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -553,7 +558,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 reservationLoop:
                 for (Reservation reservation : diResult.getReservations()) {
                     for (Instance instance : reservation.getInstances()) {
-                        if (checkInstance(logger, instance, ec2Node)) {
+                        if (checkInstance(logger, instance, requiredLabel, ec2Node)) {
                             existingInstance = instance;
                             logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
                             break reservationLoop;
