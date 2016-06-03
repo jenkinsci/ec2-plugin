@@ -39,12 +39,14 @@ import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -255,12 +257,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         File tempFile = File.createTempFile("ec2_", ".pem");
 
         try {
-            FileWriter writer = new FileWriter(tempFile);
+            FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+            OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
             try {
                 writer.write(privateKey);
                 writer.flush();
             } finally {
                 writer.close();
+                fileOutputStream.close();
             }
             FilePath filePath = new FilePath(tempFile);
             filePath.chmod(0400); // octal file mask - readonly by owner
