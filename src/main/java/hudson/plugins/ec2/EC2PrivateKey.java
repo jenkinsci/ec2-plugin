@@ -23,29 +23,17 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.util.Secret;
-
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.Reader;
 import java.io.StringReader;
-import java.security.DigestInputStream;
-import java.security.KeyPair;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.Key;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Security;
-
-import org.apache.commons.codec.binary.Hex;
-import org.bouncycastle.openssl.PEMReader;
-import org.bouncycastle.openssl.PasswordFinder;
+import java.security.UnrecoverableKeyException;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
+
+import hudson.util.Secret;
+import jenkins.bouncycastle.api.PEMEncodable;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -55,7 +43,6 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
  * @author Kohsuke Kawaguchi
  */
 public class EC2PrivateKey {
-    private static final RuntimeException PRIVATE_KEY_WITH_PASSWORD = new RuntimeException();
 
     private final Secret privateKey;
 
@@ -74,50 +61,18 @@ public class EC2PrivateKey {
      * Obtains the fingerprint of the key in the "ab:cd:ef:...:12" format.
      */
     public String getFingerprint() throws IOException {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        Reader r = new BufferedReader(new StringReader(privateKey.getPlainText()));
-        PEMReader pem = new PEMReader(r, new PasswordFinder() {
-            public char[] getPassword() {
-                throw PRIVATE_KEY_WITH_PASSWORD;
-            }
-        });
-
         try {
-            KeyPair pair = (KeyPair) pem.readObject();
-            if (pair == null)
-                return null;
-            PrivateKey key = pair.getPrivate();
-            return digest(key);
-        } catch (RuntimeException e) {
-            if (e == PRIVATE_KEY_WITH_PASSWORD)
-                throw new IOException("This private key is password protected, which isn't supported yet");
-            throw e;
-        } finally {
-            pem.close();
+            return PEMEncodable.decode(privateKey.getPlainText()).getPrivateKeyFingerprint();
+        } catch (UnrecoverableKeyException e) {
+            throw new IOException("This private key is password protected, which isn't supported yet");
         }
     }
 
     public String getPublicFingerprint() throws IOException {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        Reader r = new BufferedReader(new StringReader(privateKey.getPlainText()));
-        PEMReader pem = new PEMReader(r, new PasswordFinder() {
-            public char[] getPassword() {
-                throw PRIVATE_KEY_WITH_PASSWORD;
-            }
-        });
-
         try {
-            KeyPair pair = (KeyPair) pem.readObject();
-            if (pair == null)
-                return null;
-            PublicKey key = pair.getPublic();
-            return digestOpt(key, "MD5");
-        } catch (RuntimeException e) {
-            if (e == PRIVATE_KEY_WITH_PASSWORD)
-                throw new IOException("This private key is password protected, which isn't supported yet");
-            throw e;
-        } finally {
-            pem.close();
+            return PEMEncodable.decode(privateKey.getPlainText()).getPublicKeyFingerprint();
+        } catch (UnrecoverableKeyException e) {
+            throw new IOException("This private key is password protected, which isn't supported yet");
         }
     }
 
@@ -173,33 +128,4 @@ public class EC2PrivateKey {
     public String toString() {
         return privateKey.getPlainText();
     }
-
-    /* package */static String digest(PrivateKey k) throws IOException {
-        return digestOpt(k, "SHA1");
-    }
-
-    /* package */static String digestOpt(Key k, String dg) throws IOException {
-        try {
-            MessageDigest md5 = MessageDigest.getInstance(dg);
-
-            DigestInputStream in = new DigestInputStream(new ByteArrayInputStream(k.getEncoded()), md5);
-            try {
-                while (in.read(new byte[128]) > 0)
-                    ; // simply discard the input
-            } finally {
-                in.close();
-            }
-            StringBuilder buf = new StringBuilder();
-            char[] hex = Hex.encodeHex(md5.digest());
-            for (int i = 0; i < hex.length; i += 2) {
-                if (buf.length() > 0)
-                    buf.append(':');
-                buf.append(hex, i, 2);
-            }
-            return buf.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new AssertionError(e);
-        }
-    }
-
 }

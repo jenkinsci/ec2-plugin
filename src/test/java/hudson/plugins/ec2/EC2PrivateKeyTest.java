@@ -23,7 +23,9 @@
  */
 package hudson.plugins.ec2;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
 
@@ -34,6 +36,9 @@ import static org.junit.Assert.assertEquals;
  */
 public class EC2PrivateKeyTest {
 
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+    
     @Test
     public void testFingerprint() throws IOException {
         EC2PrivateKey k = new EC2PrivateKey("-----BEGIN RSA PRIVATE KEY-----\n"
