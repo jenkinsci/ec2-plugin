@@ -24,8 +24,7 @@ THE SOFTWARE.
 -->
 
 <!--suppress ProblematicWhitespace -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -35,7 +34,7 @@ THE SOFTWARE.
     </parent>
 
     <artifactId>ec2</artifactId>
-    <version>1.35-SNAPSHOT</version>
+    <version>1.35</version>
     <packaging>hpi</packaging>
     <name>Amazon EC2 plugin</name>
     <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
@@ -51,7 +50,7 @@ THE SOFTWARE.
         <connection>scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/ec2-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/ec2-plugin</url>
-        <tag>HEAD</tag>
+        <tag>ec2-1.35</tag>
     </scm>
 
     <properties>
@@ -212,7 +211,7 @@ THE SOFTWARE.
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
-                                        <ignore/>
+                                        <ignore />
                                     </action>
                                 </pluginExecution>
                                 <pluginExecution>
@@ -231,7 +230,7 @@ THE SOFTWARE.
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
-                                        <ignore/>
+                                        <ignore />
                                     </action>
                                 </pluginExecution>
                                 <pluginExecution>
@@ -251,7 +250,7 @@ THE SOFTWARE.
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
-                                        <ignore/>
+                                        <ignore />
                                     </action>
                                 </pluginExecution>
                                 <pluginExecution>
@@ -275,7 +274,7 @@ THE SOFTWARE.
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
-                                        <ignore/>
+                                        <ignore />
                                     </action>
                                 </pluginExecution>
                                 <pluginExecution>
@@ -294,7 +293,7 @@ THE SOFTWARE.
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
-                                        <ignore/>
+                                        <ignore />
                                     </action>
                                 </pluginExecution>
                                 <pluginExecution>
@@ -311,7 +310,7 @@ THE SOFTWARE.
                                         </goals>
                                     </pluginExecutionFilter>
                                     <action>
-                                        <ignore/>
+                                        <ignore />
                                     </action>
                                 </pluginExecution>
                             </pluginExecutions>
