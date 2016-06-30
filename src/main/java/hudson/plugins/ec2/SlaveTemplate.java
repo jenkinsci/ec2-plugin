@@ -21,6 +21,7 @@ package hudson.plugins.ec2;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -507,7 +508,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            String userDataString = Base64.encodeBase64String(userData.getBytes());
+            String userDataString = Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8));
             riRequest.setUserData(userDataString);
             riRequest.setKeyName(keyPair.getKeyName());
             diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
@@ -756,7 +757,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            String userDataString = Base64.encodeBase64String(userData.getBytes());
+            String userDataString = Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8));
 
             launchSpecification.setUserData(userDataString);
             launchSpecification.setKeyName(keyPair.getKeyName());
