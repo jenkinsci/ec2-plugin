@@ -12,6 +12,7 @@ import hudson.slaves.ComputerLauncher;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import jenkins.model.Jenkins;
@@ -54,7 +55,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 }
 
                 OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
-                initGuard.write("init ran".getBytes());
+                initGuard.write("init ran".getBytes(StandardCharsets.UTF_8));
                 logger.println("init script ran successfully");
             }
 
