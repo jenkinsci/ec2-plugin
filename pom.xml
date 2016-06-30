@@ -28,9 +28,9 @@ THE SOFTWARE.
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.jenkins-ci.plugins</groupId>
-        <artifactId>plugin</artifactId>
-        <version>1.625.1</version>
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>plugin</artifactId>
+      <version>2.11</version>
     </parent>
 
     <artifactId>ec2</artifactId>
@@ -55,6 +55,7 @@ THE SOFTWARE.
 
     <properties>
         <powermock.version>1.6.3</powermock.version>
+        <jenkins.version>1.648</jenkins.version>
     </properties>
 
     <dependencies>

@@ -26,6 +26,7 @@ THE SOFTWARE.
   This is bit unusual, but so that we can override "name" with "Instance ID", override the config page entirely,
   instead of just supplying EC2Slave/configure-entries.jelly
 -->
+<?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <l:layout norefresh="true" permission="${app.ADMINISTER}" title="${it.name} Configuration">
     <st:include page="sidepanel.jelly"/>
