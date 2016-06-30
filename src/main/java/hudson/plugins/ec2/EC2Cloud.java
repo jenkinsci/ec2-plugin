@@ -440,9 +440,16 @@ public abstract class EC2Cloud extends Cloud {
                 continue;
             sirSet.add(sir);
             if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
-                        + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                n++;
+                if (template != null) {
+                    List<Tag> instanceTags = sir.getTags();
+                    for (Tag tag : instanceTags) {
+                        if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
+                            LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
+                                    + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+                            n++;
+                        }
+                    }
+                }
             }
         }
 
