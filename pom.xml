@@ -175,7 +175,6 @@ THE SOFTWARE.
                 <artifactId>maven-hpi-plugin</artifactId>
                 <configuration>
                     <pluginFirstClassLoader>true</pluginFirstClassLoader>
-                    <maskClasses>org.bouncycastle.</maskClasses>
                 </configuration>
             </plugin>
             <plugin>
@@ -184,6 +183,13 @@ THE SOFTWARE.
                 <configuration>
                     <source>1.7</source>
                     <target>1.7</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>
