@@ -451,15 +451,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
-            HashSet<Tag> inst_tags = new HashSet<Tag>();
+            HashSet<Tag> instTags = new HashSet<Tag>();
 
             for (EC2Tag t : tags) {
-                inst_tags.add(new Tag(t.getName(), t.getValue()));
+                instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
-            DeleteTagsRequest tag_request = new DeleteTagsRequest();
-            tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            getCloud().connect().deleteTags(tag_request);
+            DeleteTagsRequest tagRequest = new DeleteTagsRequest();
+            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            getCloud().connect().deleteTags(tagRequest);
         }
     }
 
@@ -471,15 +471,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {
-            HashSet<Tag> inst_tags = new HashSet<Tag>();
+            HashSet<Tag> instTags = new HashSet<Tag>();
 
             for (EC2Tag t : tags) {
-                inst_tags.add(new Tag(t.getName(), t.getValue()));
+                instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
-            CreateTagsRequest tag_request = new CreateTagsRequest();
-            tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            getCloud().connect().createTags(tag_request);
+            CreateTagsRequest tagRequest = new CreateTagsRequest();
+            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            getCloud().connect().createTags(tagRequest);
         }
     }
 

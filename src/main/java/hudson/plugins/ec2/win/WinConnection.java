@@ -91,7 +91,7 @@ public class WinConnection {
         return smbUrl.toString();
     }
 
-    private String toAdministrativeSharePath(String path) {
+    private static String toAdministrativeSharePath(String path) {
         // administrative windows share are DRIVE$path like
         return path.substring(0, 1) + "$" + path.substring(2);
     }

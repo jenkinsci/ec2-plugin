@@ -83,10 +83,10 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
     private WinConnection connectToWinRM(EC2Computer computer, PrintStream logger) throws AmazonClientException,
             InterruptedException {
-        final long MIN_TIMEOUT = 3000;
+        final long minTimeout = 3000;
         long timeout = computer.getNode().getLaunchTimeoutInMillis(); // timeout is less than 0 when jenkins is booting up.
-        if (timeout < MIN_TIMEOUT) {
-            timeout = MIN_TIMEOUT;
+        if (timeout < minTimeout) {
+            timeout = minTimeout;
         }
         final long startTime = System.currentTimeMillis();
 
