@@ -619,6 +619,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
@@ -835,6 +836,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(); // we should have discovered all
                                         // configuration issues upfront
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
