@@ -241,6 +241,7 @@ public class WinRMClient {
                         try {
                             Thread.sleep(TimeUnit.MINUTES.toMillis(3));
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                         }
                         authCache.set(new BasicAuthCache());
                         log.log(Level.WARNING, "winrm returned 401 - retrying now");

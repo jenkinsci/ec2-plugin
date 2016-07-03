@@ -44,6 +44,7 @@ public class WindowsProcess {
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         startStdinCopyThread();
     }
@@ -74,6 +75,7 @@ public class WindowsProcess {
             }
             return client.exitCode();
         } catch (InterruptedException exc) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException("Exception while executing command", exc);
         }
     }

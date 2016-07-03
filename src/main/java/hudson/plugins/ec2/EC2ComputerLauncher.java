@@ -125,6 +125,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
         } catch (IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             e.printStackTrace(listener.error(e.getMessage()));
         }
 
