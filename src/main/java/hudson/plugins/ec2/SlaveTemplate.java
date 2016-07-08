@@ -722,6 +722,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             launchSpecification.setImageId(ami);
             launchSpecification.setInstanceType(type);
+            launchSpecification.setEbsOptimized(ebsOptimized);
 
             if (StringUtils.isNotBlank(getZone())) {
                 SpotPlacement placement = new SpotPlacement(getZone());
