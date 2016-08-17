@@ -635,10 +635,10 @@ public abstract class EC2Cloud extends Cloud {
             	if (connection == null) {
                     connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
             	}
-           	    return connection;
+                    return connection;
         	} catch (IOException e) {
-           	    throw new AmazonClientException("Failed to retrieve the endpoint", e);
-       		}
+                    throw new AmazonClientException("Failed to retrieve the endpoint", e);
+            }
 	}
     }
 
