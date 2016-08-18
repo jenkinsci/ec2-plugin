@@ -400,13 +400,15 @@ public abstract class EC2Cloud extends Cloud {
             for (SpotInstanceRequest sir : sirs) {
                 sirSet.add(sir);
                 if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                    if (instanceIds.contains(sir.getInstanceId()))
+                    if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                         continue;
 
                     LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                             + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                     n++;
-                    instanceIds.add(sir.getInstanceId());
+                    
+                    if (sir.getInstanceId() != null)
+                        instanceIds.add(sir.getInstanceId());
                 } else {
                     // Canceled or otherwise dead
                     for (Node node : Jenkins.getInstance().getNodes()) {
@@ -455,13 +457,15 @@ public abstract class EC2Cloud extends Cloud {
                     for (Tag tag : instanceTags) {
                         if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
                         
-                            if (instanceIds.contains(sir.getInstanceId()))
+                            if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
                 
                             LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                             n++;
-                            instanceIds.add(sir.getInstanceId());
+                            
+                            if (sir.getInstanceId() != null)
+                                instanceIds.add(sir.getInstanceId());
                         }
                     }
                 }
