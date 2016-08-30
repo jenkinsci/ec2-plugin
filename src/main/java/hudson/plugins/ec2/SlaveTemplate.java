@@ -669,10 +669,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * AmazonEC2#describeImageAttribute does not work due to a bug
          * https://forums.aws.amazon.com/message.jspa?messageID=231972
          */
-        for (final Image image : getParent().connect().describeImages().getImages()) {
-
+        DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
+        for (final Image image : getParent().connect().describeImages(request).getImages()) {
             if (ami.equals(image.getImageId())) {
-
                 return image.getBlockDeviceMappings();
             }
         }
