@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -92,6 +93,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
     public final boolean useDedicatedTenancy;
+    public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
@@ -388,7 +390,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Called when the slave is connected to Jenkins
      */
     public void onConnected() {
-        // Do nothing by default.
+        isConnected = true;
     }
 
     protected boolean isAlive(boolean force) {
@@ -449,15 +451,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
-            HashSet<Tag> inst_tags = new HashSet<Tag>();
+            HashSet<Tag> instTags = new HashSet<Tag>();
 
             for (EC2Tag t : tags) {
-                inst_tags.add(new Tag(t.getName(), t.getValue()));
+                instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
-            DeleteTagsRequest tag_request = new DeleteTagsRequest();
-            tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            getCloud().connect().deleteTags(tag_request);
+            DeleteTagsRequest tagRequest = new DeleteTagsRequest();
+            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            getCloud().connect().deleteTags(tagRequest);
         }
     }
 
@@ -469,15 +471,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {
-            HashSet<Tag> inst_tags = new HashSet<Tag>();
+            HashSet<Tag> instTags = new HashSet<Tag>();
 
             for (EC2Tag t : tags) {
-                inst_tags.add(new Tag(t.getName(), t.getValue()));
+                instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
-            CreateTagsRequest tag_request = new CreateTagsRequest();
-            tag_request.withResources(inst.getInstanceId()).setTags(inst_tags);
-            getCloud().connect().createTags(tag_request);
+            CreateTagsRequest tagRequest = new CreateTagsRequest();
+            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            getCloud().connect().createTags(tagRequest);
         }
     }
 
@@ -551,8 +553,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return false;
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region) {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, accessId, secretKey);
+        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String region) {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
             return fillZoneItems(credentialsProvider, region);
         }
 

@@ -21,6 +21,7 @@ package hudson.plugins.ec2;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -240,12 +241,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return parent;
     }
 
-    public String getBidType() {
-        if (spotConfig == null)
-            return null;
-        return spotConfig.spotInstanceBidType;
-    }
-
     public String getLabelString() {
         return labels;
     }
@@ -366,21 +361,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
+    enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
-            if (allowCreateNew)
+            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(listener);
             return null;
         }
-        return provisionOndemand(listener, allowCreateNew);
+        return provisionOndemand(listener, requiredLabel, provisionOptions);
     }
 
-    private boolean checkInstance(PrintStream logger, Instance existingInstance, EC2AbstractSlave[] returnNode) {
+    /**
+     * Determines whether the AMI of the given instance matches the AMI of template and has the required label (if requiredLabel is non-null)
+     */
+    private boolean checkInstance(PrintStream logger, Instance existingInstance, Label requiredLabel, EC2AbstractSlave[] returnNode) {
         logProvision(logger, "checkInstance: " + existingInstance);
         if (StringUtils.isNotBlank(getIamInstanceProfile())) {
             if (existingInstance.getIamInstanceProfile() != null) {
@@ -413,8 +413,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 else if (false && node.toComputer().isOffline()) {
                     logProvision(logger, " false - Node is offline");
                     return false;
-                }
-                else {
+                } else if (requiredLabel != null && !requiredLabel.matches(node.getAssignedLabels())) {
+                    logProvision(logger, " false - we need a Node having label " + requiredLabel);
+                    return false;
+                } else {
                     logProvision(logger, " true - Node has capacity - can use it");
                     returnNode[0] = node;
                     return true;
@@ -425,12 +427,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return true;
     }
 
-    private void logProvision(PrintStream logger, String message) {
+    private static void logProvision(PrintStream logger, String message) {
         logger.println(message);
         LOGGER.fine(message);
     }
 
-    private void logProvisionInfo(PrintStream logger, String message) {
+    private static void logProvisionInfo(PrintStream logger, String message) {
         logger.println(message);
         LOGGER.info(message);
     }
@@ -438,12 +440,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, boolean allowCreateNew) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            logProvisionInfo(logger, "Launching " + ami + " for template " + description);
+            logProvisionInfo(logger, "Considering launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -491,16 +493,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                  * If we have a subnet ID then we can only use VPC security groups
                  */
                 if (!securityGroupSet.isEmpty()) {
-                    List<String> group_ids = getEc2SecurityGroups(ec2);
+                    List<String> groupIds = getEc2SecurityGroups(ec2);
 
-                    if (!group_ids.isEmpty()) {
+                    if (!groupIds.isEmpty()) {
                         if (getAssociatePublicIp()) {
-                            net.setGroups(group_ids);
+                            net.setGroups(groupIds);
                         } else {
-                            riRequest.setSecurityGroupIds(group_ids);
+                            riRequest.setSecurityGroupIds(groupIds);
                         }
 
-                        diFilters.add(new Filter("instance.group-id").withValues(group_ids));
+                        diFilters.add(new Filter("instance.group-id").withValues(groupIds));
                     }
                 }
             } else {
@@ -511,7 +513,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            String userDataString = Base64.encodeBase64String(userData.getBytes());
+            String userDataString = Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8));
             riRequest.setUserData(userDataString);
             riRequest.setKeyName(keyPair.getKeyName());
             diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
@@ -525,11 +527,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             boolean hasCustomTypeTag = false;
-            HashSet<Tag> inst_tags = null;
+            HashSet<Tag> instTags = null;
             if (tags != null && !tags.isEmpty()) {
-                inst_tags = new HashSet<Tag>();
+                instTags = new HashSet<Tag>();
                 for (EC2Tag t : tags) {
-                    inst_tags.add(new Tag(t.getName(), t.getValue()));
+                    instTags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                         hasCustomTypeTag = true;
@@ -537,11 +539,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
             if (!hasCustomTypeTag) {
-                if (inst_tags == null) {
-                    inst_tags = new HashSet<Tag>();
+                if (instTags == null) {
+                    instTags = new HashSet<Tag>();
                 }
                 // Append template description as well to identify slaves provisioned per template
-                inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
                         EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
@@ -553,18 +555,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
             EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
             Instance existingInstance = null;
-            reservationLoop: for (Reservation reservation : diResult.getReservations()) {
-                for (Instance instance : reservation.getInstances()) {
-                    if (checkInstance(logger, instance, ec2Node)) {
-                        existingInstance = instance;
-                        logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
-                        break reservationLoop;
+            if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
+                reservationLoop:
+                for (Reservation reservation : diResult.getReservations()) {
+                    for (Instance instance : reservation.getInstances()) {
+                        if (checkInstance(logger, instance, requiredLabel, ec2Node)) {
+                            existingInstance = instance;
+                            logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
+                            break reservationLoop;
+                        }
                     }
                 }
             }
 
             if (existingInstance == null) {
-                if (!allowCreateNew) {
+                if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
+                    !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
                     logProvision(logger, "No existing instance found - but cannot create new instance");
                     return null;
                 }
@@ -575,12 +581,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
                 /* Now that we have our instance, we can set tags on it */
-                if (inst_tags != null) {
-                    updateRemoteTags(ec2, inst_tags, "InvalidInstanceID.NotFound", inst.getInstanceId());
+                if (instTags != null) {
+                    updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
 
                     // That was a remote request - we should also update our
                     // local instance data.
-                    inst.setTags(inst_tags);
+                    inst.setTags(instTags);
                 }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
@@ -613,11 +619,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
 
@@ -645,7 +652,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             available.remove(0);
         }
 
-        riRequest.withBlockDeviceMappings(newDeviceMapping);
+        return newDeviceMapping;
+    }
+
+    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+    }
+
+    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
+        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -668,6 +683,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
             riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+        }
+    }
+
+    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
+        if (StringUtils.isNotBlank(customDeviceMapping)) {
+            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -695,13 +716,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             spotRequest.setSpotPrice(getSpotMaxBidPrice());
             spotRequest.setInstanceCount(1);
-            spotRequest.setType(getBidType());
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             launchSpecification.setImageId(ami);
             launchSpecification.setInstanceType(type);
+            launchSpecification.setEbsOptimized(ebsOptimized);
 
             if (StringUtils.isNotBlank(getZone())) {
                 SpotPlacement placement = new SpotPlacement(getZone());
@@ -719,14 +740,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                  * If we have a subnet ID then we can only use VPC security groups
                  */
                 if (!securityGroupSet.isEmpty()) {
-                    List<String> group_ids = getEc2SecurityGroups(ec2);
-                    if (!group_ids.isEmpty()) {
+                    List<String> groupIds = getEc2SecurityGroups(ec2);
+                    if (!groupIds.isEmpty()) {
                         if (getAssociatePublicIp()) {
-                            net.setGroups(group_ids);
+                            net.setGroups(groupIds);
                         } else {
                             ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
 
-                            for (String group_id : group_ids) {
+                            for (String group_id : groupIds) {
                                 GroupIdentifier group = new GroupIdentifier();
                                 group.setGroupId(group_id);
                                 groups.add(group);
@@ -743,7 +764,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            String userDataString = Base64.encodeBase64String(userData.getBytes());
+            String userDataString = Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8));
 
             launchSpecification.setUserData(userDataString);
             launchSpecification.setKeyName(keyPair.getKeyName());
@@ -756,24 +777,32 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             boolean hasCustomTypeTag = false;
-            HashSet<Tag> inst_tags = null;
+            HashSet<Tag> instTags = null;
             if (tags != null && !tags.isEmpty()) {
-                inst_tags = new HashSet<Tag>();
+                instTags = new HashSet<Tag>();
                 for (EC2Tag t : tags) {
-                    inst_tags.add(new Tag(t.getName(), t.getValue()));
+                    instTags.add(new Tag(t.getName(), t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                         hasCustomTypeTag = true;
                     }
                 }
             }
             if (!hasCustomTypeTag) {
-                if (inst_tags != null)
-                    inst_tags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                            EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
+                if (instTags == null) {
+                    instTags = new HashSet<Tag>();
+                }
+                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                        EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+            }
+
+            if (useEphemeralDevices) {
+                setupEphemeralDeviceMapping(launchSpecification);
+            } else {
+                setupCustomDeviceMapping(launchSpecification);
             }
 
             spotRequest.setLaunchSpecification(launchSpecification);
@@ -793,12 +822,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String slaveName = spotInstReq.getSpotInstanceRequestId();
 
             /* Now that we have our Spot request, we can set tags on it */
-            if (inst_tags != null) {
-                updateRemoteTags(ec2, inst_tags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
+            if (instTags != null) {
+                updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
 
                 // That was a remote request - we should also update our local
                 // instance data.
-                spotInstReq.setTags(inst_tags);
+                spotInstReq.setTags(instTags);
             }
 
             logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
@@ -810,6 +839,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(); // we should have discovered all
                                         // configuration issues upfront
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
@@ -843,18 +873,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * catchErrorCode - e.g. InvalidSpotInstanceRequestID.NotFound or InvalidInstanceRequestID.NotFound
      *
      * @param ec2
-     * @param inst_tags
+     * @param instTags
      * @param catchErrorCode
      * @param params
      * @throws InterruptedException
      */
-    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> inst_tags, String catchErrorCode, String... params)
+    private void updateRemoteTags(AmazonEC2 ec2, Collection<Tag> instTags, String catchErrorCode, String... params)
             throws InterruptedException {
         for (int i = 0; i < 5; i++) {
             try {
-                CreateTagsRequest tag_request = new CreateTagsRequest();
-                tag_request.withResources(params).setTags(inst_tags);
-                ec2.createTags(tag_request);
+                CreateTagsRequest tagRequest = new CreateTagsRequest();
+                tagRequest.withResources(params).setTags(instTags);
+                ec2.createTags(tagRequest);
                 break;
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals(catchErrorCode)) {
@@ -870,42 +900,42 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a list of security group ids for the slave
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
-        List<String> group_ids = new ArrayList<String>();
+        List<String> groupIds = new ArrayList<String>();
 
-        DescribeSecurityGroupsResult group_result = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
-        if (group_result.getSecurityGroups().size() == 0) {
-            group_result = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
+        DescribeSecurityGroupsResult groupResult = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
+        if (groupResult.getSecurityGroups().size() == 0) {
+            groupResult = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
         }
 
-        for (SecurityGroup group : group_result.getSecurityGroups()) {
+        for (SecurityGroup group : groupResult.getSecurityGroups()) {
             if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
                 List<Filter> filters = new ArrayList<Filter>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
                 filters.add(new Filter("state").withValues("available"));
                 filters.add(new Filter("subnet-id").withValues(getSubnetId()));
 
-                DescribeSubnetsRequest subnet_req = new DescribeSubnetsRequest();
-                subnet_req.withFilters(filters);
-                DescribeSubnetsResult subnet_result = ec2.describeSubnets(subnet_req);
+                DescribeSubnetsRequest subnetReq = new DescribeSubnetsRequest();
+                subnetReq.withFilters(filters);
+                DescribeSubnetsResult subnetResult = ec2.describeSubnets(subnetReq);
 
-                List<Subnet> subnets = subnet_result.getSubnets();
+                List<Subnet> subnets = subnetResult.getSubnets();
                 if (subnets != null && !subnets.isEmpty()) {
-                    group_ids.add(group.getGroupId());
+                    groupIds.add(group.getGroupId());
                 }
             }
         }
 
-        if (securityGroupSet.size() != group_ids.size()) {
+        if (securityGroupSet.size() != groupIds.size()) {
             throw new AmazonClientException("Security groups must all be VPC security groups to work in a VPC context");
         }
 
-        return group_ids;
+        return groupIds;
     }
 
     private DescribeSecurityGroupsResult getSecurityGroupsBy(String filterName, Set<String> filterValues, AmazonEC2 ec2) {
-        DescribeSecurityGroupsRequest group_req = new DescribeSecurityGroupsRequest();
-        group_req.withFilters(new Filter(filterName).withValues(filterValues));
-        return ec2.describeSecurityGroups(group_req);
+        DescribeSecurityGroupsRequest groupReq = new DescribeSecurityGroupsRequest();
+        groupReq.withFilters(new Filter(filterName).withValues(filterValues));
+        return ec2.describeSecurityGroups(groupReq);
     }
 
     /**
@@ -1014,10 +1044,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Check that the AMI requested is available in the cloud and can be used.
          */
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String ec2endpoint,
+                @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
                 @QueryParameter String region, final @QueryParameter String ami) throws IOException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -1096,10 +1126,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region)
+                @QueryParameter String credentialsId, @QueryParameter String region)
                 throws IOException, ServletException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1127,23 +1157,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return availabilityZones;
         }
 
-        /**
-         * Populates the Bid Type Drop down on the slave template config.
-         *
-         * @return
-         */
-        public ListBoxModel doFillBidTypeItems() {
-            ListBoxModel items = new ListBoxModel();
-            items.add(SpotInstanceType.OneTime.toString());
-            items.add(SpotInstanceType.Persistent.toString());
-            return items;
-        }
-
         /*
          * Check the current Spot price of the selected instance type for the selected region
          */
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String accessId, @QueryParameter String secretKey, @QueryParameter String region,
+                @QueryParameter String credentialsId, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone) throws IOException, ServletException {
 
             String cp = "";
@@ -1152,7 +1170,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    accessId, secretKey);
+                    credentialsId);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {

@@ -23,10 +23,16 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
+import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
@@ -35,12 +41,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Instance;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 public class EC2Computer extends SlaveComputer {
+    private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
+
+
     /**
      * Cached description of this EC2 instance. Lazily fetched.
      */
@@ -160,8 +170,30 @@ public class EC2Computer extends SlaveComputer {
 
     private Instance _describeInstanceOnce() throws AmazonClientException {
         DescribeInstancesRequest request = new DescribeInstancesRequest();
-        request.setInstanceIds(Collections.<String> singletonList(getNode().getInstanceId()));
-        return getCloud().connect().describeInstances(request).getReservations().get(0).getInstances().get(0);
+        String instanceId = getNode().getInstanceId();
+        request.setInstanceIds(Collections.<String> singletonList(instanceId));
+
+        List<Reservation> reservations = getCloud().connect().describeInstances(request).getReservations();
+        if (reservations.size() != 1) {
+          String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + reservations + ".";
+          if (reservations.size() == 0) {
+            message += " Instance seems to be dead.";
+          }
+          LOGGER.log(Level.INFO, message);
+          throw new AmazonClientException(message);
+        }
+        Reservation reservation = reservations.get(0);
+
+        List<Instance> instances = reservation.getInstances();
+        if (instances.size() != 1) {
+          String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
+          if (reservations.size() == 0) {
+            message += " Instance seems to be dead.";
+          }
+          LOGGER.log(Level.INFO, message);
+          throw new AmazonClientException(message);
+        }
+        return instances.get(0);
     }
 
     /**
@@ -178,9 +210,12 @@ public class EC2Computer extends SlaveComputer {
     /**
      * What username to use to run root-like commands
      *
+     * @return remote admin or {@code null} if the associated {@link Node} is {@code null}
      */
+    @CheckForNull
     public String getRemoteAdmin() {
-        return getNode().getRemoteAdmin();
+        EC2AbstractSlave node = getNode();
+        return node == null ? null : node.getRemoteAdmin();
     }
 
     public int getSshPort() {

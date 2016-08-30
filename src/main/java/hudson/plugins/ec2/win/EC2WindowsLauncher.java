@@ -12,6 +12,7 @@ import hudson.slaves.ComputerLauncher;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import jenkins.model.Jenkins;
@@ -21,7 +22,8 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.Instance;
 
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
-
+    private static final String SLAVE_JAR = "slave.jar";
+    
     final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
 
     @Override
@@ -53,18 +55,18 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 }
 
                 OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
-                initGuard.write("init ran".getBytes());
+                initGuard.write("init ran".getBytes(StandardCharsets.UTF_8));
                 logger.println("init script ran successfully");
             }
 
-            OutputStream slaveJar = connection.putFile(tmpDir + "slave.jar");
-            slaveJar.write(Jenkins.getInstance().getJnlpJars("slave.jar").readFully());
+            OutputStream slaveJar = connection.putFile(tmpDir + SLAVE_JAR);
+            slaveJar.write(Jenkins.getInstance().getJnlpJars(SLAVE_JAR).readFully());
 
             logger.println("slave.jar sent remotely. Bootstrapping it");
 
             final String jvmopts = computer.getNode().jvmopts;
             final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar "
-                    + tmpDir + "slave.jar", 86400);
+                    + tmpDir + SLAVE_JAR, 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
                 public void onClosed(Channel channel, IOException cause) {
@@ -82,10 +84,10 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
     private WinConnection connectToWinRM(EC2Computer computer, PrintStream logger) throws AmazonClientException,
             InterruptedException {
-        final long MIN_TIMEOUT = 3000;
+        final long minTimeout = 3000;
         long timeout = computer.getNode().getLaunchTimeoutInMillis(); // timeout is less than 0 when jenkins is booting up.
-        if (timeout < MIN_TIMEOUT) {
-            timeout = MIN_TIMEOUT;
+        if (timeout < minTimeout) {
+            timeout = minTimeout;
         }
         final long startTime = System.currentTimeMillis();
 
@@ -129,6 +131,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("Connecting to " + host + "(" + ip + ") with WinRM as " + computer.getNode().remoteAdmin);
 
                 WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword().getPlainText());
+
                 connection.setUseHTTPS(computer.getNode().isUseHTTPS());
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");

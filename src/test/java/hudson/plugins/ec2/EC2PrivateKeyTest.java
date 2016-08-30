@@ -23,14 +23,23 @@
  */
 package hudson.plugins.ec2;
 
-import org.jvnet.hudson.test.HudsonTestCase;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Kohsuke Kawaguchi
  */
-public class EC2PrivateKeyTest extends HudsonTestCase {
+public class EC2PrivateKeyTest {
+
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+    
+    @Test
     public void testFingerprint() throws IOException {
         EC2PrivateKey k = new EC2PrivateKey("-----BEGIN RSA PRIVATE KEY-----\n"
                 + "MIIEowIBAAKCAQEAlpK/pGxCRoHpbIObxYW53fl4qA+EQNHuSveNyxt+6m/HAdRLhEMGHe7/b7dR\n"
@@ -58,6 +67,7 @@ public class EC2PrivateKeyTest extends HudsonTestCase {
         assertEquals("3c:ee:c2:12:57:5f:d0:73:79:38:d6:aa:ef:91:0a:b8:2c:5f:47:65", k.getFingerprint());
     }
 
+    @Test
     public void testPublicFingerprint() throws IOException {
         EC2PrivateKey k = new EC2PrivateKey("-----BEGIN RSA PRIVATE KEY-----\n"
                 + "MIIEowIBAAKCAQEAlpK/pGxCRoHpbIObxYW53fl4qA+EQNHuSveNyxt+6m/HAdRLhEMGHe7/b7dR\n"

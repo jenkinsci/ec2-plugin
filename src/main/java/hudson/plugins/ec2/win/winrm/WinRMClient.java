@@ -52,6 +52,7 @@ import com.google.common.collect.Iterables;
 
 public class WinRMClient {
     private static final Logger log = Logger.getLogger(WinRMClient.class.getName());
+    private static final String APPLICATION_SOAP_XML = "application/soap+xml";
 
     private final URL url;
     private final String username;
@@ -211,7 +212,7 @@ public class WinRMClient {
         try {
             HttpPost post = new HttpPost(url.toURI());
 
-            HttpEntity entity = new StringEntity(request.asXML(), "application/soap+xml", "UTF-8");
+            HttpEntity entity = new StringEntity(request.asXML(), APPLICATION_SOAP_XML, "UTF-8");
             post.setEntity(entity);
 
             log.log(Level.FINEST, "Request:\nPOST " + url + "\n" + request.asXML());
@@ -223,7 +224,7 @@ public class WinRMClient {
                 // check for possible timeout
 
                 if (response.getStatusLine().getStatusCode() == 500
-                        && (responseEntity.getContentType() != null && entity.getContentType().getValue().startsWith("application/soap+xml"))) {
+                        && (responseEntity.getContentType() != null && entity.getContentType().getValue().startsWith(APPLICATION_SOAP_XML))) {
                     String respStr = EntityUtils.toString(responseEntity);
                     if (respStr.contains("TimedOut")) {
                         return DocumentHelper.parseText(respStr);
@@ -240,6 +241,7 @@ public class WinRMClient {
                         try {
                             Thread.sleep(TimeUnit.MINUTES.toMillis(3));
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                         }
                         authCache.set(new BasicAuthCache());
                         log.log(Level.WARNING, "winrm returned 401 - retrying now");
@@ -255,7 +257,7 @@ public class WinRMClient {
             }
 
             if (responseEntity.getContentType() == null
-                    || !entity.getContentType().getValue().startsWith("application/soap+xml")) {
+                    || !entity.getContentType().getValue().startsWith(APPLICATION_SOAP_XML)) {
                 throw new RuntimeException("Unexepected WinRM content type: " + entity.getContentType());
             }
 

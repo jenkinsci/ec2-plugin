@@ -98,7 +98,7 @@ public class WinRM {
      * @param timeout
      * @return
      */
-    private String secToDuration(int seconds) {
+    private static String secToDuration(int seconds) {
         StringBuilder iso = new StringBuilder("P");
         if (seconds > 604800) {
             // more than a week

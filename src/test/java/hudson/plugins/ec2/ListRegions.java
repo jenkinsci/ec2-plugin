@@ -27,6 +27,10 @@ package hudson.plugins.ec2;
  * @author Kohsuke Kawaguchi
  */
 public class ListRegions {
+
+    private ListRegions() {
+    }
+
     public static void main(String[] args) throws Exception {
         // Jec2 ec2 = new Jec2("...","...");
         // final List<RegionInfo> regions = ec2.describeRegions(null);

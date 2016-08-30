@@ -92,13 +92,13 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
     }
 
     /* Helper method to convert lists of Amazon tags into internal format */
-    public static List<EC2Tag> fromAmazonTags(List<Tag> amazon_tags) {
-        if (null == amazon_tags) {
+    public static List<EC2Tag> fromAmazonTags(List<Tag> amazonTags) {
+        if (null == amazonTags) {
             return null;
         }
 
         LinkedList<EC2Tag> result = new LinkedList<EC2Tag>();
-        for (Tag t : amazon_tags) {
+        for (Tag t : amazonTags) {
             result.add(new EC2Tag(t));
         }
 

@@ -22,13 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    <p>Determines how long slaves can remain idle before being stopped or terminated (see the Stop/Disconnect on Idle Timeout setting).</p>
+    <p>Determines how long slaves can remain idle before being stopped or terminated (see the Stop/Disconnect on Idle
+      Timeout setting). Also determines how frequently nodes are checked for stopping/terminating.</p>
     <p>Times are expressed in minutes, and a value of 0 (or an empty string) indicates that idle slaves should
     never be stopped/terminated. Positive values are simple time-outs after that many idle minutes. Negative values
-    cause the node to time out when idle and within the specified number of minutes from the end of an hourly
+    cause the node to time out when found idle within the specified number of minutes from the end of an hourly
     EC2 billing period.</p>
-    <p>E.g. if a node has an idle timeout of 5 and at 11:30 it has been idle since 11:20 (10 minutes), it will be terminated. If it has
-    an idle timeout of -5 it won't be terminated because the hourly billing period doesn't run out until 12:00.</p>
-    <p>If a node has an idle timeout of -5, and it becomes idle at 11:58, it will be terminated because it's within 5 minutes of the
-    end of the billing period - even if it was active less than 5 minutes ago.</p>
+    <p>As an example, let's say a node was started at 11:00.</p>
+    <p>If it has an idle timeout of 5 it will be checked every 5 minutes starting at 11:05. If it's checked at 11:30
+      and has been idle since 11:26 (for 4 minutes), it will be stopped or terminated.</p>
+    <p>If it has an idle timeout of -5 it will first be checked at 11:55, and then continuously until 12:00. If it
+      becomes idle during that time it will be stopped or terminated.</p>
 </div>
