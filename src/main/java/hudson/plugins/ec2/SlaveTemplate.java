@@ -457,6 +457,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             riRequest.setEbsOptimized(ebsOptimized);
 
+            setupRootDevice(riRequest.getBlockDeviceMappings());
             if (useEphemeralDevices) {
                 setupEphemeralDeviceMapping(riRequest);
             } else {
@@ -627,6 +628,36 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
+        if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
+            // get the root device (only one expected in the blockmappings)
+            final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
+            BlockDeviceMapping rootMapping = null;
+            for (final BlockDeviceMapping deviceMapping : rootDeviceMappings) {
+                System.out.println("AMI had " + deviceMapping.getDeviceName());
+                System.out.println(deviceMapping.getEbs());
+                rootMapping = deviceMapping;
+                break;
+            }
+
+            // Check if the root device is already in the mapping and update it
+            for (final BlockDeviceMapping mapping : deviceMappings) {
+                System.out.println("Request had " + mapping.getDeviceName());
+                if (rootMapping.getDeviceName().equals(mapping.getDeviceName())) {
+                    mapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
+                    return;
+                }
+            }
+
+            // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
+            BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(rootMapping.getDeviceName());
+            EbsBlockDevice newEbs = new EbsBlockDevice();
+            newEbs.setDeleteOnTermination(Boolean.TRUE);
+            newMapping.setEbs(newEbs);
+            deviceMappings.add(0, newMapping);
+        }
+    }
+
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
@@ -659,11 +690,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
-        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+        // Don't wipe out pre-existing mappings
+        riRequest.getBlockDeviceMappings().addAll(getNewEphemeralDeviceMapping());
     }
 
     private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
-        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+        launchSpec.getBlockDeviceMappings().addAll(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -691,13 +723,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
-            riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+            riRequest.getBlockDeviceMappings().addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
     private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
-            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+            launchSpec.getBlockDeviceMappings().addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -808,6 +840,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
+            setupRootDevice(launchSpecification.getBlockDeviceMappings());
             if (useEphemeralDevices) {
                 setupEphemeralDeviceMapping(launchSpecification);
             } else {
