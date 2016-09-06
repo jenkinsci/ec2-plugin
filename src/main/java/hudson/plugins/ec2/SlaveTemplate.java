@@ -672,15 +672,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * AmazonEC2#describeImageAttribute does not work due to a bug
          * https://forums.aws.amazon.com/message.jspa?messageID=231972
          */
+        return getImage().getBlockDeviceMappings();
+    }
+
+    private Image getImage() {
         DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
         for (final Image image : getParent().connect().describeImages(request).getImages()) {
+
             if (ami.equals(image.getImageId())) {
-                return image.getBlockDeviceMappings();
+
+                return image;
             }
         }
 
-        throw new AmazonClientException("Unable to get AMI device mapping for " + ami);
+        throw new AmazonClientException("Unable to find AMI " + ami);
     }
+
 
     private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
