@@ -98,6 +98,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String iamInstanceProfile;
 
+    public final boolean deleteRootOnTermination;
+
     public final boolean useEphemeralDevices;
 
     public final String customDeviceMapping;
@@ -142,9 +144,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
-            boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -185,6 +187,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
+        this.deleteRootOnTermination = deleteRootOnTermination;
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
 
@@ -200,7 +203,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean connectBySSHProcess) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
