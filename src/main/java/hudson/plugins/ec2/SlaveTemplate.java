@@ -459,9 +459,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             setupRootDevice(riRequest.getBlockDeviceMappings());
             if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(riRequest);
+                setupEphemeralDeviceMapping(riRequest.getBlockDeviceMappings());
             } else {
-                setupCustomDeviceMapping(riRequest);
+                setupCustomDeviceMapping(riRequest.getBlockDeviceMappings());
             }
 
             if(stopOnTerminate){
@@ -689,13 +689,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return newDeviceMapping;
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
+    private void setupEphemeralDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
         // Don't wipe out pre-existing mappings
-        riRequest.getBlockDeviceMappings().addAll(getNewEphemeralDeviceMapping());
-    }
-
-    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
-        launchSpec.getBlockDeviceMappings().addAll(getNewEphemeralDeviceMapping());
+        deviceMappings.addAll(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -721,15 +717,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
 
-    private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
+    private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
-            riRequest.getBlockDeviceMappings().addAll(DeviceMappingParser.parse(customDeviceMapping));
-        }
-    }
-
-    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
-        if (StringUtils.isNotBlank(customDeviceMapping)) {
-            launchSpec.getBlockDeviceMappings().addAll(DeviceMappingParser.parse(customDeviceMapping));
+            deviceMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -842,9 +832,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             setupRootDevice(launchSpecification.getBlockDeviceMappings());
             if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(launchSpecification);
+                setupEphemeralDeviceMapping(launchSpecification.getBlockDeviceMappings());
             } else {
-                setupCustomDeviceMapping(launchSpecification);
+                setupCustomDeviceMapping(launchSpecification.getBlockDeviceMappings());
             }
 
             spotRequest.setLaunchSpecification(launchSpecification);
