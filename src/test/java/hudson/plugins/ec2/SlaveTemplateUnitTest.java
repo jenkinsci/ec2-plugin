@@ -1,14 +1,15 @@
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.*;
+
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsResult;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.Tag;
-import hudson.model.Node;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+
+import org.junit.*;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
@@ -19,8 +20,7 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import hudson.model.Node;
 
 public class SlaveTemplateUnitTest {
 
@@ -45,8 +45,8 @@ public class SlaveTemplateUnitTest {
     public void testUpdateRemoteTags() throws Exception {
         AmazonEC2 ec2 = new AmazonEC2Client() {
             @Override
-            public void createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
-
+            public CreateTagsResult createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
+                return new CreateTagsResult();
             }
         };
 
@@ -80,7 +80,7 @@ public class SlaveTemplateUnitTest {
     public void testUpdateRemoteTagsInstanceNotFound() throws Exception {
         AmazonEC2 ec2 = new AmazonEC2Client() {
             @Override
-            public void createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
+            public CreateTagsResult createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
                 AmazonServiceException e = new AmazonServiceException("Instance not found - InvalidInstanceRequestID.NotFound");
                 e.setErrorCode("InvalidInstanceRequestID.NotFound");
                 throw e;
