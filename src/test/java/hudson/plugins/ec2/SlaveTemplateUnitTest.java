@@ -3,6 +3,7 @@ package hudson.plugins.ec2;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsResult;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.Tag;
 import hudson.model.Node;
@@ -45,8 +46,8 @@ public class SlaveTemplateUnitTest {
     public void testUpdateRemoteTags() throws Exception {
         AmazonEC2 ec2 = new AmazonEC2Client() {
             @Override
-            public void createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
-
+            public CreateTagsResult createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
+                return null;
             }
         };
 
@@ -80,7 +81,7 @@ public class SlaveTemplateUnitTest {
     public void testUpdateRemoteTagsInstanceNotFound() throws Exception {
         AmazonEC2 ec2 = new AmazonEC2Client() {
             @Override
-            public void createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
+            public CreateTagsResult createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
                 AmazonServiceException e = new AmazonServiceException("Instance not found - InvalidInstanceRequestID.NotFound");
                 e.setErrorCode("InvalidInstanceRequestID.NotFound");
                 throw e;
