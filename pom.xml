@@ -34,7 +34,7 @@ THE SOFTWARE.
     </parent>
 
     <artifactId>ec2</artifactId>
-    <version>1.36</version>
+    <version>1.37-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>Amazon EC2 plugin</name>
     <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
@@ -50,7 +50,7 @@ THE SOFTWARE.
         <connection>scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/ec2-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/ec2-plugin</url>
-        <tag>ec2-1.36</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>
