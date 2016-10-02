@@ -187,7 +187,7 @@ public class EC2Computer extends SlaveComputer {
         List<Instance> instances = reservation.getInstances();
         if (instances.size() != 1) {
           String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
-          if (reservations.size() == 0) {
+          if (instances.size() == 0) {
             message += " Instance seems to be dead.";
           }
           LOGGER.log(Level.INFO, message);
