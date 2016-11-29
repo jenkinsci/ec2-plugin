@@ -158,6 +158,10 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
+    <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">
+      <f:textbox default="-1"/>
+    </f:entry>
+
   </f:advanced>
 
   <f:entry title="">
