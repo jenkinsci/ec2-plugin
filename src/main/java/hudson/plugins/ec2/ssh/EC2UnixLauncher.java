@@ -214,7 +214,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
-            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
+            String prefix = computer.getSlaveCommandPrefix();
+            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
 
