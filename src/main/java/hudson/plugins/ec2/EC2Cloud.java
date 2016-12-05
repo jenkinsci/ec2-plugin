@@ -762,7 +762,7 @@ public abstract class EC2Cloud extends Cloud {
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if (pk.find(ec2) == null)
                         return FormValidation
-                                .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
+                                .warning("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
                                         + pk.getFingerprint() + ")");
                 }
 

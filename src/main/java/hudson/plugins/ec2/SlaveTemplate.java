@@ -515,8 +515,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             String userDataString = Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8));
             riRequest.setUserData(userDataString);
-            riRequest.setKeyName(keyPair.getKeyName());
-            diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+
+            if(keyPair != null) {
+                riRequest.setKeyName(keyPair.getKeyName());
+                diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+            }
+
             riRequest.setInstanceType(type.toString());
             diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
@@ -859,10 +863,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Get a KeyPair from the configured information for the slave template
      */
-    private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
+    private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException {
         KeyPair keyPair = parent.getPrivateKey().find(ec2);
         if (keyPair == null) {
-            throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+            LOGGER.log(Level.WARNING, "No matching keypair found on EC2. Is the EC2 private key a valid one?");
         }
         return keyPair;
     }

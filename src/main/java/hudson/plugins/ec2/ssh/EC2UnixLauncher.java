@@ -133,8 +133,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener);
-                KeyPair key = computer.getCloud().getKeyPair();
-                if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+                String key = computer.getCloud().getPrivateKey().getPrivateKey();
+                if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
@@ -283,14 +283,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
-            logInfo(computer, listener, "Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n"
-                    + key.getKeyMaterial().substring(0, 160));
+            String keyPair = computer.getCloud().getPrivateKey().getPrivateKey();
+
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapConn = connectToSsh(computer, listener);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.toCharArray(), "");
                 } catch(IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
                     bootstrapConn.close();
