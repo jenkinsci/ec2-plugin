@@ -544,7 +544,7 @@ public abstract class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, String.format("Label is null - can't calculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
             }
             while (excessWorkload > 0) {
-                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
+                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, true);
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;
