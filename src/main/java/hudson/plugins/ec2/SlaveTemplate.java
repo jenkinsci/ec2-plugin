@@ -570,7 +570,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             logProvision(logger, "Looking for existing instances with describe-instance: " + diRequest);
             if(provisionOptions.contains(ProvisionOptions.FORCE_CREATE)){
-                logProvision(logger, "Will Force Create Instace");
+                logProvision(logger, "Will Force Create Instance");
             }
             DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
             EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
