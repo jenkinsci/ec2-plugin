@@ -158,6 +158,11 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
+    <f:entry title="${%Force Instance Creation}" field="forceInstanceCreation">
+      <f:checkbox />
+    </f:entry>
+
+
   </f:advanced>
 
   <f:entry title="">

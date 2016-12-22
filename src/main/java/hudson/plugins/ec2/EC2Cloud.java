@@ -515,6 +515,8 @@ public abstract class EC2Cloud extends Cloud {
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
          */
+
+
         int possibleSlavesCount = getPossibleNewSlavesCount(template);
         if (possibleSlavesCount < 0) {
             LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
