@@ -25,6 +25,7 @@ package hudson.plugins.ec2;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
@@ -93,5 +94,12 @@ public class EC2PrivateKeyTest {
                 + "9ontJin0nlHPk+AOmV8xt3yYD+wPAJy5MjUco7tS4Ix6bmvxcpZi2ZcHT1GwkiIzgKWE\n"
                 + "-----END RSA PRIVATE KEY-----");
         assertEquals("e3:cc:f6:5d:0b:bb:8b:ca:32:12:fd:70:98:57:c0:21", k.getPublicFingerprint());
+    }
+
+    @Issue("JENKINS-41824")
+    @Test(expected = IOException.class)
+    public void testEmptyPrivateKey() throws Exception {
+        EC2PrivateKey k = new EC2PrivateKey("");
+        k.getFingerprint();
     }
 }
