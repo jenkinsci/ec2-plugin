@@ -663,6 +663,39 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
     }
 
+    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpecification) {
+
+        final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
+
+        final Set<String> occupiedDevices = new HashSet<String>();
+        for (final BlockDeviceMapping mapping: oldDeviceMapping ) {
+
+            occupiedDevices.add(mapping.getDeviceName());
+        }
+
+        final List<String> available = new ArrayList<String>(Arrays.asList(
+                "ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"
+        ));
+
+        final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<BlockDeviceMapping>(4);
+        for (char suffix = 'b'; suffix <= 'z' && !available.isEmpty(); suffix++) {
+
+            final String deviceName = String.format("/dev/xvd%s", suffix);
+
+            if (occupiedDevices.contains(deviceName)) continue;
+
+            final BlockDeviceMapping newMapping = new BlockDeviceMapping()
+                    .withDeviceName(deviceName)
+                    .withVirtualName(available.get(0))
+            ;
+
+            newDeviceMapping.add(newMapping);
+            available.remove(0);
+        }
+
+        launchSpecification.withBlockDeviceMappings(newDeviceMapping);
+    }
+
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
 
         /*
@@ -682,6 +715,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
             riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+        }
+    }
+    private void setupCustomDeviceMapping(LaunchSpecification launchSpecification) {
+        if (StringUtils.isNotBlank(customDeviceMapping)) {
+            launchSpecification.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -722,6 +760,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecification.setImageId(ami);
             launchSpecification.setInstanceType(type);
             launchSpecification.setEbsOptimized(ebsOptimized);
+
+            if (useEphemeralDevices) {
+                setupEphemeralDeviceMapping(launchSpecification);
+            }
+            else {
+                setupCustomDeviceMapping(launchSpecification);
+            }
 
             if (StringUtils.isNotBlank(getZone())) {
                 SpotPlacement placement = new SpotPlacement(getZone());
