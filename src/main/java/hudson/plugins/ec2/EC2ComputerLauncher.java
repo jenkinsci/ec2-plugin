@@ -76,41 +76,45 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             final String baseMsg = "Node " + computer.getName() + "(" + computer.getInstanceId() + ")";
             String msg;
 
-            OUTER: while (true) {
-                switch (computer.getState()) {
-                case PENDING:
-                    msg = baseMsg + " is still pending/launching, waiting 5s";
-                    break;
-                case STOPPING:
-                    msg = baseMsg + " is still stopping, waiting 5s";
-                    break;
-                case RUNNING:
-                    msg = baseMsg + " is ready";
-                    ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.FINER, listener, msg);
-                    break OUTER;
-                case STOPPED:
-                    msg = baseMsg + " is stopped, sending start request";
-                    ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.INFO, listener, msg);
+            boolean continuePolling = true;
+            while(continuePolling) {
+                InstanceState state = computer.getState();
+                switch (state) {
+                    case PENDING:
+                    case STOPPING:
+                        msg = baseMsg + " is still " + state.toString().toLowerCase() + ", waiting 5s";
+                        Thread.sleep(5000); // check every 5 secs
+                        // and report to system log and console
+                        ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.FINEST, listener, msg);
+                        break;
+                    case RUNNING:
+                        msg = baseMsg + " is ready";
+                        ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.FINER, listener, msg);
+                        continuePolling = false;
+                        break;
+                    case STOPPED:
+                        msg = baseMsg + " is stopped, sending start request";
+                        ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.INFO, listener, msg);
 
-                    AmazonEC2 ec2 = computer.getCloud().connect();
-                    List<String> instances = new ArrayList<String>();
-                    instances.add(computer.getInstanceId());
+                        AmazonEC2 ec2 = computer.getCloud().connect();
+                        List<String> instances = new ArrayList<String>();
+                        instances.add(computer.getInstanceId());
 
-                    StartInstancesRequest siRequest = new StartInstancesRequest(instances);
-                    StartInstancesResult siResult = ec2.startInstances(siRequest);
+                        StartInstancesRequest siRequest = new StartInstancesRequest(instances);
+                        StartInstancesResult siResult = ec2.startInstances(siRequest);
 
-                    msg = baseMsg + ": sent start request, result: " + siResult;
-                    ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.INFO, listener, msg);
-                    continue OUTER;
-                case SHUTTING_DOWN:
-                case TERMINATED:
-                    // abort
-                    msg = baseMsg + " is terminated or terminating, aborting launch";
-                    ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.INFO, listener, msg);
-                    return;
-                default:
-                    msg = baseMsg + " is in an unknown state, retrying in 5s";
-                    break;
+                        msg = baseMsg + ": sent start request, result: " + siResult;
+                        ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.INFO, listener, msg);
+                        break;
+                    case SHUTTING_DOWN:
+                    case TERMINATED:
+                        // abort
+                        msg = baseMsg + " is terminated or terminating, aborting launch";
+                        ((EC2Computer) slaveComputer).getCloud().log(LOGGER, Level.INFO, listener, msg);
+                        return;
+                    default:
+                        msg = baseMsg + " is in an unknown state, retrying in 5s";
+                        break;
                 }
 
                 // report to system log and console

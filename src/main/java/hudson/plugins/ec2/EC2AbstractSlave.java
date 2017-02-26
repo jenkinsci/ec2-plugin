@@ -33,6 +33,8 @@ import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
+import hudson.slaves.OfflineCause;
+import hudson.slaves.OfflineCause.ByCLI;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
 
@@ -41,11 +43,19 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+
+import javax.servlet.ServletException;
+
+import jenkins.util.Timer;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
@@ -63,6 +73,7 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.RebootInstancesRequest;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
@@ -77,6 +88,17 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 public abstract class EC2AbstractSlave extends Slave {
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
+    /**
+     * Initial number of seconds to wait before trying to reconnect to a rebooting slave
+     */
+    private static final int REBOOT_TIMEOUT = 30;
+    /**
+     * Reconnect still pending recheck period in seconds
+     */
+    private static final int REBOOT_RECONNECT_PENDING = 5;
+
+    private static final OfflineCause REBOOT_OFFLINE_CAUSE = new ByCLI("Rebooting after build");
+
     protected String instanceId;
 
     /**
@@ -90,6 +112,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
+    public final boolean rebootAfterBuild;
     public final String idleTerminationMinutes;
     public final boolean usePrivateDnsName;
     public final boolean useDedicatedTenancy;
@@ -116,6 +139,8 @@ public abstract class EC2AbstractSlave extends Slave {
 
     protected final int launchTimeout;
 
+    protected transient volatile Future<?> ongoingRebootReconnect;
+
     // Deprecated by the AMITypeData data structure
     @Deprecated
     protected transient int sshPort;
@@ -126,7 +151,8 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, boolean rebootAfterBuild)
             throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
@@ -145,6 +171,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
+        this.rebootAfterBuild = rebootAfterBuild;
         readResolve();
     }
 
@@ -292,6 +319,38 @@ public abstract class EC2AbstractSlave extends Slave {
      * Terminates the instance in EC2.
      */
     public abstract void terminate();
+
+    void reboot()
+    {
+        // Firstly, take the computer offline
+        final EC2Computer computer = (EC2Computer) toComputer();
+        LOGGER.info("Preparing to reboot EC2 instance " + getInstanceId() + ", computer " + computer.getName());
+        computer.setTemporarilyOffline(true, REBOOT_OFFLINE_CAUSE);
+        LOGGER.fine("EC2 instance " + getInstanceId() + ": set computer " + computer.getName() + " offline");
+        // Now disconnect from the instance and wait for disconnect to complete
+        try {
+            LOGGER.info("EC2 instance " + getInstanceId() + ": disconnecting " + computer.getName());
+            computer.disconnect(REBOOT_OFFLINE_CAUSE).get();
+            LOGGER.info("EC2 instance " + getInstanceId() + ": disconnected " + computer.getName());
+        }
+        catch (Exception e) {
+            Instance i = getInstance(getInstanceId(), getCloud());
+            LOGGER.log(Level.WARNING, "Error while disconnecting from EC2 instance: " + getInstanceId() + " info: "
+                    + ((i != null) ? i : ""), e);
+        }
+        try {
+            AmazonEC2 ec2 = getCloud().connect();
+            RebootInstancesRequest request = new RebootInstancesRequest(Collections.singletonList(getInstanceId()));
+            LOGGER.fine("Sending reboot request for " + getInstanceId());
+            ec2.rebootInstances(request);
+            LOGGER.info("EC2 instance reboot request sent for " + getInstanceId());
+        }
+        catch (AmazonClientException e) {
+            Instance i = getInstance(getInstanceId(), getCloud());
+            LOGGER.log(Level.WARNING, "Failed to reboot EC2 instance: " + getInstanceId() + " info: " + ((i != null) ? i : ""), e);
+        }
+        Timer.get().schedule(new RebootMonitor(), REBOOT_TIMEOUT, TimeUnit.SECONDS);
+    }
 
     void stop() {
         try {
@@ -563,4 +622,77 @@ public abstract class EC2AbstractSlave extends Slave {
         }
     }
 
+    private class RebootMonitor implements Runnable
+    {
+
+        /* (non-Javadoc)
+         * @see java.util.TimerTask#run()
+         */
+        @Override
+        public void run()
+        {
+            LOGGER.fine("Reboot monitor: woke up for EC2 instance " + getInstanceId());
+            EC2Computer computer = (EC2Computer) toComputer();
+            if (ongoingRebootReconnect != null) {
+                LOGGER.finer("Reboot monitor: EC2 instance " + getInstanceId() + " found ongoing reconnect pending");
+                if (ongoingRebootReconnect.isDone()) {
+                    LOGGER.info("Reboot monitor: EC2 instance " + getInstanceId() + " ongoing reconnect is done");
+                    if (computer.getChannel() == null) {
+                        LOGGER.info("Reboot monitor: EC2 instance " + getInstanceId() + " is not connected");
+                        if (computer.getOfflineCause() instanceof OfflineCause.LaunchFailed) {
+                            Throwable problem = null;
+                            try {
+                                ongoingRebootReconnect.get();
+                            }
+                            catch (ExecutionException e) {
+                                problem = e.getCause();
+                            }
+                            catch (InterruptedException e) {
+                                // Should never happen
+                                problem = e;
+                            }
+                            LOGGER.log(Level.WARNING, "Reboot monitor: EC2 instance " + getInstanceId()
+                                    + " reconnect launch attempt failed, will try later", problem);
+                            ongoingRebootReconnect = null; // want happens-before with next line
+                            Timer.get().schedule(new RebootMonitor(), REBOOT_TIMEOUT, TimeUnit.SECONDS);
+                        }
+                        else {
+                            // If offline cause is not because launch failed, we will not try to reconnect
+                            LOGGER.log(Level.WARNING, "Reboot monitor: EC2 instance " + getInstanceId()
+                                    + " experienced failure '" + computer.getOfflineCauseReason()
+                                    + "' while we tried reconnecting. Reboot handling ABORTED");
+                        }
+                    }
+                    else {
+                        computer.setTemporarilyOffline(false, null);
+                        LOGGER.info("Reboot monitor: EC2 instance " + getInstanceId() + " is now online");
+                    }
+                    // If computer is online or we're not retrying to reconnect we're done
+                    ongoingRebootReconnect = null;
+                }
+                else {
+                    LOGGER.finer("Reboot monitor: EC2 instance " + getInstanceId()
+                            + " rescheduling to check on pending reconnect");
+                    // Reconnect is not done, recheck status soon
+                    Timer.get().schedule(new RebootMonitor(), REBOOT_RECONNECT_PENDING, TimeUnit.SECONDS);
+                }
+            }
+            else {
+                if (isAlive(true)) {
+                    if (computer.getOfflineCause() == REBOOT_OFFLINE_CAUSE) {
+                        LOGGER.info("Reboot monitor: EC2 instance " + getInstanceId() + " starting reboot reconnect");
+                        // If we're rebooting and intend to continue rebooting
+                        // Connect and schedule checks
+                        ongoingRebootReconnect = computer.connect(false);
+                        Timer.get().schedule(new RebootMonitor(), REBOOT_RECONNECT_PENDING, TimeUnit.SECONDS);
+                    }
+                }
+                else {
+                    // Give up trying to reconnect, instance is gone
+                    ongoingRebootReconnect = null;
+                    LOGGER.warning("EC2 instance " + getInstanceId() + " has been terminated or we lost access");
+                }
+            }
+        }
+    }
 }

@@ -1,0 +1,11 @@
+<div>
+    Turning this option on will cause a slave to be rebooted after each build. This setting,
+    obviously, only makes sense if at any time there can be only one job running on a slave and a slave
+    is set up in such a way that rebooting it resets the slave to some baseline state. This is useful when 
+    you have slaves that upon reboot reset to some baseline state, i.e. have ephemeral roots or directories
+    (e.g. unionfs-fuse with RW tmpfs mounted over a read-only base).
+    <br/>
+    Since rebooting a slave costs very little time and is otherwise free, this method is financially preferable
+    to terminating an instance and starting a new one, causing an additional charge. Also, a simple reboot may take less time
+    than stop and start.
+</div>

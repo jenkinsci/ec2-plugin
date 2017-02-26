@@ -127,6 +127,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
+    public boolean rebootAfterBuild;
 
     /*
      * Necessary to handle reading from old configurations. The UnixData object is created in readResolve()
@@ -144,7 +145,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
-            boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean rebootAfterBuild) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -158,7 +159,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.description = description;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
-        this.userData = userData;
+        this.userData = Util.fixNull( userData );
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
         this.jvmopts = jvmopts;
@@ -187,6 +188,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.iamInstanceProfile = iamInstanceProfile;
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
+        this.rebootAfterBuild = rebootAfterBuild;
 
         readResolve(); // initialize
     }
@@ -201,7 +203,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -527,10 +529,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
+            HashSet<Tag> instTags = new HashSet<Tag>();
             if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
+                for(EC2Tag t : tags) {
                     instTags.add(new Tag(t.getName(), t.getValue()));
                     diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
                     if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
@@ -539,15 +540,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
             if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
                 // Append template description as well to identify slaves provisioned per template
                 instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
                         EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
+            diFilters.add(new Filter("instance-state-name").withValues(InstanceStateName.Stopped.toString(), InstanceStateName.Stopping.toString()));
             diRequest.setFilters(diFilters);
 
             logProvision(logger, "Looking for existing instances with describe-instance: " + diRequest);
@@ -581,7 +580,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
                 /* Now that we have our instance, we can set tags on it */
-                if (instTags != null) {
+                if (instTags.size() > 0) {
                     updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
 
                     // That was a remote request - we should also update our
@@ -847,7 +846,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
                 tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
                 inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName,
-                useDedicatedTenancy, getLaunchTimeout(), amiType);
+                useDedicatedTenancy, getLaunchTimeout(), amiType, rebootAfterBuild);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
