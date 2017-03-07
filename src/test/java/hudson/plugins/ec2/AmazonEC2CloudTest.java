@@ -51,11 +51,11 @@ public class AmazonEC2CloudTest {
 
     @After
     public void testConfigRoundtrip() throws Exception {
-        AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.<SlaveTemplate> emptyList());
+        AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.<SlaveTemplate> emptyList(),"roleArn", "roleSessionName");
         r.jenkins.clouds.add(orig);
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
 
         Cloud actual = r.jenkins.clouds.iterator().next();
-        r.assertEqualBeans(orig, actual, "cloudName,region,useInstanceProfileForCredentials,accessId,privateKey,instanceCap");
+        r.assertEqualBeans(orig, actual, "cloudName,region,useInstanceProfileForCredentials,accessId,privateKey,instanceCap,roleArn,roleSessionName");
     }
 }

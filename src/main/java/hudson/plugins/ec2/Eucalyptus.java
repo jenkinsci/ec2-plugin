@@ -46,9 +46,9 @@ public class Eucalyptus extends EC2Cloud {
     public final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates)
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
             throws IOException {
-        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.ec2endpoint = ec2endpoint;
         this.s3endpoint = s3endpoint;
     }
@@ -71,15 +71,15 @@ public class Eucalyptus extends EC2Cloud {
         }
 
         @Override
-        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
+        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
                 throws IOException, ServletException {
-            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey);
+            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
         }
 
         @Override
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
                 throws IOException, ServletException {
-            return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, credentialsId);
+            return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
         }
     }
 }

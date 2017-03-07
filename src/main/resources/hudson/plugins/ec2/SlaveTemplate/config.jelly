@@ -33,7 +33,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami" />
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami,roleArn,roleSessionName" />
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
@@ -51,7 +51,7 @@ THE SOFTWARE.
   </f:entry>
 
   <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName" />
 
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
