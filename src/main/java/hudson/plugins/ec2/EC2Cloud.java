@@ -533,67 +533,71 @@ public abstract class EC2Cloud extends Cloud {
          */
 
         EC2AbstractSlave ret = null;
-        List<Node> canceledNodes = new ArrayList<Node>();
+//        List<Node> canceledNodes = new ArrayList<Node>();
 
         // workaround for JENKINS-37483, don't mess with the Jenkins node list while holding a lock
-        
-        synchronized(this) {
-            int possibleSlavesCount = getPossibleNewSlavesCount(template, canceledNodes);
-            if (possibleSlavesCount < 0) {
-                LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
-                return null;
-            }
+
+//            int possibleSlavesCount = getPossibleNewSlavesCount(template, canceledNodes);
+//           canceledNodes if (possibleSlavesCount < 0) {
+//                LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
+//                return null;
+//            }
 
             try {
                 EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
                 if (forceCreateNew)
                     provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-                else if (possibleSlavesCount > 0)
-                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+
                 ret = template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
             } catch (IOException e) {
                 LOGGER.log(Level.WARNING, "Exception during provisioning", e);
                 ret = null;
             }
-        }
 
-        for (Node n : canceledNodes) {
-            try {
-                Jenkins.getInstance().removeNode(n);
-            } catch (Exception e) {
-                LOGGER.log(Level.INFO, "Failed to remove canceled node: " + n, e);
-            }
-        }
+
+//        for (Node n : canceledNodes) {
+//            try {
+//                Jenkins.getInstance().removeNode(n);
+//            } catch (Exception e) {
+//                LOGGER.log(Level.INFO, "Failed to remove canceled node: " + n, e);
+//            }
+//        }
 
         return ret;
     }
 
     @Override
-    public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         try {
-            List<PlannedNode> r = new ArrayList<PlannedNode>();
+            List<PlannedNode> r = new ArrayList<>();
             final SlaveTemplate t = getTemplate(label);
             LOGGER.log(Level.INFO, "Attempting to provision slave from template " + t + " needed by excess workload of " + excessWorkload + " units of label '" + label + "'");
             if (label == null) {
                 LOGGER.log(Level.WARNING, String.format("Label is null - can't calculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
             }
             while (excessWorkload > 0) {
-                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
+
                 // Returned null if a new node could not be created
-                if (slave == null)
-                    break;
+//                if (slave == null)
+//                    break;
                 LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
-                Jenkins.getInstance().addNode(slave);
-                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
+//                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
                 r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
                     public Node call() throws Exception {
-                        long startTime = System.currentTimeMillis(); // fetch starting time
-                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
-                            return tryToCallSlave(slave, t);
-                        }
-                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
-                        return tryToCallSlave(slave, t);
+                        final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
+//                        Jenkins.getInstance().addNode(slave);
+//                        long startTime = System.currentTimeMillis(); // fetch starting time
+//                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+//                            return tryToCallSlave(slave, t);
+//                        }
+
+//                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
+//                        return tryToCallSlave(slave, t);
+                        Jenkins.getInstance().addNode(slave);
+                        slave.toComputer().connect(false).get();
+                        return slave;
                     }
                 }), t.getNumExecutors()));
 
@@ -604,9 +608,9 @@ public abstract class EC2Cloud extends Cloud {
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return Collections.emptyList();
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
-            return Collections.emptyList();
+//        } catch (IOException e) {
+//            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+//            return Collections.emptyList();
         }
     }
 
