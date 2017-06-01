@@ -98,6 +98,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String iamInstanceProfile;
 
+    public final boolean deleteRootOnTermination;
+
     public final boolean useEphemeralDevices;
 
     public final String customDeviceMapping;
@@ -142,9 +144,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
-            boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -185,6 +187,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
+        this.deleteRootOnTermination = deleteRootOnTermination;
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
 
@@ -200,7 +203,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean connectBySSHProcess) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
@@ -454,10 +457,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             riRequest.setEbsOptimized(ebsOptimized);
 
+            setupRootDevice(riRequest.getBlockDeviceMappings());
             if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(riRequest);
+                setupEphemeralDeviceMapping(riRequest.getBlockDeviceMappings());
             } else {
-                setupCustomDeviceMapping(riRequest);
+                setupCustomDeviceMapping(riRequest.getBlockDeviceMappings());
             }
 
             if(stopOnTerminate){
@@ -624,6 +628,36 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
+        if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
+            // get the root device (only one expected in the blockmappings)
+            final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
+            BlockDeviceMapping rootMapping = null;
+            for (final BlockDeviceMapping deviceMapping : rootDeviceMappings) {
+                System.out.println("AMI had " + deviceMapping.getDeviceName());
+                System.out.println(deviceMapping.getEbs());
+                rootMapping = deviceMapping;
+                break;
+            }
+
+            // Check if the root device is already in the mapping and update it
+            for (final BlockDeviceMapping mapping : deviceMappings) {
+                System.out.println("Request had " + mapping.getDeviceName());
+                if (rootMapping.getDeviceName().equals(mapping.getDeviceName())) {
+                    mapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
+                    return;
+                }
+            }
+
+            // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
+            BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(rootMapping.getDeviceName());
+            EbsBlockDevice newEbs = new EbsBlockDevice();
+            newEbs.setDeleteOnTermination(Boolean.TRUE);
+            newMapping.setEbs(newEbs);
+            deviceMappings.add(0, newMapping);
+        }
+    }
+
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
@@ -655,12 +689,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return newDeviceMapping;
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
-        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
-    }
-
-    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
-        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+    private void setupEphemeralDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
+        // Don't wipe out pre-existing mappings
+        deviceMappings.addAll(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -669,25 +700,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * AmazonEC2#describeImageAttribute does not work due to a bug
          * https://forums.aws.amazon.com/message.jspa?messageID=231972
          */
+        return getImage().getBlockDeviceMappings();
+    }
+
+    private Image getImage() {
         DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
         for (final Image image : getParent().connect().describeImages(request).getImages()) {
+
             if (ami.equals(image.getImageId())) {
-                return image.getBlockDeviceMappings();
+
+                return image;
             }
         }
 
-        throw new AmazonClientException("Unable to get AMI device mapping for " + ami);
+        throw new AmazonClientException("Unable to find AMI " + ami);
     }
 
-    private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
-        if (StringUtils.isNotBlank(customDeviceMapping)) {
-            riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
-        }
-    }
 
-    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
+    private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
-            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+            deviceMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -798,10 +830,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
+            setupRootDevice(launchSpecification.getBlockDeviceMappings());
             if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(launchSpecification);
+                setupEphemeralDeviceMapping(launchSpecification.getBlockDeviceMappings());
             } else {
-                setupCustomDeviceMapping(launchSpecification);
+                setupCustomDeviceMapping(launchSpecification.getBlockDeviceMappings());
             }
 
             spotRequest.setLaunchSpecification(launchSpecification);
