@@ -629,15 +629,17 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
-    public synchronized AmazonEC2 connect() throws AmazonClientException {
-        try {
-            if (connection == null) {
-                connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+    public AmazonEC2 connect() throws AmazonClientException {
+        synchronized (EC2Cloud.class) {
+            try {
+            	if (connection == null) {
+                    connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+            	}
+                    return connection;
+        	} catch (IOException e) {
+                    throw new AmazonClientException("Failed to retrieve the endpoint", e);
             }
-            return connection;
-        } catch (IOException e) {
-            throw new AmazonClientException("Failed to retrieve the endpoint", e);
-        }
+	}
     }
 
     /***
