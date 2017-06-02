@@ -349,26 +349,33 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of instances in EC2 that can be used with the specified image and a template. Also removes any
+     * Counts the number of instances in EC2 that can be used with the specified image and a template. Also returns any
      * nodes associated with canceled requests.
      *
-     * @param template If left null, then all instances are counted.
      */
-    private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
+
+    private static class InstanceCounts {
+        public int totalCount;
+        public int amiCount;
+    }
+
+    private InstanceCounts countCurrentEC2Slaves(SlaveTemplate template, List<Node> canceledNodes) throws AmazonClientException {
+        InstanceCounts counts = new InstanceCounts();
         LOGGER.log(Level.FINE, "Counting current slaves: " + (template != null ? (" AMI: " + template.getAmi()) : " All AMIS"));
-        int n = 0;
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (isEc2ProvisionedAmiSlave(i.getTags(), description) && (template == null
-                        || template.getAmi().equals(i.getImageId()))) {
+                if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                                 + " Template: " + description);
-                        n++;
+                        if (template.getAmi().equals(i.getImageId())) {
+                            counts.amiCount++;
+                        }
+                        counts.totalCount++;
                         instanceIds.add(i.getInstanceId());
                     }
                 }
@@ -376,13 +383,9 @@ public abstract class EC2Cloud extends Cloud {
         }
         List<SpotInstanceRequest> sirs = null;
         List<Filter> filters = new ArrayList<Filter>();
-        List<String> values;
-        if (template != null) {
-            values = new ArrayList<String>();
-            values.add(template.getAmi());
-            filters.add(new Filter("launch.image-id", values));
-        }
-
+        List<String> values = new ArrayList<String>();
+        values.add(template.getAmi());
+        filters.add(new Filter("launch.image-id", values));
         values = new ArrayList<String>();
         values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
         filters.add(new Filter("tag-key", values));
@@ -397,33 +400,37 @@ public abstract class EC2Cloud extends Cloud {
         Set<SpotInstanceRequest> sirSet = new HashSet();
 
         if (sirs != null) {
+
             for (SpotInstanceRequest sir : sirs) {
+
                 sirSet.add(sir);
+
                 if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                    if (instanceIds.contains(sir.getInstanceId()))
+
+                    if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                         continue;
 
                     LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                             + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                    n++;
-                    instanceIds.add(sir.getInstanceId());
+                    counts.totalCount++;
+                    counts.amiCount++;
+                    if (sir.getInstanceId() != null) {
+                        instanceIds.add(sir.getInstanceId());
+                    }
+
                 } else {
                     // Canceled or otherwise dead
                     for (Node node : Jenkins.getInstance().getNodes()) {
-                        try {
-                            if (!(node instanceof EC2SpotSlave))
-                                continue;
-                            EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
-                            if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
-                                LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
+                        if (!(node instanceof EC2SpotSlave))
+                            continue;
+                        EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
+                        if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
+                            if (canceledNodes != null) {
+                                LOGGER.log(Level.INFO, "Queueing removal of dead spot request: " + sir.getSpotInstanceRequestId() + " AMI: "
                                         + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                                Jenkins.getInstance().removeNode(node);
+                                canceledNodes.add(node);
                                 break;
                             }
-                        } catch (IOException e) {
-                            LOGGER.log(Level.WARNING, "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
-                                            + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus(),
-                                    e);
                         }
                     }
                 }
@@ -440,7 +447,8 @@ public abstract class EC2Cloud extends Cloud {
 
             if (sir == null) {
                 LOGGER.log(Level.FINE, "Found spot node without request: " + ec2Slave.getSpotInstanceRequestId());
-                n++;
+                counts.totalCount++;
+                counts.amiCount++;
                 continue;
             }
 
@@ -453,22 +461,30 @@ public abstract class EC2Cloud extends Cloud {
                 if (template != null) {
                     List<Tag> instanceTags = sir.getTags();
                     for (Tag tag : instanceTags) {
-                        if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
-                        
-                            if (instanceIds.contains(sir.getInstanceId()))
+                        if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description))) {
+
+                            if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
-                
+
                             LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                            n++;
-                            instanceIds.add(sir.getInstanceId());
+
+                            counts.totalCount++;
+
+                            if (sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
+                                counts.amiCount++;
+                            }
+
+                            if (sir.getInstanceId() != null) {
+                                instanceIds.add(sir.getInstanceId());
+                            }
                         }
                     }
                 }
             }
         }
 
-        return n;
+        return counts;
     }
 
     private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
@@ -494,12 +510,12 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Returns the maximum number of possible slaves that can be created.
      */
-    private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(template);
+    private int getPossibleNewSlavesCount(SlaveTemplate template, List<Node> canceledNodes) throws AmazonClientException {
 
-        int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
-        int availableAmiSlaves = template.getInstanceCap() - estimatedAmiSlaves;
+        InstanceCounts counts = countCurrentEC2Slaves(template, canceledNodes);
+
+        int availableTotalSlaves = instanceCap - counts.totalCount;;
+        int availableAmiSlaves = template.getInstanceCap() - counts.amiCount;
         LOGGER.log(Level.FINE, "Available Total Slaves: " + availableTotalSlaves + " Available AMI slaves: " + availableAmiSlaves
                 + " AMI: " + template.getAmi() + " TemplateDesc: " + template.description);
 
@@ -510,56 +526,78 @@ public abstract class EC2Cloud extends Cloud {
      * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
      */
-    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
+    private EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
         /*
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
          */
-        int possibleSlavesCount = getPossibleNewSlavesCount(template);
-        if (possibleSlavesCount < 0) {
-            LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
-            return null;
-        }
 
-        try {
-            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
-            if (forceCreateNew)
-                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-            else if (possibleSlavesCount > 0)
+        EC2AbstractSlave ret = null;
+//        List<Node> canceledNodes = new ArrayList<Node>();
+
+        // workaround for JENKINS-37483, don't mess with the Jenkins node list while holding a lock
+
+//            int possibleSlavesCount = getPossibleNewSlavesCount(template, canceledNodes);
+//           canceledNodes if (possibleSlavesCount < 0) {
+//                LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
+//                return null;
+//            }
+
+            try {
+                EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
-            return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
-            return null;
-        }
+                if (forceCreateNew)
+                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+
+                ret = template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+                ret = null;
+            }
+
+
+//        for (Node n : canceledNodes) {
+//            try {
+//                Jenkins.getInstance().removeNode(n);
+//            } catch (Exception e) {
+//                LOGGER.log(Level.INFO, "Failed to remove canceled node: " + n, e);
+//            }
+//        }
+
+        return ret;
     }
 
     @Override
-    public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         try {
-            List<PlannedNode> r = new ArrayList<PlannedNode>();
+            List<PlannedNode> r = new ArrayList<>();
             final SlaveTemplate t = getTemplate(label);
             LOGGER.log(Level.INFO, "Attempting to provision slave from template " + t + " needed by excess workload of " + excessWorkload + " units of label '" + label + "'");
             if (label == null) {
                 LOGGER.log(Level.WARNING, String.format("Label is null - can't calculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
             }
             while (excessWorkload > 0) {
-                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
+
                 // Returned null if a new node could not be created
-                if (slave == null)
-                    break;
+//                if (slave == null)
+//                    break;
                 LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
-                Jenkins.getInstance().addNode(slave);
-                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
+//                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
                 r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
                     public Node call() throws Exception {
-                        long startTime = System.currentTimeMillis(); // fetch starting time
-                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
-                            return tryToCallSlave(slave, t);
-                        }
-                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
-                        return tryToCallSlave(slave, t);
+                        final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
+//                        Jenkins.getInstance().addNode(slave);
+//                        long startTime = System.currentTimeMillis(); // fetch starting time
+//                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+//                            return tryToCallSlave(slave, t);
+//                        }
+
+//                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
+//                        return tryToCallSlave(slave, t);
+                        Jenkins.getInstance().addNode(slave);
+                        slave.toComputer().connect(false).get();
+                        return slave;
                     }
                 }), t.getNumExecutors()));
 
@@ -570,9 +608,9 @@ public abstract class EC2Cloud extends Cloud {
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return Collections.emptyList();
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
-            return Collections.emptyList();
+//        } catch (IOException e) {
+//            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+//            return Collections.emptyList();
         }
     }
 
