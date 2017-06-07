@@ -525,9 +525,10 @@ public abstract class EC2Cloud extends Cloud {
 
         try {
             EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
-            if (forceCreateNew)
+            if (forceCreateNew) {
+                LOGGER.fine("Forcing Creation of EC2 based on configuration for label " + requiredLabel.getDisplayName());
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-            else if (possibleSlavesCount > 0)
+            } else if (possibleSlavesCount > 0)
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
             return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
         } catch (IOException e) {
