@@ -134,6 +134,10 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
+    <f:entry title="${%Delete root device on instance termination}" field="deleteRootOnTermination">
+      <f:checkbox />
+    </f:entry>
+
     <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">
       <f:checkbox />
     </f:entry>
