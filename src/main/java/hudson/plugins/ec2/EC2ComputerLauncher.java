@@ -122,11 +122,26 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             launch(computer, listener, computer.describeInstance());
         } catch (AmazonClientException e) {
             e.printStackTrace(listener.error(e.getMessage()));
+            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
+                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
+                EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
+                ec2AbstractSlave.terminate();
+            }
         } catch (IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
+            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
+                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
+                EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
+                ec2AbstractSlave.terminate();
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             e.printStackTrace(listener.error(e.getMessage()));
+            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
+                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
+                EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
+                ec2AbstractSlave.terminate();
+            }
         }
 
     }
