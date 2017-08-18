@@ -581,17 +581,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                     riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 }
+
+                if (instTags != null) {
+                    TagSpecification tagSpecification = new TagSpecification();
+                    tagSpecification.setResourceType(ResourceType.Instance);
+                    tagSpecification.setTags(instTags);
+                    Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
+                    riRequest.setTagSpecifications(tagSpecifications);
+                }
+
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
-                /* Now that we have our instance, we can set tags on it */
-                if (instTags != null) {
-                    updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
-
-                    // That was a remote request - we should also update our
-                    // local instance data.
-                    inst.setTags(instTags);
-                }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
@@ -622,9 +623,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
         }
     }
 
