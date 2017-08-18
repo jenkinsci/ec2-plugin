@@ -306,7 +306,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 return false;
             }
         } finally {
-            bootstrapConn.close();
+            if (bootstrapConn != null) {
+                bootstrapConn.close();
+            }
         }
         return true;
     }
