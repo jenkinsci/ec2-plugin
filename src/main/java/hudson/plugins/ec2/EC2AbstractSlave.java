@@ -121,7 +121,7 @@ public abstract class EC2AbstractSlave extends Slave {
     protected transient int sshPort;
     @Deprecated
     public transient String rootCommandPrefix; // e.g. 'sudo'
-    @Deprecated
+
     public transient String slaveCommandPrefix;
 
     private transient long createdTime;
