@@ -119,7 +119,7 @@ public abstract class EC2AbstractSlave extends Slave {
     // Deprecated by the AMITypeData data structure
     @Deprecated
     protected transient int sshPort;
-
+    @Deprecated
     public transient String rootCommandPrefix; // e.g. 'sudo'
 
     public transient String slaveCommandPrefix;
