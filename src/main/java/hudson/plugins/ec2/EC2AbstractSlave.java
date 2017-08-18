@@ -121,6 +121,8 @@ public abstract class EC2AbstractSlave extends Slave {
     protected transient int sshPort;
     @Deprecated
     public transient String rootCommandPrefix; // e.g. 'sudo'
+    @Deprecated
+    public transient String slaveCommandPrefix;
 
     private transient long createdTime;
 
@@ -160,7 +162,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, Integer.toString(sshPort));
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, Integer.toString(sshPort));
         }
 
         return this;
@@ -360,6 +362,13 @@ public abstract class EC2AbstractSlave extends Slave {
 
     String getRootCommandPrefix() {
         String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        if (commandPrefix == null || commandPrefix.length() == 0)
+            return "";
+        return commandPrefix + " ";
+    }
+
+    String getSlaveCommandPrefix() {
+        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
