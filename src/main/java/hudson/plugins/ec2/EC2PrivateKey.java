@@ -57,7 +57,7 @@ public class EC2PrivateKey {
     /**
      * Obtains the fingerprint of the key in the "ab:cd:ef:...:12" format.
      *
-     * @throw IOException if the underlying private key is invalid: empty or password protected
+     * @throws IOException if the underlying private key is invalid: empty or password protected
      *    (password protected private keys are not yet supported)
      */
     public String getFingerprint() throws IOException {
