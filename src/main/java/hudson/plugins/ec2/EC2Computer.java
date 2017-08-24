@@ -171,6 +171,11 @@ public class EC2Computer extends SlaveComputer {
     private Instance _describeInstanceOnce() throws AmazonClientException {
         DescribeInstancesRequest request = new DescribeInstancesRequest();
         String instanceId = getNode().getInstanceId();
+        if (instanceId == null) {
+            String message = "Node has null instanceId: " + getNode();
+            LOGGER.log(Level.INFO, message);
+            throw new AmazonClientException(message);
+        }
         request.setInstanceIds(Collections.<String> singletonList(instanceId));
 
         List<Reservation> reservations = getCloud().connect().describeInstances(request).getReservations();
