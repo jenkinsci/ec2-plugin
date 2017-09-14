@@ -553,7 +553,7 @@ public abstract class EC2Cloud extends Cloud {
                 if (slave == null)
                     break;
                 LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
-                if (!(t.isNode())) {
+                if (t.isNode()) {
                     Jenkins.getInstance().addNode(slave);
                     LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
                     r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
