@@ -866,7 +866,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException {
         KeyPair keyPair = parent.getPrivateKey().find(ec2);
         if (keyPair == null) {
-            LOGGER.log(Level.WARNING, "No matching keypair found on EC2. Is the EC2 private key a valid one?");
+            LOGGER.log(Level.INFO, "No matching keypair found on EC2. Is public key acquired via some other means?");
         }
         return keyPair;
     }
