@@ -763,7 +763,7 @@ public abstract class EC2Cloud extends Cloud {
                     if (pk.find(ec2) == null)
                         return FormValidation
                                 .warning("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
-                                        + pk.getFingerprint() + ")");
+                                        + pk.getFingerprint() + "), this will fail unless your SSH public key is acquired via some other means");
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
