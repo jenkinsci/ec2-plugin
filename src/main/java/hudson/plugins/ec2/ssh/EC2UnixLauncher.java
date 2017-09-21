@@ -119,24 +119,23 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     @Override
     protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
             AmazonClientException, InterruptedException {
-        final Connection bootstrapConn;
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final
                                        // doesn't work that well.
         boolean successful = false;
+        KeyPair key = computer.getCloud().getKeyPair();
         PrintStream logger = listener.getLogger();
         logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
         try {
-            boolean isBootstrapped = bootstrap(computer, listener);
+            boolean isBootstrapped = bootstrap(computer, listener, key);
             if (isBootstrapped) {
-                // connect fresh as ROOT
-                logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener);
-                KeyPair key = computer.getCloud().getKeyPair();
+                // connect fresh as user
+                logInfo(computer, listener, "connect fresh as " + computer.getRemoteAdmin());
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
-                    return; // failed to connect as root.
+                    return; // failed to connect as user.
                 }
             } else {
                 logWarning(computer, listener, "bootstrapresult failed");
@@ -276,7 +275,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener) throws IOException,
+    private boolean bootstrap(EC2Computer computer, TaskListener listener, KeyPair key) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
@@ -284,7 +283,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
             logInfo(computer, listener, "Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n"
                     + key.getKeyMaterial().substring(0, 160));
             while (tries-- > 0) {
@@ -326,7 +324,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for ssh to become available. (maximum timeout configured is "
                             + (timeout / 1000) + ")");
                 }
-                Instance instance = computer.updateInstanceDescription();
+                Instance instance = computer.describeInstance();
                 String host = getEC2HostAddress(computer, instance);
 
                 if ("0.0.0.0".equals(host)) {
@@ -366,7 +364,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             } catch (IOException e) {
                 // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
-                logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
+                logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5 seconds.");
                 Thread.sleep(5000);
             }
         }
