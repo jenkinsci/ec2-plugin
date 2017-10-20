@@ -56,13 +56,17 @@ public class EC2PrivateKey {
 
     /**
      * Obtains the fingerprint of the key in the "ab:cd:ef:...:12" format.
-     */
-    /**
-     * Obtains the fingerprint of the key in the "ab:cd:ef:...:12" format.
+     *
+     * @throws IOException if the underlying private key is invalid: empty or password protected
+     *    (password protected private keys are not yet supported)
      */
     public String getFingerprint() throws IOException {
+        String pemData = privateKey.getPlainText();
+        if (pemData == null || pemData.isEmpty()) {
+            throw new IOException("This private key cannot be empty");
+        }
         try {
-            return PEMEncodable.decode(privateKey.getPlainText()).getPrivateKeyFingerprint();
+            return PEMEncodable.decode(pemData).getPrivateKeyFingerprint();
         } catch (UnrecoverableKeyException e) {
             throw new IOException("This private key is password protected, which isn't supported yet");
         }

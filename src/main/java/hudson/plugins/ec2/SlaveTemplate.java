@@ -118,13 +118,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean useDedicatedTenancy;
 
-    public AMITypeData amiType;
+    public transient AMITypeData amiType;
 
     public int launchTimeout;
 
     public boolean connectBySSHProcess;
 
     public final boolean connectUsingPublicIp;
+
+    private boolean node = true;
 
     public final boolean forceInstanceCreation;
 
@@ -141,6 +143,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @Deprecated
     public transient String rootCommandPrefix;
+
+    @Deprecated
+    public transient String slaveCommandPrefix;
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -228,12 +233,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
                          String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-                         String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+                         String slaveCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
                          boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
                          String launchTimeoutStr) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate,
-                subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
+                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, sshPort),
+                jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
@@ -308,6 +313,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
     }
 
+    public String getSlaveCommandPrefix() {
+        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+    }
+
+
     public String getSubnetId() {
         return subnetId;
     }
@@ -368,7 +378,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-    enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    public void setNode(Boolean node) {
+        this.node = node;
+    }
+
+    public Boolean isNode() {
+        return this.node;
+    }
+
+
+    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
@@ -590,17 +609,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                     riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 }
+
+                if (instTags != null) {
+                    TagSpecification tagSpecification = new TagSpecification();
+                    tagSpecification.setResourceType(ResourceType.Instance);
+                    tagSpecification.setTags(instTags);
+                    Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
+                    riRequest.setTagSpecifications(tagSpecifications);
+                }
+
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
-                /* Now that we have our instance, we can set tags on it */
-                if (instTags != null) {
-                    updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
-
-                    // That was a remote request - we should also update our
-                    // local instance data.
-                    inst.setTags(instTags);
-                }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
@@ -631,9 +651,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
         }
     }
 
@@ -1019,7 +1036,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, sshPort);
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, sshPort);
         }
         return this;
     }

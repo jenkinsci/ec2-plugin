@@ -400,13 +400,15 @@ public abstract class EC2Cloud extends Cloud {
             for (SpotInstanceRequest sir : sirs) {
                 sirSet.add(sir);
                 if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                    if (instanceIds.contains(sir.getInstanceId()))
+                    if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                         continue;
 
                     LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                             + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                     n++;
-                    instanceIds.add(sir.getInstanceId());
+                    
+                    if (sir.getInstanceId() != null)
+                        instanceIds.add(sir.getInstanceId());
                 } else {
                     // Canceled or otherwise dead
                     for (Node node : Jenkins.getInstance().getNodes()) {
@@ -455,13 +457,15 @@ public abstract class EC2Cloud extends Cloud {
                     for (Tag tag : instanceTags) {
                         if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
                         
-                            if (instanceIds.contains(sir.getInstanceId()))
+                            if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
                 
                             LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                             n++;
-                            instanceIds.add(sir.getInstanceId());
+                            
+                            if (sir.getInstanceId() != null)
+                                instanceIds.add(sir.getInstanceId());
                         }
                     }
                 }
@@ -552,19 +556,21 @@ public abstract class EC2Cloud extends Cloud {
                 if (slave == null)
                     break;
                 LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
-                Jenkins.getInstance().addNode(slave);
-                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
-                r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                if (t.isNode()) {
+                    Jenkins.getInstance().addNode(slave);
+                    LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
+                    r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
-                    public Node call() throws Exception {
-                        long startTime = System.currentTimeMillis(); // fetch starting time
-                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+                        public Node call() throws Exception {
+                            long startTime = System.currentTimeMillis(); // fetch starting time
+                            while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
+                                return tryToCallSlave(slave, t);
+                            }
+                            LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
                             return tryToCallSlave(slave, t);
                         }
-                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
-                        return tryToCallSlave(slave, t);
-                    }
-                }), t.getNumExecutors()));
+                    }), t.getNumExecutors()));
+                }
 
                 excessWorkload -= t.getNumExecutors();
             }
