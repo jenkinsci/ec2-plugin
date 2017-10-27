@@ -354,7 +354,7 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all instances are counted.
      */
-    private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
+    private int countCurrentRunningEC2Slaves(SlaveTemplate template) throws AmazonClientException {
         LOGGER.log(Level.FINE, "Counting current slaves: " + (template != null ? (" AMI: " + template.getAmi()) : " All AMIS"));
         int n = 0;
         Set<String> instanceIds = new HashSet<String>();
@@ -365,7 +365,7 @@ public abstract class EC2Cloud extends Cloud {
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description) && (template == null
                         || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
+                    if (stateName == InstanceStateName.Running || stateName == InstanceStateName.Pending) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                                 + " Template: " + description);
                         n++;
@@ -499,8 +499,8 @@ public abstract class EC2Cloud extends Cloud {
      * Returns the maximum number of possible slaves that can be created.
      */
     private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(template);
+        int estimatedTotalSlaves = countCurrentRunningEC2Slaves(null);
+        int estimatedAmiSlaves = countCurrentRunningEC2Slaves(template);
 
         int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
         int availableAmiSlaves = template.getInstanceCap() - estimatedAmiSlaves;
