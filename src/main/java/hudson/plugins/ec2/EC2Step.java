@@ -147,7 +147,7 @@ public class EC2Step extends Step {
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    EC2AbstractSlave instance = t.provision(TaskListener.NULL, lbl, opt);
+                    EC2AbstractSlave instance = t.provision(TaskListener.NULL, lbl, opt, null);
                     Instance myInstance = EC2AbstractSlave.getInstance(instance.getInstanceId(), instance.getCloud());
                     return myInstance;
                 } else {

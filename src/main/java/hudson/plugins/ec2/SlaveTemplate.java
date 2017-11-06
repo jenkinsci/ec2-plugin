@@ -387,22 +387,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
+     * @param alreadyLaunched 
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions, List<String> alreadyLaunched) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
-                return provisionSpot(listener);
+                return provisionSpot(listener, alreadyLaunched);
             return null;
         }
-        return provisionOndemand(listener, requiredLabel, provisionOptions);
+        return provisionOndemand(listener, requiredLabel, provisionOptions, alreadyLaunched);
     }
 
     /**
      * Determines whether the AMI of the given instance matches the AMI of template and has the required label (if requiredLabel is non-null)
+     * @param alreadyLaunched 
      */
-    private boolean checkInstance(PrintStream logger, Instance existingInstance, Label requiredLabel, EC2AbstractSlave[] returnNode) {
+    private boolean checkInstance(PrintStream logger, Instance existingInstance, Label requiredLabel, EC2AbstractSlave[] returnNode, List<String> alreadyLaunched) {
         logProvision(logger, "checkInstance: " + existingInstance);
         if (StringUtils.isNotBlank(getIamInstanceProfile())) {
             if (existingInstance.getIamInstanceProfile() != null) {
@@ -439,6 +441,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     logProvision(logger, " false - we need a Node having label " + requiredLabel);
                     return false;
                 } else {
+                	
+                	for (String launched : alreadyLaunched) {
+                		if (existingInstance.getInstanceId().equals(launched)) {
+                			logProvision(logger, " false - Node already launched in this same iteration");
+                		}
+                	}
+                	
                     logProvision(logger, " true - Node has capacity - can use it");
                     returnNode[0] = node;
                     return true;
@@ -461,8 +470,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     * @param alreadyLaunched 
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions, List<String> alreadyLaunched) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -582,7 +592,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 reservationLoop:
                 for (Reservation reservation : diResult.getReservations()) {
                     for (Instance instance : reservation.getInstances()) {
-                        if (checkInstance(logger, instance, requiredLabel, ec2Node)) {
+                        if (checkInstance(logger, instance, requiredLabel, ec2Node, alreadyLaunched)) {
                             existingInstance = instance;
                             logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
                             break reservationLoop;
@@ -742,8 +752,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Provision a new slave for an EC2 spot instance to call back to Jenkins
+     * @param alreadyLaunched 
      */
-    private EC2AbstractSlave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionSpot(TaskListener listener, List<String> alreadyLaunched) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
