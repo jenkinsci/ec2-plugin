@@ -445,6 +445,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 	for (String launched : alreadyLaunched) {
                 		if (existingInstance.getInstanceId().equals(launched)) {
                 			logProvision(logger, " false - Node already launched in this same iteration");
+                			return false;
                 		}
                 	}
                 	
