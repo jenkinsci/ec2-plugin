@@ -118,7 +118,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean useDedicatedTenancy;
 
-    public transient AMITypeData amiType;
+    public AMITypeData amiType;
 
     public int launchTimeout;
 
@@ -352,6 +352,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.ami = ami;
     }
 
+    public AMITypeData getAmiType() {
+        return amiType;
+    }
+
+    public void setAmiType(AMITypeData amiType) {
+        this.amiType = amiType;
+    }
+
     public int getInstanceCap() {
         return instanceCap;
     }
@@ -490,7 +498,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
                  logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
             }
-            
+
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
 
