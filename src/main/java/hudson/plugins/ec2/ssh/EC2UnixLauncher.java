@@ -35,7 +35,6 @@ import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
-import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 
 import java.io.File;
@@ -228,7 +227,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
-                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
+                    UnsecuredCommandLauncher commandLauncher = new UnsecuredCommandLauncher(sshClientLaunchString);
                     commandLauncher.launch(computer, listener);
                 } finally {
                     identityKeyFile.delete();
