@@ -228,7 +228,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
-                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
+                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
                     commandLauncher.launch(computer, listener);
                 } finally {
                     identityKeyFile.delete();
