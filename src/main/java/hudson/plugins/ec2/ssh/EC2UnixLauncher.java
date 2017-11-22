@@ -185,23 +185,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             logInfo(computer, listener, "Verifying that java exists");
             if (conn.exec("java -fullversion", logger) != 0) {
                 logInfo(computer, listener, "Installing Java");
-
-                String jdk = "java1.6.0_12";
-                String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
-
-                URL url = computer.getCloud().buildPresignedURL(path);
-                if (conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
-                    logWarning(computer, listener, "Failed to download Java");
-                    return;
-                }
-
-                if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to install Java");
-                    return;
-                }
-
-                if (conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to symlink Java");
+                String command = "sudo yum install -y java-1.8.0-openjdk.x86_64";
+                if (conn.exec(command, logger) != 0) {
+                    logWarning(computer, listener, "Failed to install Java: " + command);
                     return;
                 }
             }
