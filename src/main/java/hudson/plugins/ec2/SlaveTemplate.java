@@ -34,6 +34,8 @@ import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -1020,6 +1022,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
+        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 
@@ -1098,27 +1102,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return p;
         }
 
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
-                return FormValidation.error(Messages.SlaveTemplate_RemoteAdminPermission());
+                return FormValidation.error(Messages.General_MissingPermission());
             }
         }
 
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckTmpDir(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
-                return FormValidation.error(Messages.SlaveTemplate_TmpDirPermission());
+                return FormValidation.error(Messages.General_MissingPermission());
             }
         }
 
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckJvmopts(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
-                return FormValidation.error(Messages.SlaveTemplate_JvmoptsPermission());
+                return FormValidation.error(Messages.General_MissingPermission());
             }
         }
 

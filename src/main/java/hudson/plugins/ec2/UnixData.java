@@ -6,32 +6,28 @@ import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public class UnixData extends AMITypeData {
-    private static final Logger LOGGER = Logger.getLogger(UnixData.class.getName());
-
     private final String rootCommandPrefix;
     private final String slaveCommandPrefix;
     private final String sshPort;
 
     @DataBoundConstructor
     public UnixData(String rootCommandPrefix, String slaveCommandPrefix, String sshPort) {
-        if(StringUtils.isNotBlank(rootCommandPrefix) || StringUtils.isNotBlank(slaveCommandPrefix)){
-            LOGGER.log(Level.FINE, "As rootCommandPrefix or slaveCommandPrefix is not blank, we must ensure the user has RUN_SCRIPTS rights.");
-            Jenkins j = Jenkins.getInstance();
-            if(j != null){
-                j.checkPermission(Jenkins.RUN_SCRIPTS);
-            }
-        }
-
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
         this.sshPort = sshPort;
+
+        this.readResolve();
+    }
+
+    protected Object readResolve() {
+        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+        return this;
     }
 
     @Override
@@ -51,19 +47,21 @@ public class UnixData extends AMITypeData {
             return "unix";
         }
 
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckRootCommandPrefix(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
-                return FormValidation.error(Messages.UnixData_RootCommandPrefixPermission());
+                return FormValidation.error(Messages.General_MissingPermission());
             }
         }
 
+        @Restricted(NoExternalUse.class)
         public FormValidation doCheckSlaveCommandPrefix(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
-                return FormValidation.error(Messages.UnixData_SlaveCommandPrefixPermission());
+                return FormValidation.error(Messages.General_MissingPermission());
             }
         }
     }
