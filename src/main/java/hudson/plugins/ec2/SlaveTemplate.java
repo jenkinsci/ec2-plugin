@@ -152,6 +152,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+
+        if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
+            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
+            Jenkins j = Jenkins.getInstance();
+            if(j != null){
+                j.checkPermission(Jenkins.RUN_SCRIPTS);
+            }
+        }
+
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -1087,6 +1096,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (p == null)
                 p = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
             return p;
+        }
+
+        public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.SlaveTemplate_RemoteAdminPermission());
+            }
+        }
+
+        public FormValidation doCheckTmpDir(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.SlaveTemplate_TmpDirPermission());
+            }
+        }
+
+        public FormValidation doCheckJvmopts(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.SlaveTemplate_JvmoptsPermission());
+            }
         }
 
         /***
