@@ -181,10 +181,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 sess.close();
             }
 
-            int retryCount = 0;
-            int retryTimes = 3;
-            String command;
-
             // TODO: parse the version number. maven-enforcer-plugin might help
             executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
             executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
