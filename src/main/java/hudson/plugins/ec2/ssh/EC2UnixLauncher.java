@@ -182,21 +182,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            logInfo(computer, listener, "Verifying that java exists");
-            if (conn.exec("java -fullversion", logger) != 0) {
-                logInfo(computer, listener, "Installing Java");
-                String command = "sudo yum install -y java-1.8.0-openjdk.x86_64";
-                if (conn.exec(command, logger) != 0) {
-                    logWarning(computer, listener, "Failed to install Java: " + command);
-                    return;
-                }
-            }
+            executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
+            executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
-            // TODO: on Windows with ec2-sshd, this scp command ends up just
-            // putting slave.jar as c:\tmp
-            // bug in ec2-sshd?
-
-            logInfo(computer, listener, "Copying slave.jar");
+            // Always copy so we get the most recent slave.jar
+            logInfo(computer, listener, "Copying slave.jar to: " + tmpDir);
             scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
@@ -237,6 +227,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if (cleanupConn != null && !successful)
                 cleanupConn.close();
         }
+    }
+
+    private boolean executeRemote(EC2Computer computer, Connection conn, String checkCommand,  String command, PrintStream logger, TaskListener listener)
+            throws IOException, InterruptedException {
+        logInfo(computer, listener,"Verifying: " + checkCommand);
+        if (conn.exec(checkCommand, logger) != 0) {
+            logInfo(computer, listener, "Installing: " + command);
+            if (conn.exec(command, logger) != 0) {
+                logWarning(computer, listener, "Failed to install: " + command);
+                return false;
+            }
+        }
+        return true;
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
