@@ -402,13 +402,18 @@ public abstract class EC2Cloud extends Cloud {
                 if (sir.getState().equals("open") || sir.getState().equals("active")) {
                     if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                         continue;
+                    // it should only count if the instance is of the correct type
+                    //if (isEc2ProvisionedAmiSlave(sir.getTags(), description) && (template == null
+                    //    || template.getAmi().equals(sir.getImageId()))) {
+                    if (isEc2ProvisionedAmiSlave(sir.getTags(), description)&& (template == null
+                        || template.getAmi().equals(sir.getLaunchSpecification().getImageId()))) {
+                        LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
+                                + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+                        n++;
 
-                    LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
-                            + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                    n++;
-                    
-                    if (sir.getInstanceId() != null)
-                        instanceIds.add(sir.getInstanceId());
+                        if (sir.getInstanceId() != null)
+                            instanceIds.add(sir.getInstanceId());
+                    }
                 } else {
                     // Canceled or otherwise dead
                     for (Node node : Jenkins.getInstance().getNodes()) {
@@ -520,7 +525,7 @@ public abstract class EC2Cloud extends Cloud {
          * allocated, we don't look at that instance as available for provisioning.
          */
         int possibleSlavesCount = getPossibleNewSlavesCount(template);
-        if (possibleSlavesCount < 0) {
+        if (possibleSlavesCount <= 0) {
             LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
             return null;
         }
