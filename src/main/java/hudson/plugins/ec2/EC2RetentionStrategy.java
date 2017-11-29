@@ -26,6 +26,9 @@ package hudson.plugins.ec2;
 import com.amazonaws.AmazonClientException;
 import hudson.init.InitMilestone;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
+import hudson.model.ExecutorListener;
+import hudson.model.Queue;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.TimeUnit2;
 import jenkins.model.Jenkins;
@@ -43,7 +46,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
  *
  * @author Kohsuke Kawaguchi
  */
-public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
+public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> implements ExecutorListener {
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
 
     public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
@@ -186,4 +189,29 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         return this;
     }
 
+    public void taskAccepted(Executor executor, Queue.Task task) {
+        return;
+    }
+
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+        postJobAction(executor);
+    }
+
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+        postJobAction(executor);
+    }
+
+    private void postJobAction(Executor executor){
+        EC2Computer computer = (EC2Computer) executor.getOwner();
+        EC2AbstractSlave slaveNode = computer.getNode();
+        int maxTotalUses = Integer.parseInt(slaveNode.maxTotalUses);
+        if (maxTotalUses <= -1) {
+            return;
+        } else if (maxTotalUses <= 1) {
+            computer.setAcceptingTasks(false);
+            slaveNode.terminate();
+        } else {
+            slaveNode.maxTotalUses = String.valueOf(maxTotalUses - 1);
+        }
+    }
 }

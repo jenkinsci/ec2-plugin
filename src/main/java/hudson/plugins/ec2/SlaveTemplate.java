@@ -130,6 +130,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
+    public final String maxTotalUses;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -915,13 +917,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
                 tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
                 inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName,
-                useDedicatedTenancy, getLaunchTimeout(), amiType);
+                useDedicatedTenancy, getLaunchTimeout(), amiType, maxTotalUses);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
         return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript,
                 tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
-                usePrivateDnsName, getLaunchTimeout(), amiType);
+                usePrivateDnsName, getLaunchTimeout(), amiType, maxTotalUses);
     }
 
     /**
@@ -1174,6 +1176,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             } else
                 return FormValidation.ok(); // can't test
+        }
+
+        public FormValidation doCheckMaxTotalUses(@QueryParameter String value) {
+            try {
+                int val = Integer.parseInt(value);
+                if (val == -1 || val > 0)
+                    return FormValidation.ok();
+            } catch (NumberFormatException nfe) {
+            }
+            return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
         }
 
         public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
