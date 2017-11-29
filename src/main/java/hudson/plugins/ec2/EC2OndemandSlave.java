@@ -2,7 +2,6 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
@@ -57,7 +56,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
      * Constructor for debugging.
      */
     public EC2OndemandSlave(String instanceId) throws FormException, IOException {
-        this(instanceId, instanceId, "debug", "/tmp/hudson", 1, "debug", Mode.NORMAL, "", "/tmp", Collections.<NodeProperty<?>> emptyList(), null, null, false, null, "Fake public", "Fake private", null, null, false, false, 0, new UnixData(null, null, null));
+        this(instanceId, instanceId, "debug", "/tmp/hudson", 1, "debug", Mode.NORMAL, "", "/tmp", Collections.<NodeProperty<?>> emptyList(), null, null, false, null, "Fake public", "Fake private", null, null, false, false, 0, new UnixData(null, null, null, null));
     }
 
     /**

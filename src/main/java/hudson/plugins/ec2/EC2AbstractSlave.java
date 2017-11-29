@@ -23,12 +23,10 @@
  */
 package hudson.plugins.ec2;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.slaves.NodeProperty;
@@ -162,7 +160,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, Integer.toString(sshPort));
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, Integer.toString(sshPort), null);
         }
 
         return this;
@@ -550,7 +548,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getBootDelay() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getBootDelayInMillis() : 0;
+        return amiType.getBootDelayInMillis();
     }
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
