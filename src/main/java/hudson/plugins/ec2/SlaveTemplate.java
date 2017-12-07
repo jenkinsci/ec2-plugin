@@ -631,6 +631,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(e); // we should have discovered all
             // configuration issues upfront
         }
+        return orphans;
     }
 
     private List<Instance> findOrphans(DescribeInstancesResult diResult, int number) {
