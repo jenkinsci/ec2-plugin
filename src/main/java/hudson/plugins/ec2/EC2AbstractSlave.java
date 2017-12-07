@@ -23,12 +23,10 @@
  */
 package hudson.plugins.ec2;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.slaves.NodeProperty;
@@ -281,26 +279,15 @@ public abstract class EC2AbstractSlave extends Slave {
         return new EC2Computer(this);
     }
 
+    /**
+     * Returns view of AWS EC2 Instance.
+     *
+     * @param instanceId instance id.
+     * @param cloud cloud provider (EC2Cloud compatible).
+     * @return instance in EC2.
+     */
     public static Instance getInstance(String instanceId, EC2Cloud cloud) {
-        if (instanceId == null || instanceId == "" || cloud == null)
-            return null;
-
-        Instance i = null;
-        try {
-            DescribeInstancesRequest request = new DescribeInstancesRequest();
-            request.setInstanceIds(Collections.<String> singletonList(instanceId));
-            AmazonEC2 ec2 = cloud.connect();
-            List<Reservation> reservations = ec2.describeInstances(request).getReservations();
-            if (!reservations.isEmpty()) {
-                List<Instance> instances = reservations.get(0).getInstances();
-                if (!instances.isEmpty()) {
-                    i = instances.get(0);
-                }
-            }
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to fetch EC2 instance: " + instanceId, e);
-        }
-        return i;
+        return CloudHelper.getInstance(instanceId, cloud);
     }
 
     /**
@@ -317,7 +304,7 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
-            Instance i = getInstance(getInstanceId(), getCloud());
+            Instance i = CloudHelper.getInstance(getInstanceId(), getCloud());
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId() + " info: "
                     + ((i != null) ? i : ""), e);
         }
@@ -437,7 +424,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        if (getInstanceId() == null || getInstanceId() == "") {
+        if (getInstanceId() == null || getInstanceId().isEmpty()) {
             /*
              * The getInstanceId() implementation on EC2SpotSlave can return null if the spot request doesn't yet know
              * the instance id that it is starting. What happens is that null is passed to getInstanceId() which
@@ -448,7 +435,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        Instance i = getInstance(getInstanceId(), getCloud());
+        Instance i = CloudHelper.getInstance(getInstanceId(), getCloud());
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -469,7 +456,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Clears all existing tag data so that we can force the instance into a known state
      */
     protected void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId(), getCloud());
+        Instance inst = CloudHelper.getInstance(getInstanceId(), getCloud());
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -489,7 +476,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Sets tags on an instance. This will not clear existing tag data, so call clearLiveInstancedata if needed
      */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId(), getCloud());
+        Instance inst = CloudHelper.getInstance(getInstanceId(), getCloud());
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {

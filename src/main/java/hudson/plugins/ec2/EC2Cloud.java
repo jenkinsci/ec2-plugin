@@ -43,11 +43,6 @@ import hudson.model.Node;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormValidation;
-import hudson.util.HttpResponses;
-import hudson.util.ListBoxModel;
-import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -72,6 +67,7 @@ import java.util.Set;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -80,6 +76,11 @@ import java.util.logging.SimpleFormatter;
 import javax.servlet.ServletException;
 
 import hudson.model.TaskListener;
+import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
+import hudson.util.ListBoxModel;
+import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
@@ -321,7 +322,7 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         EC2AbstractSlave node = t.attach(id, listener);
-        Jenkins.getInstance().addNode(node);
+        Jenkins.getActiveInstance().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
@@ -337,12 +338,12 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            EC2AbstractSlave node = getNewOrExistingAvailableSlave(t, null, true);
-            if (node == null)
+            List<EC2AbstractSlave> nodes = getNewOrExistingAvailableSlave(t, 1, true);
+            if (nodes == null || nodes.isEmpty())
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
-            Jenkins.getInstance().addNode(node);
+            Jenkins.getActiveInstance().addNode(nodes.get(0));
 
-            return HttpResponses.redirectViaContextPath("/computer/" + node.getNodeName());
+            return HttpResponses.redirectViaContextPath("/computer/" + nodes.get(0).getNodeName());
         } catch (AmazonClientException e) {
             throw HttpResponses.error(SC_INTERNAL_SERVER_ERROR, e);
         }
@@ -514,14 +515,14 @@ public abstract class EC2Cloud extends Cloud {
      * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
      */
-    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
+    private synchronized List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
         /*
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
          */
-        int possibleSlavesCount = getPossibleNewSlavesCount(template);
+        int possibleSlavesCount = getPossibleNewSlavesCount(t);
         if (possibleSlavesCount < 0) {
-            LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
+            LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleSlavesCount, t);
             return null;
         }
 
@@ -531,67 +532,92 @@ public abstract class EC2Cloud extends Cloud {
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
             else if (possibleSlavesCount > 0)
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
-            return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
+            return t.provision(number, provisionOptions);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
             return null;
         }
     }
 
     @Override
-    public Collection<PlannedNode> provision(Label label, int excessWorkload) {
+    public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
+        final SlaveTemplate t = getTemplate(label);
+        List<PlannedNode> plannedNodes = new ArrayList<>();
+
         try {
-            List<PlannedNode> r = new ArrayList<PlannedNode>();
-            final SlaveTemplate t = getTemplate(label);
-            LOGGER.log(Level.INFO, "Attempting to provision slave from template " + t + " needed by excess workload of " + excessWorkload + " units of label '" + label + "'");
-            if (label == null) {
-                LOGGER.log(Level.WARNING, String.format("Label is null - can't calculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
+            LOGGER.log(Level.INFO, "{0}. Attempting to provision slave needed by excess workload of " + excessWorkload + " units", t);
+            int number = Math.max(Math.round(excessWorkload)/ t.getNumExecutors(), 1);
+            final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
+
+            if (slaves == null || slaves.isEmpty()) {
+                LOGGER.warning("Can't raise nodes for " + t);
+                return null;
             }
-            while (excessWorkload > 0) {
-                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
-                // Returned null if a new node could not be created
-                if (slave == null)
-                    break;
-                LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
-                Jenkins.getInstance().addNode(slave);
-                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
-                r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
-                    public Node call() throws Exception {
-                        long startTime = System.currentTimeMillis(); // fetch starting time
-                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
-                            return tryToCallSlave(slave, t);
-                        }
-                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
-                        return tryToCallSlave(slave, t);
-                    }
-                }), t.getNumExecutors()));
+            for (final EC2AbstractSlave slave : slaves) {
+                if (slave == null) {
+                    LOGGER.warning("Can't raise node for " + t);
+                    continue;
+                }
 
+                plannedNodes.add(createPlannedNode(t, slave));
                 excessWorkload -= t.getNumExecutors();
             }
-            LOGGER.log(Level.INFO, "Attempting provision - finished, excess workload: " + excessWorkload);
-            return r;
+
+            LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
+            LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
+                    new Object[]{Jenkins.getActiveInstance().getComputers().length, plannedNodes.size()});
+            return plannedNodes;
         } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
-            return Collections.emptyList();
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
             return Collections.emptyList();
         }
     }
 
-    private EC2AbstractSlave tryToCallSlave(EC2AbstractSlave slave, SlaveTemplate template) {
-    	try {
-            slave.toComputer().connect(false).get();
-        } catch (Exception e) {
-            if (template.spotConfig != null) {
-            	if(StringUtils.isNotEmpty(slave.getInstanceId()) && slave.isConnected) {
-            		LOGGER.log(Level.INFO, String.format("Instance id: %s for node: %s is connected now.", slave.getInstanceId(), slave.getNodeName()));
-            		return slave;
-            	}
-            }
-        }
-    	return slave;
+    private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
+        return new PlannedNode(t.getDisplayName(),
+                Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                    public Node call() throws Exception {
+                        while (true) {
+                            String instanceId = slave.getInstanceId();
+                            if (slave instanceof EC2SpotSlave) {
+                                if (((EC2SpotSlave) slave).isSpotRequestDead()) {
+                                    LOGGER.log(Level.WARNING, "{0} Spot request died, can't do anything. Terminate provisioning", t);
+                                    return null;
+                                }
+
+                                // Spot Instance does not have instance id yet.
+                                if (StringUtils.isEmpty(instanceId)) {
+                                    Thread.sleep(5000);
+                                    continue;
+                                }
+                            }
+
+                            Instance instance = CloudHelper.getInstance(instanceId, slave.getCloud());
+                            if (instance == null) {
+                                LOGGER.log(Level.WARNING, "{0} Can't find instance with instance id `{1}` in cloud {2}. Terminate provisioning ",
+                                        new Object[]{t, instanceId, slave.cloudName});
+                                return null;
+                            }
+
+                            InstanceStateName state = InstanceStateName.fromValue(instance.getState().getName());
+                            if (state.equals(InstanceStateName.Running)) {
+                                long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - instance.getLaunchTime().getTime());
+                                LOGGER.log(Level.INFO, "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
+                                        new Object[]{t, slave.getNodeName(), startTime});
+                                return slave;
+                            }
+                            if (!state.equals(InstanceStateName.Pending)) {
+                                LOGGER.log(Level.WARNING, "{0}. Node {1} is neither pending, neither running, it's {2}. Terminate provisioning",
+                                        new Object[]{t, state, slave.getNodeName()});
+                                return null;
+                            }
+
+                            Thread.sleep(5000);
+                        }
+                    }
+                })
+                , t.getNumExecutors());
     }
 
     @Override
@@ -831,6 +857,7 @@ public abstract class EC2Cloud extends Cloud {
             if (exception != null)
                 message += " Exception: " + exception;
             LogRecord lr = new LogRecord(level, message);
+            lr.setLoggerName(LOGGER.getName());
             PrintStream printStream = listener.getLogger();
             printStream.print(sf.format(lr));
         }

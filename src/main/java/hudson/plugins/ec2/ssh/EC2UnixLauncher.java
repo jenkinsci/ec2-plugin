@@ -45,7 +45,6 @@ import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -62,6 +61,7 @@ import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -117,9 +117,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     @Override
-    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
+    protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
             AmazonClientException, InterruptedException {
-        final Connection bootstrapConn;
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final
                                        // doesn't work that well.
@@ -202,7 +201,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 try {
                     // Obviously the master must have an installed ssh client.
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -316,8 +315,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for ssh to become available. (maximum timeout configured is "
                             + (timeout / 1000) + ")");
                 }
-                Instance instance = computer.updateInstanceDescription();
-                String host = getEC2HostAddress(computer, instance);
+                String host = getEC2HostAddress(computer);
 
                 if ("0.0.0.0".equals(host)) {
                     logWarning(computer, listener, "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
@@ -362,24 +360,25 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private String getEC2HostAddress(EC2Computer computer, Instance inst) {
+    private String getEC2HostAddress(EC2Computer computer) throws InterruptedException {
+        Instance instance = computer.updateInstanceDescription();
         if (computer.getNode().usePrivateDnsName) {
-            return inst.getPrivateDnsName();
+            return instance.getPrivateDnsName();
         } else {
-            String host = inst.getPublicDnsName();
+            String host = instance.getPublicDnsName();
             // If we fail to get a public DNS name, try to get the public IP
             // (but only if the plugin config let us use the public IP to
             // connect to the slave).
-            if (host == null || host.equals("")) {
+            if (StringUtils.isEmpty(host)) {
                 SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-                if (inst.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
-                    host = inst.getPublicIpAddress();
+                if (instance.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
+                    host = instance.getPublicIpAddress();
                 }
             }
             // If we fail to get a public DNS name or public IP, use the private
             // IP.
-            if (host == null || host.equals("")) {
-                host = inst.getPrivateIpAddress();
+            if (StringUtils.isEmpty(host)) {
+                host = instance.getPrivateIpAddress();
             }
 
             return host;

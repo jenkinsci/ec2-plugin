@@ -7,10 +7,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
@@ -20,11 +20,12 @@ import com.amazonaws.services.ec2.model.SpotInstanceState;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 import hudson.Extension;
-import hudson.model.Hudson;
 import hudson.model.Descriptor.FormException;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
+
+import javax.annotation.CheckForNull;
 
 public final class EC2SpotSlave extends EC2AbstractSlave {
     private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
@@ -82,10 +83,6 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 					}
 
 				}
-
-			} catch (AmazonServiceException e) {
-				// Spot request is no longer valid
-				LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
 			} catch (AmazonClientException e) {
 				// Spot request is no longer valid
 				LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
@@ -108,35 +105,33 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
     /**
      * Retrieve the SpotRequest for a requestId
      *
-     * @return SpotInstanceRequest object for this slave, or null
+     * @return SpotInstanceRequest object for this slave, or null if request is not valid anymore
      */
+    @CheckForNull
     SpotInstanceRequest getSpotRequest() {
         AmazonEC2 ec2 = getCloud().connect();
 
         DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
-        DescribeSpotInstanceRequestsResult dsirResult = null;
-        List<SpotInstanceRequest> siRequests = null;
-
         try {
-            dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
-            siRequests = dsirResult.getSpotInstanceRequests();
+            DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
+            List<SpotInstanceRequest> siRequests = dsirResult.getSpotInstanceRequests();
 
-        } catch (AmazonServiceException e) {
-            // Spot request is no longer valid
-            LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + this.spotInstanceRequestId);
+            return siRequests.get(0);
         } catch (AmazonClientException e) {
             // Spot request is no longer valid
             LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + this.spotInstanceRequestId);
         }
 
-        if (dsirResult == null || siRequests.isEmpty()) {
-            return null;
-        }
-        return siRequests.get(0);
+        return null;
     }
 
     public boolean isSpotRequestDead() {
-        SpotInstanceState requestState = SpotInstanceState.fromValue(this.getSpotRequest().getState());
+        SpotInstanceRequest spotRequest = getSpotRequest();
+        if (spotRequest == null) {
+            return true;
+        }
+
+        SpotInstanceState requestState = SpotInstanceState.fromValue(spotRequest.getState());
         return requestState == SpotInstanceState.Cancelled
                 || requestState == SpotInstanceState.Closed
                 || requestState == SpotInstanceState.Failed;
@@ -151,8 +146,8 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
     @Override
     public String getInstanceId() {
-        if (instanceId == null || instanceId.equals("")) {
-            SpotInstanceRequest sr = this.getSpotRequest();
+        if (StringUtils.isEmpty(instanceId)) {
+            SpotInstanceRequest sr = getSpotRequest();
             if (sr != null)
                 instanceId = sr.getInstanceId();
         }
