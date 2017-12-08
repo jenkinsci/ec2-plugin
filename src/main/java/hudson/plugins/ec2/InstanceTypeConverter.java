@@ -45,6 +45,7 @@ public class InstanceTypeConverter implements Converter {
         TYPICAL_INSTANCE_TYPES.put("DEFAULT", InstanceType.M1Small);
         TYPICAL_INSTANCE_TYPES.put("LARGE", InstanceType.M1Large);
         TYPICAL_INSTANCE_TYPES.put("LARGE_WITH_SSD", InstanceType.I3Large);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_M5", InstanceType.M5Xlarge);
         TYPICAL_INSTANCE_TYPES.put("XLARGE", InstanceType.M1Xlarge);
         TYPICAL_INSTANCE_TYPES.put("MEDIUM_HCPU", InstanceType.C1Medium);
         TYPICAL_INSTANCE_TYPES.put("XLARGE_HCPU", InstanceType.C1Xlarge);
