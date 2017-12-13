@@ -193,8 +193,6 @@ public abstract class EC2AbstractSlave extends Slave {
             return 4;
         case I3Large:
             return 4;
-        case M5Xlarge:
-            return 4;
         case C1Medium:
             return 5;
         case M2Xlarge:
