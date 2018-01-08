@@ -192,6 +192,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             String jvmopts = computer.getNode().jvmopts;
             String prefix = computer.getSlaveCommandPrefix();
             String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
+            launchString = launchString.trim();
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
 
