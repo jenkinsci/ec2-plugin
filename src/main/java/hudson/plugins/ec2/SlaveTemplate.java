@@ -34,6 +34,8 @@ import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -98,6 +100,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String iamInstanceProfile;
 
+    public final boolean deleteRootOnTermination;
+
     public final boolean useEphemeralDevices;
 
     public final String customDeviceMapping;
@@ -124,6 +128,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
+    private boolean node = true;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -137,14 +143,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public transient String rootCommandPrefix;
 
+    @Deprecated
+    public transient String slaveCommandPrefix;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
-            boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+
+        if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
+            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
+            Jenkins j = Jenkins.getInstance();
+            if(j != null){
+                j.checkPermission(Jenkins.RUN_SCRIPTS);
+            }
+        }
+
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -185,6 +203,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
+        this.deleteRootOnTermination = deleteRootOnTermination;
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
 
@@ -200,7 +219,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean connectBySSHProcess) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
@@ -222,12 +241,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
             String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-            String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String slaveCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             String launchTimeoutStr) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate,
-                subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
+                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, sshPort),
+                jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
@@ -301,6 +320,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
     }
 
+    public String getSlaveCommandPrefix() {
+        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+    }
+
+
     public String getSubnetId() {
         return subnetId;
     }
@@ -339,6 +363,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.ami = ami;
     }
 
+    public AMITypeData getAmiType() {
+        return amiType;
+    }
+
+    public void setAmiType(AMITypeData amiType) {
+        this.amiType = amiType;
+    }
+
     public int getInstanceCap() {
         return instanceCap;
     }
@@ -361,7 +393,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-    enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    public void setNode(Boolean node) {
+        this.node = node;
+    }
+
+    public Boolean isNode() {
+        return this.node;
+    }
+
+
+    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
@@ -454,10 +495,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             riRequest.setEbsOptimized(ebsOptimized);
 
+            setupRootDevice(riRequest.getBlockDeviceMappings());
             if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(riRequest);
+                setupEphemeralDeviceMapping(riRequest.getBlockDeviceMappings());
             } else {
-                setupCustomDeviceMapping(riRequest);
+                setupCustomDeviceMapping(riRequest.getBlockDeviceMappings());
             }
 
             if(stopOnTerminate){
@@ -467,7 +509,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
                  logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
             }
-            
+
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
 
@@ -577,17 +619,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                     riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 }
+
+                if (instTags != null) {
+                    TagSpecification tagSpecification = new TagSpecification();
+                    tagSpecification.setResourceType(ResourceType.Instance);
+                    tagSpecification.setTags(instTags);
+                    Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
+                    riRequest.setTagSpecifications(tagSpecifications);
+                }
+
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
 
-                /* Now that we have our instance, we can set tags on it */
-                if (instTags != null) {
-                    updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
-
-                    // That was a remote request - we should also update our
-                    // local instance data.
-                    inst.setTags(instTags);
-                }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
@@ -618,9 +661,36 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+        }
+    }
+
+    private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
+        if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
+            // get the root device (only one expected in the blockmappings)
+            final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
+            BlockDeviceMapping rootMapping = null;
+            for (final BlockDeviceMapping deviceMapping : rootDeviceMappings) {
+                System.out.println("AMI had " + deviceMapping.getDeviceName());
+                System.out.println(deviceMapping.getEbs());
+                rootMapping = deviceMapping;
+                break;
+            }
+
+            // Check if the root device is already in the mapping and update it
+            for (final BlockDeviceMapping mapping : deviceMappings) {
+                System.out.println("Request had " + mapping.getDeviceName());
+                if (rootMapping.getDeviceName().equals(mapping.getDeviceName())) {
+                    mapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
+                    return;
+                }
+            }
+
+            // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
+            BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(rootMapping.getDeviceName());
+            EbsBlockDevice newEbs = new EbsBlockDevice();
+            newEbs.setDeleteOnTermination(Boolean.TRUE);
+            newMapping.setEbs(newEbs);
+            deviceMappings.add(0, newMapping);
         }
     }
 
@@ -655,12 +725,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return newDeviceMapping;
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
-        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
-    }
-
-    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
-        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+    private void setupEphemeralDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
+        // Don't wipe out pre-existing mappings
+        deviceMappings.addAll(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -669,25 +736,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * AmazonEC2#describeImageAttribute does not work due to a bug
          * https://forums.aws.amazon.com/message.jspa?messageID=231972
          */
+        return getImage().getBlockDeviceMappings();
+    }
+
+    private Image getImage() {
         DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
         for (final Image image : getParent().connect().describeImages(request).getImages()) {
+
             if (ami.equals(image.getImageId())) {
-                return image.getBlockDeviceMappings();
+
+                return image;
             }
         }
 
-        throw new AmazonClientException("Unable to get AMI device mapping for " + ami);
+        throw new AmazonClientException("Unable to find AMI " + ami);
     }
 
-    private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
-        if (StringUtils.isNotBlank(customDeviceMapping)) {
-            riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
-        }
-    }
 
-    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
+    private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
-            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+            deviceMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
@@ -798,10 +866,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
+            setupRootDevice(launchSpecification.getBlockDeviceMappings());
             if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(launchSpecification);
+                setupEphemeralDeviceMapping(launchSpecification.getBlockDeviceMappings());
             } else {
-                setupCustomDeviceMapping(launchSpecification);
+                setupCustomDeviceMapping(launchSpecification.getBlockDeviceMappings());
             }
 
             spotRequest.setLaunchSpecification(launchSpecification);
@@ -961,6 +1030,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
+        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 
@@ -977,7 +1048,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, sshPort);
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, sshPort);
         }
         return this;
     }
@@ -1037,6 +1108,33 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (p == null)
                 p = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
             return p;
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckTmpDir(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckJvmopts(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
         }
 
         /***

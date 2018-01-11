@@ -68,8 +68,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     @Override
-    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
-            AmazonClientException, InterruptedException {
+    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws AmazonClientException {
         EC2Logger log = new EC2Logger(listener);
 
         PrintStream logger = listener.getLogger();
@@ -99,45 +98,37 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            log.info("Verifying that java exists");
-            if (sshClient.run("java -fullversion", logger) != 0) {
-                log.info("Installing Java");
+            executeRemote(sshClient, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, log);
+            executeRemote(sshClient, "which scp", "sudo yum install -y openssh-clients", logger, log);
 
-                String jdk = "java1.6.0_12";
-                String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
-
-                URL url = computer.getCloud().buildPresignedURL(path);
-                if (sshClient.run("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
-                    log.warn("Failed to download Java");
-                    return;
-                }
-
-                if (sshClient.run(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) != 0) {
-                    log.warn("Failed to install Java");
-                    return;
-                }
-
-                if (sshClient.run(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
-                    log.warn("Failed to symlink Java");
-                    return;
-                }
-            }
-
-            // TODO: on Windows with ec2-sshd, this scp command ends up just
-            // putting slave.jar as c:\tmp
-            // bug in ec2-sshd?
-
-            log.info("Copying slave.jar");
+            // Always copy so we get the most recent slave.jar
+            log.info("Copying slave.jar to: " + tmpDir);
             sshClient.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir, "0600");
 
             String jvmopts = computer.getNode().jvmopts;
-            String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
+            String prefix = computer.getSlaveCommandPrefix();
+            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
+           // launchString = launchString.trim();
 
             sshClient.startCommandPipe(launchString, computer, listener);
+
         } catch (Exception e) {
             if (sshClient != null)
                 sshClient.close();
         }
+    }
+
+    private boolean executeRemote(SshClient sshClient, String checkCommand,  String command, PrintStream logger, EC2Logger log)
+            throws IOException, InterruptedException {
+        log.info("Verifying: " + checkCommand);
+        if (sshClient.run(checkCommand, logger) != 0) {
+            log.info("Installing: " + command);
+            if (sshClient.run(command, logger) != 0) {
+                log.warn("Failed to install: " + command);
+                return false;
+            }
+        }
+        return true;
     }
 
     private SshClient createSshClient(EC2Computer computer, EC2Logger logger) throws AmazonClientException, InterruptedException {

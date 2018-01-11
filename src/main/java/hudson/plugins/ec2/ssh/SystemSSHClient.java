@@ -71,7 +71,7 @@ class SystemSSHClient implements SshClient {
                 privateKeyFile.getAbsolutePath(), user, host, port, command);
 
         logger.info("[native ssh] Running " + sshClientLaunchString);
-        CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
+        CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
         commandLauncher.launch(computer, listener);
     }
 
@@ -120,7 +120,7 @@ class SystemSSHClient implements SshClient {
         filePath.chmod(permissionMask);
     }
 
-    private File createIdentityKeyFile(char[] privateKey) throws IOException, InterruptedException {
+    private File createIdentityKeyFile(char[] privateKey) throws IOException {
         File tempFile = File.createTempFile("ec2_", ".pem");
 
         try {

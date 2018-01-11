@@ -207,7 +207,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void testConnectUsingPublicIpSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "", false, true);
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, false, null, true, "", false, true);
         assertTrue(st.isConnectUsingPublicIp());
     }
 
@@ -219,7 +219,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void testBackwardCompatibleUnixData() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
         assertFalse(st.isWindowsSlave());
         assertEquals(22, st.getSshPort());
         assertEquals("sudo", st.getRootCommandPrefix());
@@ -262,7 +262,7 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", "22"), "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", null, "22"), "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
