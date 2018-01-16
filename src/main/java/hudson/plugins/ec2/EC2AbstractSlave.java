@@ -37,6 +37,7 @@ import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -61,6 +62,7 @@ import com.amazonaws.services.ec2.model.DeleteTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.Reservation;
@@ -466,14 +468,16 @@ public abstract class EC2AbstractSlave extends Slave {
                 instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
+            List<String> resources = getResourcesToTag(inst);
             DeleteTagsRequest tagRequest = new DeleteTagsRequest();
-            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            tagRequest.withResources(resources).setTags(instTags);
             getCloud().connect().deleteTags(tagRequest);
         }
     }
 
     /*
-     * Sets tags on an instance. This will not clear existing tag data, so call clearLiveInstancedata if needed
+     * Sets tags on an instance and on the volumes attached to it. This will not clear existing tag data, so call
+     * clearLiveInstancedata if needed
      */
     protected void pushLiveInstancedata() throws AmazonClientException {
         Instance inst = getInstance(getInstanceId(), getCloud());
@@ -486,10 +490,23 @@ public abstract class EC2AbstractSlave extends Slave {
                 instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
+            List<String> resources = getResourcesToTag(inst);
             CreateTagsRequest tagRequest = new CreateTagsRequest();
-            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            tagRequest.withResources(resources).setTags(instTags);
             getCloud().connect().createTags(tagRequest);
         }
+    }
+
+    /*
+     * Get resources to tag, that is the instance itself and the volumes attached to it.
+     */
+    private List<String> getResourcesToTag(Instance inst) {
+        List<String> resources = new ArrayList<>();
+        resources.add(inst.getInstanceId());
+        for(InstanceBlockDeviceMapping blockDeviceMapping : inst.getBlockDeviceMappings()) {
+            resources.add(blockDeviceMapping.getEbs().getVolumeId());
+        }
+        return resources;
     }
 
     public String getPublicDNS() {
