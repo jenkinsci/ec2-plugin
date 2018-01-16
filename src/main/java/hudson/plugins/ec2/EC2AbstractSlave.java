@@ -445,10 +445,16 @@ public abstract class EC2AbstractSlave extends Slave {
         publicDNS = i.getPublicDnsName();
         privateDNS = i.getPrivateIpAddress();
         createdTime = i.getLaunchTime().getTime();
-        tags = new LinkedList<EC2Tag>();
 
-        for (Tag t : i.getTags()) {
-            tags.add(new EC2Tag(t.getKey(), t.getValue()));
+        /*
+         * Only fetch tags from live instance if tags are set. This check is required to mitigate a race condition
+         * when fetchLiveInstanceData() is called before pushLiveInstancedata().
+         */
+        if(!i.getTags().isEmpty()) {
+            tags = new LinkedList<EC2Tag>();
+            for (Tag t : i.getTags()) {
+                tags.add(new EC2Tag(t.getKey(), t.getValue()));
+            }
         }
     }
 
