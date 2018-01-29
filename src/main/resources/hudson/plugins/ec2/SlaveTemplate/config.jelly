@@ -39,6 +39,10 @@ THE SOFTWARE.
     <f:enum>${it.name()}</f:enum>
   </f:entry>
 
+  <f:entry title="${%T2 Unlimited}" field="t2Unlimited">
+    <f:checkbox />
+  </f:entry>
+
   <f:entry title="${%EBS Optimized}" field="ebsOptimized">
     <f:checkbox />
   </f:entry>
