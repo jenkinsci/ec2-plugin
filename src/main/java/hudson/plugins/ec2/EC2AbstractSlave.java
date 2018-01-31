@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -112,7 +113,8 @@ public abstract class EC2AbstractSlave extends Slave {
      * The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked
      * for it
      */
-    protected static final long MIN_FETCH_TIME = 20 * 1000;
+    protected static final long MIN_FETCH_TIME = Long.getLong("hudson.plugins.ec2.EC2AbstractSlave.MIN_FETCH_TIME",
+            TimeUnit.SECONDS.toMillis(20));
 
     protected final int launchTimeout;
 
