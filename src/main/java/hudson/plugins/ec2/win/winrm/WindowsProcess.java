@@ -10,7 +10,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WindowsProcess {
-
     private static final Logger log = Logger.getLogger(WindowsProcess.class.getName());
 
     private final static int INPUT_BUFFER = 16 * 1024;
