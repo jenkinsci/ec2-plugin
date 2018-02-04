@@ -1,5 +1,7 @@
 package hudson.plugins.ec2.win;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.model.Instance;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Computer;
@@ -8,34 +10,29 @@ import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
-
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.Instance;
-
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
+
     private static final String SLAVE_JAR = "slave.jar";
-    
-    final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
+    private static final long DEFAULT_RETRY_DELAY_SECONDS = 10;
 
     @Override
-    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
-            AmazonClientException, InterruptedException {
-        final PrintStream logger = listener.getLogger();
-        final WinConnection connection = connectToWinRM(computer, logger);
+    protected void launch(EC2Computer computer, TaskListener listener, Instance inst)
+            throws AmazonClientException, InterruptedException {
+        PrintStream logger = listener.getLogger();
+        WinConnection connection = connectToWinRM(computer, logger);
 
         try {
             String initScript = computer.getNode().initScript;
-            String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.equals("") ? computer.getNode().tmpDir
-                    : "C:\\Windows\\Temp\\");
+            String tmpDir = (computer.getNode().tmpDir != null && !computer.getNode().tmpDir.equals("")
+                    ? computer.getNode().tmpDir : "C:\\Windows\\Temp\\");
 
             logger.println("Creating tmp directory if it does not exist");
             connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
@@ -65,20 +62,17 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
             logger.println("slave.jar sent remotely. Bootstrapping it");
 
             final String jvmopts = computer.getNode().jvmopts;
-            final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar "
-                    + tmpDir + SLAVE_JAR, 86400);
+            final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + SLAVE_JAR, 86400);
+
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
                 public void onClosed(Channel channel, IOException cause) {
                     process.destroy();
-                    connection.close();
                 }
             });
         } catch (Throwable ioe) {
             logger.println("Ouch:");
             ioe.printStackTrace(logger);
-        } finally {
-            connection.close();
         }
     }
 
@@ -93,6 +87,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
         logger.println(computer.getNode().getDisplayName() + " booted at " + computer.getNode().getCreatedTime());
         boolean alreadyBooted = (startTime - computer.getNode().getCreatedTime()) > TimeUnit.MINUTES.toMillis(3);
+
         while (true) {
             try {
                 long waitTime = System.currentTimeMillis() - startTime;
@@ -133,9 +128,10 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 WinConnection connection = new WinConnection(ip, computer.getNode().remoteAdmin, computer.getNode().getAdminPassword().getPlainText());
 
                 connection.setUseHTTPS(computer.getNode().isUseHTTPS());
+
                 if (!connection.ping()) {
-                    logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                    Thread.sleep(sleepBetweenAttemps);
+                    logger.println("Waiting for WinRM to come up. Sleeping " + DEFAULT_RETRY_DELAY_SECONDS + "s.");
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_DELAY_SECONDS));
                     continue;
                 }
 
@@ -146,8 +142,8 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     alreadyBooted = true;
                     logger.println("WinRM should now be ok on " + computer.getNode().getDisplayName());
                     if (!connection.ping()) {
-                        logger.println("WinRM not yet up. Sleeping 10s.");
-                        Thread.sleep(sleepBetweenAttemps);
+                        logger.println("WinRM not yet up. Sleeping " + DEFAULT_RETRY_DELAY_SECONDS + "s.");
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_DELAY_SECONDS));
                         continue;
                     }
                 }
@@ -155,8 +151,8 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("Connected with WinRM.");
                 return connection; // successfully connected
             } catch (IOException e) {
-                logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                Thread.sleep(sleepBetweenAttemps);
+                logger.println("Waiting for WinRM to come up. Sleeping " + DEFAULT_RETRY_DELAY_SECONDS + "s.");
+                Thread.sleep(TimeUnit.SECONDS.toMillis(DEFAULT_RETRY_DELAY_SECONDS));
             }
         }
     }

@@ -1,23 +1,24 @@
 package hudson.plugins.ec2.win.winrm.soap;
 
+import com.google.common.collect.ImmutableList;
 import org.dom4j.Element;
 import org.dom4j.QName;
 
-import com.google.common.collect.ImmutableList;
-
 public class Header {
-    private final String to;
-    private final  String replyTo;
-    private final  String maxEnvelopeSize;
-    private final  String timeout;
-    private final  String locale;
-    private final  String id;
-    private final  String action;
-    private final  String shellId;
-    private final  String resourceURI;
-    private final  ImmutableList<Option> optionSet;
 
-    Header(String to, String replyTo, String maxEnvelopeSize, String timeout, String locale, String id, String action, String shellId, String resourceURI, ImmutableList<Option> optionSet) {
+    private final String to;
+    private final String replyTo;
+    private final String maxEnvelopeSize;
+    private final String timeout;
+    private final String locale;
+    private final String id;
+    private final String action;
+    private final String shellId;
+    private final String resourceURI;
+    private final ImmutableList<Option> optionSet;
+
+    Header(String to, String replyTo, String maxEnvelopeSize, String timeout, String locale, String id, String action,
+            String shellId, String resourceURI, ImmutableList<Option> optionSet) {
         this.to = to;
         this.replyTo = replyTo;
         this.maxEnvelopeSize = maxEnvelopeSize;
@@ -83,5 +84,4 @@ public class Header {
     private static Element mustNotUnderstand(Element e) {
         return e.addAttribute("mustUnderstand", "false");
     }
-
 }

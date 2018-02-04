@@ -3,10 +3,13 @@ package hudson.plugins.ec2.win.winrm.request;
 import java.net.URL;
 
 public class RequestFactory {
+
+    private static final int DEFAULT_ENVELOP_SIZE = 153600;
+    private static final String DEFAULT_LOCALE = "en-US";
+
     private final URL url;
+
     private String timeout = "PT60S";
-    private int envelopSize = 153600;
-    private String locale = "en-US";
 
     public RequestFactory(URL url) {
         this.url = url;
@@ -50,8 +53,8 @@ public class RequestFactory {
 
     private void setDefaults(AbstractWinRMRequest r) {
         r.setTimeout(timeout);
-        r.setLocale(locale);
-        r.setEnvelopSize(envelopSize);
+        r.setLocale(DEFAULT_LOCALE);
+        r.setEnvelopSize(DEFAULT_ENVELOP_SIZE);
     }
 
     public String getTimeout() {
@@ -61,21 +64,4 @@ public class RequestFactory {
     public void setTimeout(String timeout) {
         this.timeout = timeout;
     }
-
-    public int getEnvelopSize() {
-        return envelopSize;
-    }
-
-    public void setEnvelopSize(int envelopSize) {
-        this.envelopSize = envelopSize;
-    }
-
-    public String getLocale() {
-        return locale;
-    }
-
-    public void setLocale(String locale) {
-        this.locale = locale;
-    }
-
 }

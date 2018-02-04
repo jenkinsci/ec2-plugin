@@ -1,11 +1,11 @@
 package hudson.plugins.ec2.win.winrm.soap;
 
+import com.google.common.collect.ImmutableList;
 import java.net.URI;
 import java.util.List;
 
-import com.google.common.collect.ImmutableList;
-
 public class HeaderBuilder {
+
     private String to;
     private String replyTo;
     private String maxEnvelopeSize;

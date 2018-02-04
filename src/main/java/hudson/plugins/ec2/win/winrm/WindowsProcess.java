@@ -1,45 +1,44 @@
 package hudson.plugins.ec2.win.winrm;
 
+import com.google.common.io.Closeables;
+import hudson.remoting.FastPipedInputStream;
+import hudson.remoting.FastPipedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.google.common.io.Closeables;
-
 public class WindowsProcess {
+
     private static final Logger log = Logger.getLogger(WindowsProcess.class.getName());
 
-    private final static int INPUT_BUFFER = 16 * 1024;
+    private static final int INPUT_BUFFER = 16 * 1024;
+
     private final WinRMClient client;
 
-    private final PipedInputStream toCallersStdin;
-    private final PipedOutputStream callersStdin;
-    private final PipedInputStream callersStdout;
-    private final PipedOutputStream toCallersStdout;
-    private final PipedInputStream callersStderr;
-    private final PipedOutputStream toCallersStderr;
+    private final FastPipedInputStream toCallersStdin;
+    private final FastPipedOutputStream callersStdin;
+    private final FastPipedInputStream callersStdout;
+    private final FastPipedOutputStream toCallersStdout;
+    private final FastPipedOutputStream toCallersStderr;
 
     private boolean terminated;
     private final String command;
 
     private Thread outputThread;
 
-    private Thread inputThread;
-
     WindowsProcess(WinRMClient client, String command) throws IOException {
         this.client = client;
         this.command = command;
 
-        toCallersStdin = new PipedInputStream(INPUT_BUFFER);
-        callersStdin = new PipedOutputStream(toCallersStdin);
-        callersStdout = new PipedInputStream(INPUT_BUFFER);
-        toCallersStdout = new PipedOutputStream(callersStdout);
-        callersStderr = new PipedInputStream(INPUT_BUFFER);
-        toCallersStderr = new PipedOutputStream(callersStderr);
+        toCallersStdin = new FastPipedInputStream();
+        callersStdin = new FastPipedOutputStream(toCallersStdin);
+        callersStdout = new FastPipedInputStream();
+        toCallersStdout = new FastPipedOutputStream(callersStdout);
+        FastPipedInputStream callersStderr = new FastPipedInputStream();
+        toCallersStderr = new FastPipedOutputStream(callersStderr);
+
         startStdoutCopyThread();
         try {
             Thread.sleep(1000);
@@ -55,10 +54,6 @@ public class WindowsProcess {
 
     public OutputStream getStdin() {
         return callersStdin;
-    }
-
-    public InputStream getStderr() {
-        return callersStderr;
     }
 
     public synchronized int waitFor() {
@@ -95,7 +90,7 @@ public class WindowsProcess {
             @Override
             public void run() {
                 try {
-                    for (;;) {
+                    for (; ; ) {
                         if (!client.slurpOutput(toCallersStdout, toCallersStderr)) {
                             log.log(Level.FINE, "no more output for " + command);
                             break;
@@ -103,7 +98,6 @@ public class WindowsProcess {
                     }
                 } catch (Exception exc) {
                     log.log(Level.WARNING, "ouch, stdout exception for " + command, exc);
-                    exc.printStackTrace();
                 } finally {
                     Closeables.closeQuietly(toCallersStdout);
                     Closeables.closeQuietly(toCallersStderr);
@@ -115,29 +109,20 @@ public class WindowsProcess {
     }
 
     private void startStdinCopyThread() {
-        inputThread = new Thread("input copy: " + command) {
+        Thread inputThread = new Thread("input copy: " + command) {
             @Override
             public void run() {
                 try {
                     byte[] buf = new byte[INPUT_BUFFER];
-                    for (;;) {
-                        int n = 0;
-                        try {
-                            n = toCallersStdin.read(buf);
-                        } catch (IOException ioe) {
-                            // it's safe to ignore IO Exception coming from
-                            // Jenkins
-                            // This can happen with PipedInputStream if the
-                            // writing Thread
-                            // is killed but the input stream is handed to
-                            // another thread
-                            // in this case, we can still read from the pipe.
+                    for (; ; ) {
+                        int n = toCallersStdin.read(buf);
+
+                        if (n == -1) {
+                            break;
+                        }
+                        if (n == 0) {
                             continue;
                         }
-                        if (n == -1)
-                            break;
-                        if (n == 0)
-                            continue;
 
                         byte[] bufToSend = new byte[n];
                         System.arraycopy(buf, 0, bufToSend, 0, n);

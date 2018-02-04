@@ -3,14 +3,13 @@ package hudson.plugins.ec2.win.winrm;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.logging.Logger;
 
 public class WinRM {
-    private static final Logger log = Logger.getLogger(WinRM.class.getName());
 
     private final String host;
     private final String username;
     private final String password;
+
     private int timeout = 60;
 
     private boolean useHTTPS;
@@ -21,8 +20,8 @@ public class WinRM {
         this.password = password;
     }
 
-    public void ping() throws IOException {
-        final WinRMClient client = new WinRMClient(buildURL(), username, password);
+    public void ping() {
+        WinRMClient client = new WinRMClient(buildURL(), username, password);
         client.setTimeout(secToDuration(timeout));
         client.setUseHTTPS(isUseHTTPS());
         try {
@@ -31,12 +30,13 @@ public class WinRM {
             try {
                 client.deleteShell();
             } catch (Exception e) {
+                // No-op
             }
         }
     }
 
     public WindowsProcess execute(String commandLine) {
-        final WinRMClient client = new WinRMClient(buildURL(), username, password);
+        WinRMClient client = new WinRMClient(buildURL(), username, password);
         client.setTimeout(secToDuration(timeout));
         client.setUseHTTPS(isUseHTTPS());
         try {
@@ -49,7 +49,7 @@ public class WinRM {
         }
     }
 
-    public URL buildURL() {
+    private URL buildURL() {
         String scheme = useHTTPS ? "https" : "http";
         int port = useHTTPS ? 5986 : 5985;
 
@@ -60,43 +60,22 @@ public class WinRM {
         }
     }
 
-    /**
-     * @return the useHTTPS
-     */
-    public boolean isUseHTTPS() {
+    private boolean isUseHTTPS() {
         return useHTTPS;
     }
 
-    /**
-     * @param useHTTPS
-     *            the useHTTPS to set
-     */
     public void setUseHTTPS(boolean useHTTPS) {
         this.useHTTPS = useHTTPS;
     }
 
-    /**
-     * @return the timeout
-     */
-    public int getTimeout() {
-        return timeout;
-    }
-
-    /**
-     * @param timeout
-     *            the timeout to set
-     */
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
+    public void setTimeout(int seconds) {
+        this.timeout = seconds;
     }
 
     /**
      * # Convert the number of seconds to an ISO8601 duration format # @see
      * http://tools.ietf.org/html/rfc2445#section-4.3.6 # @param [Fixnum] seconds The amount of seconds for this
      * duration
-     * 
-     * @param timeout
-     * @return
      */
     private static String secToDuration(int seconds) {
         StringBuilder iso = new StringBuilder("P");

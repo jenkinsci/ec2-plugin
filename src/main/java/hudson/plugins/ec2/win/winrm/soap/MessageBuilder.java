@@ -7,6 +7,7 @@ import org.dom4j.Namespace;
 import org.dom4j.QName;
 
 public class MessageBuilder {
+
     private final Document doc = DocumentHelper.createDocument();
     private final Element envelope = doc.addElement(QName.get("Envelope", Namespaces.NS_SOAP_ENV));
 

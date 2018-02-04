@@ -1,31 +1,26 @@
 package hudson.plugins.ec2.win;
 
+import static java.util.regex.Pattern.quote;
+
 import hudson.plugins.ec2.win.winrm.WinRM;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
-
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URLEncoder;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import jcifs.util.LogStream;
 
-import static java.util.regex.Pattern.quote;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public class WinConnection {
+
     private static final Logger log = Logger.getLogger(WinConnection.class.getName());
 
-    // ^[a-zA-Z]\:(\\|\/)([^\\\/\:\*\?\<\>\"\|]+(\\|\/){0,1})+$
     private static final Pattern VALIDATE_WINDOWS_PATH = Pattern.compile("^[A-Za-z]:\\\\[-a-zA-Z0-9_.\\\\]*");
+    private static final int DEFAULT_COMMAND_TIMEOUT_SECONDS = 60;
 
     private final String host;
     private final String username;
@@ -34,32 +29,31 @@ public class WinConnection {
     private final NtlmPasswordAuthentication authentication;
 
     private boolean useHTTPS;
-    private static final int TIMEOUT=8000; //8 seconds
 
-    public WinConnection(String host, String username, String password) {
+    WinConnection(String host, String username, String password) {
         this.host = host;
         this.username = username;
         this.password = password;
         this.authentication = new NtlmPasswordAuthentication(null, username, password);
-        if(log.isLoggable(Level.FINE)){
-            LogStream.level=6;
+        if (log.isLoggable(Level.FINE)) {
+            LogStream.level = 6;
         }
     }
 
-    public WinRM winrm() {
+    private WinRM winrm() {
         WinRM winrm = new WinRM(host, username, password);
         winrm.setUseHTTPS(useHTTPS);
         return winrm;
     }
 
-    public WinRM winrm(int timeout) {
+    private WinRM winrm(int timeoutInSeconds) {
         WinRM winrm = winrm();
-        winrm.setTimeout(timeout);
+        winrm.setTimeout(timeoutInSeconds);
         return winrm;
     }
 
     public WindowsProcess execute(String commandLine) {
-        return execute(commandLine, 60);
+        return execute(commandLine, DEFAULT_COMMAND_TIMEOUT_SECONDS);
     }
 
     public WindowsProcess execute(String commandLine, int timeout) {
@@ -71,24 +65,17 @@ public class WinConnection {
         return smbFile.getOutputStream();
     }
 
-    public InputStream getFile(String path) throws IOException {
-        SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
-        return smbFile.getInputStream();
-    }
-
     public boolean exists(String path) throws IOException {
         SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
         return smbFile.exists();
     }
-   
+
     private String encodeForSmb(String path) {
         if (!VALIDATE_WINDOWS_PATH.matcher(path).matches()) {
             throw new IllegalArgumentException("Path '" + path + "' is not a valid windows path like C:\\Windows\\Temp");
         }
 
-        StringBuilder smbUrl = new StringBuilder(smbURLPrefix());
-        smbUrl.append(toAdministrativeSharePath(path).replace('\\', '/'));
-        return smbUrl.toString();
+        return smbURLPrefix() + toAdministrativeSharePath(path).replace('\\', '/');
     }
 
     private static String toAdministrativeSharePath(String path) {
@@ -122,24 +109,17 @@ public class WinConnection {
     public boolean ping() {
         log.log(Level.FINE, "pinging " + host);
         try {
-            Socket socket=new Socket();
-            socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
-            socket.close();
             winrm().ping();
-            SmbFile test = new SmbFile(smbURLPrefix()+"IPC$", authentication);
+            SmbFile test = new SmbFile(smbURLPrefix() + "IPC$", authentication);
             test.connect();
             return true;
         } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
+            log.log(Level.WARNING, "Failed to ping Windows slave", e);
             return false;
         }
-    }
-
-    public void close() {
     }
 
     public void setUseHTTPS(boolean useHTTPS) {
         this.useHTTPS = useHTTPS;
     }
-
 }

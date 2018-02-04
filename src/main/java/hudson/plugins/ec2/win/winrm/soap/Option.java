@@ -1,6 +1,7 @@
 package hudson.plugins.ec2.win.winrm.soap;
 
 public class Option {
+
     private final String name;
     private final String value;
 

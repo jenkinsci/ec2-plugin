@@ -1,10 +1,12 @@
 package hudson.plugins.ec2.win.winrm;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import hudson.plugins.ec2.win.winrm.request.RequestFactory;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
-
+import hudson.remoting.FastPipedOutputStream;
 import java.io.IOException;
-import java.io.PipedOutputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -16,7 +18,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -47,35 +48,36 @@ import org.dom4j.Element;
 import org.dom4j.XPath;
 import org.jaxen.SimpleNamespaceContext;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
+class WinRMClient {
 
-public class WinRMClient {
     private static final Logger log = Logger.getLogger(WinRMClient.class.getName());
     private static final String APPLICATION_SOAP_XML = "application/soap+xml";
 
     private final URL url;
     private final String username;
     private final String password;
-    private String shellId;
 
-    private String commandId;
-    private int exitCode;
-
-    private SimpleNamespaceContext namespaceContext;
-
+    private final SimpleNamespaceContext namespaceContext;
     private final RequestFactory factory;
+    private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<>();
 
-    private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
     private boolean useHTTPS;
     private Scheme httpsScheme;
     private BasicCredentialsProvider credsProvider;
 
-    public WinRMClient(URL url, String username, String password) {
+    private String shellId;
+    private String commandId;
+    private int exitCode;
+
+    WinRMClient(URL url, String username, String password) {
         this.url = url;
         this.username = username;
         this.password = password;
         this.factory = new RequestFactory(url);
+
+        namespaceContext = new SimpleNamespaceContext();
+        namespaceContext.addNamespace(Namespaces.NS_WIN_SHELL.getPrefix(), Namespaces.NS_WIN_SHELL.getURI());
+
         setupHTTPClient();
     }
 
@@ -102,7 +104,6 @@ public class WinRMClient {
 
         Document request = factory.newDeleteShellRequest(shellId).build();
         sendRequest(request);
-
     }
 
     public void signal() {
@@ -123,21 +124,19 @@ public class WinRMClient {
         sendRequest(request);
     }
 
-    public boolean slurpOutput(PipedOutputStream stdout, PipedOutputStream stderr) throws IOException {
+    public boolean slurpOutput(FastPipedOutputStream stdout, FastPipedOutputStream stderr) throws IOException {
         log.log(Level.FINE, "--> SlurpOutput");
-        ImmutableMap<String, PipedOutputStream> streams = ImmutableMap.of("stdout", stdout, "stderr", stderr);
+        ImmutableMap<String, FastPipedOutputStream> streams = ImmutableMap.of("stdout", stdout, "stderr", stderr);
 
         Document request = factory.newGetOutputRequest(shellId, commandId).build();
         Document response = sendRequest(request);
 
         XPath xpath = DocumentHelper.createXPath("//" + Namespaces.NS_WIN_SHELL.getPrefix() + ":Stream");
-        namespaceContext = new SimpleNamespaceContext();
-        namespaceContext.addNamespace(Namespaces.NS_WIN_SHELL.getPrefix(), Namespaces.NS_WIN_SHELL.getURI());
         xpath.setNamespaceContext(namespaceContext);
 
         Base64 base64 = new Base64();
         for (Element e : (List<Element>) xpath.selectNodes(response)) {
-            PipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
+            OutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
             final byte[] decode = base64.decode(e.getText());
             log.log(Level.FINE, "piping " + decode.length + " bytes from "
                     + e.attribute("Name").getText().toLowerCase());
@@ -177,13 +176,12 @@ public class WinRMClient {
 
     private DefaultHttpClient buildHTTPClient() {
         DefaultHttpClient httpclient = new DefaultHttpClient();
-        if(! (username.contains("\\")|| username.contains("/"))){
+        if (!(username.contains("\\") || username.contains("/"))) {
             //user is not a domain user
-            httpclient.getAuthSchemes().register(AuthPolicy.SPNEGO,new NegotiateNTLMSchemaFactory());
+            httpclient.getAuthSchemes().register(AuthPolicy.SPNEGO, new NegotiateNTLMSchemaFactory());
         }
         httpclient.setCredentialsProvider(credsProvider);
         httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
-        // httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
         return httpclient;
     }
 
@@ -272,22 +270,14 @@ public class WinRMClient {
         } catch (ClientProtocolException e) {
             throw new RuntimeException("HTTP Error " + e.getMessage(), e);
         } catch (HttpHostConnectException e) {
-            log.log(Level.SEVERE, "Can't connect to host", e);
             throw new WinRMConnectException("Can't connect to host: " + e.getMessage(), e);
         } catch (IOException e) {
-            log.log(Level.SEVERE, "I/O Exception in HTTP POST", e);
             throw new RuntimeIOException("I/O Exception " + e.getMessage(), e);
         } catch (ParseException e) {
-            log.log(Level.SEVERE, "XML Parse exception in HTTP POST", e);
             throw new RuntimeException("Unparseable XML in winRM response " + e.getMessage(), e);
         } catch (DocumentException e) {
-            log.log(Level.SEVERE, "XML Document exception in HTTP POST", e);
             throw new RuntimeException("Invalid XML document in winRM response " + e.getMessage(), e);
         }
-    }
-
-    public String getTimeout() {
-        return factory.getTimeout();
     }
 
     public void setTimeout(String timeout) {
@@ -301,13 +291,11 @@ public class WinRMClient {
             try {
                 socketFactory = new SSLSocketFactory(new TrustSelfSignedStrategy(), new AllowAllHostnameVerifier());
                 httpsScheme = new Scheme("https", 443, socketFactory);
-            } catch (KeyManagementException e) {
-            } catch (UnrecoverableKeyException e) {
-            } catch (NoSuchAlgorithmException e) {
-            } catch (KeyStoreException e) {
+            } catch (KeyManagementException | NoSuchAlgorithmException | UnrecoverableKeyException | KeyStoreException e) {
+                throw new RuntimeException("Failed to enable HTTPS", e);
             }
-        }else{
-            httpsScheme=null;
+        } else {
+            httpsScheme = null;
         }
     }
 }
