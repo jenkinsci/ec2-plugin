@@ -51,7 +51,7 @@ public class AmazonEC2CloudTest {
 
     @After
     public void testConfigRoundtrip() throws Exception {
-        AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.<SlaveTemplate> emptyList());
+        AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.<SlaveTemplate> emptyList(), true, "role");
         r.jenkins.clouds.add(orig);
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
 

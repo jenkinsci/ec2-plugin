@@ -25,16 +25,14 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.util.FormValidation;
-
-import java.io.IOException;
-import java.net.URL;
-import java.util.List;
-
-import javax.servlet.ServletException;
-
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
 
 /**
  * Eucalyptus.
@@ -46,9 +44,9 @@ public class Eucalyptus extends EC2Cloud {
     public final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates)
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, boolean useRoleAssumptionForCrossAccount, String roleToAssume)
             throws IOException {
-        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, useRoleAssumptionForCrossAccount, roleToAssume);
         this.ec2endpoint = ec2endpoint;
         this.s3endpoint = s3endpoint;
     }
@@ -71,15 +69,15 @@ public class Eucalyptus extends EC2Cloud {
         }
 
         @Override
-        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
+        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey, boolean useRoleAssumptionForCrossAccount, String roleToAssume)
                 throws IOException, ServletException {
-            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey);
+            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey, useRoleAssumptionForCrossAccount, roleToAssume);
         }
 
         @Override
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, boolean useRoleAssumptionForCrossAccount, String roleToAssume)
                 throws IOException, ServletException {
-            return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, credentialsId);
+            return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
         }
     }
 }

@@ -18,33 +18,11 @@
  */
 package hudson.plugins.ec2;
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.servlet.ServletException;
-
-import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.slaves.iterators.api.NodeIterator;
-
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
-
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.*;
@@ -53,6 +31,24 @@ import hudson.model.labels.LabelAtom;
 import hudson.plugins.ec2.util.DeviceMappingParser;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
+import jenkins.slaves.iterators.api.NodeIterator;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -1140,11 +1136,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
-        public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
+        public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,@QueryParameter boolean useRoleAssumptionForCrossAccount,
                 @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
-                @QueryParameter String region, final @QueryParameter String ami) throws IOException {
+                @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleToAssume) throws IOException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    credentialsId);
+                    credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -1223,10 +1219,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region)
+                @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter boolean useRoleAssumptionForCrossAccount, @QueryParameter String roleToAssume)
                 throws IOException, ServletException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    credentialsId);
+                    credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1259,7 +1255,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region,
-                @QueryParameter String type, @QueryParameter String zone) throws IOException, ServletException {
+                @QueryParameter String type, @QueryParameter String zone, @QueryParameter boolean useRoleAssumptionForCrossAccount, @QueryParameter String roleToAssume) throws IOException, ServletException {
 
             String cp = "";
             String zoneStr = "";
@@ -1267,7 +1263,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    credentialsId);
+                    credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {

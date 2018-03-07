@@ -18,112 +18,51 @@
  */
 package hudson.plugins.ec2;
 
-import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
-import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.*;
+import com.amazonaws.internal.StaticCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
-import com.cloudbees.plugins.credentials.Credentials;
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.CredentialsScope;
-import com.cloudbees.plugins.credentials.CredentialsStore;
-import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.*;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.ProxyConfiguration;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
+import hudson.model.*;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormValidation;
-import hudson.util.HttpResponses;
-import hudson.util.ListBoxModel;
-import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.Proxy;
-import java.net.URL;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.HashMap;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-import javax.servlet.ServletException;
-
-import hudson.model.TaskListener;
+import hudson.util.*;
 import jenkins.model.Jenkins;
-
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.InstanceProfileCredentialsProvider;
-import com.amazonaws.internal.StaticCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.KeyPairInfo;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import javax.servlet.ServletException;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.Proxy;
+import java.net.URL;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
-import hudson.ProxyConfiguration;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormValidation;
-import hudson.util.HttpResponses;
-import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
+import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
+import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 /**
  * Hudson's view of EC2.
@@ -132,20 +71,23 @@ import hudson.util.StreamTaskListener;
  */
 public abstract class EC2Cloud extends Cloud {
 
-    private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
-
     public static final String DEFAULT_EC2_HOST = "us-east-1";
-
     public static final String AWS_URL_HOST = "amazonaws.com";
-
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
-
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
-
+    private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
     private static final SimpleFormatter sf = new SimpleFormatter();
-
+    private static AWSCredentialsProvider awsCredentialsProvider;
+    /**
+     * Upper bound on how many instances we may provision.
+     */
+    public final int instanceCap;
+    protected final EC2PrivateKey privateKey;
     private final boolean useInstanceProfileForCredentials;
-
+    private final boolean useRoleAssumptionForCrossAccount;
+    private final String roleToAssume;
+    private final List<? extends SlaveTemplate> templates;
+    protected transient AmazonEC2 connection;
     /**
      * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
      */
@@ -157,28 +99,16 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     @Deprecated
     private transient Secret secretKey;
-
-    protected final EC2PrivateKey privateKey;
-
-    /**
-     * Upper bound on how many instances we may provision.
-     */
-    public final int instanceCap;
-
-    private final List<? extends SlaveTemplate> templates;
-
     private transient KeyPair usableKeyPair;
 
-    protected transient AmazonEC2 connection;
-
-    private static AWSCredentialsProvider awsCredentialsProvider;
-
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
-            String instanceCapStr, List<? extends SlaveTemplate> templates) {
+                       String instanceCapStr, List<? extends SlaveTemplate> templates, boolean useRoleAssumptionForCrossAccount, String roleToAssume) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
+        this.useRoleAssumptionForCrossAccount = useRoleAssumptionForCrossAccount;
         this.credentialsId = credentialsId;
         this.privateKey = new EC2PrivateKey(privateKey);
+        this.roleToAssume = roleToAssume;
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -195,6 +125,106 @@ public abstract class EC2Cloud extends Cloud {
         readResolve(); // set parents
     }
 
+    public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
+        return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
+    }
+
+    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId, boolean useRoleAssumptionForCrossAccount, String roleToAssume) {
+        if (useRoleAssumptionForCrossAccount) {
+            return new STSAssumeRoleSessionCredentialsProvider.Builder(roleToAssume, "JenkinsAssumedRole").build();
+        } else if (useInstanceProfileForCredentials) {
+            return InstanceProfileCredentialsProvider.getInstance();
+        } else if (StringUtils.isBlank(credentialsId)) {
+            return new DefaultAWSCredentialsProviderChain();
+        } else {
+            AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
+            return new StaticCredentialsProvider(credentials.getCredentials());
+        }
+    }
+
+    @CheckForNull
+    private static AmazonWebServicesCredentials getCredentials(@Nullable String credentialsId) {
+        if (StringUtils.isBlank(credentialsId)) {
+            return null;
+        }
+        return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
+                        ACL.SYSTEM, Collections.EMPTY_LIST),
+                CredentialsMatchers.withId(credentialsId));
+    }
+
+    /***
+     * Connect to an EC2 instance.
+     *
+     * @return {@link AmazonEC2} client
+     */
+    public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
+        awsCredentialsProvider = credentialsProvider;
+        ClientConfiguration config = new ClientConfiguration();
+        config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
+        // cause problems. Raise it a bit.
+        // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
+        config.setSignerOverride("AWS4SignerType");
+        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
+        if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
+            InetSocketAddress address = (InetSocketAddress) proxy.address();
+            config.setProxyHost(address.getHostName());
+            config.setProxyPort(address.getPort());
+            if (null != proxyConfig.getUserName()) {
+                config.setProxyUsername(proxyConfig.getUserName());
+                config.setProxyPassword(proxyConfig.getPassword());
+            }
+        }
+        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, config);
+        client.setEndpoint(endpoint.toString());
+        return client;
+    }
+
+    /***
+     * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
+     */
+    public static String convertHostName(String ec2HostName) {
+        if (ec2HostName == null || ec2HostName.length() == 0)
+            ec2HostName = DEFAULT_EC2_HOST;
+        if (!ec2HostName.contains("."))
+            ec2HostName = "ec2." + ec2HostName + "." + AWS_URL_HOST;
+        return ec2HostName;
+    }
+
+    /***
+     * Convert a user entered string into a port number "" -&gt; -1 to indicate default based on SSL setting
+     */
+    public static Integer convertPort(String ec2Port) {
+        if (ec2Port == null || ec2Port.length() == 0)
+            return -1;
+        return Integer.parseInt(ec2Port);
+    }
+
+    /* Parse a url or return a sensible error */
+    public static URL checkEndPoint(String url) throws FormValidation {
+        try {
+            return new URL(url);
+        } catch (MalformedURLException ex) {
+            throw FormValidation.error("Endpoint URL is not a valid URL");
+        }
+    }
+
+    public static void log(Logger logger, Level level, TaskListener listener, String message) {
+        log(logger, level, listener, message, null);
+    }
+
+    public static void log(Logger logger, Level level, TaskListener listener, String message, Throwable exception) {
+        logger.log(level, message, exception);
+        if (listener != null) {
+            if (exception != null)
+                message += " Exception: " + exception;
+            LogRecord lr = new LogRecord(level, message);
+            PrintStream printStream = listener.getLogger();
+            printStream.print(sf.format(lr));
+        }
+    }
+
     public abstract URL getEc2EndpointUrl() throws IOException;
 
     public abstract URL getS3EndpointUrl() throws IOException;
@@ -207,7 +237,7 @@ public abstract class EC2Cloud extends Cloud {
 
             SystemCredentialsProvider systemCredentialsProvider = SystemCredentialsProvider.getInstance();
             // ITERATE ON EXISTING CREDS AND DON'T CREATE IF EXIST
-            for (Credentials credentials: systemCredentialsProvider.getCredentials()) {
+            for (Credentials credentials : systemCredentialsProvider.getCredentials()) {
                 if (credentials instanceof AmazonWebServicesCredentials) {
                     AmazonWebServicesCredentials awsCreds = (AmazonWebServicesCredentials) credentials;
                     AWSCredentials awsCredentials = awsCreds.getCredentials();
@@ -222,9 +252,9 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
             // CREATE
-            for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.getInstance())) {
+            for (CredentialsStore credentialsStore : CredentialsProvider.lookupStores(Jenkins.getInstance())) {
 
-                if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+                if (credentialsStore instanceof SystemCredentialsProvider.StoreImpl) {
 
                     try {
                         String credsId = UUID.randomUUID().toString();
@@ -253,6 +283,10 @@ public abstract class EC2Cloud extends Cloud {
 
     public boolean isUseInstanceProfileForCredentials() {
         return useInstanceProfileForCredentials;
+    }
+
+    public boolean isUseRoleAssumptionForCrossAccount() {
+        return this.useRoleAssumptionForCrossAccount;
     }
 
     public String getCredentialsId() {
@@ -406,7 +440,7 @@ public abstract class EC2Cloud extends Cloud {
                     LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                             + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                     n++;
-                    
+
                     if (sir.getInstanceId() != null)
                         instanceIds.add(sir.getInstanceId());
                 } else {
@@ -456,14 +490,14 @@ public abstract class EC2Cloud extends Cloud {
                     List<Tag> instanceTags = sir.getTags();
                     for (Tag tag : instanceTags) {
                         if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
-                        
+
                             if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
-                
+
                             LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                             n++;
-                            
+
                             if (sir.getInstanceId() != null)
                                 instanceIds.add(sir.getInstanceId());
                         }
@@ -583,17 +617,17 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private EC2AbstractSlave tryToCallSlave(EC2AbstractSlave slave, SlaveTemplate template) {
-    	try {
+        try {
             slave.toComputer().connect(false).get();
         } catch (Exception e) {
             if (template.spotConfig != null) {
-            	if(StringUtils.isNotEmpty(slave.getInstanceId()) && slave.isConnected) {
-            		LOGGER.log(Level.INFO, String.format("Instance id: %s for node: %s is connected now.", slave.getInstanceId(), slave.getNodeName()));
-            		return slave;
-            	}
+                if (StringUtils.isNotEmpty(slave.getInstanceId()) && slave.isConnected) {
+                    LOGGER.log(Level.INFO, String.format("Instance id: %s for node: %s is connected now.", slave.getInstanceId(), slave.getNodeName()));
+                    return slave;
+                }
             }
         }
-    	return slave;
+        return slave;
     }
 
     @Override
@@ -602,34 +636,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private AWSCredentialsProvider createCredentialsProvider() {
-        return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
-    }
-
-    public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
-        return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
-    }
-
-    public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {
-
-        if (useInstanceProfileForCredentials) {
-            return new InstanceProfileCredentialsProvider();
-        } else if (StringUtils.isBlank(credentialsId)) {
-            return new DefaultAWSCredentialsProviderChain();
-        } else {
-            AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
-            return new StaticCredentialsProvider(credentials.getCredentials());
-        }
-    }
-
-    @CheckForNull
-    private static AmazonWebServicesCredentials getCredentials(@Nullable String credentialsId) {
-        if (StringUtils.isBlank(credentialsId)) {
-            return null;
-        }
-        return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
-                        ACL.SYSTEM, Collections.EMPTY_LIST),
-                CredentialsMatchers.withId(credentialsId));
+        return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
     }
 
     /**
@@ -646,54 +653,6 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    /***
-     * Connect to an EC2 instance.
-     *
-     * @return {@link AmazonEC2} client
-     */
-    public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
-        awsCredentialsProvider = credentialsProvider;
-        ClientConfiguration config = new ClientConfiguration();
-        config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
-        // cause problems. Raise it a bit.
-        // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
-        config.setSignerOverride("AWS4SignerType");
-        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
-        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
-        if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
-            InetSocketAddress address = (InetSocketAddress) proxy.address();
-            config.setProxyHost(address.getHostName());
-            config.setProxyPort(address.getPort());
-            if (null != proxyConfig.getUserName()) {
-                config.setProxyUsername(proxyConfig.getUserName());
-                config.setProxyPassword(proxyConfig.getPassword());
-            }
-        }
-        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, config);
-        client.setEndpoint(endpoint.toString());
-        return client;
-    }
-
-    /***
-     * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
-     */
-    public static String convertHostName(String ec2HostName) {
-        if (ec2HostName == null || ec2HostName.length() == 0)
-            ec2HostName = DEFAULT_EC2_HOST;
-        if (!ec2HostName.contains("."))
-            ec2HostName = "ec2." + ec2HostName + "." + AWS_URL_HOST;
-        return ec2HostName;
-    }
-
-    /***
-     * Convert a user entered string into a port number "" -&gt; -1 to indicate default based on SSL setting
-     */
-    public static Integer convertPort(String ec2Port) {
-        if (ec2Port == null || ec2Port.length() == 0)
-            return -1;
-        return Integer.parseInt(ec2Port);
-    }
-
     /**
      * Computes the presigned URL for the given S3 resource.
      *
@@ -706,15 +665,6 @@ public abstract class EC2Cloud extends Cloud {
         request.setExpiration(new Date(expires));
         AmazonS3 s3 = new AmazonS3Client(credentials);
         return s3.generatePresignedUrl(request);
-    }
-
-    /* Parse a url or return a sensible error */
-    public static URL checkEndPoint(String url) throws FormValidation {
-        try {
-            return new URL(url);
-        } catch (MalformedURLException ex) {
-            throw FormValidation.error("Endpoint URL is not a valid URL");
-        }
     }
 
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
@@ -753,10 +703,10 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey)
+        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, boolean useRoleAssumptionForCrossAccount, String roleToAssume)
                 throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
@@ -779,10 +729,10 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId)
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, boolean useRoleAssumptionForCrossAccount, String roleToAssume)
                 throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
@@ -820,21 +770,6 @@ public abstract class EC2Cloud extends Cloud {
                                     Jenkins.getInstance(),
                                     ACL.SYSTEM,
                                     Collections.EMPTY_LIST));
-        }
-    }
-
-    public static void log(Logger logger, Level level, TaskListener listener, String message) {
-        log(logger, level, listener, message, null);
-    }
-
-    public static void log(Logger logger, Level level, TaskListener listener, String message, Throwable exception) {
-        logger.log(level, message, exception);
-        if (listener != null) {
-            if (exception != null)
-                message += " Exception: " + exception;
-            LogRecord lr = new LogRecord(level, message);
-            PrintStream printStream = listener.getLogger();
-            printStream.print(sf.format(lr));
         }
     }
 

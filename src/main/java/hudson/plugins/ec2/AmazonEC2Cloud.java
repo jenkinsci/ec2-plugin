@@ -24,31 +24,27 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.DescribeRegionsResult;
+import com.amazonaws.services.ec2.model.Region;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerResponse;
 
+import javax.servlet.ServletException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
-import javax.servlet.ServletException;
-
-import jenkins.model.Jenkins;
-
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
-
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeRegionsResult;
-import com.amazonaws.services.ec2.model.Region;
 
 /**
  * The original implementation of {@link EC2Cloud}.
@@ -67,8 +63,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     public static boolean testMode;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, boolean useRoleAssumptionForCrossAccount, String roleToAssume) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, useRoleAssumptionForCrossAccount, roleToAssume);
         this.region = region;
     }
 
@@ -145,7 +141,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
+        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter boolean useRoleAssumptionForCrossAccount, @QueryParameter String roleToAssume)
                 throws IOException, ServletException {
             ListBoxModel model = new ListBoxModel();
             if (testMode) {
@@ -155,7 +151,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
-                        credentialsId);
+                        credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
                 AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
                 DescribeRegionsResult regions = client.describeRegions();
                 List<Region> regionList = regions.getRegions();
@@ -170,19 +166,19 @@ public class AmazonEC2Cloud extends EC2Cloud {
         }
 
 
-        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
+        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey, @QueryParameter boolean useRoleAssumptionForCrossAccount, @QueryParameter String roleToAssume)
                 throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey, useRoleAssumptionForCrossAccount, roleToAssume);
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter boolean useRoleAssumptionForCrossAccount, @QueryParameter String roleToAssume)
                 throws IOException, ServletException {
-            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId);
+            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, useRoleAssumptionForCrossAccount, roleToAssume);
         }
     }
 }
