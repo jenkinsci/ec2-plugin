@@ -510,11 +510,14 @@ public abstract class EC2Cloud extends Cloud {
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
+    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
+        return getNewOrExistingAvailableSlave(template, requiredLabel, forceCreateNew, null);
+    }
     /**
      * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
      */
-    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
+    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew, ArrayList<EC2AbstractSlave> excludedSlaves) {
         /*
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
@@ -531,7 +534,7 @@ public abstract class EC2Cloud extends Cloud {
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
             else if (possibleSlavesCount > 0)
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
-            return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
+            return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions, excludedSlaves);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Exception during provisioning", e);
             return null;
@@ -542,16 +545,18 @@ public abstract class EC2Cloud extends Cloud {
     public Collection<PlannedNode> provision(Label label, int excessWorkload) {
         try {
             List<PlannedNode> r = new ArrayList<PlannedNode>();
+            ArrayList<EC2AbstractSlave> provisionedSlaves = new ArrayList();
             final SlaveTemplate t = getTemplate(label);
             LOGGER.log(Level.INFO, "Attempting to provision slave from template " + t + " needed by excess workload of " + excessWorkload + " units of label '" + label + "'");
             if (label == null) {
                 LOGGER.log(Level.WARNING, String.format("Label is null - can't calculate how many executors slave will have. Using %s number of executors", t.getNumExecutors()));
             }
             while (excessWorkload > 0) {
-                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false);
+                final EC2AbstractSlave slave = getNewOrExistingAvailableSlave(t, label, false, provisionedSlaves);
                 // Returned null if a new node could not be created
                 if (slave == null)
                     break;
+                provisionedSlaves.add(slave);
                 LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
                 if (t.isNode()) {
                     Jenkins.getInstance().addNode(slave);
