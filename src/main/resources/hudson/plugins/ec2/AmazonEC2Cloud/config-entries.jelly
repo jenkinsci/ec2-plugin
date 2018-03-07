@@ -28,6 +28,16 @@ THE SOFTWARE.
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
     <f:checkbox />
   </f:entry>
+  <f:description>Use the instance profile credentials to assume a different role.
+  </f:description>
+  <f:entry title="${%Use EC2 instance profile to assume a role}" field="useRoleAssumptionForCrossAccount">
+    <f:checkbox />
+  </f:entry>
+  <f:description>Role to assume when assuming a different role.
+  </f:description>
+  <f:entry title="${%RoleToAssume}" field="roleToAssume">
+    <f:textbox />
+  </f:entry>
   <f:description>The regions will be populated once the keys above are entered.
   </f:description>
   <f:entry title="${%Region}" field="region">
