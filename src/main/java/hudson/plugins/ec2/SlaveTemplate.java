@@ -128,8 +128,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
-    private boolean node = true;
-
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -392,15 +390,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getIamInstanceProfile() {
         return iamInstanceProfile;
     }
-
-    public void setNode(Boolean node) {
-        this.node = node;
-    }
-
-    public Boolean isNode() {
-        return this.node;
-    }
-
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
