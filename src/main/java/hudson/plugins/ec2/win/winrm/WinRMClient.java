@@ -1,10 +1,11 @@
 package hudson.plugins.ec2.win.winrm;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import hudson.plugins.ec2.win.winrm.request.RequestFactory;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
-
+import hudson.remoting.FastPipedOutputStream;
 import java.io.IOException;
-import java.io.PipedOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -46,9 +46,6 @@ import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.dom4j.XPath;
 import org.jaxen.SimpleNamespaceContext;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 
 public class WinRMClient {
     private static final Logger log = Logger.getLogger(WinRMClient.class.getName());
@@ -123,9 +120,9 @@ public class WinRMClient {
         sendRequest(request);
     }
 
-    public boolean slurpOutput(PipedOutputStream stdout, PipedOutputStream stderr) throws IOException {
+    public boolean slurpOutput(FastPipedOutputStream stdout, FastPipedOutputStream stderr) throws IOException {
         log.log(Level.FINE, "--> SlurpOutput");
-        ImmutableMap<String, PipedOutputStream> streams = ImmutableMap.of("stdout", stdout, "stderr", stderr);
+        ImmutableMap<String, FastPipedOutputStream> streams = ImmutableMap.of("stdout", stdout, "stderr", stderr);
 
         Document request = factory.newGetOutputRequest(shellId, commandId).build();
         Document response = sendRequest(request);
@@ -137,7 +134,7 @@ public class WinRMClient {
 
         Base64 base64 = new Base64();
         for (Element e : (List<Element>) xpath.selectNodes(response)) {
-            PipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
+            FastPipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
             final byte[] decode = base64.decode(e.getText());
             log.log(Level.FINE, "piping " + decode.length + " bytes from "
                     + e.attribute("Name").getText().toLowerCase());
