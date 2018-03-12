@@ -55,6 +55,8 @@ public class EC2StepTest {
         when(cl.getTemplates()).thenReturn(templates);
         when(cl.getTemplate(anyString())).thenReturn(st);
         r.addCloud(cl);
+
+        when(instance.getNodeName()).thenReturn("nodeName");
     }
 
 

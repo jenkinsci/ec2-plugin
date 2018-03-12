@@ -553,21 +553,19 @@ public abstract class EC2Cloud extends Cloud {
                 if (slave == null)
                     break;
                 LOGGER.log(Level.INFO, String.format("We have now %s computers", Jenkins.getInstance().getComputers().length));
-                if (t.isNode()) {
-                    Jenkins.getInstance().addNode(slave);
-                    LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
-                    r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                Jenkins.getInstance().addNode(slave);
+                LOGGER.log(Level.INFO, String.format("Added node named: %s, We have now %s computers", slave.getNodeName(), Jenkins.getInstance().getComputers().length));
+                r.add(new PlannedNode(t.getDisplayName(), Computer.threadPoolForRemoting.submit(new Callable<Node>() {
 
-                        public Node call() throws Exception {
-                            long startTime = System.currentTimeMillis(); // fetch starting time
-                            while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
-                                return tryToCallSlave(slave, t);
-                            }
-                            LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
+                    public Node call() throws Exception {
+                        long startTime = System.currentTimeMillis(); // fetch starting time
+                        while ((System.currentTimeMillis() - startTime) < slave.launchTimeout * 1000) {
                             return tryToCallSlave(slave, t);
                         }
-                    }), t.getNumExecutors()));
-                }
+                        LOGGER.log(Level.WARNING, "Expected - Instance - failed to connect within launch timeout");
+                        return tryToCallSlave(slave, t);
+                    }
+                }), t.getNumExecutors()));
 
                 excessWorkload -= t.getNumExecutors();
             }
