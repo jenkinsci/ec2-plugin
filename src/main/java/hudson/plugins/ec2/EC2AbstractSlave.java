@@ -191,6 +191,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 4;
         case M4Large:
             return 4;
+        case M5Large:
+            return 4;
         case C1Medium:
             return 5;
         case M2Xlarge:
@@ -198,6 +200,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case C3Large:
             return 7;
         case C4Large:
+            return 7;
+        case C5Large:
             return 7;
         case M1Xlarge:
             return 8;
@@ -207,9 +211,13 @@ public abstract class EC2AbstractSlave extends Slave {
             return 13;
         case M4Xlarge:
             return 13;
+        case M5Xlarge:
+            return 13;
         case C3Xlarge:
             return 14;
         case C4Xlarge:
+            return 14;
+        case C5Xlarge:
             return 14;
         case C1Xlarge:
             return 20;
@@ -219,11 +227,15 @@ public abstract class EC2AbstractSlave extends Slave {
             return 26;
         case M42xlarge:
             return 26;
+        case M52xlarge:
+            return 26;
         case G22xlarge:
             return 26;
         case C32xlarge:
             return 28;
         case C42xlarge:
+            return 28;
+        case C52xlarge:
             return 28;
         case Cc14xlarge:
             return 33;
@@ -237,7 +249,11 @@ public abstract class EC2AbstractSlave extends Slave {
             return 55;
         case C44xlarge:
             return 55;
+        case C54xlarge:
+            return 55;
         case M44xlarge:
+            return 55;
+        case M54xlarge:
             return 55;
         case Cc28xlarge:
             return 88;
@@ -247,8 +263,16 @@ public abstract class EC2AbstractSlave extends Slave {
             return 108;
         case C48xlarge:
             return 108;
+        case C59xlarge:
+            return 108;
         case M410xlarge:
             return 120;
+        case M512xlarge:
+            return 120;
+        case C518xlarge:
+            return 216;
+        case M524xlarge:
+            return 240;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
         default:
