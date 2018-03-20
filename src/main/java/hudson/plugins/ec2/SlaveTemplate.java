@@ -30,6 +30,7 @@ import javax.servlet.ServletException;
 
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
@@ -467,6 +468,45 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(message);
     }
 
+    private HashSet<Tag> getCustomInstanceTags(String ec2SlaveType, List<Filter> diFilters){
+
+        boolean hasCustomTypeTag = false;
+        boolean hasJenkinsServerUrlTag = false;
+        HashSet<Tag> instTags = null;
+        if (tags != null && !tags.isEmpty()) {
+            instTags = new HashSet<Tag>();
+            for (EC2Tag t : tags) {
+                instTags.add(new Tag(t.getName(), t.getValue()));
+                if (diFilters != null){
+                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
+                }
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    hasCustomTypeTag = true;
+                }
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                    hasJenkinsServerUrlTag = true;
+                }
+            }
+        }
+
+        if (!hasCustomTypeTag) {
+            if (instTags == null) {
+                instTags = new HashSet<Tag>();
+            }
+            // Append template description as well to identify slaves provisioned per template
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(ec2SlaveType, description)));
+        }
+
+        if (!hasJenkinsServerUrlTag) {
+            if (instTags == null) {
+                instTags = new HashSet<Tag>();
+            }
+            // Append jenkins server url to identify slaves provisioned per jenkins server
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, JenkinsLocationConfiguration.get().getUrl()));
+        }
+        return instTags;
+    }
+
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
@@ -557,26 +597,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.withNetworkInterfaces(net);
             }
 
-            boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
-                    }
-                }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
-                // Append template description as well to identify slaves provisioned per template
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
-            }
+            HashSet<Tag> instTags = getCustomInstanceTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, diFilters);
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
             diRequest.setFilters(diFilters);
@@ -832,24 +853,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.withNetworkInterfaces(net);
             }
 
-            boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
-                    }
-                }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
-            }
+            HashSet<Tag> instTags = getCustomInstanceTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT, null);
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
