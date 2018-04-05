@@ -128,6 +128,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
+    public final boolean useSpotInstancesNoBid;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -151,7 +153,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean useSpotInstancesNoBid) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -187,6 +189,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.connectUsingPublicIp = connectUsingPublicIp;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
+        this.useSpotInstancesNoBid = useSpotInstancesNoBid;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -214,11 +217,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
-            boolean connectBySSHProcess) {
+            boolean connectBySSHProcess, boolean useSpotInstancesNoBid) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false, useSpotInstancesNoBid);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -230,7 +233,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false, false);
     }
 
     /**
@@ -480,6 +483,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             KeyPair keyPair = getKeyPair(ec2);
 
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
+
+            if (useSpotInstancesNoBid) {
+                InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+                riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
+            }
+
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             riRequest.setEbsOptimized(ebsOptimized);
