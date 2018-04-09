@@ -67,29 +67,35 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 			try {
 				ec2.cancelSpotInstanceRequests(cancelRequest);
 				LOGGER.info("Canceled Spot request: " + spotInstanceRequestId);
-
-				// Terminate the slave if it is running
-				if (instanceId != null && !instanceId.equals("")) {
-					if (!super.isAlive(true)) {
-						/*
-						 * The node has been killed externally, so we've nothing to do here
-						 */
-						LOGGER.info("EC2 instance already terminated: " + instanceId);
-					} else {
-						TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
-						ec2.terminateInstances(request);
-						LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
-					}
-
-				}
-
 			} catch (AmazonServiceException e) {
 				// Spot request is no longer valid
-				LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
+				LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
 			} catch (AmazonClientException e) {
 				// Spot request is no longer valid
-				LOGGER.log(Level.WARNING, "Failed to terminated instance and cancel Spot request: " + spotInstanceRequestId, e);
-			}
+				LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
+            }
+
+            // Terminate the slave if it is running
+            if (instanceId != null && !instanceId.equals("")) {
+                if (!super.isAlive(true)) {
+                    /*
+                     * The node has been killed externally, so we've nothing to do here
+                     */
+                    LOGGER.info("EC2 instance already terminated: " + instanceId);
+                } else {
+                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
+                    try {
+                        ec2.terminateInstances(request);
+                        LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
+                    } catch (AmazonServiceException e) {
+                        // Spot request is no longer valid
+                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                    } catch (AmazonClientException e) {
+                        // Spot request is no longer valid
+                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                    }
+                }
+            }
 		} catch (Exception e) {
 			LOGGER.log(Level.WARNING,"Failed to remove slave: ", e);
 		} finally {
