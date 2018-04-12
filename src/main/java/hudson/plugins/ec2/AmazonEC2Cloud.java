@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import hudson.Extension;
@@ -159,13 +160,18 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 return model;
             }
 
-            AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
-            AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
-            DescribeRegionsResult regions = client.describeRegions();
-            List<Region> regionList = regions.getRegions();
-            for (Region r : regionList) {
-                String name = r.getRegionName();
-                model.add(name, name);
+            try {
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
+                        credentialsId);
+                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+                DescribeRegionsResult regions = client.describeRegions();
+                List<Region> regionList = regions.getRegions();
+                for (Region r : regionList) {
+                    String name = r.getRegionName();
+                    model.add(name, name);
+                }
+            } catch (SdkClientException ex) {
+                // Ignore, as this may happen before the credentials are specified
             }
             return model;
         }

@@ -122,6 +122,8 @@ public abstract class EC2AbstractSlave extends Slave {
     @Deprecated
     public transient String rootCommandPrefix; // e.g. 'sudo'
 
+    public transient String slaveCommandPrefix;
+
     private transient long createdTime;
 
     public static final String TEST_ZONE = "testZone";
@@ -160,7 +162,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, Integer.toString(sshPort));
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, Integer.toString(sshPort));
         }
 
         return this;
@@ -197,6 +199,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 7;
         case C4Large:
             return 7;
+        case C5Large:
+            return 7;
         case M1Xlarge:
             return 8;
         case M22xlarge:
@@ -208,6 +212,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case C3Xlarge:
             return 14;
         case C4Xlarge:
+            return 14;
+        case C5Xlarge:
             return 14;
         case C1Xlarge:
             return 20;
@@ -223,6 +229,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 28;
         case C42xlarge:
             return 28;
+        case C52xlarge:
+            return 28;
         case Cc14xlarge:
             return 33;
         case Cg14xlarge:
@@ -235,6 +243,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 55;
         case C44xlarge:
             return 55;
+        case C54xlarge:
+            return 55;
         case M44xlarge:
             return 55;
         case Cc28xlarge:
@@ -245,8 +255,13 @@ public abstract class EC2AbstractSlave extends Slave {
             return 108;
         case C48xlarge:
             return 108;
+        case C59xlarge:
+            return 108;
         case M410xlarge:
             return 120;
+            // TODO: M416xlarge
+        case C518xlarge:
+            return 216;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
         default:
@@ -360,6 +375,13 @@ public abstract class EC2AbstractSlave extends Slave {
 
     String getRootCommandPrefix() {
         String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        if (commandPrefix == null || commandPrefix.length() == 0)
+            return "";
+        return commandPrefix + " ";
+    }
+
+    String getSlaveCommandPrefix() {
+        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";

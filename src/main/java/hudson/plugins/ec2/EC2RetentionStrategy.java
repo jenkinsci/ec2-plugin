@@ -131,7 +131,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes))) {
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
-                            + TimeUnit2.MILLISECONDS.toMinutes(freeSecondsLeft)
+                            + TimeUnit2.SECONDS.toMinutes(freeSecondsLeft)
                             + " minutes remaining in billing period");
                     computer.getNode().idleTimeout();
                 }
