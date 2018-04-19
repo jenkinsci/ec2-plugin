@@ -403,12 +403,14 @@ public abstract class EC2Cloud extends Cloud {
                     if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                         continue;
 
-                    LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
-                            + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                    n++;
-                    
-                    if (sir.getInstanceId() != null)
-                        instanceIds.add(sir.getInstanceId());
+                    if (isEc2ProvisionedAmiSlave(sir.getTags(), description)) {
+                        LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
+                                + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+
+                        n++;
+                        if (sir.getInstanceId() != null)
+                            instanceIds.add(sir.getInstanceId());
+                    }
                 } else {
                     // Canceled or otherwise dead
                     for (Node node : Jenkins.getInstance().getNodes()) {
