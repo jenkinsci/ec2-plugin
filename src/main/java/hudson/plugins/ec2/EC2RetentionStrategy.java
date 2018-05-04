@@ -93,7 +93,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         /*
         * If we've been told never to terminate, or node is null(deleted), no checks to perform
         */
-        if (idleTerminationMinutes == 0 || computer.getNode() == null) {
+        if (idleTerminationMinutes == 0 || computer.getNode() == null || computer.isOffline()) {
             return 1;
         }
 
@@ -110,7 +110,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             }
             //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
             //need terminate such fault instance by {@link #STARTUP_TIMEOUT}
-            if (computer.isOffline() && uptime < TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)) {
+            if (uptime < TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)) {
                 return 1;
             }
             final long idleMilliseconds = System.currentTimeMillis() - computer.getIdleStartMilliseconds();
