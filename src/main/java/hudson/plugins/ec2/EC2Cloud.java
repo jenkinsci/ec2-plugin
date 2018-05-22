@@ -521,17 +521,24 @@ public abstract class EC2Cloud extends Cloud {
          * allocated, we don't look at that instance as available for provisioning.
          */
         int possibleSlavesCount = getPossibleNewSlavesCount(t);
-        if (possibleSlavesCount < 0) {
+        if (possibleSlavesCount <= 0) {
             LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleSlavesCount, t);
             return null;
         }
 
         try {
-            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
+            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
             if (forceCreateNew)
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-            else if (possibleSlavesCount > 0)
+            else
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+
+            if (number > possibleSlavesCount) {
+                LOGGER.log(Level.INFO, String.format("%d nodes were requested for the template %s, " +
+                        "but because of instance cap only %d can be provisioned", number, t, possibleSlavesCount));
+                number = possibleSlavesCount;
+            }
+
             return t.provision(number, provisionOptions);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
@@ -551,7 +558,7 @@ public abstract class EC2Cloud extends Cloud {
 
             if (slaves == null || slaves.isEmpty()) {
                 LOGGER.warning("Can't raise nodes for " + t);
-                return null;
+                return Collections.emptyList();
             }
 
             for (final EC2AbstractSlave slave : slaves) {
