@@ -34,6 +34,8 @@ import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -118,15 +120,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean useDedicatedTenancy;
 
-    public transient AMITypeData amiType;
+    public AMITypeData amiType;
 
     public int launchTimeout;
 
     public boolean connectBySSHProcess;
 
     public final boolean connectUsingPublicIp;
-
-    private boolean node = true;
 
     private transient/* almost final */Set<LabelAtom> labelSet;
 
@@ -152,6 +152,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+
+        if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
+            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
+            Jenkins j = Jenkins.getInstance();
+            if(j != null){
+                j.checkPermission(Jenkins.RUN_SCRIPTS);
+            }
+        }
+
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -352,6 +361,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.ami = ami;
     }
 
+    public AMITypeData getAmiType() {
+        return amiType;
+    }
+
+    public void setAmiType(AMITypeData amiType) {
+        this.amiType = amiType;
+    }
+
     public int getInstanceCap() {
         return instanceCap;
     }
@@ -373,15 +390,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getIamInstanceProfile() {
         return iamInstanceProfile;
     }
-
-    public void setNode(Boolean node) {
-        this.node = node;
-    }
-
-    public Boolean isNode() {
-        return this.node;
-    }
-
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
@@ -501,7 +509,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
                  logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
             }
-            
+
             List<Filter> diFilters = new ArrayList<Filter>();
             diFilters.add(new Filter("image-id").withValues(ami));
 
@@ -1023,6 +1031,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
+        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 
@@ -1099,6 +1109,33 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (p == null)
                 p = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
             return p;
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckTmpDir(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckJvmopts(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
         }
 
         /***

@@ -182,40 +182,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            logInfo(computer, listener, "Verifying that java exists");
-            if (conn.exec("java -fullversion", logger) != 0) {
-                logInfo(computer, listener, "Installing Java");
+            executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
+            executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
-                String jdk = "java1.6.0_12";
-                String path = "/hudson-ci/jdk/linux-i586/" + jdk + ".tgz";
-
-                URL url = computer.getCloud().buildPresignedURL(path);
-                if (conn.exec("wget -nv -O " + tmpDir + "/" + jdk + ".tgz '" + url + "'", logger) != 0) {
-                    logWarning(computer, listener, "Failed to download Java");
-                    return;
-                }
-
-                if (conn.exec(buildUpCommand(computer, "tar xz -C /usr -f " + tmpDir + "/" + jdk + ".tgz"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to install Java");
-                    return;
-                }
-
-                if (conn.exec(buildUpCommand(computer, "ln -s /usr/" + jdk + "/bin/java /bin/java"), logger) != 0) {
-                    logWarning(computer, listener, "Failed to symlink Java");
-                    return;
-                }
-            }
-
-            // TODO: on Windows with ec2-sshd, this scp command ends up just
-            // putting slave.jar as c:\tmp
-            // bug in ec2-sshd?
-
-            logInfo(computer, listener, "Copying slave.jar");
+            // Always copy so we get the most recent slave.jar
+            logInfo(computer, listener, "Copying slave.jar to: " + tmpDir);
             scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
             String prefix = computer.getSlaveCommandPrefix();
             String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar";
+           // launchString = launchString.trim();
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
 
@@ -228,7 +205,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, inst), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
-                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString);
+                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
                     commandLauncher.launch(computer, listener);
                 } finally {
                     identityKeyFile.delete();
@@ -251,6 +228,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if (cleanupConn != null && !successful)
                 cleanupConn.close();
         }
+    }
+
+    private boolean executeRemote(EC2Computer computer, Connection conn, String checkCommand,  String command, PrintStream logger, TaskListener listener)
+            throws IOException, InterruptedException {
+        logInfo(computer, listener,"Verifying: " + checkCommand);
+        if (conn.exec(checkCommand, logger) != 0) {
+            logInfo(computer, listener, "Installing: " + command);
+            if (conn.exec(command, logger) != 0) {
+                logWarning(computer, listener, "Failed to install: " + command);
+                return false;
+            }
+        }
+        return true;
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
