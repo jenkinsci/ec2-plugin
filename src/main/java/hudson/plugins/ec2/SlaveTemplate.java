@@ -675,10 +675,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
-            BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(rootMapping.getDeviceName());
-            EbsBlockDevice newEbs = new EbsBlockDevice();
-            newEbs.setDeleteOnTermination(Boolean.TRUE);
-            newMapping.setEbs(newEbs);
+            BlockDeviceMapping newMapping = rootMapping.clone();
+            newMapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
+            //Per the documentation, "If you are creating a volume from a snapshot, you can't specify an encryption value. This is because only blank volumes can be encrypted on creation. "
+            //The root volume will always have a snapshot, so this value needs to be set to null to work correctly
+            newMapping.getEbs().setEncrypted(null);
             deviceMappings.add(0, newMapping);
         }
     }
