@@ -105,11 +105,13 @@ public class AmazonEC2Cloud extends EC2Cloud {
     }
 
     public static boolean isGovCloud() {
-        if (Regions.getCurrentRegion().getName() == "us-gov-west-1") {
-            return true;
-        } else {
+        if (Regions.getCurrentRegion() == null) {
             return false;
         }
+        if (Regions.getCurrentRegion().getName().startsWith("us-gov")) {
+            return true;
+        }
+        return false;
     }
 
     @Override

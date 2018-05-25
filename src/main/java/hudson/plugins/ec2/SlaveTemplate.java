@@ -559,25 +559,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             boolean hasCustomTypeTag = false;
             HashSet<Tag> instTags = null;
-            if (!AmazonEC2Cloud.isGovCloud()) {
-                if (tags != null && !tags.isEmpty()) {
+            if (tags != null && !tags.isEmpty()) {
+                instTags = new HashSet<Tag>();
+                for (EC2Tag t : tags) {
+                    instTags.add(new Tag(t.getName(), t.getValue()));
+                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
+                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                        hasCustomTypeTag = true;
+                    }
+                }
+            }
+            if (!hasCustomTypeTag) {
+                if (instTags == null) {
                     instTags = new HashSet<Tag>();
-                    for (EC2Tag t : tags) {
-                        instTags.add(new Tag(t.getName(), t.getValue()));
-                        diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
-                        if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                            hasCustomTypeTag = true;
-                        }
-                    }
                 }
-                if (!hasCustomTypeTag) {
-                    if (instTags == null) {
-                        instTags = new HashSet<Tag>();
-                    }
-                    // Append template description as well to identify slaves provisioned per template
-                    instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                            EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
-                }
+                // Append template description as well to identify slaves provisioned per template
+                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                        EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
@@ -611,7 +609,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 }
 
-                if (instTags != null) {
+                // If not GovCloud, tags can be included with the EC2 runInstances request
+                if (instTags != null && !AmazonEC2Cloud.isGovCloud()) {
                     TagSpecification tagSpecification = new TagSpecification();
                     tagSpecification.setResourceType(ResourceType.Instance);
                     tagSpecification.setTags(instTags);
@@ -621,6 +620,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+
+                // If GovCloud, tagging has to be after the instance is launched
+                if (instTags != null && AmazonEC2Cloud.isGovCloud()) {
+                  updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
+                }
 
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
@@ -652,6 +656,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
     }
 
@@ -836,23 +843,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             boolean hasCustomTypeTag = false;
             HashSet<Tag> instTags = null;
-            if (!AmazonEC2Cloud.isGovCloud()) {
-                if (tags != null && !tags.isEmpty()) {
+            if (tags != null && !tags.isEmpty()) {
+                instTags = new HashSet<Tag>();
+                for (EC2Tag t : tags) {
+                    instTags.add(new Tag(t.getName(), t.getValue()));
+                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                        hasCustomTypeTag = true;
+                    }
+                }
+            }
+            if (!hasCustomTypeTag) {
+                if (instTags == null) {
                     instTags = new HashSet<Tag>();
-                    for (EC2Tag t : tags) {
-                        instTags.add(new Tag(t.getName(), t.getValue()));
-                        if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                            hasCustomTypeTag = true;
-                        }
-                    }
                 }
-                if (!hasCustomTypeTag) {
-                    if (instTags == null) {
-                        instTags = new HashSet<Tag>();
-                    }
-                    instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                            EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
-                }
+                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                        EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
