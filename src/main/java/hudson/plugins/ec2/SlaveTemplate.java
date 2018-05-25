@@ -609,7 +609,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
                 }
 
-                if (instTags != null) {
+                // If not GovCloud, tags can be included with the EC2 runInstances request
+                if (instTags != null && !AmazonEC2Cloud.isGovCloud()) {
                     TagSpecification tagSpecification = new TagSpecification();
                     tagSpecification.setResourceType(ResourceType.Instance);
                     tagSpecification.setTags(instTags);
@@ -619,6 +620,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 // Have to create a new instance
                 Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+
+                // If GovCloud, tagging has to be after the instance is launched
+                if (instTags != null && AmazonEC2Cloud.isGovCloud()) {
+                  updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
+                }
 
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
@@ -650,6 +656,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
                                         // configuration issues upfront
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
     }
 
