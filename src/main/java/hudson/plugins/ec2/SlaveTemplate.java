@@ -559,23 +559,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             boolean hasCustomTypeTag = false;
             HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
+            if (!AmazonEC2Cloud.isGovCloud()) {
+                if (tags != null && !tags.isEmpty()) {
+                    instTags = new HashSet<Tag>();
+                    for (EC2Tag t : tags) {
+                        instTags.add(new Tag(t.getName(), t.getValue()));
+                        diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
+                        if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                            hasCustomTypeTag = true;
+                        }
                     }
                 }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
+                if (!hasCustomTypeTag) {
+                    if (instTags == null) {
+                        instTags = new HashSet<Tag>();
+                    }
+                    // Append template description as well to identify slaves provisioned per template
+                    instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                            EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
                 }
-                // Append template description as well to identify slaves provisioned per template
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
             }
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
@@ -834,21 +836,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             boolean hasCustomTypeTag = false;
             HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
+            if (!AmazonEC2Cloud.isGovCloud()) {
+                if (tags != null && !tags.isEmpty()) {
+                    instTags = new HashSet<Tag>();
+                    for (EC2Tag t : tags) {
+                        instTags.add(new Tag(t.getName(), t.getValue()));
+                        if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                            hasCustomTypeTag = true;
+                        }
                     }
                 }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
+                if (!hasCustomTypeTag) {
+                    if (instTags == null) {
+                        instTags = new HashSet<Tag>();
+                    }
+                    instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                            EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
                 }
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
             }
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
