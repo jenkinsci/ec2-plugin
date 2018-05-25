@@ -46,6 +46,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.amazonaws.services.ec2.model.Region;
@@ -103,6 +104,16 @@ public class AmazonEC2Cloud extends EC2Cloud {
         }
     }
 
+    public static boolean isGovCloud() {
+        if (Regions.getCurrentRegion() == null) {
+            return false;
+        }
+        if (Regions.getCurrentRegion().getName().startsWith("us-gov")) {
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public URL getEc2EndpointUrl() {
         return getEc2EndpointUrl(getRegion());
@@ -154,9 +165,13 @@ public class AmazonEC2Cloud extends EC2Cloud {
             }
 
             try {
+                URL ec2Endpoint = new URL("http://ec2.amazonaws.com");
+                if (Regions.getCurrentRegion() != null) {
+                  ec2Endpoint = getEc2EndpointUrl(Regions.getCurrentRegion().getName());
+                }
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
                         credentialsId);
-                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+                AmazonEC2 client = connect(credentialsProvider, ec2Endpoint);
                 DescribeRegionsResult regions = client.describeRegions();
                 List<Region> regionList = regions.getRegions();
                 for (Region r : regionList) {
