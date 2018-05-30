@@ -510,8 +510,8 @@ public abstract class EC2Cloud extends Cloud {
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
-    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, forceCreateNew, null){
-        return getNewOrExistingAvailableSlave(template, requiredLabel, forceCreateNew);
+    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, forceCreateNew){
+        return getNewOrExistingAvailableSlave(template, requiredLabel, forceCreateNew, null);
     }
     /**
      * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
