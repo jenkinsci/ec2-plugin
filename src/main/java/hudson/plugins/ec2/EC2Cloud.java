@@ -510,7 +510,7 @@ public abstract class EC2Cloud extends Cloud {
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
-    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, forceCreateNew){
+    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew){
         return getNewOrExistingAvailableSlave(template, requiredLabel, forceCreateNew, null);
     }
     /**
