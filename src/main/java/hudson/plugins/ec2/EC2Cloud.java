@@ -146,6 +146,8 @@ public abstract class EC2Cloud extends Cloud {
 
     private final boolean useInstanceProfileForCredentials;
 
+    private final boolean retainTemporarilyOfflineInstances;
+
     /**
      * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
      */
@@ -174,9 +176,10 @@ public abstract class EC2Cloud extends Cloud {
     private static AWSCredentialsProvider awsCredentialsProvider;
 
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
-            String instanceCapStr, List<? extends SlaveTemplate> templates) {
+            String instanceCapStr, List<? extends SlaveTemplate> templates, boolean retainTemporarilyOfflineInstances) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
+        this.retainTemporarilyOfflineInstances = retainTemporarilyOfflineInstances;
         this.credentialsId = credentialsId;
         this.privateKey = new EC2PrivateKey(privateKey);
 
@@ -250,6 +253,8 @@ public abstract class EC2Cloud extends Cloud {
         }
         return this;
     }
+
+    public boolean isRetainTemporarilyOfflineInstances() { return retainTemporarilyOfflineInstances; }
 
     public boolean isUseInstanceProfileForCredentials() {
         return useInstanceProfileForCredentials;

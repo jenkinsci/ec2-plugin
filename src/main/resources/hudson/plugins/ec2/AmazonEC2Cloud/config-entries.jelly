@@ -40,6 +40,9 @@ THE SOFTWARE.
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
+    <f:entry title="${%Retain Temporarily Offline Instances}" field="retainTemporarilyOfflineInstances">
+      <f:checkbox />
+    </f:entry>
   </f:advanced>
   <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,credentialsId" />
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey" />

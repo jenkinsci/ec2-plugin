@@ -46,9 +46,9 @@ public class Eucalyptus extends EC2Cloud {
     public final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates)
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, boolean retainTemporarilyOfflineInstances)
             throws IOException {
-        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, retainTemporarilyOfflineInstances);
         this.ec2endpoint = ec2endpoint;
         this.s3endpoint = s3endpoint;
     }
