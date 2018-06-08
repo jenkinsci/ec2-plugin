@@ -113,6 +113,12 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             if (computer.isOffline() && uptime < TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)) {
                 return 1;
             }
+
+            // This adds the functionality to skip termination for nodes that are marked temporarily offline
+            if (computer.getCloud().isRetainTemporarilyOfflineInstances() && computer.isOffline()) {
+                return 1;
+            }
+
             final long idleMilliseconds = System.currentTimeMillis() - computer.getIdleStartMilliseconds();
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
