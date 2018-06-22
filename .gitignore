@@ -11,3 +11,7 @@ target
 /bin
 /work
 /src_generated
+
+build/
+
+\.gradle/
