@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>plugin</artifactId>
-      <version>2.37</version>
+      <version>3.15</version>
     </parent>
 
     <artifactId>ec2</artifactId>
