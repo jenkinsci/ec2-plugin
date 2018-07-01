@@ -64,6 +64,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String ami;
 
+    public String launchTemplate;
+
     public final String description;
 
     public final String zone;
@@ -151,7 +153,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, String launchTemplate) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -162,6 +164,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.ami = ami;
+        this.launchTemplate = launchTemplate;
         this.zone = zone;
         this.spotConfig = spotConfig;
         this.securityGroups = securityGroups;
@@ -212,6 +215,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+            tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+            idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
+            useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false, "");
+
+    }
+
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
             boolean connectBySSHProcess) {
@@ -227,7 +244,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+        this(ami,  zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
@@ -357,6 +374,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return ami;
     }
 
+    public String getLaunchTemplate() {
+        return ami;
+    }
+
     public void setAmi(String ami) {
         this.ami = ami;
     }
@@ -483,6 +504,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             riRequest.setEbsOptimized(ebsOptimized);
+
+            if (StringUtils.isNotBlank(getLaunchTemplate())) {
+                riRequest.setLaunchTemplate(new LaunchTemplateSpecification().withLaunchTemplateId(getLaunchTemplate()));
+            }
 
             setupRootDevice(riRequest.getBlockDeviceMappings());
             if (useEphemeralDevices) {
