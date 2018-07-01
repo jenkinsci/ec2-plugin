@@ -32,12 +32,12 @@ import com.amazonaws.services.ec2.model.*;
 public final class EC2OndemandSlave extends EC2AbstractSlave {
     private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, String launchTemplate)
             throws FormException, IOException {
         this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, false, launchTimeout, amiType, launchTemplate);
     }
 
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, String launchTemplate)
             throws FormException, IOException {
         this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, useDedicatedTenancy, launchTimeout, amiType, launchTemplate);
     }
