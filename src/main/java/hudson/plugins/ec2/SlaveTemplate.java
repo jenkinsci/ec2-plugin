@@ -170,11 +170,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.type = type;
         this.ebsOptimized = ebsOptimized;
         this.labels = Util.fixNull(labelString);
-        this.mode = mode;
+        this.mode = mode != null ? mode : Node.Mode.NORMAL;
         this.description = description;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
-        this.userData = userData;
+        this.userData = StringUtils.trimToEmpty(userData);
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
         this.jvmopts = jvmopts;
