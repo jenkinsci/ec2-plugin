@@ -87,7 +87,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String remoteAdmin; // e.g. 'ubuntu'
 
     public final String templateDescription;
-
+    public final String launchTemplate;
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
@@ -128,7 +128,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, String launchTemplate)
             throws FormException, IOException {
 
         super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
@@ -147,6 +147,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
+        this.launchTemplate = launchTemplate;
         readResolve();
     }
 
@@ -401,6 +402,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     String getJvmopts() {
         return Util.fixNull(jvmopts);
+    }
+
+    String getLaunchTemplate() {
+        return launchTemplate;
     }
 
     public int getSshPort() {

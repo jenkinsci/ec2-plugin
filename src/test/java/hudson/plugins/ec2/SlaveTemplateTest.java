@@ -77,7 +77,7 @@ public class SlaveTemplateTest {
 
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices,useDedicatedTenancy");
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,usePrivateDnsName,useEphemeralDevices,useDedicatedTenancy,launchTemplate");
     }
 
     @Test
