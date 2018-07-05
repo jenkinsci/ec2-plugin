@@ -372,7 +372,7 @@ public abstract class EC2Cloud extends Cloud {
             InstanceStateName stateName = InstanceStateName.fromValue(instance.getState().getName());
             if(!stateName.equals(InstanceStateName.Terminated)){
                 TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
-                //ec2.terminateInstances(request);
+                ec2.terminateInstances(request);
                 wasTerminated = true;
             }
 
@@ -388,7 +388,6 @@ public abstract class EC2Cloud extends Cloud {
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
         String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
-
         LOGGER.log(Level.FINE, "Counting current slaves: "
             + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
             + " Jenkins Server: " + jenkinsServerUrl);
@@ -401,7 +400,12 @@ public abstract class EC2Cloud extends Cloud {
 
         for (Reservation r : ec2.describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2)) terminatedInstances.add(i.getInstanceId());
+                if(template != null && template.terminateRogues){
+                    if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2)){
+                        LOGGER.log(Level.FINE, "Found rogue EC2 instance: " + i.getInstanceId() + " matching this Jenkins instance without a corresponding agent");
+                        terminatedInstances.add(i.getInstanceId());
+                    }
+                }
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description)
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
@@ -415,7 +419,10 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         }
-        LOGGER.log(Level.INFO, "Terminated rogue slave instances: " + terminatedInstances.toString());
+        if(template != null && template.terminateRogues && terminatedInstances.size() > 0){
+            LOGGER.log(Level.INFO, "Terminated rogue slave instances: " + terminatedInstances.toString());
+        }
+
         List<SpotInstanceRequest> sirs = null;
         List<Filter> filters = new ArrayList<Filter>();
         List<String> values;
