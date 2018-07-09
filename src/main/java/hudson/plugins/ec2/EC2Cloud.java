@@ -352,9 +352,9 @@ public abstract class EC2Cloud extends Cloud {
 
     /**
      * Terminates instance if it does not exist in Jenkins, but is tagged with the current jenkins URL.
-     * @param safeMode If true, will only log the instance not terminate it.
+     * @param terminateMode If true, will terminate rogue instances.
      */
-    private boolean cleanIfRogueSlave(Instance instance, String jenkinsServerUrl, AmazonEC2 ec2, boolean safeMode) {
+    private boolean cleanIfRogueSlave(Instance instance, String jenkinsServerUrl, AmazonEC2 ec2, boolean terminateMode) {
         boolean foundInJenkins = false;
         boolean isRogue = false;
 
@@ -372,7 +372,7 @@ public abstract class EC2Cloud extends Cloud {
         if(!foundInJenkins && instance.getTags().contains(serverUrlTag)) {
             InstanceStateName stateName = InstanceStateName.fromValue(instance.getState().getName());
             if(!stateName.equals(InstanceStateName.Terminated)) {
-                if(!safeMode){
+                if(terminateMode){
                     TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
                     ec2.terminateInstances(request);
                 }
@@ -401,11 +401,11 @@ public abstract class EC2Cloud extends Cloud {
 
         AmazonEC2 ec2 = connect();
         List<String> terminatedInstances = new ArrayList<String>();
-        boolean safeMode = (template != null && template.terminateRogues)? false : true;
+        boolean terminateMode = (template != null && template.terminateRogues);
 
         for (Reservation r : ec2.describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2, safeMode)) {
+                if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2, terminateMode)) {
                     terminatedInstances.add(i.getInstanceId());
                 }
 
