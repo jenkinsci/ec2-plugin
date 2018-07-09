@@ -352,10 +352,11 @@ public abstract class EC2Cloud extends Cloud {
 
     /**
      * Terminates instance if it does not exist in Jenkins, but is tagged with the current jenkins URL.
+     * @param safeMode If true, will only log the instance not terminate it.
      */
-    private boolean cleanIfRogueSlave( Instance instance, String jenkinsServerUrl, AmazonEC2 ec2) {
+    private boolean cleanIfRogueSlave(Instance instance, String jenkinsServerUrl, AmazonEC2 ec2, boolean safeMode) {
         boolean foundInJenkins = false;
-        boolean wasTerminated = false;
+        boolean isRogue = false;
 
         Tag serverUrlTag = new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsServerUrl);
         String instanceId = instance.getInstanceId();
@@ -368,16 +369,19 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        if(!foundInJenkins && instance.getTags().contains(serverUrlTag)){
+        if(!foundInJenkins && instance.getTags().contains(serverUrlTag)) {
             InstanceStateName stateName = InstanceStateName.fromValue(instance.getState().getName());
-            if(!stateName.equals(InstanceStateName.Terminated)){
-                TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
-                ec2.terminateInstances(request);
-                wasTerminated = true;
+            if(!stateName.equals(InstanceStateName.Terminated)) {
+                if(!safeMode){
+                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
+                    ec2.terminateInstances(request);
+                }
+                LOGGER.log(Level.FINE, "Found rogue EC2 instance: " + instanceId + " matching this Jenkins instance without a corresponding agent");
+                isRogue = true;
             }
 
         }
-        return wasTerminated;
+        return isRogue;
     }
 
     /**
@@ -397,15 +401,14 @@ public abstract class EC2Cloud extends Cloud {
 
         AmazonEC2 ec2 = connect();
         List<String> terminatedInstances = new ArrayList<String>();
+        boolean safeMode = (template != null && template.terminateRogues)? false : true;
 
         for (Reservation r : ec2.describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if(template != null && template.terminateRogues){
-                    if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2)){
-                        LOGGER.log(Level.FINE, "Found rogue EC2 instance: " + i.getInstanceId() + " matching this Jenkins instance without a corresponding agent");
-                        terminatedInstances.add(i.getInstanceId());
-                    }
+                if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2, safeMode)) {
+                    terminatedInstances.add(i.getInstanceId());
                 }
+
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description)
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
@@ -419,7 +422,8 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         }
-        if(template != null && template.terminateRogues && terminatedInstances.size() > 0){
+
+        if(!safeMode){
             LOGGER.log(Level.INFO, "Terminated rogue slave instances: " + terminatedInstances.toString());
         }
 
