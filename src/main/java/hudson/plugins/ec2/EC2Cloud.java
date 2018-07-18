@@ -109,6 +109,7 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -350,14 +351,47 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
+     * Terminates instance if it does not exist in Jenkins, but is tagged with the current jenkins URL.
+     * @param terminateMode If true, will terminate rogue instances.
+     */
+    private boolean cleanIfRogueSlave(Instance instance, String jenkinsServerUrl, AmazonEC2 ec2, boolean terminateMode) {
+        boolean foundInJenkins = false;
+        boolean isRogue = false;
+
+        Tag serverUrlTag = new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsServerUrl);
+        String instanceId = instance.getInstanceId();
+
+        for(Node node: Jenkins.getInstance().getNodes()) {
+            EC2OndemandSlave onDemandSlave = (EC2OndemandSlave) node;
+            if (onDemandSlave.getInstanceId().equals(instanceId)) {
+                foundInJenkins = true;
+                break; //Can't be rogue, no need to finish loop.
+            }
+        }
+
+        if(!foundInJenkins && instance.getTags().contains(serverUrlTag)) {
+            InstanceStateName stateName = InstanceStateName.fromValue(instance.getState().getName());
+            if(!stateName.equals(InstanceStateName.Terminated)) {
+                if(terminateMode){
+                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
+                    ec2.terminateInstances(request);
+                }
+                LOGGER.log(Level.FINE, "Found rogue EC2 instance: " + instanceId + " matching this Jenkins instance without a corresponding agent");
+                isRogue = true;
+            }
+
+        }
+        return isRogue;
+    }
+
+    /**
      * Counts the number of instances in EC2 that can be used with the specified image and a template. Also removes any
-     * nodes associated with canceled requests.
+     * nodes associated with canceled requests, and terminates instances which are not in Jenkins, but are running in EC2.
      *
      * @param template If left null, then all instances are counted.
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
         String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
-
         LOGGER.log(Level.FINE, "Counting current slaves: "
             + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
             + " Jenkins Server: " + jenkinsServerUrl);
@@ -365,8 +399,16 @@ public abstract class EC2Cloud extends Cloud {
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
-        for (Reservation r : connect().describeInstances().getReservations()) {
+        AmazonEC2 ec2 = connect();
+        List<String> terminatedInstances = new ArrayList<String>();
+        boolean terminateMode = (template != null && template.terminateRogues);
+
+        for (Reservation r : ec2.describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
+                if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2, terminateMode)) {
+                    terminatedInstances.add(i.getInstanceId());
+                }
+
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description)
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
@@ -380,6 +422,11 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         }
+
+        if(!safeMode){
+            LOGGER.log(Level.INFO, "Terminated rogue slave instances: " + terminatedInstances.toString());
+        }
+
         List<SpotInstanceRequest> sirs = null;
         List<Filter> filters = new ArrayList<Filter>();
         List<String> values;
