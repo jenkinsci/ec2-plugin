@@ -423,7 +423,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        if(!safeMode){
+        if(terminateMode){
             LOGGER.log(Level.INFO, "Terminated rogue slave instances: " + terminatedInstances.toString());
         }
 
