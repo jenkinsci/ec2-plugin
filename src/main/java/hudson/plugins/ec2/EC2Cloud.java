@@ -362,10 +362,12 @@ public abstract class EC2Cloud extends Cloud {
         String instanceId = instance.getInstanceId();
 
         for(Node node: Jenkins.getInstance().getNodes()) {
-            EC2OndemandSlave onDemandSlave = (EC2OndemandSlave) node;
-            if (onDemandSlave.getInstanceId().equals(instanceId)) {
-                foundInJenkins = true;
-                break; //Can't be rogue, no need to finish loop.
+            if(node instanceof EC2OndemandSlave){
+                EC2OndemandSlave onDemandSlave = (EC2OndemandSlave) node;
+                if (onDemandSlave.getInstanceId().equals(instanceId)) {
+                    foundInJenkins = true;
+                    break; //Can't be rogue, no need to finish loop.
+                }
             }
         }
 
