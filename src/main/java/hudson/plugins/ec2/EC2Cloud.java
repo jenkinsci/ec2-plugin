@@ -358,7 +358,7 @@ public abstract class EC2Cloud extends Cloud {
         boolean foundInJenkins = false;
         boolean isRogue = false;
 
-        Tag serverUrlTag = new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsServerUrl);
+
         String instanceId = instance.getInstanceId();
 
         for(Node node: Jenkins.getInstance().getNodes()) {
@@ -371,7 +371,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        if(!foundInJenkins && instance.getTags().contains(serverUrlTag)) {
+        if(!foundInJenkins) {
             InstanceStateName stateName = InstanceStateName.fromValue(instance.getState().getName());
             if(!stateName.equals(InstanceStateName.Terminated)) {
                 if(terminateMode){
@@ -403,12 +403,17 @@ public abstract class EC2Cloud extends Cloud {
 
         AmazonEC2 ec2 = connect();
         List<String> terminatedInstances = new ArrayList<String>();
+        Tag serverUrlTag = new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsServerUrl);
+
         boolean terminateMode = (template != null && template.terminateRogues);
 
         for (Reservation r : ec2.describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if(cleanIfRogueSlave(i, jenkinsServerUrl, ec2, terminateMode)) {
-                    terminatedInstances.add(i.getInstanceId());
+
+                if (i.getTags().contains(serverUrlTag)) {
+                    if (cleanIfRogueSlave(i, jenkinsServerUrl, ec2, terminateMode)) {
+                        terminatedInstances.add(i.getInstanceId());
+                    }
                 }
 
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description)
