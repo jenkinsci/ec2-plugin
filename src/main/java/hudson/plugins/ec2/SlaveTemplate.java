@@ -133,6 +133,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean terminateRogues;
 
+    public boolean useOnDemandFallback;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -157,7 +159,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean useSpotInstancesNoBid,
-            boolean terminateRogues) {
+            boolean terminateRogues, boolean useOnDemandFallback) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -195,6 +197,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.connectBySSHProcess = connectBySSHProcess;
         this.useSpotInstancesNoBid = useSpotInstancesNoBid;
         this.terminateRogues = terminateRogues;
+        this.useOnDemandFallback = useOnDemandFallback;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -227,7 +230,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false, useSpotInstancesNoBid,
-                false);
+                false, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -521,18 +524,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
+        RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
+        RunInstancesRequest riRequestFallback = new RunInstancesRequest(ami, 1, 1);
 
         try {
             logProvisionInfo(logger, "Considering launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
-
-            RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
-
-            if (useSpotInstancesNoBid) {
-                InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
-                riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
-            }
 
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
@@ -652,9 +650,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     riRequest.setTagSpecifications(tagSpecifications);
                 }
 
-                // Have to create a new instance
-                Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+                riRequestFallback = riRequest.clone(); //Fallback is identical to orginal except for marketType
+                if (useSpotInstancesNoBid) {
+                    InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+                    riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
+                }
 
+                Instance inst = new Instance();
+                try {
+                    // Have to create a new instance
+                    inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+
+                }catch(AmazonEC2Exception e){
+                    if(e.getErrorCode().equals("InsufficientInstanceCapacity")){
+                        if(useOnDemandFallback){
+                            inst = ec2.runInstances(riRequestFallback).getReservation().getInstances().get(0);
+                            logProvision(logger, "There is no spot capacity available matching your request, falling back to on-demand instance." + inst);
+                            return newOndemandSlave(inst);
+                        }
+                    }
+                    throw e;
+                }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
