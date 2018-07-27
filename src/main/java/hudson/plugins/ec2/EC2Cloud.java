@@ -442,7 +442,7 @@ public abstract class EC2Cloud extends Cloud {
                         LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                                 + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
 
-                        n++;
+n++;
                         if (sir.getInstanceId() != null)
                             instanceIds.add(sir.getInstanceId());
                     }
@@ -754,6 +754,13 @@ public abstract class EC2Cloud extends Cloud {
      */
     public AmazonEC2 connect() throws AmazonClientException {
         try {
+            if (connection != null) {
+                try {
+                    connection.describeInstances();
+                } catch (AmazonClientException e) {
+                    connection = null;
+                }
+            }
             if (connection == null) {
                 connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
             }
