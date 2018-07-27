@@ -406,7 +406,7 @@ public abstract class EC2Cloud extends Cloud {
                     LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                             + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                     n++;
-                    
+
                     if (sir.getInstanceId() != null)
                         instanceIds.add(sir.getInstanceId());
                 } else {
@@ -456,14 +456,14 @@ public abstract class EC2Cloud extends Cloud {
                     List<Tag> instanceTags = sir.getTags();
                     for (Tag tag : instanceTags) {
                         if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
-                        
+
                             if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
-                
+
                             LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                             n++;
-                            
+
                             if (sir.getInstanceId() != null)
                                 instanceIds.add(sir.getInstanceId());
                         }
@@ -635,6 +635,13 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized AmazonEC2 connect() throws AmazonClientException {
         try {
+            if (connection != null) {
+                try {
+                    connection.describeInstances();
+                } catch (AmazonClientException e) {
+                    connection = null;
+                }
+            }
             if (connection == null) {
                 connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
             }
