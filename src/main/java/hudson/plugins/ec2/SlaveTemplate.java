@@ -129,7 +129,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
-    public final boolean useSpotInstancesNoBid;
+    public boolean useSpotInstancesNoBid;
 
     public boolean terminateRogues;
 
@@ -400,7 +400,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    public boolean getSpotInstanceRequestBid() {
+        return !this.useSpotInstancesNoBid;
+    }
+
+    public void setSpotInstanceRequestBid(boolean value) {
+        this.useSpotInstancesNoBid = !value;
+    }
+
+    public enum ProvisionOptions {ALLOW_CREATE, FORCE_CREATE}
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
@@ -530,7 +538,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
             if (useSpotInstancesNoBid) {
-                InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+                InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(
+                        MarketType.Spot);
                 riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
             }
 
@@ -1245,6 +1254,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();
             }
             return FormValidation.error("Not a correct bid price");
+        }
+
+        public FormValidation doCheckStopOnTerminate(
+                @QueryParameter("stopOnTerminate") Boolean stopOnTerminate, @QueryParameter("spotConfig") Boolean spotConfig) {
+            if (stopOnTerminate && (spotConfig != null && spotConfig)) {
+                return FormValidation.error("Cannot stop spot instances, choose one between 'Use Spot Instances' and 'Stop/Disconnect on Idle Timeout'.");
+            }
+            return FormValidation.ok();
         }
 
         // Retrieve the availability zones for the region
