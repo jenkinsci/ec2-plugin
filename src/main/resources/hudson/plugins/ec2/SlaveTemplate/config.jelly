@@ -64,6 +64,16 @@ THE SOFTWARE.
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
     </f:entry>
+
+  <f:optionalBlock name="spotConfig" title="${%Use Spot Instance}" checked="${instance.spotConfig != null}">
+    <f:optionalBlock name="spotInstanceRequestBid" title="${%Set Spot Instance Bid Price}" checked="${!instance.useSpotInstancesNoBid}">
+      <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice"
+       with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
+
+      <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+        <f:textbox />
+      </f:entry>
+    </f:optionalBlock>
   </f:optionalBlock>
 
   <f:entry title="${%Security group names}" field="securityGroups">
@@ -112,7 +122,7 @@ THE SOFTWARE.
       <f:textbox/>
     </f:entry>
 
-    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
+    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate" with="spotConfig">
       <f:checkbox />
     </f:entry>
 
