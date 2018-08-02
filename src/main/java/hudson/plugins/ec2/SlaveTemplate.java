@@ -133,7 +133,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean terminateRogues;
 
-    public boolean useOnDemandFallback;
+    public boolean spotInstanceFallbackToOnDemand;
 
     private transient/* almost final */Set<LabelAtom> labelSet;
 
@@ -159,7 +159,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean useSpotInstancesNoBid,
-            boolean terminateRogues, boolean useOnDemandFallback) {
+            boolean terminateRogues, boolean spotInstanceFallbackToOnDemand) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -197,7 +197,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.connectBySSHProcess = connectBySSHProcess;
         this.useSpotInstancesNoBid = useSpotInstancesNoBid;
         this.terminateRogues = terminateRogues;
-        this.useOnDemandFallback = useOnDemandFallback;
+        this.spotInstanceFallbackToOnDemand = spotInstanceFallbackToOnDemand;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -525,7 +525,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
         RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
-        RunInstancesRequest riRequestFallback = new RunInstancesRequest(ami, 1, 1);
 
         try {
             logProvisionInfo(logger, "Considering launching " + ami + " for template " + description);
@@ -650,27 +649,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     riRequest.setTagSpecifications(tagSpecifications);
                 }
 
-                riRequestFallback = riRequest.clone(); //Fallback is identical to orginal except for marketType
-                if (useSpotInstancesNoBid) {
-                    InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
-                    riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
-                }
-
                 Instance inst = new Instance();
-                try {
-                    // Have to create a new instance
-                    inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+                if (useSpotInstancesNoBid) {
+                    try {
+                        InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+                        inst = ec2.runInstances(riRequest.withInstanceMarketOptions(instanceMarketOptionsRequest)).getReservation().getInstances().get(0);
 
-                }catch(AmazonEC2Exception e){
-                    if(e.getErrorCode().equals("InsufficientInstanceCapacity")){
-                        if(useOnDemandFallback){
-                            inst = ec2.runInstances(riRequestFallback).getReservation().getInstances().get(0);
+                    }catch(AmazonEC2Exception e){
+                        if(spotInstanceFallbackToOnDemand && e.getErrorCode().equals("InsufficientInstanceCapacity")){
+                            riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
+                            inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
                             logProvision(logger, "There is no spot capacity available matching your request, falling back to on-demand instance." + inst);
                             return newOndemandSlave(inst);
+                        }else {
+                            throw e;
                         }
                     }
-                    throw e;
                 }
+
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
