@@ -420,7 +420,8 @@ public abstract class EC2Cloud extends Cloud {
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
+                    if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown
+                            && stateName != InstanceStateName.Stopped && stateName != InstanceStateName.Stopping) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
                         n++;
