@@ -1274,12 +1274,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public FormValidation doCheckStopOnTerminate(
-                @QueryParameter("stopOnTerminate") Boolean stopOnTerminate, @QueryParameter("spotConfig") Boolean spotConfig) {
-            if (stopOnTerminate && (spotConfig != null && spotConfig)) {
-                return FormValidation.error("Cannot stop spot instances, choose one between 'Use Spot Instances' and 'Stop/Disconnect on Idle Timeout'.");
+                @QueryParameter("stopOnTerminate") Boolean stopOnTerminate,
+                @QueryParameter("spotConfig") Boolean spotConfig,
+                @QueryParameter("useSpotInstancesNoBid") Boolean useSpotInstancesNoBid) {
+
+            if (stopOnTerminate && ((spotConfig != null && spotConfig) || (useSpotInstancesNoBid != null && useSpotInstancesNoBid))) {
+                return FormValidation.error("Spot instances cannot be stopped. Choose one between 'Use Spot Instances without bid', " +
+                                            "'Use Spot Instances with bid' and 'Stop/Disconnect on Idle Timeout'.");
             }
             return FormValidation.ok();
         }
+
 
         // Retrieve the availability zones for the region
         private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {
