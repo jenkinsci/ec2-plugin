@@ -539,12 +539,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             KeyPair keyPair = getKeyPair(ec2);
 
-            if (useSpotInstancesNoBid) {
-                InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(
-                        MarketType.Spot);
-                riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
-            }
-
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             riRequest.setEbsOptimized(ebsOptimized);
