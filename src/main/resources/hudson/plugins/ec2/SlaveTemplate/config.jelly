@@ -58,13 +58,6 @@ THE SOFTWARE.
     <f:checkbox />
   </f:entry>
 
-  <f:optionalBlock name="spotConfig" title="Use Spot Instance with bid" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
-
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
-      <f:textbox />
-    </f:entry>
-
   <f:optionalBlock name="spotConfig" title="${%Use Spot Instance}" checked="${instance.spotConfig != null}">
     <f:optionalBlock name="spotInstanceRequestBid" title="${%Set Spot Instance Bid Price}" checked="${!instance.useSpotInstancesNoBid}">
       <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice"
