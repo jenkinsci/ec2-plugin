@@ -14,12 +14,14 @@ import org.kohsuke.stapler.QueryParameter;
 public class UnixData extends AMITypeData {
     private final String rootCommandPrefix;
     private final String slaveCommandPrefix;
+    private final String slaveCommandSuffix;
     private final String sshPort;
 
     @DataBoundConstructor
-    public UnixData(String rootCommandPrefix, String slaveCommandPrefix, String sshPort) {
+    public UnixData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
+        this.slaveCommandSuffix = slaveCommandSuffix;
         this.sshPort = sshPort;
 
         this.readResolve();
@@ -64,6 +66,15 @@ public class UnixData extends AMITypeData {
                 return FormValidation.error(Messages.General_MissingPermission());
             }
         }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckSlaveCommandSuffix(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
     }
 
     public String getRootCommandPrefix() {
@@ -72,6 +83,10 @@ public class UnixData extends AMITypeData {
 
     public String getSlaveCommandPrefix() {
         return slaveCommandPrefix;
+    }
+
+    public String getSlaveCommandSuffix() {
+        return slaveCommandSuffix;
     }
 
     public String getSshPort() {
@@ -84,6 +99,7 @@ public class UnixData extends AMITypeData {
         int result = 1;
         result = prime * result + ((rootCommandPrefix == null) ? 0 : rootCommandPrefix.hashCode());
         result = prime * result + ((slaveCommandPrefix == null) ? 0 : slaveCommandPrefix.hashCode());
+        result = prime * result + ((slaveCommandSuffix == null) ? 0 : slaveCommandSuffix.hashCode());
         result = prime * result + ((sshPort == null) ? 0 : sshPort.hashCode());
         return result;
     }
@@ -106,6 +122,11 @@ public class UnixData extends AMITypeData {
             if (!StringUtils.isEmpty(other.slaveCommandPrefix))
                 return false;
         } else if (!slaveCommandPrefix.equals(other.slaveCommandPrefix))
+            return false;
+        if (StringUtils.isEmpty(slaveCommandSuffix)) {
+            if (!StringUtils.isEmpty(other.slaveCommandSuffix))
+                return false;
+        } else if (!slaveCommandSuffix.equals(other.slaveCommandSuffix))
             return false;
         if (StringUtils.isEmpty(sshPort)) {
             if (!StringUtils.isEmpty(other.sshPort))
