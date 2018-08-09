@@ -1260,21 +1260,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /*
          * Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001
          */
-        public FormValidation doCheckSpotMaxBidPrice(@QueryParameter String spotMaxBidPrice) {
-            if (SpotConfiguration.normalizeBid(spotMaxBidPrice) != null) {
-                return FormValidation.ok();
+        public FormValidation doCheckSpotMaxBidPrice(@QueryParameter String spotMaxBidPrice, @QueryParameter(required = true) Boolean useSpotInstancesNoBid) {
+            if (SpotConfiguration.normalizeBid(spotMaxBidPrice) == null && !useSpotInstancesNoBid) {
+                return FormValidation.error("Not a correct bid price");
             }
-            return FormValidation.error("Not a correct bid price");
+            return FormValidation.ok();
         }
 
-        public FormValidation doCheckStopOnTerminate(
-                @QueryParameter("stopOnTerminate") Boolean stopOnTerminate,
-                @QueryParameter("spotConfig") Boolean spotConfig,
-                @QueryParameter("useSpotInstancesNoBid") Boolean useSpotInstancesNoBid) {
+        public FormValidation doCheckStopOnTerminate(@QueryParameter Boolean stopOnTerminate, @QueryParameter Boolean spotConfig){
 
-            if (stopOnTerminate && ((spotConfig != null && spotConfig) || (useSpotInstancesNoBid != null && useSpotInstancesNoBid))) {
-                return FormValidation.error("Spot instances cannot be stopped. Choose one between 'Use Spot Instances without bid', " +
-                                            "'Use Spot Instances with bid' and 'Stop/Disconnect on Idle Timeout'.");
+            if (stopOnTerminate && ((spotConfig != null && spotConfig))) {
+                return FormValidation.error("Spot instances cannot be stopped. Choose one between 'Use spot instances' and 'Stop/Disconnect on Idle Timeout'.");
             }
             return FormValidation.ok();
         }
