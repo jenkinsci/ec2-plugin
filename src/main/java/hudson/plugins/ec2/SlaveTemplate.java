@@ -673,8 +673,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             throw e;
                         }
                     }
+                }else {
+                    inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
                 }
-
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
