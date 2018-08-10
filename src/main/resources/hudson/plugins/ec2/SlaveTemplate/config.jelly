@@ -61,7 +61,7 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
-    <f:entry title="${%Fallback to On-demand Instance}" field="spotInstanceFallbackToOnDemand">
+    <f:entry title="${%Fallback to On-Demand Instance}" field="spotInstanceFallbackToOnDemand">
         <f:checkbox />
     </f:entry>
   </f:optionalBlock>
