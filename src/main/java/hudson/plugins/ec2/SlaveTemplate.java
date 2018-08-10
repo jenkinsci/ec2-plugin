@@ -129,7 +129,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
-    public final boolean useSpotInstancesNoBid;
+    public boolean useSpotInstancesNoBid;
 
     public boolean terminateRogues;
 
@@ -403,7 +403,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    public boolean getSpotInstanceRequestBid() {
+        return !this.useSpotInstancesNoBid;
+    }
+
+    public void setSpotInstanceRequestBid(boolean value) {
+        this.useSpotInstancesNoBid = !value;
+    }
+
+    public enum ProvisionOptions {ALLOW_CREATE, FORCE_CREATE}
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
@@ -1252,12 +1260,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /*
          * Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001
          */
-        public FormValidation doCheckSpotMaxBidPrice(@QueryParameter String spotMaxBidPrice) {
-            if (SpotConfiguration.normalizeBid(spotMaxBidPrice) != null) {
-                return FormValidation.ok();
+        public FormValidation doCheckSpotMaxBidPrice(@QueryParameter String spotMaxBidPrice, @QueryParameter(required = true) Boolean useSpotInstancesNoBid) {
+            if (SpotConfiguration.normalizeBid(spotMaxBidPrice) == null && !useSpotInstancesNoBid) {
+                return FormValidation.error("Not a correct bid price");
             }
-            return FormValidation.error("Not a correct bid price");
+            return FormValidation.ok();
         }
+
+        public FormValidation doCheckStopOnTerminate(@QueryParameter Boolean stopOnTerminate, @QueryParameter Boolean spotConfig){
+
+            if (stopOnTerminate && (spotConfig != null && spotConfig)) {
+                return FormValidation.error("Spot instances cannot be stopped. Choose one between 'Use spot instances' and 'Stop/Disconnect on Idle Timeout'.");
+            }
+            return FormValidation.ok();
+        }
+
 
         // Retrieve the availability zones for the region
         private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {

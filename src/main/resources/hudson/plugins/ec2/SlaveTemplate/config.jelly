@@ -50,19 +50,19 @@ THE SOFTWARE.
     <f:textbox/>
   </f:entry>
 
-  <f:entry title="${%Use Spot Instances without bid}" field="useSpotInstancesNoBid">
-    <f:checkbox />
-  </f:entry>
+  <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice"
+     with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
+    <f:entry title="${%No Bid}" field="useSpotInstancesNoBid">
+        <f:checkbox />
+    </f:entry>
 
-  <f:entry title="${%Fallback to on-demand Instance}" field="spotInstanceFallbackToOnDemand">
-    <f:checkbox />
-  </f:entry>
-
-  <f:optionalBlock name="spotConfig" title="Use Spot Instance with bid" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
-
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice" with="useSpotInstancesNoBid">
       <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Fallback to On-Demand Instance}" field="spotInstanceFallbackToOnDemand">
+        <f:checkbox />
     </f:entry>
   </f:optionalBlock>
 
@@ -112,7 +112,7 @@ THE SOFTWARE.
       <f:textbox/>
     </f:entry>
 
-    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
+    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate" with="spotConfig">
       <f:checkbox />
     </f:entry>
 
