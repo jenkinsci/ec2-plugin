@@ -1269,7 +1269,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         public FormValidation doCheckStopOnTerminate(@QueryParameter Boolean stopOnTerminate, @QueryParameter Boolean spotConfig){
 
-            if (stopOnTerminate && ((spotConfig != null && spotConfig))) {
+            if (stopOnTerminate && (spotConfig != null && spotConfig)) {
                 return FormValidation.error("Spot instances cannot be stopped. Choose one between 'Use spot instances' and 'Stop/Disconnect on Idle Timeout'.");
             }
             return FormValidation.ok();
