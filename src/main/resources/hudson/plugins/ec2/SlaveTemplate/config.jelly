@@ -60,7 +60,7 @@ THE SOFTWARE.
 
   </f:optionalBlock>
 
- <f:entry title="${%Use Spot Instance Without Bid}" field="useSpotInstancesNoBid">
+ <f:entry title="${%Use Spot Instance Without Bid}" field="useSpotInstancesNoBid" with="spotConfig">
       <f:checkbox />
   </f:entry>
 
