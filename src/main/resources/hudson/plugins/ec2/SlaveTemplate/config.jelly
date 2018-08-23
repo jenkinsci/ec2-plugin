@@ -50,21 +50,25 @@ THE SOFTWARE.
     <f:textbox/>
   </f:entry>
 
-  <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
+  <f:optionalBlock name="spotConfig" title="Use Spot Instance with Bid" checked="${instance.spotConfig != null}">
     <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice"
      with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
-    <f:entry title="${%No Bid}" field="useSpotInstancesNoBid">
-        <f:checkbox />
-    </f:entry>
 
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice" with="useSpotInstancesNoBid">
-      <f:textbox />
-    </f:entry>
+     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice" with="useSpotInstancesNoBid">
+       <f:textbox />
+     </f:entry>
 
-    <f:entry title="${%Fallback to On-Demand Instance}" field="spotInstanceFallbackToOnDemand">
-        <f:checkbox />
-    </f:entry>
   </f:optionalBlock>
+
+ <f:entry title="${%Use Spot Instance Without Bid}" field="useSpotInstancesNoBid" with="spotConfig">
+      <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%Spot Fallback to On-Demand Instance}" field="spotInstanceFallbackToOnDemand">
+      <f:checkbox />
+  </f:entry>
+
+
 
   <f:entry title="${%Security group names}" field="securityGroups">
     <f:textbox/>
