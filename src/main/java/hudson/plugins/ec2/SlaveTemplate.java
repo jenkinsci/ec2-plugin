@@ -30,6 +30,7 @@ import javax.servlet.ServletException;
 
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
@@ -128,6 +129,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
+    public boolean useSpotInstancesNoBid;
+
+    public boolean terminateRogues;
+
+    public boolean spotInstanceFallbackToOnDemand;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -151,7 +158,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean useSpotInstancesNoBid,
+            boolean terminateRogues, boolean spotInstanceFallbackToOnDemand) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -187,6 +195,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.connectUsingPublicIp = connectUsingPublicIp;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
+        this.useSpotInstancesNoBid = useSpotInstancesNoBid;
+        this.terminateRogues = terminateRogues;
+        this.spotInstanceFallbackToOnDemand = spotInstanceFallbackToOnDemand;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -214,11 +225,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
-            boolean connectBySSHProcess) {
+            boolean connectBySSHProcess, boolean useSpotInstancesNoBid) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false, useSpotInstancesNoBid,
+                false, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -230,7 +242,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false, false);
     }
 
     /**
@@ -391,7 +403,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
-    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    public boolean getSpotInstanceRequestBid() {
+        return !this.useSpotInstancesNoBid;
+    }
+
+    public void setSpotInstanceRequestBid(boolean value) {
+        this.useSpotInstancesNoBid = !value;
+    }
+
+    public enum ProvisionOptions {ALLOW_CREATE, FORCE_CREATE}
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
@@ -467,19 +487,58 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(message);
     }
 
+    private HashSet<Tag> getCustomInstanceTags(String ec2SlaveType, List<Filter> diFilters){
+
+        boolean hasCustomTypeTag = false;
+        boolean hasJenkinsServerUrlTag = false;
+        HashSet<Tag> instTags = null;
+        if (tags != null && !tags.isEmpty()) {
+            instTags = new HashSet<Tag>();
+            for (EC2Tag t : tags) {
+                instTags.add(new Tag(t.getName(), t.getValue()));
+                if (diFilters != null){
+                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
+                }
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    hasCustomTypeTag = true;
+                }
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                    hasJenkinsServerUrlTag = true;
+                }
+            }
+        }
+
+        if (!hasCustomTypeTag) {
+            if (instTags == null) {
+                instTags = new HashSet<Tag>();
+            }
+            // Append template description as well to identify slaves provisioned per template
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(ec2SlaveType, description)));
+        }
+
+        if (!hasJenkinsServerUrlTag) {
+            if (instTags == null) {
+                instTags = new HashSet<Tag>();
+            }
+            // Append jenkins server url to identify slaves provisioned per jenkins server
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, JenkinsLocationConfiguration.get().getUrl()));
+        }
+        return instTags;
+    }
+
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
     private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
+        RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
 
         try {
             logProvisionInfo(logger, "Considering launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
-            RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             riRequest.setEbsOptimized(ebsOptimized);
@@ -557,26 +616,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 riRequest.withNetworkInterfaces(net);
             }
 
-            boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
-                    }
-                }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
-                // Append template description as well to identify slaves provisioned per template
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
-            }
+            HashSet<Tag> instTags = getCustomInstanceTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, diFilters);
 
             DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
             diRequest.setFilters(diFilters);
@@ -617,9 +657,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     riRequest.setTagSpecifications(tagSpecifications);
                 }
 
-                // Have to create a new instance
-                Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+                Instance inst = new Instance();
+                if (useSpotInstancesNoBid) {
+                    try {
+                        InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+                        inst = ec2.runInstances(riRequest.withInstanceMarketOptions(instanceMarketOptionsRequest)).getReservation().getInstances().get(0);
 
+                    }catch(AmazonEC2Exception e){
+                        if(spotInstanceFallbackToOnDemand && e.getErrorCode().equals("InsufficientInstanceCapacity")){
+                            riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
+                            inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+                            logProvision(logger, "There is no spot capacity available matching your request, falling back to on-demand instance." + inst);
+                            return newOndemandSlave(inst);
+                        }else {
+                            throw e;
+                        }
+                    }
+                }else {
+                    inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+                }
                 logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
                 return newOndemandSlave(inst);
             }
@@ -832,24 +888,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.withNetworkInterfaces(net);
             }
 
-            boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
-                    }
-                }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
-            }
+            HashSet<Tag> instTags = getCustomInstanceTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT, null);
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
@@ -1223,11 +1262,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001
          */
         public FormValidation doCheckSpotMaxBidPrice(@QueryParameter String spotMaxBidPrice) {
-            if (SpotConfiguration.normalizeBid(spotMaxBidPrice) != null) {
-                return FormValidation.ok();
+            if (SpotConfiguration.normalizeBid(spotMaxBidPrice) == null) {
+                return FormValidation.error("Not a correct bid price");
             }
-            return FormValidation.error("Not a correct bid price");
+            return FormValidation.ok();
         }
+
+        public FormValidation doCheckUseSpotInstancesNoBid(@QueryParameter Boolean spotConfig,
+                                                                 @QueryParameter Boolean useSpotInstancesNoBid) {
+            if (useSpotInstancesNoBid && spotConfig) {
+                return FormValidation.error("Choose between 'Use Spot Instance with Bid' and 'Use Spot Instance Without Bid");
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckStopOnTerminate(@QueryParameter Boolean stopOnTerminate,
+                                                     @QueryParameter Boolean spotConfig,
+                                                     @QueryParameter Boolean useSpotInstancesNoBid){
+            if (stopOnTerminate && ((spotConfig != null && spotConfig) || useSpotInstancesNoBid)) {
+                return FormValidation.error("Spot instances cannot be stopped. Choose one between 'Use Spot Instances Without Bid', " +
+                                            "'Use Spot Instances With Bid', and 'Stop/Disconnect on Idle Timeout'.");
+            }
+            return FormValidation.ok();
+        }
+
 
         // Retrieve the availability zones for the region
         private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {
