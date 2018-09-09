@@ -304,10 +304,12 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Gets the {@link KeyPairInfo} used for the launch.
      */
-    public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
-        if (usableKeyPair == null)
-            usableKeyPair = privateKey.find(connect());
-        return usableKeyPair;
+    public KeyPair getKeyPair() throws AmazonClientException, IOException {
+        synchronized (EC2Cloud.class) {
+            if (usableKeyPair == null)
+                usableKeyPair = privateKey.find(connect());
+            return usableKeyPair;
+        }
     }
 
     /**
@@ -514,27 +516,29 @@ public abstract class EC2Cloud extends Cloud {
      * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
      */
-    private synchronized EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
+    private EC2AbstractSlave getNewOrExistingAvailableSlave(SlaveTemplate template, Label requiredLabel, boolean forceCreateNew) {
         /*
          * Note this is synchronized between counting the instances and then allocating the node. Once the node is
          * allocated, we don't look at that instance as available for provisioning.
          */
-        int possibleSlavesCount = getPossibleNewSlavesCount(template);
-        if (possibleSlavesCount < 0) {
-            LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
-            return null;
-        }
+        synchronized (EC2Cloud.class) {
+            int possibleSlavesCount = getPossibleNewSlavesCount(template);
+            if (possibleSlavesCount < 0) {
+                LOGGER.log(Level.INFO, "Cannot provision - no capacity for instances: " + possibleSlavesCount);
+                return null;
+            }
 
-        try {
-            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
-            if (forceCreateNew)
-                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-            else if (possibleSlavesCount > 0)
-                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
-            return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Exception during provisioning", e);
-            return null;
+            try {
+                EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
+                if (forceCreateNew)
+                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+                else if (possibleSlavesCount > 0)
+                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+                return template.provision(StreamTaskListener.fromStdout(), requiredLabel, provisionOptions);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Exception during provisioning", e);
+                return null;
+            }
         }
     }
 
@@ -633,14 +637,16 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
-    public synchronized AmazonEC2 connect() throws AmazonClientException {
-        try {
-            if (connection == null) {
-                connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+    public AmazonEC2 connect() throws AmazonClientException {
+        synchronized (EC2Cloud.class) {
+            try {
+                if (connection == null) {
+                    connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+                }
+                return connection;
+            } catch (IOException e) {
+                throw new AmazonClientException("Failed to retrieve the endpoint", e);
             }
-            return connection;
-        } catch (IOException e) {
-            throw new AmazonClientException("Failed to retrieve the endpoint", e);
         }
     }
 
