@@ -393,18 +393,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
+    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+      return provision(listener, requiredLabel, provisionOptions, null);
+    }
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions, ArrayList<EC2AbstractSlave> excludedSlaves) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(listener);
             return null;
         }
-        return provisionOndemand(listener, requiredLabel, provisionOptions);
+        return provisionOndemand(listener, requiredLabel, provisionOptions, excludedSlaves);
     }
 
     /**
@@ -467,10 +470,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(message);
     }
 
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+      return provisionOndemand(listener, requiredLabel, provisionOptions, null);
+    }
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions, ArrayList<EC2AbstractSlave> excludedSlaves) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -591,9 +597,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 for (Reservation reservation : diResult.getReservations()) {
                     for (Instance instance : reservation.getInstances()) {
                         if (checkInstance(logger, instance, requiredLabel, ec2Node)) {
-                            existingInstance = instance;
-                            logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
-                            break reservationLoop;
+                            boolean excluded = false;
+                            if (excludedSlaves != null) {
+                                for (EC2AbstractSlave slave : excludedSlaves) {
+                                    if (ec2Node[0].instanceId.equals(slave.instanceId)) {
+                                        logProvision(logger, "Excluding previously provisioned instance " + ec2Node[0].instanceId);
+                                        excluded = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!excluded) {
+                                existingInstance = instance;
+                                logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
+                                break reservationLoop;
+                            }
                         }
                     }
                 }
