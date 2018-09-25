@@ -120,7 +120,7 @@ public class WinConnection {
     }
 
     public boolean ping() {
-        log.log(Level.FINE, "pinging " + host);
+        log.log(Level.FINE, "checking SMB connection to " + host);
         try {
             Socket socket=new Socket();
             socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
