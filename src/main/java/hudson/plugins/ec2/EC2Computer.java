@@ -28,29 +28,19 @@ import hudson.Util;
 import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
-import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Instance;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 public class EC2Computer extends SlaveComputer {
-    private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
-
-
     /**
      * Cached description of this EC2 instance. Lazily fetched.
      */
@@ -65,8 +55,12 @@ public class EC2Computer extends SlaveComputer {
         return (EC2AbstractSlave) super.getNode();
     }
 
+    @CheckForNull
     public String getInstanceId() {
         EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
+        if (node == null) {
+            return null;
+        }
         return node.getInstanceId();
     }
 
@@ -112,7 +106,7 @@ public class EC2Computer extends SlaveComputer {
      */
     public Instance describeInstance() throws AmazonClientException, InterruptedException {
         if (ec2InstanceDescription == null)
-            ec2InstanceDescription = _describeInstance();
+            ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
         return ec2InstanceDescription;
     }
 
@@ -120,7 +114,7 @@ public class EC2Computer extends SlaveComputer {
      * This will flush any cached description held by {@link #describeInstance()}.
      */
     public Instance updateInstanceDescription() throws AmazonClientException, InterruptedException {
-        return ec2InstanceDescription = _describeInstance();
+        return ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
     }
 
     /**
@@ -130,7 +124,7 @@ public class EC2Computer extends SlaveComputer {
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
     public InstanceState getState() throws AmazonClientException, InterruptedException {
-        ec2InstanceDescription = _describeInstance();
+        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
         return InstanceState.find(ec2InstanceDescription.getState().getName());
     }
 
@@ -146,54 +140,6 @@ public class EC2Computer extends SlaveComputer {
      */
     public String getUptimeString() throws AmazonClientException, InterruptedException {
         return Util.getTimeSpanString(getUptime());
-    }
-
-    private Instance _describeInstance() throws AmazonClientException, InterruptedException {
-        // Sometimes even after a successful RunInstances, DescribeInstances
-        // returns an error for a few seconds. We do a few retries instead of
-        // failing instantly. See [JENKINS-15319].
-        for (int i = 0; i < 5; i++) {
-            try {
-                return _describeInstanceOnce();
-            } catch (AmazonServiceException e) {
-                if (e.getErrorCode().equals("InvalidInstanceID.NotFound")) {
-                    // retry in 5 seconds.
-                    Thread.sleep(5000);
-                    continue;
-                }
-                throw e;
-            }
-        }
-        // Last time, throw on any error.
-        return _describeInstanceOnce();
-    }
-
-    private Instance _describeInstanceOnce() throws AmazonClientException {
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-        String instanceId = getNode().getInstanceId();
-        request.setInstanceIds(Collections.<String> singletonList(instanceId));
-
-        List<Reservation> reservations = getCloud().connect().describeInstances(request).getReservations();
-        if (reservations.size() != 1) {
-          String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + reservations + ".";
-          if (reservations.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.log(Level.INFO, message);
-          throw new AmazonClientException(message);
-        }
-        Reservation reservation = reservations.get(0);
-
-        List<Instance> instances = reservation.getInstances();
-        if (instances.size() != 1) {
-          String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
-          if (instances.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.log(Level.INFO, message);
-          throw new AmazonClientException(message);
-        }
-        return instances.get(0);
     }
 
     /**

@@ -27,7 +27,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
 
     @Override
-    protected void launch(EC2Computer computer, TaskListener listener, Instance inst) throws IOException,
+    protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
             AmazonClientException, InterruptedException {
         final PrintStream logger = listener.getLogger();
         final WinConnection connection = connectToWinRM(computer, logger);
