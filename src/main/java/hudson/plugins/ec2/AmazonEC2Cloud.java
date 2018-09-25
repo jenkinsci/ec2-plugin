@@ -42,6 +42,7 @@ import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -65,6 +66,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     // Used when running unit tests
     public static boolean testMode;
+    private boolean noDelayProvisioning;
 
     @DataBoundConstructor
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
@@ -115,6 +117,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
+    }
+
+    public boolean isNoDelayProvisioning() {
+        return noDelayProvisioning;
+    }
+
+    @DataBoundSetter
+    public void setNoDelayProvisioning(boolean noDelayProvisioning) {
+        this.noDelayProvisioning = noDelayProvisioning;
     }
 
     @Extension
