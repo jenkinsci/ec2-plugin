@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>plugin</artifactId>
-      <version>2.11</version>
+      <version>3.15</version>
     </parent>
 
     <artifactId>ec2</artifactId>
@@ -56,6 +56,7 @@ THE SOFTWARE.
     <properties>
         <powermock.version>1.6.3</powermock.version>
         <jenkins.version>1.651.3</jenkins.version>
+        <java.level>7</java.level>
     </properties>
 
     <dependencies>
@@ -114,22 +115,22 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-java-sdk</artifactId>
-            <version>1.11.264</version>
+            <version>1.11.341</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>node-iterator-api</artifactId>
-            <version>1.5</version>
+            <version>1.5.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.2</version>
+            <version>4.5.3</version>
         </dependency>
         <dependency>
                 <groupId>org.jenkins-ci.plugins.workflow</groupId>
                 <artifactId>workflow-cps</artifactId>
-                <version>2.25</version>
+                <version>2.30</version>
                 <scope>test</scope>
         </dependency>
         <dependency>
@@ -147,7 +148,7 @@ THE SOFTWARE.
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
             <classifier>tests</classifier>
-            <version>2.12</version>
+            <version>2.14</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -208,18 +209,10 @@ THE SOFTWARE.
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>findbugs-maven-plugin</artifactId>
                 <configuration>
-                    <skip>true</skip>
+                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
                 </configuration>
             </plugin>
         </plugins>

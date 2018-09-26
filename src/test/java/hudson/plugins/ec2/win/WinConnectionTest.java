@@ -1,7 +1,7 @@
 package hudson.plugins.ec2.win;
 
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
-import org.codehaus.plexus.util.IOUtil;
+import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import static junit.framework.TestCase.assertTrue;
@@ -19,7 +19,7 @@ public class WinConnectionTest {
         connect.setUseHTTPS(true);
         WindowsProcess process = connect.execute("dir c:\\");
         process.waitFor();
-        String cmdResult = IOUtil.toString(process.getStdout());
+        String cmdResult = IOUtils.toString(process.getStdout());
         assertTrue(cmdResult.contains("Users"));
     }
 }
