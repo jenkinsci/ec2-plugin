@@ -50,7 +50,7 @@ THE SOFTWARE.
         <connection>scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/ec2-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/ec2-plugin</url>
-        <tag>ec2-1.40</tag>
+        <tag>${scmTag}</tag>
     </scm>
 
     <properties>
