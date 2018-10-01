@@ -42,7 +42,7 @@ public class WinConnection {
         this.password = password;
         this.authentication = new NtlmPasswordAuthentication(null, username, password);
         if(log.isLoggable(Level.FINE)){
-            LogStream.level=6;
+            setLogStreamLevel(6);
         }
     }
 
@@ -117,6 +117,10 @@ public class WinConnection {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("Invalid SMB URL", e);
         }
+    }
+
+    private static void setLogStreamLevel(int level) {
+        LogStream.level = level;
     }
 
     public boolean ping() {

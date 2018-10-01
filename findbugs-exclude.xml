@@ -62,13 +62,4 @@
     <Match>
         <Class name="hudson.plugins.ec2.SpotConfiguration"/>
     </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.ebs.ZPoolMonitor"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.win.WinConnection"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.win.winrm.request.SendInputRequest"/>
-    </Match>
 </FindBugsFilter>
