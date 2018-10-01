@@ -169,21 +169,20 @@ THE SOFTWARE.
 
     <developers>
         <!-- current maintainers -->
-        <developer>
-            <id>francisu</id>
-            <name>Francis Upton IV</name>
-            <email>fupton@talend.com</email>
+         <developer>
+            <id>thoulen</id>
+            <name>F Manfred Furuholen</name>
+            <email>fabrizio.manfredi@gmail.com</email>
         </developer>
         <developer>
-            <id>johnnyshields</id>
-            <name>Johnny Shields</name>
-            <email>shields@kkvesper.jp</email>
+            <id>julienduchesne</id>
+            <name>Julien Duchesne</name>
+            <email>julienduchesne@live.com</email>
         </developer>
-        <!-- kohsuke did the original implementation -->
         <developer>
-            <id>kohsuke</id>
-            <name>Kohsuke Kawaguchi</name>
-            <email>kkawaguchi@cloudbees.com</email>
+            <id>jvz</id>
+            <name>Matt Sicker</name>
+            <email>msicker@cloudbees.com</email>
         </developer>
     </developers>
 
