@@ -58,7 +58,7 @@ THE SOFTWARE.
         <changelist>-SNAPSHOT</changelist>
         <powermock.version>1.6.3</powermock.version>
         <jenkins.version>1.651.3</jenkins.version>
-        <java.level>7</java.level>
+        <java.level>8</java.level>
     </properties>
 
     <dependencies>
@@ -125,9 +125,9 @@ THE SOFTWARE.
             <version>1.5.0</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>4.5.3</version>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>apache-httpcomponents-client-4-api</artifactId>
+            <version>4.5.5-3.0</version>
         </dependency>
         <dependency>
                 <groupId>org.jenkins-ci.plugins.workflow</groupId>
