@@ -145,10 +145,13 @@ public class EC2Step extends Step {
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    EC2AbstractSlave node = t.provision(TaskListener.NULL, null, opt);
-                    Jenkins.getInstance().addNode(node);
-                    Instance myInstance = EC2AbstractSlave.getInstance(node.getInstanceId(), node.getCloud());
-                    return myInstance;
+                    List<EC2AbstractSlave> instances = t.provision(1, opt);
+                    if (instances == null) {
+                        throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                    }
+
+                    EC2AbstractSlave slave = instances.get(0);
+                    return CloudHelper.getInstance(slave.getInstanceId(), (AmazonEC2Cloud) cl);
                 } else {
                     throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                 }
