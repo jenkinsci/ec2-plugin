@@ -203,7 +203,8 @@ public abstract class EC2Cloud extends Cloud {
     protected Object readResolve() {
         for (SlaveTemplate t : templates)
             t.parent = this;
-        if (this.accessId != null && credentialsId == null) {
+        if (this.accessId != null && this.secretKey != null && credentialsId == null) {
+            String secretKeyEncryptedValue = this.secretKey.getEncryptedValue();
             // REPLACE this.accessId and this.secretId by a credential
 
             SystemCredentialsProvider systemCredentialsProvider = SystemCredentialsProvider.getInstance();
@@ -230,10 +231,7 @@ public abstract class EC2Cloud extends Cloud {
                     try {
                         String credsId = UUID.randomUUID().toString();
                         credentialsStore.addCredentials(Domain.global(), new AWSCredentialsImpl(
-                                CredentialsScope.SYSTEM,
-                                credsId,
-                                this.accessId,
-                                this.secretKey.getEncryptedValue(),
+                                CredentialsScope.SYSTEM, credsId, this.accessId, secretKeyEncryptedValue,
                                 "EC2 Cloud - " + getDisplayName()));
                         this.credentialsId = credsId;
                         this.accessId = null;
@@ -555,7 +553,7 @@ public abstract class EC2Cloud extends Cloud {
 
         try {
             LOGGER.log(Level.INFO, "{0}. Attempting to provision slave needed by excess workload of " + excessWorkload + " units", t);
-            int number = Math.max(Math.round(excessWorkload)/ t.getNumExecutors(), 1);
+            int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
             final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
 
             if (slaves == null || slaves.isEmpty()) {
@@ -650,8 +648,10 @@ public abstract class EC2Cloud extends Cloud {
             return new DefaultAWSCredentialsProviderChain();
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
-            return new StaticCredentialsProvider(credentials.getCredentials());
+            if (credentials != null)
+                return new StaticCredentialsProvider(credentials.getCredentials());
         }
+        return new DefaultAWSCredentialsProviderChain();
     }
 
     @CheckForNull

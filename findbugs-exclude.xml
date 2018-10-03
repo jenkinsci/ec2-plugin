@@ -1,11 +1,5 @@
 <FindBugsFilter>
     <Match>
-        <Class name="hudson.plugins.ec2.EC2Cloud"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.win.EC2WindowsLauncher"/>
-    </Match>
-    <Match>
         <Class name="hudson.plugins.ec2.AmazonEC2Cloud"/>
     </Match>
     <Match>
