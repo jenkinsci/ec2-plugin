@@ -537,7 +537,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (getAssociatePublicIp()) {
                 net.setSubnetId(subnetId);
             } else {
-                reRequest.setSubnetId(subnetId);
+                riRequest.setSubnetId(subnetId);
             }
 
             diFilters.add(new Filter("subnet-id").withValues(subnetId));
