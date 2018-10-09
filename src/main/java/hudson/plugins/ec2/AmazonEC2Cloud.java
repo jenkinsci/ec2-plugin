@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.SdkClientException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
@@ -41,6 +42,7 @@ import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -64,6 +66,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     // Used when running unit tests
     public static boolean testMode;
+    private boolean noDelayProvisioning;
 
     @DataBoundConstructor
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
@@ -116,6 +119,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
         }
     }
 
+    public boolean isNoDelayProvisioning() {
+        return noDelayProvisioning;
+    }
+
+    @DataBoundSetter
+    public void setNoDelayProvisioning(boolean noDelayProvisioning) {
+        this.noDelayProvisioning = noDelayProvisioning;
+    }
+
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
 
@@ -152,13 +164,18 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 return model;
             }
 
-            AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
-            AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
-            DescribeRegionsResult regions = client.describeRegions();
-            List<Region> regionList = regions.getRegions();
-            for (Region r : regionList) {
-                String name = r.getRegionName();
-                model.add(name, name);
+            try {
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
+                        credentialsId);
+                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+                DescribeRegionsResult regions = client.describeRegions();
+                List<Region> regionList = regions.getRegions();
+                for (Region r : regionList) {
+                    String name = r.getRegionName();
+                    model.add(name, name);
+                }
+            } catch (SdkClientException ex) {
+                // Ignore, as this may happen before the credentials are specified
             }
             return model;
         }
