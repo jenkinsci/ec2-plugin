@@ -191,6 +191,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 4;
         case M4Large:
             return 4;
+        case M5Large:
+            return 4;
         case C1Medium:
             return 5;
         case M2Xlarge:
@@ -211,6 +213,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 13;
         case M4Xlarge:
             return 13;
+        case M5Xlarge:
+            return 13;
         case C3Xlarge:
             return 14;
         case C4Xlarge:
@@ -226,6 +230,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case M32xlarge:
             return 26;
         case M42xlarge:
+            return 26;
+        case M52xlarge:
             return 26;
         case G22xlarge:
             return 26;
@@ -255,6 +261,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 55;
         case M44xlarge:
             return 55;
+        case M54xlarge:
+            return 55;
         case Cc28xlarge:
             return 88;
         case Cr18xlarge:
@@ -269,11 +277,15 @@ public abstract class EC2AbstractSlave extends Slave {
             return 108;
         case M410xlarge:
             return 120;
+        case M512xlarge:
+            return 120;
             // TODO: M416xlarge
         case C518xlarge:
             return 216;
         case C5d18xlarge:
             return 216;
+        case M524xlarge:
+            return 240;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
         default:
