@@ -124,6 +124,8 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public transient String slaveCommandPrefix;
 
+    public transient String slaveCommandSuffix;
+
     private transient long createdTime;
 
     public static final String TEST_ZONE = "testZone";
@@ -162,7 +164,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, Integer.toString(sshPort));
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, Integer.toString(sshPort));
         }
 
         return this;
@@ -398,6 +400,13 @@ public abstract class EC2AbstractSlave extends Slave {
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
+    }
+
+    String getSlaveCommandSuffix() {
+        String commandSuffix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+        if (commandSuffix == null || commandSuffix.length() == 0)
+            return "";
+        return " " + commandSuffix;
     }
 
     String getJvmopts() {

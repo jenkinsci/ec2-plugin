@@ -150,6 +150,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public transient String slaveCommandPrefix;
 
+    @Deprecated
+    public transient String slaveCommandSuffix;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
@@ -261,11 +264,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
             String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-            String slaveCommandPrefix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String slaveCommandPrefix, String slaveCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             String launchTimeoutStr) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, sshPort),
+                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort),
                 jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
@@ -344,6 +347,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
     }
 
+    public String getSlaveCommandSuffix() {
+        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+    }
+  
     public String chooseSubnetId() {
         if (StringUtils.isBlank(subnetId)) {
             return null;
@@ -1073,7 +1080,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, sshPort);
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort);
         }
         return this;
     }

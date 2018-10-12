@@ -176,6 +176,10 @@ public class EC2Computer extends SlaveComputer {
         return getNode().getSlaveCommandPrefix();
     }
 
+    public String getSlaveCommandSuffix() {
+        return getNode().getSlaveCommandSuffix();
+    }
+
     public void onConnected() {
         EC2AbstractSlave node = getNode();
         if (node != null) {
