@@ -42,7 +42,7 @@ public class WinConnection {
         this.password = password;
         this.authentication = new NtlmPasswordAuthentication(null, username, password);
         if(log.isLoggable(Level.FINE)){
-            LogStream.level=6;
+            setLogStreamLevel(6);
         }
     }
 
@@ -119,8 +119,12 @@ public class WinConnection {
         }
     }
 
+    private static void setLogStreamLevel(int level) {
+        LogStream.level = level;
+    }
+
     public boolean ping() {
-        log.log(Level.FINE, "pinging " + host);
+        log.log(Level.FINE, "checking SMB connection to " + host);
         try {
             Socket socket=new Socket();
             socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
