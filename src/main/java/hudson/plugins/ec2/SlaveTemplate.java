@@ -130,6 +130,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
+    public int nextSubnet;
+
+    public String currentSubnetId;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -193,6 +197,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.monitoring = monitoring;
+        this.nextSubnet = 0;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -345,9 +350,28 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getSlaveCommandSuffix() {
         return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
     }
+  
+    public String chooseSubnetId() {
+        if (StringUtils.isBlank(subnetId)) {
+            return null;
+        } else {
+            String[] subnetIdList= getSubnetId().split(" ");
+
+            // Round-robin subnet selection.
+            String subnet = subnetIdList[nextSubnet];
+            currentSubnetId = subnet;
+            nextSubnet = (nextSubnet + 1) % subnetIdList.length;
+
+            return subnet;
+        }
+    }
 
     public String getSubnetId() {
         return subnetId;
+    }
+
+    public String getCurrentSubnetId() {
+        return currentSubnetId;
     }
 
     public boolean getAssociatePublicIp() {
@@ -513,15 +537,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("availability-zone").withValues(getZone()));
         }
 
+        String subnetId = chooseSubnetId();
+
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
-        if (StringUtils.isNotBlank(getSubnetId())) {
+        if (StringUtils.isNotBlank(subnetId)) {
             if (getAssociatePublicIp()) {
-                net.setSubnetId(getSubnetId());
+                net.setSubnetId(subnetId);
             } else {
-                riRequest.setSubnetId(getSubnetId());
+                riRequest.setSubnetId(subnetId);
             }
 
-            diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
+            diFilters.add(new Filter("subnet-id").withValues(subnetId));
 
             /*
              * If we have a subnet ID then we can only use VPC security groups
@@ -795,11 +821,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
-            if (StringUtils.isNotBlank(getSubnetId())) {
+            String subnetId = chooseSubnetId();
+            if (StringUtils.isNotBlank(subnetId)) {
                 if (getAssociatePublicIp()) {
-                    net.setSubnetId(getSubnetId());
+                    net.setSubnetId(subnetId);
                 } else {
-                    launchSpecification.setSubnetId(getSubnetId());
+                    launchSpecification.setSubnetId(subnetId);
                 }
 
                 /*
@@ -985,7 +1012,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 List<Filter> filters = new ArrayList<Filter>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
                 filters.add(new Filter("state").withValues("available"));
-                filters.add(new Filter("subnet-id").withValues(getSubnetId()));
+                filters.add(new Filter("subnet-id").withValues(getCurrentSubnetId()));
 
                 DescribeSubnetsRequest subnetReq = new DescribeSubnetsRequest();
                 subnetReq.withFilters(filters);
