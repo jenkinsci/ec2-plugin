@@ -30,6 +30,7 @@ import javax.servlet.ServletException;
 
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
@@ -927,6 +928,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private HashSet<Tag> buildTags(String slaveType) {
         boolean hasCustomTypeTag = false;
+        boolean hasJenkinsServerUrlTag = false;
         HashSet<Tag> instTags = new HashSet<Tag>();
         if (tags != null && !tags.isEmpty()) {
             instTags = new HashSet<Tag>();
@@ -935,11 +937,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                     hasCustomTypeTag = true;
                 }
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                    hasJenkinsServerUrlTag = true;
+                }
             }
         }
         if (!hasCustomTypeTag) {
             instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
                     slaveType, description)));
+        }
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (!hasJenkinsServerUrlTag && jenkinsLocation != null) {
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()));
         }
         return instTags;
     }

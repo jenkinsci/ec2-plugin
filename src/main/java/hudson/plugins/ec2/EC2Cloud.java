@@ -86,6 +86,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.HttpResponse;
@@ -372,19 +373,27 @@ public abstract class EC2Cloud extends Cloud {
      * @param template If left null, then all instances are counted.
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
-        LOGGER.log(Level.FINE, "Counting current slaves: " + (template != null ? (" AMI: " + template.getAmi()) : " All AMIS"));
+        String jenkinsServerUrl = null;
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (jenkinsLocation != null)
+            jenkinsServerUrl = jenkinsLocation.getUrl();
+
+        LOGGER.log(Level.FINE, "Counting current slaves: "
+            + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
+            + " Jenkins Server: " + jenkinsServerUrl);
         int n = 0;
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (isEc2ProvisionedAmiSlave(i.getTags(), description) && (template == null
-                        || template.getAmi().equals(i.getImageId()))) {
+                if (isEc2ProvisionedAmiSlave(i.getTags(), description)
+                    && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
+                    && (template == null || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
                     if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
-                                + " Template: " + description);
+                        + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
                         n++;
                         instanceIds.add(i.getInstanceId());
                     }
@@ -399,6 +408,9 @@ public abstract class EC2Cloud extends Cloud {
             values.add(template.getAmi());
             filters.add(new Filter("launch.image-id", values));
         }
+
+        // The instances must match the jenkins server url
+        filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
 
         values = new ArrayList<String>();
         values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
@@ -492,6 +504,15 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         return n;
+    }
+
+    private boolean isEc2ProvisionedJenkinsSlave(List<Tag> tags, String serverUrl) {
+        for (Tag tag : tags) {
+            if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                return StringUtils.equals(tag.getValue(), serverUrl);
+            }
+        }
+        return (serverUrl == null);
     }
 
     private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
