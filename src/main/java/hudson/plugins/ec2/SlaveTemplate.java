@@ -913,8 +913,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
                     slaveType, description)));
         }
-        if (!hasJenkinsServerUrlTag) {
-            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, JenkinsLocationConfiguration.get().getUrl()));
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (!hasJenkinsServerUrlTag && jenkinsLocation != null) {
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()));
         }
         return instTags;
     }

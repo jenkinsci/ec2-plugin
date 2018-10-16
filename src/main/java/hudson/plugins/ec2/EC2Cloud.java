@@ -355,7 +355,10 @@ public abstract class EC2Cloud extends Cloud {
      * @param template If left null, then all instances are counted.
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
-        String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
+        String jenkinsServerUrl = null;
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (jenkinsLocation != null)
+            jenkinsServerUrl = jenkinsLocation.getUrl();
 
         LOGGER.log(Level.FINE, "Counting current slaves: "
             + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
@@ -491,7 +494,7 @@ public abstract class EC2Cloud extends Cloud {
                 return StringUtils.equals(tag.getValue(), serverUrl);
             }
         }
-        return false;
+        return (serverUrl == null);
     }
 
     private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
