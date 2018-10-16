@@ -563,7 +563,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (!securityGroupSet.isEmpty()) {
                 List<String> groupIds = getEc2SecurityGroups(ec2);
 
-            HashSet<Tag> instTags = getCustomInstanceTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, diFilters);
+                HashSet<Tag> instTags = getCustomInstanceTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, diFilters);
+            }
+        }
 
         if (getAssociatePublicIp()) {
             net.setAssociatePublicIpAddress(true);
