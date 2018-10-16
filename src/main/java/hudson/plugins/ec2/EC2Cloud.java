@@ -21,7 +21,11 @@ package hudson.plugins.ec2;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
+import com.amazonaws.auth.STSSessionCredentialsProvider;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.cloudbees.plugins.credentials.Credentials;
@@ -147,6 +151,10 @@ public abstract class EC2Cloud extends Cloud {
 
     private final boolean useInstanceProfileForCredentials;
 
+    private final String roleArn;
+
+    private final String roleSessionName;
+
     /**
      * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
      */
@@ -175,9 +183,11 @@ public abstract class EC2Cloud extends Cloud {
     private static AWSCredentialsProvider awsCredentialsProvider;
 
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
-            String instanceCapStr, List<? extends SlaveTemplate> templates) {
+            String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
+        this.roleArn = roleArn;
+        this.roleSessionName = roleSessionName;
         this.credentialsId = credentialsId;
         this.privateKey = new EC2PrivateKey(privateKey);
 
@@ -252,6 +262,14 @@ public abstract class EC2Cloud extends Cloud {
 
     public boolean isUseInstanceProfileForCredentials() {
         return useInstanceProfileForCredentials;
+    }
+
+    public String getRoleArn() {
+        return roleArn;
+    }
+
+    public String getRoleSessionName() {
+        return roleSessionName;
     }
 
     public String getCredentialsId() {
@@ -632,7 +650,7 @@ public abstract class EC2Cloud extends Cloud {
         return getTemplate(label) != null;
     }
 
-    private AWSCredentialsProvider createCredentialsProvider() {
+    protected AWSCredentialsProvider createCredentialsProvider() {
         return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
     }
 
@@ -641,7 +659,6 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {
-
         if (useInstanceProfileForCredentials) {
             return new InstanceProfileCredentialsProvider();
         } else if (StringUtils.isBlank(credentialsId)) {
@@ -652,6 +669,28 @@ public abstract class EC2Cloud extends Cloud {
                 return new StaticCredentialsProvider(credentials.getCredentials());
         }
         return new DefaultAWSCredentialsProviderChain();
+    }
+
+    public static AWSCredentialsProvider createCredentialsProvider(
+            final boolean useInstanceProfileForCredentials,
+            final String credentialsId,
+            final String roleArn,
+            final String roleSessionName,
+            final String region) {
+
+        AWSCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+
+        if (StringUtils.isNotEmpty(roleArn) && StringUtils.isNotEmpty(roleSessionName)) {
+            return new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, roleSessionName)
+                    .withStsClient(AWSSecurityTokenServiceClientBuilder.standard()
+                            .withCredentials(provider)
+                            .withRegion(region)
+                            .withClientConfiguration(createClientConfiguration(convertHostName(region)))
+                            .build())
+                    .build();
+        }
+
+        return provider;
     }
 
     @CheckForNull
@@ -686,13 +725,19 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
         awsCredentialsProvider = credentialsProvider;
+        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, createClientConfiguration(endpoint.getHost()));
+        client.setEndpoint(endpoint.toString());
+        return client;
+    }
+
+    public static ClientConfiguration createClientConfiguration(final String host) {
         ClientConfiguration config = new ClientConfiguration();
         config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
         // cause problems. Raise it a bit.
         // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
         config.setSignerOverride("AWS4SignerType");
         ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
-        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(endpoint.getHost());
+        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
         if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
             InetSocketAddress address = (InetSocketAddress) proxy.address();
             config.setProxyHost(address.getHostName());
@@ -702,9 +747,7 @@ public abstract class EC2Cloud extends Cloud {
                 config.setProxyPassword(proxyConfig.getPassword());
             }
         }
-        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, config);
-        client.setEndpoint(endpoint.toString());
-        return client;
+        return config;
     }
 
     /***
@@ -786,10 +829,10 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey)
+        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
@@ -812,10 +855,10 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId)
+        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
