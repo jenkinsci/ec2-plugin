@@ -78,6 +78,11 @@ public class EC2RetentionStrategyTest {
             public boolean isOffline() {
                 return false;
             }
+            
+            @Override
+            public InstanceState getState() {
+                return InstanceState.RUNNING;
+            }
         };
         assertTrue(computer.isIdle());
         assertTrue(computer.isOnline());
