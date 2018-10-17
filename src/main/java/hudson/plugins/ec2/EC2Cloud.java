@@ -341,8 +341,9 @@ public abstract class EC2Cloud extends Cloud {
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
 
             //Reconnect a stopped instance, the ADD is invoking the connect only for the node creation
-            if (nodes.get(0).getStopOnTerminate()) {
-                nodes.get(0).toComputer().connect(false);
+            Computer c = nodes.get(0).toComputer();
+            if (nodes.get(0).getStopOnTerminate() && c !=  null) {
+                c.connect(false);
             }
             Jenkins.getInstance().addNode(nodes.get(0));
 
@@ -616,9 +617,11 @@ public abstract class EC2Cloud extends Cloud {
                             if (state.equals(InstanceStateName.Running))  {
                                 //Spot instance are not reconnected automatically,
                                 // but could be new orphans that has the option enable
-                                if (slave.getStopOnTerminate() && (slave.toComputer() != null ))  {
-                                    slave.toComputer().connect(false);
+                                Computer c = slave.toComputer();
+                                if (slave.getStopOnTerminate() && (c != null ))  {
+                                    c.connect(false);
                                 }
+                                
                                 long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - instance.getLaunchTime().getTime());
                                 LOGGER.log(Level.INFO, "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
                                         new Object[]{t, slave.getNodeName(), startTime});
