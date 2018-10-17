@@ -646,7 +646,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (!instances.isEmpty()) {
             StartInstancesRequest siRequest = new StartInstancesRequest(instances);
-            StartInstancesResult  siResult = ec2.startInstances(siRequest);
+            StartInstancesResult siResult = ec2.startInstances(siRequest);
             logProvisionInfo("Result of starting stopped instances:" + siResult);
         }
 
