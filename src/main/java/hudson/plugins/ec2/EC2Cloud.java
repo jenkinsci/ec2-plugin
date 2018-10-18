@@ -339,7 +339,7 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         EC2AbstractSlave node = t.attach(id, listener);
-        Jenkins.getActiveInstance().addNode(node);
+        Jenkins.getInstance().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
@@ -358,7 +358,13 @@ public abstract class EC2Cloud extends Cloud {
             List<EC2AbstractSlave> nodes = getNewOrExistingAvailableSlave(t, 1, true);
             if (nodes == null || nodes.isEmpty())
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
-            Jenkins.getActiveInstance().addNode(nodes.get(0));
+
+            //Reconnect a stopped instance, the ADD is invoking the connect only for the node creation
+            Computer c = nodes.get(0).toComputer();
+            if (nodes.get(0).getStopOnTerminate() && c !=  null) {
+                c.connect(false);
+            }
+            Jenkins.getInstance().addNode(nodes.get(0));
 
             return HttpResponses.redirectViaContextPath("/computer/" + nodes.get(0).getNodeName());
         } catch (AmazonClientException e) {
@@ -612,7 +618,7 @@ public abstract class EC2Cloud extends Cloud {
 
             LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
-                    new Object[]{Jenkins.getActiveInstance().getComputers().length, plannedNodes.size()});
+                    new Object[]{Jenkins.getInstance().getComputers().length, plannedNodes.size()});
             return plannedNodes;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
@@ -647,12 +653,20 @@ public abstract class EC2Cloud extends Cloud {
                             }
 
                             InstanceStateName state = InstanceStateName.fromValue(instance.getState().getName());
-                            if (state.equals(InstanceStateName.Running)) {
+                            if (state.equals(InstanceStateName.Running))  {
+                                //Spot instance are not reconnected automatically,
+                                // but could be new orphans that has the option enable
+                                Computer c = slave.toComputer();
+                                if (slave.getStopOnTerminate() && (c != null ))  {
+                                    c.connect(false);
+                                }
+                                
                                 long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - instance.getLaunchTime().getTime());
                                 LOGGER.log(Level.INFO, "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
                                         new Object[]{t, slave.getNodeName(), startTime});
                                 return slave;
                             }
+
                             if (!state.equals(InstanceStateName.Pending)) {
                                 LOGGER.log(Level.WARNING, "{0}. Node {1} is neither pending, neither running, it's {2}. Terminate provisioning",
                                         new Object[]{t, state, slave.getNodeName()});
@@ -665,6 +679,7 @@ public abstract class EC2Cloud extends Cloud {
                 })
                 , t.getNumExecutors());
     }
+
 
     @Override
     public boolean canProvision(Label label) {

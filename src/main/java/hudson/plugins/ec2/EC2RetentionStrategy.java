@@ -24,6 +24,8 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
+
+
 import hudson.init.InitMilestone;
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
@@ -103,8 +105,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
 
         if (computer.isIdle() && !DISABLED) {
             final long uptime;
+            InstanceState state;
+
             try {
                 uptime = computer.getUptime();
+                state  = computer.getState();
             } catch (AmazonClientException | InterruptedException e) {
                 // We'll just retry next time we test for idleness.
                 LOGGER.fine("Exception while checking host uptime for " + computer.getName()
@@ -116,13 +121,25 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             if (computer.isOffline() && uptime < TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)) {
                 return 1;
             }
+
             final long idleMilliseconds = System.currentTimeMillis() - computer.getIdleStartMilliseconds();
+
+            //Stopped instance restarted and Idletime has not be reset
+            if ( uptime <  idleMilliseconds) {
+                return 1;
+            }
+
+
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
                 // JENKINS-23792
-                if (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) {
+
+                if ( (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) &&
+                        (!(InstanceState.STOPPED.equals(state) && computer.getSlaveTemplate().stopOnTerminate ) )  ){
+
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
-                            + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes");
+                            + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) +
+                            " idle minutes, instance status"+state.toString());
                     computer.getNode().idleTimeout();
                 }
             } else {
@@ -153,7 +170,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
     @Override
     public void start(EC2Computer c) {
         //Jenkins is in the process of starting up
-        if (Jenkins.getActiveInstance().getInitLevel() != InitMilestone.COMPLETED) {
+        if (Jenkins.getInstance().getInitLevel() != InitMilestone.COMPLETED) {
             InstanceState state = null;
             try {
                 state = c.getState();
@@ -164,8 +181,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 LOGGER.info("Ignoring start request for " + c.getName()
                         + " during Jenkins startup due to EC2 instance state of " + state);
                 return;
-            }
+                }
         }
+
 
         LOGGER.info("Start requested for " + c.getName());
         c.connect(false);

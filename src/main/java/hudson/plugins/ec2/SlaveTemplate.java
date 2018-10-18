@@ -468,7 +468,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     private boolean checkInstance(Instance instance) {
         for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
-            if (node.getInstanceId().equals(instance.getInstanceId())) {
+            if ( (node.getInstanceId().equals(instance.getInstanceId())) &&
+                    (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
+                ))
+               ){
                 logInstanceCheck(instance, ". false - found existing corresponding Jenkins slave: " + node.getInstanceId());
                 return false;
             }
@@ -591,21 +594,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
         DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphans = findOrphans(diResult, number);
+        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
 
-        if (orphans.isEmpty() && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
+        if (orphansOrStopped.isEmpty() && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
                 !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
             logProvisionInfo("No existing instance found - but cannot create new instance");
             return null;
         }
 
-        wakeOrphansUp(ec2, orphans);
+        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-        if (orphans.size() == number) {
-            return toSlaves(orphans);
+        if (orphansOrStopped.size() == number) {
+            return toSlaves(orphansOrStopped);
         }
 
-        riRequest.setMaxCount(number - orphans.size());
+        riRequest.setMaxCount(number - orphansOrStopped.size());
 
         if (StringUtils.isNotBlank(getIamInstanceProfile())) {
             riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
@@ -624,14 +627,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logProvisionInfo("No new instances were created");
         }
 
-        newInstances.addAll(orphans);
+        newInstances.addAll(orphansOrStopped);
 
         return toSlaves(newInstances);
     }
 
-    private void wakeOrphansUp(AmazonEC2 ec2, List<Instance> orphans) {
+    private void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
         List<String> instances = new ArrayList<>();
-        for(Instance instance : orphans) {
+        for(Instance instance : orphansOrStopped) {
             if (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
                     || instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())) {
                 logProvisionInfo("Found stopped instances - will start it: " + instance);
@@ -645,9 +648,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (!instances.isEmpty()) {
             StartInstancesRequest siRequest = new StartInstancesRequest(instances);
             StartInstancesResult siResult = ec2.startInstances(siRequest);
-
             logProvisionInfo("Result of starting stopped instances:" + siResult);
         }
+
     }
 
     private List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
@@ -664,8 +667,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private List<Instance> findOrphans(DescribeInstancesResult diResult, int number) {
-        List<Instance> orphans = new ArrayList<>();
+    private List<Instance> findOrphansOrStopped(DescribeInstancesResult diResult, int number) {
+        List<Instance> orphansOrStopped = new ArrayList<>();
         int count = 0;
         for (Reservation reservation : diResult.getReservations()) {
             for (Instance instance : reservation.getInstances()) {
@@ -681,16 +684,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 if (checkInstance(instance)) {
                     logProvisionInfo("Found existing instance: " + instance);
-                    orphans.add(instance);
+                    orphansOrStopped.add(instance);
                     count++;
                 }
 
                 if (count == number) {
-                    return orphans;
+                    return orphansOrStopped;
                 }
             }
         }
-        return orphans;
+        return orphansOrStopped;
     }
 
     private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
