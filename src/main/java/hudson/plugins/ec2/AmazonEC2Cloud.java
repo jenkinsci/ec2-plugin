@@ -24,6 +24,8 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
@@ -42,6 +44,7 @@ import jenkins.model.Jenkins;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -65,10 +68,11 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     // Used when running unit tests
     public static boolean testMode;
+    private boolean noDelayProvisioning;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 
@@ -115,6 +119,20 @@ public class AmazonEC2Cloud extends EC2Cloud {
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
+    }
+
+    public boolean isNoDelayProvisioning() {
+        return noDelayProvisioning;
+    }
+
+    @DataBoundSetter
+    public void setNoDelayProvisioning(boolean noDelayProvisioning) {
+        this.noDelayProvisioning = noDelayProvisioning;
+    }
+
+    @Override
+    protected AWSCredentialsProvider createCredentialsProvider() {
+        return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getRegion());
     }
 
     @Extension
@@ -169,20 +187,26 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return model;
         }
 
+        public FormValidation doTestConnection(
+                @QueryParameter String region,
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId,
+                @QueryParameter String privateKey,
+                @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName)
 
-        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
                 throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
         }
 
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
+        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
-            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId);
+            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
         }
     }
 }

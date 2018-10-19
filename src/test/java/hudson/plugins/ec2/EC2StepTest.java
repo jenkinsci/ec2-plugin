@@ -19,10 +19,12 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -55,14 +57,15 @@ public class EC2StepTest {
         when(cl.getTemplates()).thenReturn(templates);
         when(cl.getTemplate(anyString())).thenReturn(st);
         r.addCloud(cl);
+
+        when(instance.getNodeName()).thenReturn("nodeName");
+        List<EC2AbstractSlave> slaves = Collections.singletonList(instance);
+        when(st.provision(anyInt(),any(EnumSet.class))).thenReturn(slaves);
     }
 
 
     @Test
     public void bootInstance() throws Exception {
-
-        when(st.provision(any(TaskListener.class),any(Label.class),any(EnumSet.class))).thenReturn(instance);
-
         WorkflowJob boot = r.jenkins.createProject(WorkflowJob.class, "EC2Test");
         boot.setDefinition(new CpsFlowDefinition(
                 " node('master') {\n" +
@@ -74,9 +77,6 @@ public class EC2StepTest {
 
     @Test
     public void boot_noCloud() throws Exception {
-
-        when(st.provision(any(TaskListener.class),any(Label.class),any(EnumSet.class))).thenReturn(instance);
-
         WorkflowJob boot = r.jenkins.createProject(WorkflowJob.class, "EC2Test");
         boot.setDefinition(new CpsFlowDefinition(
                 " node('master') {\n" +
@@ -91,9 +91,7 @@ public class EC2StepTest {
 
     @Test
     public void boot_noTemplate() throws Exception {
-
         when(cl.getTemplate(anyString())).thenReturn(null);
-        when(st.provision(any(TaskListener.class),any(Label.class),any(EnumSet.class))).thenReturn(instance);
 
         WorkflowJob boot = r.jenkins.createProject(WorkflowJob.class, "EC2Test");
         boot.setDefinition(new CpsFlowDefinition(
