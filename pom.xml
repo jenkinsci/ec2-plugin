@@ -205,7 +205,9 @@ THE SOFTWARE.
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>
                 <artifactId>maven-hpi-plugin</artifactId>
+                <extensions>true</extensions>
                 <configuration>
+                     <compatibleSinceVersion>1.41</compatibleSinceVersion>
                     <pluginFirstClassLoader>true</pluginFirstClassLoader>
                 </configuration>
             </plugin>
