@@ -397,10 +397,6 @@ public abstract class EC2Cloud extends Cloud {
         if (jenkinsServerUrl == null) {
             LOGGER.log(Level.WARNING, "No Jenkins server URL specified, using instance-identity instead");
             jenkinsServerUrl = getInstanceIdentityEncodedPublicKey();
-            if (jenkinsServerUrl == null) {
-                LOGGER.log(Level.WARNING, "No instance-identity available?! Using the legacy instance id instead");
-                jenkinsServerUrl = Jenkins.getInstance().getLegacyInstanceId();
-            }
         }
 
         LOGGER.log(Level.FINE, "Counting current slaves: "
