@@ -47,6 +47,10 @@ THE SOFTWARE.
     <f:checkbox />
   </f:entry>
 
+  <f:entry title="${%T2 Unlimited}" field="t2Unlimited">
+    <f:checkbox />
+  </f:entry>
+
   <f:entry title="${%Availability Zone}" field="zone">
     <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12
          See: https://groups.google.com/group/jenkinsci-dev/t/af37fa7fe2769b0c -->
