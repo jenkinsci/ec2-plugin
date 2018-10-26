@@ -58,6 +58,8 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.security.interfaces.RSAPublicKey;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -88,7 +90,9 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -372,6 +376,12 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    // Delete when https://github.com/jenkinsci/instance-identity-module/pull/13 is released and available
+    public String getInstanceIdentityEncodedPublicKey() {
+        RSAPublicKey key = InstanceIdentity.get().getPublic();
+        return new String(Base64.encodeBase64(key.getEncoded()), Charset.forName("UTF-8"));
+    }
+
     /**
      * Counts the number of instances in EC2 that can be used with the specified image and a template. Also removes any
      * nodes associated with canceled requests.
@@ -385,8 +395,12 @@ public abstract class EC2Cloud extends Cloud {
             jenkinsServerUrl = jenkinsLocation.getUrl();
 
         if (jenkinsServerUrl == null) {
-            LOGGER.log(Level.WARNING, "No Jenkins server URL specified, using legacy instance id instead");
-            jenkinsServerUrl = Jenkins.getInstance().getLegacyInstanceId();
+            LOGGER.log(Level.WARNING, "No Jenkins server URL specified, using instance-identity instead");
+            jenkinsServerUrl = getInstanceIdentityEncodedPublicKey();
+            if (jenkinsServerUrl == null) {
+                LOGGER.log(Level.WARNING, "No instance-identity available?! Using the legacy instance id instead");
+                jenkinsServerUrl = Jenkins.getInstance().getLegacyInstanceId();
+            }
         }
 
         LOGGER.log(Level.FINE, "Counting current slaves: "
