@@ -130,6 +130,12 @@ THE SOFTWARE.
             <version>4.5.5-3.0</version>
         </dependency>
         <dependency>
+            <groupId>org.jenkins-ci.modules</groupId>
+            <artifactId>instance-identity</artifactId>
+            <version>2.2</version>
+            <scope>provided</scope><!-- comes from the core -->
+        </dependency>
+        <dependency>
                 <groupId>org.jenkins-ci.plugins.workflow</groupId>
                 <artifactId>workflow-cps</artifactId>
                 <version>2.30</version>
