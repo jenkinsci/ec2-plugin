@@ -27,7 +27,6 @@ import com.amazonaws.services.ec2.model.Instance;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;

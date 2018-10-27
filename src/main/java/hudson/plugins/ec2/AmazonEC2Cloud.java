@@ -24,8 +24,6 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
@@ -42,7 +40,6 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
