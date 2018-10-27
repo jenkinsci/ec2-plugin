@@ -24,18 +24,19 @@ THE SOFTWARE.
 -->
 
 <!--suppress ProblematicWhitespace -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>plugin</artifactId>
-      <version>3.25</version>
+        <groupId>org.jenkins-ci.plugins</groupId>
+        <artifactId>plugin</artifactId>
+        <version>3.25</version>
     </parent>
 
     <artifactId>ec2</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
+
     <name>Amazon EC2 plugin</name>
     <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
     <licenses>
@@ -45,6 +46,25 @@ THE SOFTWARE.
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <developers>
+        <!-- current maintainers -->
+        <developer>
+            <id>thoulen</id>
+            <name>F Manfred Furuholen</name>
+            <email>fabrizio.manfredi@gmail.com</email>
+        </developer>
+        <developer>
+            <id>julienduchesne</id>
+            <name>Julien Duchesne</name>
+            <email>julienduchesne@live.com</email>
+        </developer>
+        <developer>
+            <id>jvz</id>
+            <name>Matt Sicker</name>
+            <email>msicker@cloudbees.com</email>
+        </developer>
+    </developers>
 
     <scm>
         <connection>scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
@@ -92,8 +112,8 @@ THE SOFTWARE.
             <scope>test</scope>
             <exclusions>
                 <exclusion>
-                    <artifactId>hamcrest-core</artifactId>
                     <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -104,8 +124,8 @@ THE SOFTWARE.
             <scope>test</scope>
             <exclusions>
                 <exclusion>
-                    <artifactId>hamcrest-core</artifactId>
                     <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-core</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -136,10 +156,10 @@ THE SOFTWARE.
             <scope>provided</scope><!-- comes from the core -->
         </dependency>
         <dependency>
-                <groupId>org.jenkins-ci.plugins.workflow</groupId>
-                <artifactId>workflow-cps</artifactId>
-                <version>2.30</version>
-                <scope>test</scope>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
+            <artifactId>workflow-cps</artifactId>
+            <version>2.30</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -155,8 +175,8 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <classifier>tests</classifier>
             <version>2.14</version>
+            <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -173,32 +193,12 @@ THE SOFTWARE.
         </dependency>
     </dependencies>
 
-    <developers>
-        <!-- current maintainers -->
-         <developer>
-            <id>thoulen</id>
-            <name>F Manfred Furuholen</name>
-            <email>fabrizio.manfredi@gmail.com</email>
-        </developer>
-        <developer>
-            <id>julienduchesne</id>
-            <name>Julien Duchesne</name>
-            <email>julienduchesne@live.com</email>
-        </developer>
-        <developer>
-            <id>jvz</id>
-            <name>Matt Sicker</name>
-            <email>msicker@cloudbees.com</email>
-        </developer>
-    </developers>
-
     <repositories>
         <repository>
             <id>repo.jenkins-ci.org</id>
             <url>http://repo.jenkins-ci.org/public/</url>
         </repository>
     </repositories>
-
     <pluginRepositories>
         <pluginRepository>
             <id>repo.jenkins-ci.org</id>
@@ -207,24 +207,6 @@ THE SOFTWARE.
     </pluginRepositories>
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.jenkins-ci.tools</groupId>
-                <artifactId>maven-hpi-plugin</artifactId>
-                <extensions>true</extensions>
-                <configuration>
-                     <compatibleSinceVersion>1.41</compatibleSinceVersion>
-                    <pluginFirstClassLoader>true</pluginFirstClassLoader>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
-                <configuration>
-                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
-                </configuration>
-            </plugin>
-        </plugins>
         <pluginManagement>
             <plugins>
                 <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
@@ -357,5 +339,23 @@ THE SOFTWARE.
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.jenkins-ci.tools</groupId>
+                <artifactId>maven-hpi-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <compatibleSinceVersion>1.41</compatibleSinceVersion>
+                    <pluginFirstClassLoader>true</pluginFirstClassLoader>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <configuration>
+                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 </project>
