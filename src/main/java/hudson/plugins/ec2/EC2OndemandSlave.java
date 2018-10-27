@@ -77,9 +77,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
             }
             Jenkins.getInstance().removeNode(this);
             LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
-        } catch (IOException e) {
+        } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
         }
     }

@@ -298,10 +298,7 @@ public class WinRMClient {
             try {
                 socketFactory = new SSLSocketFactory(new TrustSelfSignedStrategy(), new AllowAllHostnameVerifier());
                 httpsScheme = new Scheme("https", 443, socketFactory);
-            } catch (KeyManagementException e) {
-            } catch (UnrecoverableKeyException e) {
-            } catch (NoSuchAlgorithmException e) {
-            } catch (KeyStoreException e) {
+            } catch (KeyManagementException | UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
             }
         }else{
             httpsScheme=null;
