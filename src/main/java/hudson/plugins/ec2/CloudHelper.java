@@ -42,7 +42,7 @@ final class CloudHelper {
             return null;
 
         DescribeInstancesRequest request = new DescribeInstancesRequest();
-        request.setInstanceIds(Collections.<String> singletonList(instanceId));
+        request.setInstanceIds(Collections.singletonList(instanceId));
 
         List<Reservation> reservations = cloud.connect().describeInstances(request).getReservations();
         if (reservations.size() != 1) {

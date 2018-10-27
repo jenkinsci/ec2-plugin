@@ -633,7 +633,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Jenkins.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
+            return Jenkins.getInstance().getDescriptorList(AMITypeData.class);
         }
     }
 
