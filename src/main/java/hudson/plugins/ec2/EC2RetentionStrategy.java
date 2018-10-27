@@ -29,7 +29,6 @@ import com.amazonaws.AmazonClientException;
 import hudson.init.InitMilestone;
 import hudson.model.Descriptor;
 import hudson.slaves.RetentionStrategy;
-import hudson.util.TimeUnit2;
 import jenkins.model.Jenkins;
 
 import java.util.concurrent.TimeUnit;
@@ -118,7 +117,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             }
             //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
             //need terminate such fault instance by {@link #STARTUP_TIMEOUT}
-            if (computer.isOffline() && uptime < TimeUnit2.MINUTES.toMillis(STARTUP_TIMEOUT)) {
+            if (computer.isOffline() && uptime < TimeUnit.MINUTES.toMillis(STARTUP_TIMEOUT)) {
                 return 1;
             }
 
@@ -134,24 +133,24 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
                 // TODO: really think about the right strategy here, see
                 // JENKINS-23792
 
-                if ( (idleMilliseconds > TimeUnit2.MINUTES.toMillis(idleTerminationMinutes)) &&
+                if ( (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleTerminationMinutes)) &&
                         (!(InstanceState.STOPPED.equals(state) && computer.getSlaveTemplate().stopOnTerminate ) )  ){
 
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
-                            + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) +
+                            + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) +
                             " idle minutes, instance status"+state.toString());
                     computer.getNode().idleTimeout();
                 }
             } else {
                 final int freeSecondsLeft = (60 * 60)
-                        - (int) (TimeUnit2.SECONDS.convert(uptime, TimeUnit2.MILLISECONDS) % (60 * 60));
+                        - (int) (TimeUnit.SECONDS.convert(uptime, TimeUnit.MILLISECONDS) % (60 * 60));
                 // if we have less "free" (aka already paid for) time left than
                 // our idle time, stop/terminate the instance
                 // See JENKINS-23821
                 if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes))) {
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
-                            + TimeUnit2.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
-                            + TimeUnit2.SECONDS.toMinutes(freeSecondsLeft)
+                            + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
+                            + TimeUnit.SECONDS.toMinutes(freeSecondsLeft)
                             + " minutes remaining in billing period");
                     computer.getNode().idleTimeout();
                 }
