@@ -255,7 +255,7 @@ public class WinRMClient {
 
             if (responseEntity.getContentType() == null
                     || !entity.getContentType().getValue().startsWith(APPLICATION_SOAP_XML)) {
-                throw new RuntimeException("Unexepected WinRM content type: " + entity.getContentType());
+                throw new RuntimeException("Unexpected WinRM content type: " + entity.getContentType());
             }
 
             Document responseDocument = DocumentHelper.parseText(EntityUtils.toString(responseEntity));

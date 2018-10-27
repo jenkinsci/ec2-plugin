@@ -24,8 +24,8 @@ import com.amazonaws.services.ec2.model.Instance;
 
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
     private static final String SLAVE_JAR = "slave.jar";
-    
-    final long sleepBetweenAttemps = TimeUnit.SECONDS.toMillis(10);
+
+    final long sleepBetweenAttempts = TimeUnit.SECONDS.toMillis(10);
 
     @Override
     protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
@@ -146,7 +146,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 connection.setUseHTTPS(node.isUseHTTPS());
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                    Thread.sleep(sleepBetweenAttemps);
+                    Thread.sleep(sleepBetweenAttempts);
                     continue;
                 }
 
@@ -158,7 +158,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     logger.println("WinRM should now be ok on " + node.getDisplayName());
                     if (!connection.ping()) {
                         logger.println("WinRM not yet up. Sleeping 10s.");
-                        Thread.sleep(sleepBetweenAttemps);
+                        Thread.sleep(sleepBetweenAttempts);
                         continue;
                     }
                 }
@@ -167,7 +167,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 return connection; // successfully connected
             } catch (IOException e) {
                 logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                Thread.sleep(sleepBetweenAttemps);
+                Thread.sleep(sleepBetweenAttempts);
             }
         }
     }

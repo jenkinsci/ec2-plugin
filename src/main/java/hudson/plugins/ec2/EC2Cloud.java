@@ -855,7 +855,7 @@ public abstract class EC2Cloud extends Cloud {
                 try {
                     new InstanceProfileCredentialsProvider().getCredentials();
                 } catch (AmazonClientException e) {
-                    return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentailsFromEC2(), e.getMessage());
+                    return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
                 }
             }
 
