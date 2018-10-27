@@ -444,7 +444,7 @@ public abstract class EC2Cloud extends Cloud {
             // Some ec2 implementations don't implement spot requests (Eucalyptus)
             LOGGER.log(Level.FINEST, "Describe spot instance requests failed", ex);
         }
-        Set<SpotInstanceRequest> sirSet = new HashSet();
+        Set<SpotInstanceRequest> sirSet = new HashSet<>();
 
         if (sirs != null) {
             for (SpotInstanceRequest sir : sirs) {
@@ -751,7 +751,7 @@ public abstract class EC2Cloud extends Cloud {
         }
         return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
-                        ACL.SYSTEM, Collections.EMPTY_LIST),
+                        ACL.SYSTEM, Collections.emptyList()),
                 CredentialsMatchers.withId(credentialsId));
     }
 
@@ -946,7 +946,7 @@ public abstract class EC2Cloud extends Cloud {
                             CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class,
                                     Jenkins.getInstance(),
                                     ACL.SYSTEM,
-                                    Collections.EMPTY_LIST));
+                                    Collections.emptyList()));
         }
     }
 
