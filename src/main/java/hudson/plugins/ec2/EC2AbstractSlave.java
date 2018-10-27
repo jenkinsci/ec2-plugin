@@ -135,7 +135,12 @@ public abstract class EC2AbstractSlave extends Slave {
     public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
 
-        super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
+        super(name, remoteFS, launcher);
+        setNumExecutors(numExecutors);
+        setMode(mode);
+        setLabelString(labelString);
+        setRetentionStrategy(retentionStrategy);
+        setNodeProperties(nodeProperties);
 
         this.instanceId = instanceId;
         this.templateDescription = description;
