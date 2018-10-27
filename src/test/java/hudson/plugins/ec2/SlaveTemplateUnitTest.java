@@ -13,7 +13,6 @@ import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Handler;
@@ -114,12 +113,10 @@ public class SlaveTemplateUnitTest {
 
         assertEquals(5, handler.getRecords().size());
 
-        Iterator<LogRecord> logs = handler.getRecords().iterator();
-        while (logs.hasNext()) {
-            String log = logs.next().getMessage();
+        for (LogRecord logRecord : handler.getRecords()) {
+            String log = logRecord.getMessage();
             assertTrue(log.contains("Instance not found - InvalidInstanceRequestID.NotFound"));
         }
-
     }
 }
 
