@@ -524,7 +524,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * clearLiveInstancedata if needed
      */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = CloudHelper.getInstance(getInstanceId(), getCloud());
+        Instance inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {

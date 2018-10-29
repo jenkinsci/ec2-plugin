@@ -150,7 +150,7 @@ public class EC2Step extends Step {
                     }
 
                     EC2AbstractSlave slave = instances.get(0);
-                    return CloudHelper.getInstance(slave.getInstanceId(), (AmazonEC2Cloud) cl);
+                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (AmazonEC2Cloud) cl);
                 } else {
                     throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                 }
