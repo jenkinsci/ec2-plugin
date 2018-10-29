@@ -25,7 +25,6 @@ package hudson.plugins.ec2.ebs;
 
 import hudson.model.PeriodicWork;
 import hudson.model.AdministrativeMonitor;
-import hudson.util.TimeUnit2;
 import hudson.Extension;
 import jenkins.model.Jenkins;
 import org.jvnet.solaris.libzfs.LibZFS;
@@ -34,6 +33,7 @@ import org.jvnet.solaris.libzfs.ZFSPool;
 
 import java.net.URL;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Once an hour, check if the main zpool is that hosts $HUDSON_HOME has still enough free space.
@@ -46,7 +46,7 @@ public class ZPoolMonitor extends PeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return TimeUnit2.HOURS.toMillis(1);
+        return TimeUnit.HOURS.toMillis(1);
     }
 
     @Override

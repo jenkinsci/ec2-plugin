@@ -1148,7 +1148,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Jenkins.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
+            return Jenkins.getInstance().getDescriptorList(AMITypeData.class);
         }
 
         /**

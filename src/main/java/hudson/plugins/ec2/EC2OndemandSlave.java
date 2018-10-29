@@ -2,7 +2,6 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
@@ -34,12 +33,12 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
 
     public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, false, launchTimeout, amiType);
+        this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, false, launchTimeout, amiType);
     }
 
     public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, useDedicatedTenancy, launchTimeout, amiType);
+        this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, usePrivateDnsName, useDedicatedTenancy, launchTimeout, amiType);
     }
 
     @DataBoundConstructor
@@ -57,7 +56,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
      * Constructor for debugging.
      */
     public EC2OndemandSlave(String instanceId) throws FormException, IOException {
-        this(instanceId, instanceId, "debug", "/tmp/hudson", 1, "debug", Mode.NORMAL, "", "/tmp", Collections.<NodeProperty<?>> emptyList(), null, null, false, null, "Fake public", "Fake private", null, null, false, false, 0, new UnixData(null, null, null, null));
+        this(instanceId, instanceId, "debug", "/tmp/hudson", 1, "debug", Mode.NORMAL, "", "/tmp", Collections.emptyList(), null, null, false, null, "Fake public", "Fake private", null, null, false, false, 0, new UnixData(null, null, null, null));
     }
 
     /**
@@ -78,9 +77,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
             }
             Jenkins.getInstance().removeNode(this);
             LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
-        } catch (IOException e) {
+        } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
         }
     }

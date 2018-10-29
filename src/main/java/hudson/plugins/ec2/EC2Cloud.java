@@ -20,11 +20,8 @@ package hudson.plugins.ec2;
 
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
-import com.amazonaws.auth.STSSessionCredentialsProvider;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
@@ -38,20 +35,11 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import hudson.ProxyConfiguration;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
 import hudson.security.ACL;
-import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner.PlannedNode;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
@@ -60,8 +48,6 @@ import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.interfaces.RSAPublicKey;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,7 +56,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -82,11 +67,7 @@ import java.util.logging.SimpleFormatter;
 import javax.servlet.ServletException;
 
 import hudson.model.TaskListener;
-import hudson.util.FormValidation;
-import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
-import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 
@@ -102,7 +83,6 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -125,7 +105,6 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import hudson.ProxyConfiguration;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.slaves.Cloud;
@@ -444,7 +423,7 @@ public abstract class EC2Cloud extends Cloud {
             // Some ec2 implementations don't implement spot requests (Eucalyptus)
             LOGGER.log(Level.FINEST, "Describe spot instance requests failed", ex);
         }
-        Set<SpotInstanceRequest> sirSet = new HashSet();
+        Set<SpotInstanceRequest> sirSet = new HashSet<>();
 
         if (sirs != null) {
             for (SpotInstanceRequest sir : sirs) {
@@ -751,7 +730,7 @@ public abstract class EC2Cloud extends Cloud {
         }
         return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
-                        ACL.SYSTEM, Collections.EMPTY_LIST),
+                        ACL.SYSTEM, Collections.emptyList()),
                 CredentialsMatchers.withId(credentialsId));
     }
 
@@ -855,7 +834,7 @@ public abstract class EC2Cloud extends Cloud {
                 try {
                     new InstanceProfileCredentialsProvider().getCredentials();
                 } catch (AmazonClientException e) {
-                    return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentailsFromEC2(), e.getMessage());
+                    return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
                 }
             }
 
@@ -946,7 +925,7 @@ public abstract class EC2Cloud extends Cloud {
                             CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class,
                                     Jenkins.getInstance(),
                                     ACL.SYSTEM,
-                                    Collections.EMPTY_LIST));
+                                    Collections.emptyList()));
         }
     }
 

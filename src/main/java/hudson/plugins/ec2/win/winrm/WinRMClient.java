@@ -255,7 +255,7 @@ public class WinRMClient {
 
             if (responseEntity.getContentType() == null
                     || !entity.getContentType().getValue().startsWith(APPLICATION_SOAP_XML)) {
-                throw new RuntimeException("Unexepected WinRM content type: " + entity.getContentType());
+                throw new RuntimeException("Unexpected WinRM content type: " + entity.getContentType());
             }
 
             Document responseDocument = DocumentHelper.parseText(EntityUtils.toString(responseEntity));
@@ -298,10 +298,7 @@ public class WinRMClient {
             try {
                 socketFactory = new SSLSocketFactory(new TrustSelfSignedStrategy(), new AllowAllHostnameVerifier());
                 httpsScheme = new Scheme("https", 443, socketFactory);
-            } catch (KeyManagementException e) {
-            } catch (UnrecoverableKeyException e) {
-            } catch (NoSuchAlgorithmException e) {
-            } catch (KeyStoreException e) {
+            } catch (KeyManagementException | UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
             }
         }else{
             httpsScheme=null;

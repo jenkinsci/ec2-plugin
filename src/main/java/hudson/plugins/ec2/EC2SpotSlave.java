@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.amazonaws.AmazonServiceException;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -35,7 +34,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
 
     public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(description + " (" + name + ")", spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.<NodeProperty<?>> emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, amiType);
+        this(description + " (" + name + ")", spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, amiType);
     }
 
     @DataBoundConstructor
@@ -86,9 +85,6 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
                     try {
                         ec2.terminateInstances(request);
                         LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
-                    } catch (AmazonServiceException e) {
-                        // Spot request is no longer valid
-                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
                     } catch (AmazonClientException e) {
                         // Spot request is no longer valid
                         LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
