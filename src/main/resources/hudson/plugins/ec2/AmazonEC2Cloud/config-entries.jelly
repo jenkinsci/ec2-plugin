@@ -40,7 +40,16 @@ THE SOFTWARE.
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
+    <f:entry title="${%No delay provisioning}" field="noDelayProvisioning">
+      <f:checkbox/>
+    </f:entry>
+    <f:entry title="${%Arn Role}" field="roleArn">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Session Name}" field="roleSessionName">
+      <f:textbox />
+    </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,credentialsId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,credentialsId,roleArn,roleSessionName" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey,roleArn,roleSessionName" />
 </j:jelly>

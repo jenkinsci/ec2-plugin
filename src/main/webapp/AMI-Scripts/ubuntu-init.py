@@ -30,7 +30,6 @@ for arg in args:
         jenkinsUrl = arg.split("=")[1]
     if arg.split("=")[0] == "SLAVE_NAME":
         slaveName = arg.split("=")[1]
-		
+
 os.system("wget " + jenkinsUrl + "jnlpJars/slave.jar -O slave.jar")
 os.system("java -jar slave.jar -jnlpUrl " + jenkinsUrl + "computer/" + slaveName + "/slave-agent.jnlp")
-

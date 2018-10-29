@@ -27,7 +27,6 @@ import com.amazonaws.services.ec2.model.Instance;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
@@ -141,15 +140,17 @@ public class EC2Step extends Step {
                 SlaveTemplate t;
                 t = ((AmazonEC2Cloud) cl).getTemplate(this.template);
                 if (t != null) {
-                    t.setNode(false);
-                    LabelAtom lbl = new LabelAtom(this.template);
                     SlaveTemplate.ProvisionOptions universe = SlaveTemplate.ProvisionOptions.ALLOW_CREATE;
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    EC2AbstractSlave instance = t.provision(TaskListener.NULL, lbl, opt);
-                    Instance myInstance = EC2AbstractSlave.getInstance(instance.getInstanceId(), instance.getCloud());
-                    return myInstance;
+                    List<EC2AbstractSlave> instances = t.provision(1, opt);
+                    if (instances == null) {
+                        throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                    }
+
+                    EC2AbstractSlave slave = instances.get(0);
+                    return CloudHelper.getInstance(slave.getInstanceId(), (AmazonEC2Cloud) cl);
                 } else {
                     throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                 }

@@ -60,7 +60,7 @@ public class TemplateLabelsTest {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(template);
 
-        ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates);
+        ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
     }
 
     @Test
