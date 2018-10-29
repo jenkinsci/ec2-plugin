@@ -98,7 +98,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
-    private String instanceType = null;
+    private String instanceType;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
