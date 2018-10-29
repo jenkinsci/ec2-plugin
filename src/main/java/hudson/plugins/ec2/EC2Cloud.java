@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -132,6 +133,8 @@ public abstract class EC2Cloud extends Cloud {
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
 
     private static final SimpleFormatter sf = new SimpleFormatter();
+
+    private transient ReentrantLock slaveCountingLock = new ReentrantLock();
 
     private final boolean useInstanceProfileForCredentials;
 
@@ -554,35 +557,34 @@ public abstract class EC2Cloud extends Cloud {
      * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
      */
-    private synchronized List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
-        /*
-         * Note this is synchronized between counting the instances and then allocating the node. Once the node is
-         * allocated, we don't look at that instance as available for provisioning.
-         */
-        int possibleSlavesCount = getPossibleNewSlavesCount(t);
-        if (possibleSlavesCount <= 0) {
-            LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleSlavesCount, t);
-            return null;
-        }
-
+    private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
         try {
-            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
-            if (forceCreateNew)
-                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-            else
-                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
-
-            if (number > possibleSlavesCount) {
-                LOGGER.log(Level.INFO, String.format("%d nodes were requested for the template %s, " +
-                        "but because of instance cap only %d can be provisioned", number, t, possibleSlavesCount));
-                number = possibleSlavesCount;
+            slaveCountingLock.lock();
+            int possibleSlavesCount = getPossibleNewSlavesCount(t);
+            if (possibleSlavesCount <= 0) {
+                LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleSlavesCount, t);
+                return null;
             }
 
-            return t.provision(number, provisionOptions);
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-            return null;
-        }
+            try {
+                EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
+                if (forceCreateNew)
+                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+                else
+                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+
+                if (number > possibleSlavesCount) {
+                    LOGGER.log(Level.INFO, String.format("%d nodes were requested for the template %s, " +
+                            "but because of instance cap only %d can be provisioned", number, t, possibleSlavesCount));
+                    number = possibleSlavesCount;
+                }
+
+                return t.provision(number, provisionOptions);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+                return null;
+            }
+        } finally { slaveCountingLock.unlock(); }
     }
 
     @Override
@@ -737,7 +739,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
-    public synchronized AmazonEC2 connect() throws AmazonClientException {
+    public AmazonEC2 connect() throws AmazonClientException {
         try {
             if (connection == null) {
                 connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
