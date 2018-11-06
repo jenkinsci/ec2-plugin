@@ -96,6 +96,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
+    private String instanceType;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
@@ -155,6 +156,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
         readResolve();
+        fetchLiveInstanceData(true);
     }
 
     @Override
@@ -322,7 +324,6 @@ public abstract class EC2AbstractSlave extends Slave {
     public static Instance getInstance(String instanceId, EC2Cloud cloud) {
         return CloudHelper.getInstance(instanceId, cloud);
     }
-
     /**
      * Terminates the instance in EC2.
      */
@@ -455,7 +456,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to time to ensure we
      * reflect the reality of the instances.
      */
-    protected void fetchLiveInstanceData(boolean force) throws AmazonClientException {
+    private void fetchLiveInstanceData(boolean force) throws AmazonClientException {
         /*
          * If we've grabbed the data recently, don't bother getting it again unless we are forced
          */
@@ -475,7 +476,16 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        Instance i = CloudHelper.getInstance(getInstanceId(), getCloud());
+        Instance i = null;
+        try {
+            i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+            return;
+        }
+
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -485,6 +495,8 @@ public abstract class EC2AbstractSlave extends Slave {
         publicDNS = i.getPublicDnsName();
         privateDNS = i.getPrivateIpAddress();
         createdTime = i.getLaunchTime().getTime();
+        instanceType = i.getInstanceType();
+
 
         /*
          * Only fetch tags from live instance if tags are set. This check is required to mitigate a race condition
@@ -502,7 +514,16 @@ public abstract class EC2AbstractSlave extends Slave {
      * Clears all existing tag data so that we can force the instance into a known state
      */
     protected void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = CloudHelper.getInstance(getInstanceId(), getCloud());
+        Instance inst = null;
+        try {
+            inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+            return;
+        }
+
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -524,7 +545,15 @@ public abstract class EC2AbstractSlave extends Slave {
      * clearLiveInstancedata if needed
      */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        Instance inst = null;
+        try {
+            inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+        }
+
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {
@@ -561,6 +590,11 @@ public abstract class EC2AbstractSlave extends Slave {
     public String getPrivateDNS() {
         fetchLiveInstanceData(false);
         return privateDNS;
+    }
+
+    public String getInstanceType() {
+        fetchLiveInstanceData(false);
+        return instanceType;
     }
 
     public List<EC2Tag> getTags() {
