@@ -339,6 +339,13 @@ public abstract class EC2Cloud extends Cloud {
             throw HttpResponses.error(SC_BAD_REQUEST, "No such template: " + template);
         }
 
+        final Jenkins instance = Jenkins.getInstance();
+        if (instance.isQuietingDown()) {
+            throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is quieting down");
+        }
+        if (instance.isTerminating()) {
+            throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is terminating");
+        }
         try {
             List<EC2AbstractSlave> nodes = getNewOrExistingAvailableSlave(t, 1, true);
             if (nodes == null || nodes.isEmpty())
@@ -349,7 +356,7 @@ public abstract class EC2Cloud extends Cloud {
             if (nodes.get(0).getStopOnTerminate() && c !=  null) {
                 c.connect(false);
             }
-            Jenkins.getInstance().addNode(nodes.get(0));
+            instance.addNode(nodes.get(0));
 
             return HttpResponses.redirectViaContextPath("/computer/" + nodes.get(0).getNodeName());
         } catch (AmazonClientException e) {
@@ -589,6 +596,18 @@ public abstract class EC2Cloud extends Cloud {
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         final SlaveTemplate t = getTemplate(label);
         List<PlannedNode> plannedNodes = new ArrayList<>();
+
+        Jenkins jenkinsInstance = Jenkins.getInstance();
+        if (jenkinsInstance != null) {
+            if (jenkinsInstance.isQuietingDown()) {
+                LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is quieting down");
+                return Collections.emptyList();
+            }
+            else if (jenkinsInstance.isTerminating()) {
+                LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is terminating");
+                return Collections.emptyList();
+            }
+        }
 
         try {
             LOGGER.log(Level.INFO, "{0}. Attempting to provision slave needed by excess workload of " + excessWorkload + " units", t);
