@@ -194,6 +194,12 @@ public abstract class EC2AbstractSlave extends Slave {
             return 2;
         case M3Medium:
             return 2;
+        case T3Small:
+            return 2;
+        case T3Medium:
+            return 2;
+        case T3Large:
+            return 3;
         case M1Large:
             return 4;
         case M3Large:
@@ -202,6 +208,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 4;
         case M5Large:
             return 4;
+        case T3Xlarge:
+            return 5;
         case C1Medium:
             return 5;
         case M2Xlarge:
@@ -216,6 +224,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 7;
         case M1Xlarge:
             return 8;
+        case T32Xlarge:
+            return 10;
         case M22xlarge:
             return 13;
         case M3Xlarge:
