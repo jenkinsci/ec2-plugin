@@ -173,7 +173,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
             InstanceState state = null;
             try {
                 state = c.getState();
-            } catch (AmazonClientException | InterruptedException e) {
+            } catch (AmazonClientException | InterruptedException | NullPointerException e) {
                 LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + c.getName(), e);
             }
             if (!(InstanceState.PENDING.equals(state) || InstanceState.RUNNING.equals(state))) {
