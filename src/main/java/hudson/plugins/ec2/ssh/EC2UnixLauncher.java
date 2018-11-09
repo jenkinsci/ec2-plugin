@@ -29,6 +29,7 @@ import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2AbstractSlave;
+import hudson.plugins.ec2.EC2Readiness;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.plugins.ec2.EC2Computer;
@@ -74,9 +75,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
     private static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
+    private static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
+    private static final String READINESS_TRIES= "jenkins.ec2.readinessTries";
 
     private static int bootstrapAuthSleepMs = 30000;
     private static int bootstrapAuthTries = 30;
+
+    private static int readinessSleepMs = 1000;
+    private static int readinessTries = 120;
 
     static  {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
@@ -85,6 +91,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         prop = System.getProperty(BOOTSTRAP_AUTH_TRIES);
         if (prop != null)
             bootstrapAuthTries = Integer.parseInt(prop);
+        prop = System.getProperty(READINESS_TRIES);
+        if (prop != null)
+            readinessTries = Integer.parseInt(prop);
+        prop = System.getProperty(READINESS_SLEEP_MS);
+        if (prop != null)
+            readinessSleepMs = Integer.parseInt(prop);
     }
 
     private final int FAILED = -1;
@@ -124,6 +136,25 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                                        // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
+
+        if (computer.getNode() instanceof EC2Readiness) {
+            EC2Readiness node = (EC2Readiness) computer.getNode();
+            int tries = readinessTries;
+
+            while (tries-- > 0) {
+                if (node.isReady()) {
+                    break;
+                }
+
+                logInfo(computer, listener, "Node still not ready. Current status: " + node.getEc2ReadinessStatus());
+                Thread.sleep(readinessSleepMs);
+            }
+
+            if (!node.isReady()) {
+                throw new AmazonClientException("Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000) + "s with status " + node.getEc2ReadinessStatus());
+            }
+        }
+
         logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
         try {
