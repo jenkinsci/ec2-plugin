@@ -115,6 +115,10 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
     SpotInstanceRequest getSpotRequest() {
         AmazonEC2 ec2 = getCloud().connect();
 
+        if (this.spotInstanceRequestId == null) {
+            return null;
+        }
+
         DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
         try {
             DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
