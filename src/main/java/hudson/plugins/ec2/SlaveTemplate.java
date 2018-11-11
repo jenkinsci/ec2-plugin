@@ -30,10 +30,13 @@ import javax.servlet.ServletException;
 
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -76,6 +79,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean ebsOptimized;
 
+    public final boolean monitoring;
+
+    public final boolean t2Unlimited;
+
     public final String labels;
 
     public final Node.Mode mode;
@@ -97,6 +104,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final String idleTerminationMinutes;
 
     public final String iamInstanceProfile;
+
+    public final boolean deleteRootOnTermination;
 
     public final boolean useEphemeralDevices;
 
@@ -125,6 +134,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public final boolean connectUsingPublicIp;
 
     public final String maxTotalUses;
+    public int nextSubnet;
+
+    public String currentSubnetId;
 
     private transient/* almost final */Set<LabelAtom> labelSet;
 
@@ -139,6 +151,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public transient String rootCommandPrefix;
 
+    @Deprecated
+    public transient String slaveCommandPrefix;
+
+    @Deprecated
+    public transient String slaveCommandSuffix;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
@@ -147,6 +165,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
             boolean connectBySSHProcess, boolean connectUsingPublicIp, String maxTotalUses) {
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
+            boolean t2Unlimited) {
+
+        if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
+            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
+            Jenkins j = Jenkins.getInstance();
+            if(j != null){
+                j.checkPermission(Jenkins.RUN_SCRIPTS);
+            }
+        }
+
         this.ami = ami;
         this.zone = zone;
         this.spotConfig = spotConfig;
@@ -156,11 +187,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.type = type;
         this.ebsOptimized = ebsOptimized;
         this.labels = Util.fixNull(labelString);
-        this.mode = mode;
+        this.mode = mode != null ? mode : Node.Mode.NORMAL;
         this.description = description;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
-        this.userData = userData;
+        this.userData = StringUtils.trimToEmpty(userData);
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
         this.jvmopts = jvmopts;
@@ -174,6 +205,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
+        this.monitoring = monitoring;
+        this.nextSubnet = 0;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -188,10 +221,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         this.iamInstanceProfile = iamInstanceProfile;
+        this.deleteRootOnTermination = deleteRootOnTermination;
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
+        this.t2Unlimited = t2Unlimited;
 
         readResolve(); // initialize
+    }
+
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, 
+                connectUsingPublicIp, false, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -217,7 +266,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean connectBySSHProcess) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
@@ -239,12 +288,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
             String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-            String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String slaveCommandPrefix, String slaveCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             String launchTimeoutStr) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, sshPort), jvmopts, stopOnTerminate,
-                subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
+                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort),
+                jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
@@ -318,8 +367,35 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
     }
 
+    public String getSlaveCommandPrefix() {
+        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+    }
+
+    public String getSlaveCommandSuffix() {
+        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+    }
+  
+    public String chooseSubnetId() {
+        if (StringUtils.isBlank(subnetId)) {
+            return null;
+        } else {
+            String[] subnetIdList= getSubnetId().split(" ");
+
+            // Round-robin subnet selection.
+            String subnet = subnetIdList[nextSubnet];
+            currentSubnetId = subnet;
+            nextSubnet = (nextSubnet + 1) % subnetIdList.length;
+
+            return subnet;
+        }
+    }
+
     public String getSubnetId() {
         return subnetId;
+    }
+
+    public String getCurrentSubnetId() {
+        return currentSubnetId;
     }
 
     public boolean getAssociatePublicIp() {
@@ -356,6 +432,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.ami = ami;
     }
 
+    public AMITypeData getAmiType() {
+        return amiType;
+    }
+
+    public void setAmiType(AMITypeData amiType) {
+        this.amiType = amiType;
+    }
+
     public int getInstanceCap() {
         return instanceCap;
     }
@@ -383,265 +467,296 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    @Override
+    public String toString() {
+        return "SlaveTemplate{" +
+                "ami='" + ami + '\'' +
+                ", labels='" + labels + '\'' +
+                '}';
+    }
+
+    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
-    public EC2AbstractSlave provision(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
-                return provisionSpot(listener);
+                return provisionSpot(number);
             return null;
         }
-        return provisionOndemand(listener, requiredLabel, provisionOptions);
+        return provisionOndemand(number, provisionOptions);
     }
 
     /**
-     * Determines whether the AMI of the given instance matches the AMI of template and has the required label (if requiredLabel is non-null)
+     * Safely we can pickup only instance that is not known by Jenkins at all.
      */
-    private boolean checkInstance(PrintStream logger, Instance existingInstance, Label requiredLabel, EC2AbstractSlave[] returnNode) {
-        logProvision(logger, "checkInstance: " + existingInstance);
-        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-            if (existingInstance.getIamInstanceProfile() != null) {
-                if (!existingInstance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile())) {
-                    logProvision(logger, " false - IAM Instance profile does not match");
-                    return false;
-                }
-                // Match, fall through
-            } else {
-                logProvision(logger, " false - Null IAM Instance profile");
+    private boolean checkInstance(Instance instance) {
+        for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
+            if ( (node.getInstanceId().equals(instance.getInstanceId())) &&
+                    (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
+                ))
+               ){
+                logInstanceCheck(instance, ". false - found existing corresponding Jenkins slave: " + node.getInstanceId());
                 return false;
             }
         }
-
-        if (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Terminated.toString())
-                || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.ShuttingDown.toString())) {
-            logProvision(logger, " false - Instance is terminated or shutting down");
-            return false;
-        }
-        // See if we know about this and it has capacity
-        for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
-            if (node.getInstanceId().equals(existingInstance.getInstanceId())) {
-                logProvision(logger, "Found existing corresponding Jenkins slave: " + node.getInstanceId());
-                if (!node.toComputer().isPartiallyIdle()) {
-                    logProvision(logger, " false - Node is not partially idle");
-                    return false;
-                }
-                // REMOVEME - this was added to force provision to work, but might not allow
-                // stopped instances to be found - need to investigate further
-                else if (false && node.toComputer().isOffline()) {
-                    logProvision(logger, " false - Node is offline");
-                    return false;
-                } else if (requiredLabel != null && !requiredLabel.matches(node.getAssignedLabels())) {
-                    logProvision(logger, " false - we need a Node having label " + requiredLabel);
-                    return false;
-                } else {
-                    logProvision(logger, " true - Node has capacity - can use it");
-                    returnNode[0] = node;
-                    return true;
-                }
-            }
-        }
-        logProvision(logger, " true - Instance has no node, but can be used");
+        logInstanceCheck(instance, " true - Instance is not connected to Jenkins");
         return true;
     }
 
-    private static void logProvision(PrintStream logger, String message) {
-        logger.println(message);
-        LOGGER.fine(message);
+    private void logInstanceCheck(Instance instance, String message) {
+        logProvisionInfo("checkInstance: " + instance.getInstanceId() + "." + message);
     }
 
-    private static void logProvisionInfo(PrintStream logger, String message) {
-        logger.println(message);
-        LOGGER.info(message);
+    private boolean isSameIamInstanceProfile(Instance instance) {
+        return StringUtils.isBlank(getIamInstanceProfile()) ||
+                (instance.getIamInstanceProfile() != null &&
+                        instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile()));
+
+    }
+
+    private boolean isTerminatingOrShuttindDown(String instanceStateName) {
+        return instanceStateName.equalsIgnoreCase(InstanceStateName.Terminated.toString())
+                || instanceStateName.equalsIgnoreCase(InstanceStateName.ShuttingDown.toString());
+    }
+
+    private void logProvisionInfo(String message) {
+        LOGGER.info(this + ". " + message);
     }
 
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private EC2AbstractSlave provisionOndemand(TaskListener listener, Label requiredLabel, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
-        PrintStream logger = listener.getLogger();
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         AmazonEC2 ec2 = getParent().connect();
 
-        try {
-            logProvisionInfo(logger, "Considering launching " + ami + " for template " + description);
+        logProvisionInfo("Considering launching");
 
-            KeyPair keyPair = getKeyPair(ec2);
+        RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, number).withInstanceType(type);
+        riRequest.setEbsOptimized(ebsOptimized);
+        riRequest.setMonitoring(monitoring);
 
-            RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, 1);
-            InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
+        if (t2Unlimited){
+            CreditSpecificationRequest creditRequest = new CreditSpecificationRequest();
+            creditRequest.setCpuCredits("unlimited");
+            riRequest.setCreditSpecification(creditRequest);
+        }
 
-            riRequest.setEbsOptimized(ebsOptimized);
+        setupBlockDeviceMappings(riRequest.getBlockDeviceMappings());
 
-            if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(riRequest);
-            } else {
-                setupCustomDeviceMapping(riRequest);
+        if(stopOnTerminate){
+            riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Stop);
+            logProvisionInfo("Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Stop");
+        }else{
+            riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
+            logProvisionInfo("Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
+        }
+
+        List<Filter> diFilters = new ArrayList<Filter>();
+        diFilters.add(new Filter("image-id").withValues(ami));
+        diFilters.add(new Filter("instance-type").withValues(type.toString()));
+
+        KeyPair keyPair = getKeyPair(ec2);
+        riRequest.setUserData(Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8)));
+        riRequest.setKeyName(keyPair.getKeyName());
+        diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+
+
+        if (StringUtils.isNotBlank(getZone())) {
+            Placement placement = new Placement(getZone());
+            if (getUseDedicatedTenancy()) {
+                placement.setTenancy("dedicated");
             }
+            riRequest.setPlacement(placement);
+            diFilters.add(new Filter("availability-zone").withValues(getZone()));
+        }
 
-            if(stopOnTerminate){
-                riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Stop);
-                logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Stop");
-            }else{
-                riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
-                 logProvisionInfo(logger, "Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
-            }
-            
-            List<Filter> diFilters = new ArrayList<Filter>();
-            diFilters.add(new Filter("image-id").withValues(ami));
+        String subnetId = chooseSubnetId();
 
-            if (StringUtils.isNotBlank(getZone())) {
-                Placement placement = new Placement(getZone());
-                if (getUseDedicatedTenancy()) {
-                    placement.setTenancy("dedicated");
-                }
-                riRequest.setPlacement(placement);
-                diFilters.add(new Filter("availability-zone").withValues(getZone()));
-            }
-
-            if (StringUtils.isNotBlank(getSubnetId())) {
-                if (getAssociatePublicIp()) {
-                    net.setSubnetId(getSubnetId());
-                } else {
-                    riRequest.setSubnetId(getSubnetId());
-                }
-
-                diFilters.add(new Filter("subnet-id").withValues(getSubnetId()));
-
-                /*
-                 * If we have a subnet ID then we can only use VPC security groups
-                 */
-                if (!securityGroupSet.isEmpty()) {
-                    List<String> groupIds = getEc2SecurityGroups(ec2);
-
-                    if (!groupIds.isEmpty()) {
-                        if (getAssociatePublicIp()) {
-                            net.setGroups(groupIds);
-                        } else {
-                            riRequest.setSecurityGroupIds(groupIds);
-                        }
-
-                        diFilters.add(new Filter("instance.group-id").withValues(groupIds));
-                    }
-                }
-            } else {
-                /* No subnet: we can use standard security groups by name */
-                riRequest.setSecurityGroups(securityGroupSet);
-                if (!securityGroupSet.isEmpty()) {
-                    diFilters.add(new Filter("instance.group-name").withValues(securityGroupSet));
-                }
-            }
-
-            String userDataString = Base64.encodeBase64String(userData.getBytes(StandardCharsets.UTF_8));
-            riRequest.setUserData(userDataString);
-            riRequest.setKeyName(keyPair.getKeyName());
-            diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
-            riRequest.setInstanceType(type.toString());
-            diFilters.add(new Filter("instance-type").withValues(type.toString()));
-
+        InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
+        if (StringUtils.isNotBlank(subnetId)) {
             if (getAssociatePublicIp()) {
-                net.setAssociatePublicIpAddress(true);
-                net.setDeviceIndex(0);
-                riRequest.withNetworkInterfaces(net);
+                net.setSubnetId(subnetId);
+            } else {
+                riRequest.setSubnetId(subnetId);
             }
 
-            boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    diFilters.add(new Filter("tag:" + t.getName()).withValues(t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
+            diFilters.add(new Filter("subnet-id").withValues(subnetId));
+
+            /*
+             * If we have a subnet ID then we can only use VPC security groups
+             */
+            if (!securityGroupSet.isEmpty()) {
+                List<String> groupIds = getEc2SecurityGroups(ec2);
+
+                if (!groupIds.isEmpty()) {
+                    if (getAssociatePublicIp()) {
+                        net.setGroups(groupIds);
+                    } else {
+                        riRequest.setSecurityGroupIds(groupIds);
                     }
+
+                    diFilters.add(new Filter("instance.group-id").withValues(groupIds));
                 }
             }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
-                // Append template description as well to identify slaves provisioned per template
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description)));
+        } else {
+            /* No subnet: we can use standard security groups by name */
+            riRequest.setSecurityGroups(securityGroupSet);
+            if (!securityGroupSet.isEmpty()) {
+                diFilters.add(new Filter("instance.group-name").withValues(securityGroupSet));
             }
+        }
 
-            DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
-            diRequest.setFilters(diFilters);
+        if (getAssociatePublicIp()) {
+            net.setAssociatePublicIpAddress(true);
+            net.setDeviceIndex(0);
+            riRequest.withNetworkInterfaces(net);
+        }
 
-            logProvision(logger, "Looking for existing instances with describe-instance: " + diRequest);
+        HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
+        for (Tag tag : instTags) {
+            diFilters.add(new Filter("tag:" + tag.getKey()).withValues(tag.getValue()));
+        }
 
-            DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
-            EC2AbstractSlave[] ec2Node = new EC2AbstractSlave[1];
-            Instance existingInstance = null;
-            if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
-                reservationLoop:
-                for (Reservation reservation : diResult.getReservations()) {
-                    for (Instance instance : reservation.getInstances()) {
-                        if (checkInstance(logger, instance, requiredLabel, ec2Node)) {
-                            existingInstance = instance;
-                            logProvision(logger, "Found existing instance: " + existingInstance + ((ec2Node[0] != null) ? (" node: " + ec2Node[0].getInstanceId()) : ""));
-                            break reservationLoop;
-                        }
-                    }
-                }
-            }
+        DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
+        diRequest.setFilters(diFilters);
 
-            if (existingInstance == null) {
-                if (!provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
-                    !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-                    logProvision(logger, "No existing instance found - but cannot create new instance");
-                    return null;
-                }
-                if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-                    riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
-                }
-                // Have to create a new instance
-                Instance inst = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+        logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
-                /* Now that we have our instance, we can set tags on it */
-                if (instTags != null) {
-                    updateRemoteTags(ec2, instTags, "InvalidInstanceID.NotFound", inst.getInstanceId());
+        DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
+        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
 
-                    // That was a remote request - we should also update our
-                    // local instance data.
-                    inst.setTags(instTags);
-                }
-                logProvisionInfo(logger, "No existing instance found - created new instance: " + inst);
-                return newOndemandSlave(inst);
-            }
+        if (orphansOrStopped.isEmpty() && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
+                !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+            logProvisionInfo("No existing instance found - but cannot create new instance");
+            return null;
+        }
 
-            if (existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
-                    || existingInstance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())) {
+        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-                List<String> instances = new ArrayList<String>();
-                instances.add(existingInstance.getInstanceId());
-                StartInstancesRequest siRequest = new StartInstancesRequest(instances);
-                StartInstancesResult siResult = ec2.startInstances(siRequest);
+        if (orphansOrStopped.size() == number) {
+            return toSlaves(orphansOrStopped);
+        }
 
-                logProvisionInfo(logger, "Found stopped instance - starting it: " + existingInstance + " result:" + siResult);
+        riRequest.setMaxCount(number - orphansOrStopped.size());
+
+        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+        }
+
+        TagSpecification tagSpecification = new TagSpecification();
+        tagSpecification.setResourceType(ResourceType.Instance);
+        tagSpecification.setTags(instTags);
+        Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
+        riRequest.setTagSpecifications(tagSpecifications);
+
+        // Have to create a new instance
+        List<Instance> newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+
+        if (newInstances.isEmpty()) {
+            logProvisionInfo("No new instances were created");
+        }
+
+        newInstances.addAll(orphansOrStopped);
+
+        return toSlaves(newInstances);
+    }
+
+    private void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
+        List<String> instances = new ArrayList<>();
+        for(Instance instance : orphansOrStopped) {
+            if (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
+                    || instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())) {
+                logProvisionInfo("Found stopped instances - will start it: " + instance);
+                instances.add(instance.getInstanceId());
             } else {
                 // Should be pending or running at this point, just let it come up
-                logProvisionInfo(logger, "Found existing pending or running: " + existingInstance.getState().getName() + " instance: " + existingInstance);
+                logProvisionInfo("Found existing pending or running: " + instance.getState().getName() + " instance: " + instance);
             }
+        }
 
-            if (ec2Node[0] != null) {
-                logProvisionInfo(logger, "Using existing slave: " + ec2Node[0].getInstanceId());
-                return ec2Node[0];
+        if (!instances.isEmpty()) {
+            StartInstancesRequest siRequest = new StartInstancesRequest(instances);
+            StartInstancesResult siResult = ec2.startInstances(siRequest);
+            logProvisionInfo("Result of starting stopped instances:" + siResult);
+        }
+
+    }
+
+    private List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
+        try {
+            List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
+            for (Instance instance : newInstances) {
+                slaves.add(newOndemandSlave(instance));
+                logProvisionInfo("Return instance: " + instance);
             }
-
-            // Existing slave not found
-            logProvision(logger, "Creating new slave for existing instance: " + existingInstance);
-            return newOndemandSlave(existingInstance);
-
+            return slaves;
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
-                                        // configuration issues upfront
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+            // configuration issues upfront
+        }
+    }
+
+    private List<Instance> findOrphansOrStopped(DescribeInstancesResult diResult, int number) {
+        List<Instance> orphansOrStopped = new ArrayList<>();
+        int count = 0;
+        for (Reservation reservation : diResult.getReservations()) {
+            for (Instance instance : reservation.getInstances()) {
+                if (!isSameIamInstanceProfile(instance)) {
+                    logInstanceCheck(instance, ". false - IAM Instance profile does not match: " + instance.getIamInstanceProfile());
+                    continue;
+                }
+
+                if (isTerminatingOrShuttindDown(instance.getState().getName())) {
+                    logInstanceCheck(instance, ". false - Instance is terminated or shutting down");
+                    continue;
+                }
+
+                if (checkInstance(instance)) {
+                    logProvisionInfo("Found existing instance: " + instance);
+                    orphansOrStopped.add(instance);
+                    count++;
+                }
+
+                if (count == number) {
+                    return orphansOrStopped;
+                }
+            }
+        }
+        return orphansOrStopped;
+    }
+
+    private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
+        if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
+            // get the root device (only one expected in the blockmappings)
+            final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
+            BlockDeviceMapping rootMapping = null;
+            for (final BlockDeviceMapping deviceMapping : rootDeviceMappings) {
+                System.out.println("AMI had " + deviceMapping.getDeviceName());
+                System.out.println(deviceMapping.getEbs());
+                rootMapping = deviceMapping;
+                break;
+            }
+
+            // Check if the root device is already in the mapping and update it
+            for (final BlockDeviceMapping mapping : deviceMappings) {
+                System.out.println("Request had " + mapping.getDeviceName());
+                if (rootMapping.getDeviceName().equals(mapping.getDeviceName())) {
+                    mapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
+                    return;
+                }
+            }
+
+            // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
+            BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(rootMapping.getDeviceName());
+            EbsBlockDevice newEbs = new EbsBlockDevice();
+            newEbs.setDeleteOnTermination(Boolean.TRUE);
+            newMapping.setEbs(newEbs);
+            deviceMappings.add(0, newMapping);
         }
     }
 
@@ -676,12 +791,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return newDeviceMapping;
     }
 
-    private void setupEphemeralDeviceMapping(RunInstancesRequest riRequest) {
-        riRequest.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
-    }
-
-    private void setupEphemeralDeviceMapping(LaunchSpecification launchSpec) {
-        launchSpec.withBlockDeviceMappings(getNewEphemeralDeviceMapping());
+    private void setupEphemeralDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
+        // Don't wipe out pre-existing mappings
+        deviceMappings.addAll(getNewEphemeralDeviceMapping());
     }
 
     private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
@@ -690,37 +802,36 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * AmazonEC2#describeImageAttribute does not work due to a bug
          * https://forums.aws.amazon.com/message.jspa?messageID=231972
          */
+        return getImage().getBlockDeviceMappings();
+    }
+
+    private Image getImage() {
         DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
         for (final Image image : getParent().connect().describeImages(request).getImages()) {
+
             if (ami.equals(image.getImageId())) {
-                return image.getBlockDeviceMappings();
+
+                return image;
             }
         }
 
-        throw new AmazonClientException("Unable to get AMI device mapping for " + ami);
+        throw new AmazonClientException("Unable to find AMI " + ami);
     }
 
-    private void setupCustomDeviceMapping(RunInstancesRequest riRequest) {
-        if (StringUtils.isNotBlank(customDeviceMapping)) {
-            riRequest.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
-        }
-    }
 
-    private void setupCustomDeviceMapping(LaunchSpecification launchSpec) {
+    private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
-            launchSpec.setBlockDeviceMappings(DeviceMappingParser.parse(customDeviceMapping));
+            deviceMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
 
     /**
      * Provision a new slave for an EC2 spot instance to call back to Jenkins
      */
-    private EC2AbstractSlave provisionSpot(TaskListener listener) throws AmazonClientException, IOException {
-        PrintStream logger = listener.getLogger();
+    private List<EC2AbstractSlave> provisionSpot(int number) throws AmazonClientException, IOException {
         AmazonEC2 ec2 = getParent().connect();
 
         try {
-            logger.println("Launching " + ami + " for template " + description);
             LOGGER.info("Launching " + ami + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
@@ -729,31 +840,31 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             // Validate spot bid before making the request
             if (getSpotMaxBidPrice() == null) {
-                // throw new FormException("Invalid Spot price specified: " +
-                // getSpotMaxBidPrice(), "spotMaxBidPrice");
                 throw new AmazonClientException("Invalid Spot price specified: " + getSpotMaxBidPrice());
             }
 
             spotRequest.setSpotPrice(getSpotMaxBidPrice());
-            spotRequest.setInstanceCount(1);
+            spotRequest.setInstanceCount(number);
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
-            InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
 
             launchSpecification.setImageId(ami);
             launchSpecification.setInstanceType(type);
             launchSpecification.setEbsOptimized(ebsOptimized);
+            launchSpecification.setMonitoringEnabled(monitoring);
 
             if (StringUtils.isNotBlank(getZone())) {
                 SpotPlacement placement = new SpotPlacement(getZone());
                 launchSpecification.setPlacement(placement);
             }
 
-            if (StringUtils.isNotBlank(getSubnetId())) {
+            InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
+            String subnetId = chooseSubnetId();
+            if (StringUtils.isNotBlank(subnetId)) {
                 if (getAssociatePublicIp()) {
-                    net.setSubnetId(getSubnetId());
+                    net.setSubnetId(subnetId);
                 } else {
-                    launchSpecification.setSubnetId(getSubnetId());
+                    launchSpecification.setSubnetId(subnetId);
                 }
 
                 /*
@@ -796,34 +907,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.withNetworkInterfaces(net);
             }
 
-            boolean hasCustomTypeTag = false;
-            HashSet<Tag> instTags = null;
-            if (tags != null && !tags.isEmpty()) {
-                instTags = new HashSet<Tag>();
-                for (EC2Tag t : tags) {
-                    instTags.add(new Tag(t.getName(), t.getValue()));
-                    if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
-                        hasCustomTypeTag = true;
-                    }
-                }
-            }
-            if (!hasCustomTypeTag) {
-                if (instTags == null) {
-                    instTags = new HashSet<Tag>();
-                }
-                instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                        EC2Cloud.EC2_SLAVE_TYPE_SPOT, description)));
-            }
+            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
-            if (useEphemeralDevices) {
-                setupEphemeralDeviceMapping(launchSpecification);
-            } else {
-                setupCustomDeviceMapping(launchSpecification);
-            }
+            setupBlockDeviceMappings(launchSpecification.getBlockDeviceMappings());
 
             spotRequest.setLaunchSpecification(launchSpecification);
 
@@ -835,25 +925,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 throw new AmazonClientException("No spot instances found");
             }
 
-            SpotInstanceRequest spotInstReq = reqInstances.get(0);
-            if (spotInstReq == null) {
-                throw new AmazonClientException("Spot instance request is null");
-            }
-            String slaveName = spotInstReq.getSpotInstanceRequestId();
+            List<EC2AbstractSlave> slaves = new ArrayList<>(reqInstances.size());
+            for(SpotInstanceRequest spotInstReq : reqInstances) {
+                if (spotInstReq == null) {
+                    throw new AmazonClientException("Spot instance request is null");
+                }
+                String slaveName = spotInstReq.getSpotInstanceRequestId();
 
-            /* Now that we have our Spot request, we can set tags on it */
-            if (instTags != null) {
+                // Now that we have our Spot request, we can set tags on it
                 updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
 
-                // That was a remote request - we should also update our local
-                // instance data.
+                // That was a remote request - we should also update our local instance data
                 spotInstReq.setTags(instTags);
+
+                LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
+
+                slaves.add(newSpotSlave(spotInstReq, slaveName));
             }
 
-            logger.println("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
-            LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
-
-            return newSpotSlave(spotInstReq, slaveName);
+            return slaves;
 
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
@@ -862,6 +952,42 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
+    }
+
+    private void setupBlockDeviceMappings(List<BlockDeviceMapping> blockDeviceMappings) {
+        setupRootDevice(blockDeviceMappings);
+        if (useEphemeralDevices) {
+            setupEphemeralDeviceMapping(blockDeviceMappings);
+        } else {
+            setupCustomDeviceMapping(blockDeviceMappings);
+        }
+    }
+
+    private HashSet<Tag> buildTags(String slaveType) {
+        boolean hasCustomTypeTag = false;
+        boolean hasJenkinsServerUrlTag = false;
+        HashSet<Tag> instTags = new HashSet<Tag>();
+        if (tags != null && !tags.isEmpty()) {
+            instTags = new HashSet<Tag>();
+            for (EC2Tag t : tags) {
+                instTags.add(new Tag(t.getName(), t.getValue()));
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                    hasCustomTypeTag = true;
+                }
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                    hasJenkinsServerUrlTag = true;
+                }
+            }
+        }
+        if (!hasCustomTypeTag) {
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
+                    slaveType, description)));
+        }
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (!hasJenkinsServerUrlTag && jenkinsLocation != null) {
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()));
+        }
+        return instTags;
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
@@ -932,7 +1058,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 List<Filter> filters = new ArrayList<Filter>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
                 filters.add(new Filter("state").withValues("available"));
-                filters.add(new Filter("subnet-id").withValues(getSubnetId()));
+                filters.add(new Filter("subnet-id").withValues(getCurrentSubnetId()));
 
                 DescribeSubnetsRequest subnetReq = new DescribeSubnetsRequest();
                 subnetReq.withFilters(filters);
@@ -982,6 +1108,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
+        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 
@@ -998,7 +1126,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, sshPort);
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort);
         }
         return this;
     }
@@ -1044,7 +1172,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Jenkins.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
+            return Jenkins.getInstance().getDescriptorList(AMITypeData.class);
         }
 
         /**
@@ -1060,14 +1188,41 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return p;
         }
 
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckTmpDir(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckJvmopts(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
-                @QueryParameter String region, final @QueryParameter String ami) throws IOException {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    credentialsId);
+                @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName) throws IOException {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
                 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
@@ -1156,10 +1311,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region)
+                @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    credentialsId);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -1192,15 +1347,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region,
-                @QueryParameter String type, @QueryParameter String zone) throws IOException, ServletException {
+                @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName) throws IOException, ServletException {
 
             String cp = "";
             String zoneStr = "";
 
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials,
-                    credentialsId);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {

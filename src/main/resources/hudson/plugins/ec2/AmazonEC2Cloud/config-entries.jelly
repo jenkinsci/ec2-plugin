@@ -22,7 +22,7 @@ THE SOFTWARE.
   <f:entry title="${%Name}" field="cloudName">
     <f:textbox />
   </f:entry>
-  <f:entry field="credentialsId" title="${%Amazon EC2 Crendentials}" description="AWS IAM Access Key used to connect to EC2. If not specified, implicit authentication mechanisms are used (IAM roles...)">
+  <f:entry field="credentialsId" title="${%Amazon EC2 Credentials}" description="AWS IAM Access Key used to connect to EC2. If not specified, implicit authentication mechanisms are used (IAM roles...)">
     <c:select />
   </f:entry>
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
@@ -40,7 +40,16 @@ THE SOFTWARE.
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
+    <f:entry title="${%No delay provisioning}" field="noDelayProvisioning">
+      <f:checkbox/>
+    </f:entry>
+    <f:entry title="${%Arn Role}" field="roleArn">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Session Name}" field="roleSessionName">
+      <f:textbox />
+    </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,credentialsId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey" />
+  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,credentialsId,roleArn,roleSessionName" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey,roleArn,roleSessionName" />
 </j:jelly>

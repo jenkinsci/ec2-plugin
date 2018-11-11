@@ -33,13 +33,21 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami" />
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami,roleArn,roleSessionName" />
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
   </f:entry>
 
   <f:entry title="${%EBS Optimized}" field="ebsOptimized">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%Monitoring}" field="monitoring">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%T2 Unlimited}" field="t2Unlimited">
     <f:checkbox />
   </f:entry>
 
@@ -51,7 +59,7 @@ THE SOFTWARE.
   </f:entry>
 
   <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName" />
 
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
@@ -108,7 +116,7 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
-    <f:entry title="${%Subnet ID for VPC}" field="subnetId">
+    <f:entry title="${%Subnet IDs for VPC}" field="subnetId">
        <f:textbox />
     </f:entry>
 
@@ -132,6 +140,10 @@ THE SOFTWARE.
 
     <f:entry title="${%IAM Instance Profile}" field="iamInstanceProfile">
       <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Delete root device on instance termination}" field="deleteRootOnTermination">
+      <f:checkbox />
     </f:entry>
 
     <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">

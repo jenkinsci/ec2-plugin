@@ -1,7 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 The MIT License
 
-Copyright (c) 2010, InfraDNA, Inc.
+Copyright 2014 Jesse Glick.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,19 +22,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
+
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
-         xmlns:t="/lib/hudson" xmlns:f="/lib/form">	  
-      <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
-	    <f:textbox/>
-	  </f:entry>
-      <f:entry title="${%Slave command prefix}" field="slaveCommandPrefix">
-	    <f:textbox/>
-	  </f:entry>
-      <f:entry title="${%Slave command suffix}" field="slaveCommandSuffix">
-	    <f:textbox/>
-	  </f:entry>
-      <f:entry title="${%Remote ssh port}" field="sshPort">
-        <f:textbox />
-      </f:entry>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:entry field="cloud" title="Amazon EC2 cloud name">
+        <f:select/>
+    </f:entry>
+    <f:entry field="template" title="Template name">
+        <f:select/>
+    </f:entry>
 </j:jelly>

@@ -25,7 +25,7 @@ THE SOFTWARE.
   <f:entry title="${%Eucalyptus S3 URL}" field="s3endpoint">
     <f:textbox />
   </f:entry>
-  <f:entry field="credentialsId" title="${%Amazon EC2 Crendentials}" description="AWS IAM Access Key used to connect to EC2. If not specified, implicit authentication mechanisms are used (IAM roles...)">
+  <f:entry field="credentialsId" title="${%Amazon EC2 Credentials}" description="AWS IAM Access Key used to connect to EC2. If not specified, implicit authentication mechanisms are used (IAM roles...)">
     <c:select />
   </f:entry>
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">

@@ -25,7 +25,6 @@ package hudson.plugins.ec2.ebs;
 
 import hudson.model.PeriodicWork;
 import hudson.model.AdministrativeMonitor;
-import hudson.util.TimeUnit2;
 import hudson.Extension;
 import jenkins.model.Jenkins;
 import org.jvnet.solaris.libzfs.LibZFS;
@@ -34,6 +33,7 @@ import org.jvnet.solaris.libzfs.ZFSPool;
 
 import java.net.URL;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Once an hour, check if the main zpool is that hosts $HUDSON_HOME has still enough free space.
@@ -46,19 +46,21 @@ public class ZPoolMonitor extends PeriodicWork {
 
     @Override
     public long getRecurrencePeriod() {
-        return TimeUnit2.HOURS.toMillis(1);
+        return TimeUnit.HOURS.toMillis(1);
     }
 
     @Override
     protected void doRun() {
+        ZPoolExpandNotice zen = AdministrativeMonitor.all().get(ZPoolExpandNotice.class);
+        Jenkins jenkinsInstance = Jenkins.getInstance();
         ZFSFileSystem fs = null;
         try {
-            if (isInsideEC2())
-                fs = new LibZFS().getFileSystemByMountPoint(Jenkins.getInstance().getRootDir());
+            if (isInsideEC2() && jenkinsInstance != null)
+                fs = new LibZFS().getFileSystemByMountPoint(jenkinsInstance.getRootDir());
         } catch (LinkageError e) {
             // probably not running on OpenSolaris
         }
-        if (fs == null) {
+        if (fs == null || zen == null) {
             cancel();
             return;
         }
@@ -69,7 +71,6 @@ public class ZPoolMonitor extends PeriodicWork {
         // if the disk is 90% filled up and the available space is less than
         // 1GB,
         // notify the user
-        ZPoolExpandNotice zen = AdministrativeMonitor.all().get(ZPoolExpandNotice.class);
         zen.activated = t / a > 10 && a < 1000L * 1000 * 1000;
     }
 
