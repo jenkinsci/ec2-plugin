@@ -198,6 +198,7 @@ public abstract class EC2Cloud extends Cloud {
     public abstract URL getS3EndpointUrl() throws IOException;
 
     protected Object readResolve() {
+        this.slaveCountingLock = new ReentrantLock();
         for (SlaveTemplate t : templates)
             t.parent = this;
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
