@@ -960,7 +960,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     slaveType, description)));
         }
         JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
-        if (!hasJenkinsServerUrlTag && jenkinsLocation != null) {
+        if (!hasJenkinsServerUrlTag && jenkinsLocation != null && jenkinsLocation.getUrl() != null) {
             instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()));
         }
         return instTags;
