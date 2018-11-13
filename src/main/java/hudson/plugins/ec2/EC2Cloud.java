@@ -379,13 +379,16 @@ public abstract class EC2Cloud extends Cloud {
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
+        //FIXME convert to a filter query
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description)
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
+                    if (stateName != InstanceStateName.Terminated && 
+                        stateName != InstanceStateName.ShuttingDown && 
+                        stateName != InstanceStateName.Stopped ) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
                         n++;
