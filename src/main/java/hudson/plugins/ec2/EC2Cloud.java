@@ -46,8 +46,6 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -72,9 +70,7 @@ import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.main.modules.instance_identity.InstanceIdentity;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -198,6 +194,7 @@ public abstract class EC2Cloud extends Cloud {
     public abstract URL getS3EndpointUrl() throws IOException;
 
     protected Object readResolve() {
+        this.slaveCountingLock = new ReentrantLock();
         for (SlaveTemplate t : templates)
             t.parent = this;
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
@@ -358,12 +355,6 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    // Delete when https://github.com/jenkinsci/instance-identity-module/pull/13 is released and available
-    public String getInstanceIdentityEncodedPublicKey() {
-        RSAPublicKey key = InstanceIdentity.get().getPublic();
-        return new String(Base64.encodeBase64(key.getEncoded()), Charset.forName("UTF-8"));
-    }
-
     /**
      * Counts the number of instances in EC2 that can be used with the specified image and a template. Also removes any
      * nodes associated with canceled requests.
@@ -377,8 +368,8 @@ public abstract class EC2Cloud extends Cloud {
             jenkinsServerUrl = jenkinsLocation.getUrl();
 
         if (jenkinsServerUrl == null) {
-            LOGGER.log(Level.WARNING, "No Jenkins server URL specified, using instance-identity instead");
-            jenkinsServerUrl = getInstanceIdentityEncodedPublicKey();
+            LOGGER.log(Level.WARNING, "No Jenkins server URL specified, it is strongly recommended to open /configure and set the server URL. " +
+                    "Not having has disabled the per-master instance cap counting (cf. https://github.com/jenkinsci/ec2-plugin/pull/310)");
         }
 
         LOGGER.log(Level.FINE, "Counting current slaves: "
@@ -388,13 +379,16 @@ public abstract class EC2Cloud extends Cloud {
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
+        //FIXME convert to a filter query
         for (Reservation r : connect().describeInstances().getReservations()) {
             for (Instance i : r.getInstances()) {
                 if (isEc2ProvisionedAmiSlave(i.getTags(), description)
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName != InstanceStateName.Terminated && stateName != InstanceStateName.ShuttingDown) {
+                    if (stateName != InstanceStateName.Terminated && 
+                        stateName != InstanceStateName.ShuttingDown && 
+                        stateName != InstanceStateName.Stopped ) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
                         n++;
@@ -412,8 +406,10 @@ public abstract class EC2Cloud extends Cloud {
             filters.add(new Filter("launch.image-id", values));
         }
 
+        if(jenkinsServerUrl!=null) {
         // The instances must match the jenkins server url
-        filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
+            filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
+        }
 
         values = new ArrayList<String>();
         values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
@@ -641,7 +637,7 @@ public abstract class EC2Cloud extends Cloud {
                                 }
                             }
 
-                            Instance instance = CloudHelper.getInstance(instanceId, slave.getCloud());
+                            Instance instance = CloudHelper.getInstanceWithRetry(instanceId, slave.getCloud());
                             if (instance == null) {
                                 LOGGER.log(Level.WARNING, "{0} Can't find instance with instance id `{1}` in cloud {2}. Terminate provisioning ",
                                         new Object[]{t, instanceId, slave.cloudName});

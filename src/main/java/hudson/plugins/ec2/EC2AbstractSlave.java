@@ -326,7 +326,6 @@ public abstract class EC2AbstractSlave extends Slave {
     public static Instance getInstance(String instanceId, EC2Cloud cloud) {
         return CloudHelper.getInstance(instanceId, cloud);
     }
-
     /**
      * Terminates the instance in EC2.
      */
@@ -479,7 +478,16 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        Instance i = CloudHelper.getInstance(getInstanceId(), getCloud());
+        Instance i = null;
+        try {
+            i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+            return;
+        }
+
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -508,7 +516,16 @@ public abstract class EC2AbstractSlave extends Slave {
      * Clears all existing tag data so that we can force the instance into a known state
      */
     protected void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = CloudHelper.getInstance(getInstanceId(), getCloud());
+        Instance inst = null;
+        try {
+            inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+            return;
+        }
+
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -530,7 +547,15 @@ public abstract class EC2AbstractSlave extends Slave {
      * clearLiveInstancedata if needed
      */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = CloudHelper.getInstance(getInstanceId(), getCloud());
+        Instance inst = null;
+        try {
+            inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+        }
+
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {
