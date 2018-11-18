@@ -1,4 +1,5 @@
 package hudson.plugins.ec2;
+
 import com.amazonaws.AmazonClientException;
 import hudson.slaves.NodeProperty;
 import hudson.model.Executor;
@@ -18,6 +19,7 @@ public class EC2RetentionStrategyTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
+
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
     final AtomicBoolean terminateCalled = new AtomicBoolean(false);
 
@@ -36,6 +38,7 @@ public class EC2RetentionStrategyTest {
         expected.add(true);
         upTime.add(new int[] { 60, 00 });
         expected.add(false);
+
         for (int i = 0; i < upTime.size(); i++) {
             int[] t = upTime.get(i);
             EC2Computer computer = computerWithIdleTime(t[0], t[1]);
@@ -51,28 +54,34 @@ public class EC2RetentionStrategyTest {
             @Override
             public void terminate() {
             }
+
             @Override
             public String getEc2Type() {
                 return null;
             }
+
             @Override
             void idleTimeout() {
                 idleTimeoutCalled.set(true);
             }
         };
         EC2Computer computer = new EC2Computer(slave) {
+
             @Override
             public EC2AbstractSlave getNode() {
                 return slave;
             }
+
             @Override
             public long getUptime() throws AmazonClientException, InterruptedException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
+
             @Override
             public boolean isOffline() {
                 return false;
             }
+
             @Override
             public InstanceState getState() {
                 return InstanceState.RUNNING;
@@ -100,6 +109,7 @@ public class EC2RetentionStrategyTest {
         // testing that for usage count of 2 -> terminate shall not be called
         usageCounts.add("2");
         expected.add(false);
+
         for (int i = 0; i < usageCounts.size(); i++) {
             String usageCount = usageCounts.get(i);
             EC2Computer computer = computerWithUsageLimit(usageCount);
@@ -109,6 +119,7 @@ public class EC2RetentionStrategyTest {
             // reset the assumption
             terminateCalled.set(false);
         }
+
         // testing that for usage count of 2 -> terminate shall be called if 2 tasks are completed
         EC2Computer computer = computerWithUsageLimit("2");
         Executor executor = new Executor(computer, 0);
@@ -117,12 +128,14 @@ public class EC2RetentionStrategyTest {
         rs.taskCompleted(executor, null, 0);
         assertTrue(terminateCalled.get());
     }
+
     private EC2Computer computerWithUsageLimit(final String usageLimit) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null, usageLimit) {
             @Override
             public void terminate() {
                 terminateCalled.set(true);
             }
+            
             @Override
             public String getEc2Type() {
                 return null;

@@ -18,7 +18,7 @@ public class EC2AbstractSlaveTest {
 
     @Test
     public void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {
-        EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), "-1") {
+        EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22")) {
             @Override
             public void terminate() {
                 // To change body of implemented methods use File | Settings |
