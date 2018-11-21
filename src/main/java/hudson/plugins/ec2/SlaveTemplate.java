@@ -281,6 +281,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
+            boolean t2Unlimited) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors,remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes,
+                usePrivateDnsName, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices, useDedicatedTenancy,
+                launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, connectUsingPublicIp, monitoring, t2Unlimited, -1);
+    }
+
     public boolean isConnectBySSHProcess() {
         // See
         // src/main/resources/hudson/plugins/ec2/SlaveTemplate/help-connectBySSHProcess.html
