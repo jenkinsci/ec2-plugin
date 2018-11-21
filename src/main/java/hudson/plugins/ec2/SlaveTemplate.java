@@ -133,7 +133,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean connectUsingPublicIp;
 
-    public final String maxTotalUses;
+    public final int maxTotalUses;
 
     public int nextSubnet;
 
@@ -166,7 +166,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
-            boolean t2Unlimited, String maxTotalUses) {
+            boolean t2Unlimited, int maxTotalUses) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -238,7 +238,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, 
-                connectUsingPublicIp, false, false, "-1");
+                connectUsingPublicIp, false, false, -1);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -454,7 +454,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 '}';
     }
 
-    public String getmMaxTotalUses() {
+    public int getmMaxTotalUses() {
         return maxTotalUses;
     }
 

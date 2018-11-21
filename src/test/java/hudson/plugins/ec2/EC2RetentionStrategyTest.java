@@ -50,7 +50,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null, "-1") {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null, -1) {
             @Override
             public void terminate() {
             }
@@ -95,23 +95,23 @@ public class EC2RetentionStrategyTest {
     @Test
     public void testOnUsageCountRetention() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
-        List<String> usageCounts = new ArrayList<String>();
+        List<Integer> usageCounts = new ArrayList<Integer>();
         List<Boolean> expected = new ArrayList<Boolean>();
         // testing that for usage count of -1 -> terminate shall not be called
-        usageCounts.add("-1");
+        usageCounts.add(-1);
         expected.add(false);
         // testing that for usage count of 0 -> terminate shall be called immediatly
-        usageCounts.add("0");
+        usageCounts.add(0);
         expected.add(true);
         // testing that for usage count of 1 -> terminate shall be called immediatly
-        usageCounts.add("1");
+        usageCounts.add(1);
         expected.add(true);
         // testing that for usage count of 2 -> terminate shall not be called
-        usageCounts.add("2");
+        usageCounts.add(2);
         expected.add(false);
 
         for (int i = 0; i < usageCounts.size(); i++) {
-            String usageCount = usageCounts.get(i);
+            int usageCount = usageCounts.get(i);
             EC2Computer computer = computerWithUsageLimit(usageCount);
             Executor executor = new Executor(computer, 0);
             rs.taskCompleted(executor, null, 0);
@@ -121,7 +121,7 @@ public class EC2RetentionStrategyTest {
         }
 
         // testing that for usage count of 2 -> terminate shall be called if 2 tasks are completed
-        EC2Computer computer = computerWithUsageLimit("2");
+        EC2Computer computer = computerWithUsageLimit(2);
         Executor executor = new Executor(computer, 0);
         rs.taskCompleted(executor, null, 0);
         assertFalse(terminateCalled.get());
@@ -129,7 +129,7 @@ public class EC2RetentionStrategyTest {
         assertTrue(terminateCalled.get());
     }
 
-    private EC2Computer computerWithUsageLimit(final String usageLimit) throws Exception {
+    private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null, usageLimit) {
             @Override
             public void terminate() {

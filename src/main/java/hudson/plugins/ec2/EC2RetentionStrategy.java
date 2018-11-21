@@ -221,14 +221,14 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     private void postJobAction(Executor executor){
         EC2Computer computer = (EC2Computer) executor.getOwner();
         EC2AbstractSlave slaveNode = computer.getNode();
-        int maxTotalUses = Integer.parseInt(slaveNode.maxTotalUses);
+        int maxTotalUses = slaveNode.maxTotalUses;
         if (maxTotalUses <= -1) {
             return;
         } else if (maxTotalUses <= 1) {
             computer.setAcceptingTasks(false);
             slaveNode.terminate();
         } else {
-            slaveNode.maxTotalUses = String.valueOf(Integer.parseInt(slaveNode.maxTotalUses) - 1);
+            slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
         }
     }
 
