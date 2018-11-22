@@ -37,6 +37,12 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
         this(description + " (" + name + ")", spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, amiType, maxTotalUses);
     }
 
+    public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
+            throws FormException, IOException {
+        this(name, spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, nodeProperties, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName,
+        launchTimeout, amiType, -1);
+    }
+
     @DataBoundConstructor
     public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType, int maxTotalUses)
             throws FormException, IOException {
