@@ -224,7 +224,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return 7;
         case M1Xlarge:
             return 8;
-        case T32Xlarge:
+        case T32xlarge:
             return 10;
         case M22xlarge:
             return 13;
