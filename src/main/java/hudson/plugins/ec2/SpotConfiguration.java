@@ -4,10 +4,23 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public final class SpotConfiguration {
     public final String spotMaxBidPrice;
+    public final int spotBlockReservationDuration;
 
     @DataBoundConstructor
-    public SpotConfiguration(String spotMaxBidPrice) {
+    public SpotConfiguration(String spotMaxBidPrice, String spotBlockReservationDurationStr) {
         this.spotMaxBidPrice = spotMaxBidPrice;
+        if (null == spotBlockReservationDurationStr || spotBlockReservationDurationStr.isEmpty()) {
+            this.spotBlockReservationDuration = 0;
+        } else {
+            this.spotBlockReservationDuration = Integer.parseInt(spotBlockReservationDurationStr);
+        }
+    }
+
+    /*
+     * Backwards compat with the unit tests
+     */
+    public SpotConfiguration(String spotMaxBidPrice) {
+        this(spotMaxBidPrice, null);
     }
 
     @Override
@@ -17,13 +30,16 @@ public final class SpotConfiguration {
         }
         final SpotConfiguration config = (SpotConfiguration) obj;
 
+        if (this.spotBlockReservationDuration != config.spotBlockReservationDuration) {
+            return false;
+        }
         return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
     }
 
     /**
      * Check if the specified value is a valid bid price to make a Spot request and return the normalized string for the
      * float of the specified bid Bids must be &gt;= .001
-     * 
+     *
      * @param bid
      *            - price to check
      * @return The normalized string for a Float if possible, otherwise null

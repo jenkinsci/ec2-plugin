@@ -234,7 +234,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, 
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
                 connectUsingPublicIp, false, false);
     }
 
@@ -355,7 +355,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getSlaveCommandSuffix() {
         return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
     }
-  
+
     public String chooseSubnetId() {
         if (StringUtils.isBlank(subnetId)) {
             return null;
@@ -423,6 +423,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getInstanceCap() {
         return instanceCap;
+    }
+
+    public int getSpotBlockReservationDuration() {
+        if (spotConfig == null)
+            return 0;
+        return spotConfig.spotBlockReservationDuration;
+    }
+
+    public String getSpotBlockReservationDurationStr() {
+        if (spotConfig == null) {
+            return "";
+        } else {
+            int dur = getSpotBlockReservationDuration();
+            if (dur == 0)
+                return "";
+            return String.valueOf(getSpotBlockReservationDuration());
+        }
     }
 
     public String getInstanceCapStr() {
@@ -893,6 +910,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             spotRequest.setLaunchSpecification(launchSpecification);
 
+            if (getSpotBlockReservationDuration() != 0) {
+                spotRequest.setBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
+            }
+
             // Make the request for a new Spot instance
             RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
 
@@ -1262,6 +1283,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
+        }
+
+        /*
+         * Validate the Spot Block Duration to be between 0 & 6 hours as specified in the AWS API
+         */
+        public FormValidation doCheckSpotBlockReservationDurationStr(@QueryParameter String value) {
+            if (value == null || value.trim().isEmpty())
+                return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0 && val <= 6)
+                    return FormValidation.ok();
+            } catch (NumberFormatException nfe) {
+            }
+            return FormValidation.error("Spot Block Reservation Duration must be an integer between 0 & 6");
         }
 
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
