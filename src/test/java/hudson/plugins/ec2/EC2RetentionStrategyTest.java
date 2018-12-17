@@ -97,40 +97,34 @@ public class EC2RetentionStrategyTest {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
         List<Integer> usageCounts = new ArrayList<Integer>();
         List<Boolean> expected = new ArrayList<Boolean>();
-        // testing that for usage count of -1 -> terminate shall not be called
-        usageCounts.add(-1);
-        expected.add(false);
-        // testing that for usage count of 0 -> terminate shall be called immediatly
-        usageCounts.add(0);
-        expected.add(true);
-        // testing that for usage count of 1 -> terminate shall be called immediatly
-        usageCounts.add(1);
-        expected.add(true);
-        // testing that for usage count of 2 -> terminate shall not be called
-        usageCounts.add(2);
+        usageCounts.add(5);
         expected.add(false);
 
         for (int i = 0; i < usageCounts.size(); i++) {
             int usageCount = usageCounts.get(i);
-            EC2Computer computer = computerWithUsageLimit(usageCount);
-            Executor executor = new Executor(computer, 0);
-            rs.taskCompleted(executor, null, 0);
-            assertEquals("Expected " + usageCount + " to be " + expected.get(i), (boolean) expected.get(i), terminateCalled.get());
-            // reset the assumption
-            terminateCalled.set(false);
-        }
+            // We test usageCount down to -1 which is unlimited agent uses
+            while (--usageCount > -2 ) {
+                EC2Computer computer = computerWithUsageLimit(usageCount);
+                Executor executor = new Executor(computer, 0);
+                rs.taskAccepted(executor, null);
+                if (!computer.isAcceptingTasks()) {
+                    rs.taskCompleted(executor, null, 0);
+                }
+                // As we want to terminate agent both for usageCount 1 & 0 - setting this to true
+                if (usageCount == 1 || usageCount == 0) {
+                    assertEquals("Expected " + usageCount + " to be " + true, (boolean) true, terminateCalled.get());
+                    // Reset the assumption
+                    terminateCalled.set(false);
+                } else {
+                    assertEquals("Expected " + usageCount + " to be " + expected.get(i), (boolean) expected.get(i), terminateCalled.get());
+                }
+            }
 
-        // testing that for usage count of 2 -> terminate shall be called if 2 tasks are completed
-        EC2Computer computer = computerWithUsageLimit(2);
-        Executor executor = new Executor(computer, 0);
-        rs.taskCompleted(executor, null, 0);
-        assertFalse(terminateCalled.get());
-        rs.taskCompleted(executor, null, 0);
-        assertTrue(terminateCalled.get());
+        }
     }
 
     private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null, usageLimit) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "maxTotalUsesInstance", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null, usageLimit) {
             @Override
             public void terminate() {
                 terminateCalled.set(true);
