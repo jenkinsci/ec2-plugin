@@ -338,7 +338,6 @@ public abstract class EC2AbstractSlave extends Slave {
         } catch (InterruptedException e) {
             // We'll just retry next time we test for idleness.
             LOGGER.fine("InterruptedException while get " + instanceId + " Exception: " + e);
-            return;
         }
         return i;
     }
@@ -361,9 +360,9 @@ public abstract class EC2AbstractSlave extends Slave {
                 i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
                 LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId() + " info: "
                         + ((i != null) ? i : ""), e);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ie) {
                 // We'll just retry next time we test for idleness.
-                LOGGER.fine("InterruptedException while get " + getInstanceId() + " Exception: " + e);
+                LOGGER.fine("InterruptedException while get " + getInstanceId() + " Exception: " + ie);
                 return;
             }
         }
