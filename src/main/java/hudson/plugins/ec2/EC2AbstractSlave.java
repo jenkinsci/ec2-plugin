@@ -332,7 +332,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * @return instance in EC2.
      */
     public static Instance getInstance(String instanceId, EC2Cloud cloud) {
-        return CloudHelper.getInstance(instanceId, cloud);
+        return CloudHelper.getInstanceWithRetry(instanceId, cloud);
     }
     /**
      * Terminates the instance in EC2.
@@ -348,7 +348,7 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
             toComputer().disconnect(null);
         } catch (AmazonClientException e) {
-            Instance i = CloudHelper.getInstance(getInstanceId(), getCloud());
+            Instance i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId() + " info: "
                     + ((i != null) ? i : ""), e);
         }
