@@ -337,8 +337,7 @@ public abstract class EC2AbstractSlave extends Slave {
             i = CloudHelper.getInstanceWithRetry(instanceId, cloud);
         } catch (InterruptedException e) {
             // We'll just retry next time we test for idleness.
-            LOGGER.fine("InterruptedException while get " + getInstanceId()
-                    + " Exception: " + e);
+            LOGGER.fine("InterruptedException while get " + instanceId + " Exception: " + e);
             return;
         }
         return i;
