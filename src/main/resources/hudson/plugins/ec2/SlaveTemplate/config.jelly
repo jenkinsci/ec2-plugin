@@ -130,10 +130,6 @@ THE SOFTWARE.
        </f:repeatable>
     </f:entry>
 
-    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
-      <f:checkbox />
-    </f:entry>
-
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
@@ -162,8 +158,8 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
-    <f:entry title="${%Connect using Public IP}" field="connectUsingPublicIp">
-      <f:checkbox />
+    <f:entry title="${%Connection Strategy}" field="connectionStrategy">
+      <f:select default="${descriptor.getDefaultConnectionStrategy()}"/>
     </f:entry>
 
     <f:entry title="${%Connect by SSH Process}" field="connectBySSHProcess">
