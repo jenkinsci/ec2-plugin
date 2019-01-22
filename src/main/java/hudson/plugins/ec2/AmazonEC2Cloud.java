@@ -160,18 +160,27 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
+        public ListBoxModel doFillRegionItems(
+                @QueryParameter String altEC2Endpoint,
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId)
+
                 throws IOException, ServletException {
+
             ListBoxModel model = new ListBoxModel();
             if (testMode) {
                 model.add(DEFAULT_EC2_HOST);
                 return model;
             }
 
+            if (Util.fixEmpty(altEC2Endpoint) == null) {
+                altEC2Endpoint = DEFAULT_EC2_ENDPOINT;
+            }
+
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
                         credentialsId);
-                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+                AmazonEC2 client = connect(credentialsProvider, new URL(altEC2Endpoint));
                 DescribeRegionsResult regions = client.describeRegions();
                 List<Region> regionList = regions.getRegions();
                 for (Region r : regionList) {
