@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
+import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
@@ -36,6 +37,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
@@ -173,14 +175,10 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 return model;
             }
 
-            if (Util.fixEmpty(altEC2Endpoint) == null) {
-                altEC2Endpoint = DEFAULT_EC2_ENDPOINT;
-            }
-
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
                         credentialsId);
-                AmazonEC2 client = connect(credentialsProvider, new URL(altEC2Endpoint));
+                AmazonEC2 client = connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
                 DescribeRegionsResult regions = client.describeRegions();
                 List<Region> regionList = regions.getRegions();
                 for (Region r : regionList) {
@@ -191,6 +189,17 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 // Ignore, as this may happen before the credentials are specified
             }
             return model;
+        }
+
+        // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParamter field), or use the default
+        // value if not specified.
+        @VisibleForTesting
+        URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {
+            if (Util.fixEmpty(altEC2Endpoint) == null) {
+                return new URL(DEFAULT_EC2_ENDPOINT);
+            }
+
+            return new URL(altEC2Endpoint);
         }
 
         public FormValidation doTestConnection(
