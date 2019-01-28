@@ -96,6 +96,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
+    public int maxTotalUses;
     private String instanceType;
 
     // Temporary stuff that is obtained live from EC2
@@ -133,6 +134,11 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
+        this(name, instanceId, description, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, useDedicatedTenancy, launchTimeout, amiType, -1);
+    }
+
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, int maxTotalUses)
+            throws FormException, IOException {
 
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
@@ -155,6 +161,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
+        this.maxTotalUses = maxTotalUses;
         readResolve();
         fetchLiveInstanceData(true);
     }
