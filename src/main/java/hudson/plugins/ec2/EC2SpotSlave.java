@@ -27,7 +27,7 @@ import hudson.slaves.NodeProperty;
 
 import javax.annotation.CheckForNull;
 
-public final class EC2SpotSlave extends EC2AbstractSlave {
+public final class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
 
     private final String spotInstanceRequestId;
@@ -121,6 +121,10 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
     SpotInstanceRequest getSpotRequest() {
         AmazonEC2 ec2 = getCloud().connect();
 
+        if (this.spotInstanceRequestId == null) {
+            return null;
+        }
+
         DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
         try {
             DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
@@ -187,4 +191,17 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
                 + Messages.EC2SpotSlave_Spot2();
     }
 
+    @Override
+    public boolean isReady() {
+        return getInstanceId() != null;
+    }
+
+    @Override
+    public String getEc2ReadinessStatus() {
+        SpotInstanceRequest sr = getSpotRequest();
+        if (sr != null) {
+            return sr.getStatus().getMessage();
+        }
+        throw new AmazonClientException("No spot instance request");
+    }
 }
