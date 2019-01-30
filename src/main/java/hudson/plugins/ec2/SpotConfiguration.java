@@ -3,12 +3,14 @@ package hudson.plugins.ec2;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public final class SpotConfiguration {
-    public final Boolean useBidPrice;
+    public final boolean useBidPrice;
     public final String spotMaxBidPrice;
+    public final boolean fallbackToOndemand;
 
-    @DataBoundConstructor public SpotConfiguration(Boolean useBidPrice, String spotMaxBidPrice) {
+    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
+        this.fallbackToOndemand = fallbackToOndemand;
     }
 
     @Override public boolean equals(Object obj) {
@@ -17,7 +19,7 @@ public final class SpotConfiguration {
         }
         final SpotConfiguration config = (SpotConfiguration) obj;
 
-        return this.useBidPrice == config.useBidPrice
+        return this.useBidPrice == config.useBidPrice && this.fallbackToOndemand == config.fallbackToOndemand
                 && normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
     }
 
