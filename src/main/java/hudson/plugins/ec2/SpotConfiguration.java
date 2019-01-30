@@ -17,7 +17,8 @@ public final class SpotConfiguration {
         }
         final SpotConfiguration config = (SpotConfiguration) obj;
 
-        return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
+        return this.useBidPrice == config.useBidPrice
+                && normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
     }
 
     /**
@@ -33,11 +34,11 @@ public final class SpotConfiguration {
 
             /* The specified bid price cannot be less than 0.001 */
             if (spotPrice < 0.001) {
-                return null;
+                return "";
             }
             return spotPrice.toString();
         } catch (NumberFormatException ex) {
-            return null;
+            return "";
         }
 
     }
