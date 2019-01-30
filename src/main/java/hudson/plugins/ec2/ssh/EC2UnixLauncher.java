@@ -135,6 +135,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         Connection cleanupConn = null; // java's code path analysis for final
                                        // doesn't work that well.
         boolean successful = false;
+        KeyPair key = computer.getCloud().getKeyPair();
         PrintStream logger = listener.getLogger();
 
         if (computer.getNode() instanceof EC2Readiness) {
@@ -158,15 +159,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
         try {
-            boolean isBootstrapped = bootstrap(computer, listener);
+            boolean isBootstrapped = bootstrap(computer, listener, key);
             if (isBootstrapped) {
-                // connect fresh as ROOT
-                logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener);
-                KeyPair key = computer.getCloud().getKeyPair();
+                // connect fresh as user
+                logInfo(computer, listener, "connect fresh as " + computer.getRemoteAdmin());
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
-                    return; // failed to connect as root.
+                    return; // failed to connect as user.
                 }
             } else {
                 logWarning(computer, listener, "bootstrapresult failed");
@@ -297,7 +297,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener) throws IOException,
+    private boolean bootstrap(EC2Computer computer, TaskListener listener, KeyPair key) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
@@ -305,7 +305,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
             logInfo(computer, listener, "Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n"
                     + key.getKeyMaterial().substring(0, 160));
             while (tries-- > 0) {
@@ -347,6 +346,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for ssh to become available. (maximum timeout configured is "
                             + (timeout / 1000) + ")");
                 }
+
                 String host = getEC2HostAddress(computer);
 
                 if ("0.0.0.0".equals(host)) {
@@ -386,35 +386,35 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             } catch (IOException e) {
                 // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
-                logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
+                logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5 seconds.");
                 Thread.sleep(5000);
             }
         }
     }
 
     private String getEC2HostAddress(EC2Computer computer) throws InterruptedException {
-        Instance instance = computer.updateInstanceDescription();
+        Instance instance = computer.describeInstance();
         if (computer.getNode().usePrivateDnsName) {
             return instance.getPrivateDnsName();
-        } else {
-            String host = instance.getPublicDnsName();
-            // If we fail to get a public DNS name, try to get the public IP
-            // (but only if the plugin config let us use the public IP to
-            // connect to the slave).
-            if (StringUtils.isEmpty(host)) {
-                SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-                if (instance.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
-                    host = instance.getPublicIpAddress();
-                }
-            }
-            // If we fail to get a public DNS name or public IP, use the private
-            // IP.
-            if (StringUtils.isEmpty(host)) {
-                host = instance.getPrivateIpAddress();
-            }
-
-            return host;
         }
+      
+        String host = instance.getPublicDnsName();
+        // If we fail to get a public DNS name, try to get the public IP
+        // (but only if the plugin config let us use the public IP to
+        // connect to the slave).
+        if (StringUtils.isEmpty(host)) {
+            SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
+            if (instance.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
+                    host = instance.getPublicIpAddress();
+            }
+         }
+         // If we fail to get a public DNS name or public IP, use the private
+         // IP.
+         if (StringUtils.isEmpty(host)) {
+             host = instance.getPrivateIpAddress();
+         }
+
+         return host;
     }
 
     private int waitCompletion(Session session) throws InterruptedException {
