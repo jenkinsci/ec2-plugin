@@ -493,7 +493,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
-                return provisionSpot(number);
+                return provisionSpot(number, provisionOptions);
             return null;
         }
         return provisionOndemand(number, provisionOptions);
@@ -539,7 +539,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        return provisionOndemand(number, provisionOptions, false);
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice)
+            throws IOException {
         AmazonEC2 ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
@@ -547,6 +556,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
+
+        if (spotWithoutBidPrice) {
+            InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+            riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
+        }
 
         if (t2Unlimited){
             CreditSpecificationRequest creditRequest = new CreditSpecificationRequest();
@@ -836,7 +850,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provision a new slave for an EC2 spot instance to call back to Jenkins
      */
-    private List<EC2AbstractSlave> provisionSpot(int number) throws AmazonClientException, IOException {
+    private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        if (!spotConfig.useBidPrice) {
+            return provisionOndemand(1, provisionOptions, true);
+        }
+
         AmazonEC2 ec2 = getParent().connect();
 
         try {
