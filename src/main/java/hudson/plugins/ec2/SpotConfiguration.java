@@ -3,10 +3,10 @@ package hudson.plugins.ec2;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public final class SpotConfiguration {
-    public final Boolean useBidPrice;
+    public final boolean useBidPrice;
     public final String spotMaxBidPrice;
 
-    @DataBoundConstructor public SpotConfiguration(Boolean useBidPrice, String spotMaxBidPrice) {
+    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
     }
@@ -17,8 +17,12 @@ public final class SpotConfiguration {
         }
         final SpotConfiguration config = (SpotConfiguration) obj;
 
-        return this.useBidPrice == config.useBidPrice
-                && normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
+        String normalizedBid = normalizeBid(this.spotMaxBidPrice);
+        String otherNormalizedBid = normalizeBid(config.spotMaxBidPrice);
+        boolean normalizedBidsAreEqual =
+                normalizedBid == null ? (otherNormalizedBid == null) : normalizedBid.equals(otherNormalizedBid);
+
+        return this.useBidPrice == config.useBidPrice && normalizedBidsAreEqual;
     }
 
     /**
@@ -34,11 +38,11 @@ public final class SpotConfiguration {
 
             /* The specified bid price cannot be less than 0.001 */
             if (spotPrice < 0.001) {
-                return "";
+                return null;
             }
             return spotPrice.toString();
         } catch (NumberFormatException ex) {
-            return "";
+            return null;
         }
 
     }
