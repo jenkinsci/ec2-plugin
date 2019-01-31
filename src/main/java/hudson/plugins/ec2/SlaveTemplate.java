@@ -26,6 +26,8 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 
 import javax.servlet.ServletException;
 
@@ -118,7 +120,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private final List<EC2Tag> tags;
 
-    public final boolean usePrivateDnsName;
+    public ConnectionStrategy connectionStrategy;
 
     public final boolean associatePublicIp;
 
@@ -131,8 +133,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int launchTimeout;
 
     public boolean connectBySSHProcess;
-
-    public final boolean connectUsingPublicIp;
 
     public final int maxTotalUses;
 
@@ -159,15 +159,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public transient String slaveCommandSuffix;
 
+    @Deprecated
+    public transient boolean usePrivateDnsName;
+
+    @Deprecated
+    public transient boolean connectUsingPublicIp;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
-            boolean t2Unlimited, int maxTotalUses) {
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -198,14 +204,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.subnetId = subnetId;
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
-        this.usePrivateDnsName = usePrivateDnsName;
         this.associatePublicIp = associatePublicIp;
-        this.connectUsingPublicIp = connectUsingPublicIp;
+        this.connectionStrategy = connectionStrategy;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
         this.monitoring = monitoring;
         this.nextSubnet = 0;
+
+        this.usePrivateDnsName = connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
+        this.connectUsingPublicIp = connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -228,6 +236,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         readResolve(); // initialize
     }
 
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
+            boolean t2Unlimited) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+                monitoring, t2Unlimited, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp), -1);
+    }
+
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
@@ -238,8 +262,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, 
-                connectUsingPublicIp, false, false, -1);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+                connectUsingPublicIp, false, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -280,20 +304,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort),
                 jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
-    }
-
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
-            boolean t2Unlimited) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors,remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes,
-                usePrivateDnsName, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices, useDedicatedTenancy,
-                launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, connectUsingPublicIp, monitoring, t2Unlimited, -1);
     }
 
     public boolean isConnectBySSHProcess() {
@@ -373,7 +383,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getSlaveCommandSuffix() {
         return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
     }
-  
+
     public String chooseSubnetId() {
         if (StringUtils.isBlank(subnetId)) {
             return null;
@@ -401,6 +411,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return associatePublicIp;
     }
 
+    @Deprecated
     public boolean isConnectUsingPublicIp() {
         return connectUsingPublicIp;
     }
@@ -1039,16 +1050,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
-                tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
-                inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName,
-                useDedicatedTenancy, getLaunchTimeout(), amiType, maxTotalUses);
+        return new EC2OndemandSlave(inst.getInstanceId(), inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
+                tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
+                inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name,
+                useDedicatedTenancy, getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
         return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript,
-                tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
-                usePrivateDnsName, getLaunchTimeout(), amiType, maxTotalUses);
+                tmpDir, labels, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
+                getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
     }
 
     /**
@@ -1333,7 +1344,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
         }
-        
+
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -1475,6 +1486,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 return FormValidation.ok("The current Spot price for a " + type + " in the " + zoneStr + " is $" + cp);
             }
+        }
+
+        public String getDefaultConnectionStrategy() {
+            return ConnectionStrategy.PRIVATE_IP.toString();
+        }
+
+        public ListBoxModel doFillConnectionStrategyItems(@QueryParameter String connectionStrategy) {
+            return Stream.of(ConnectionStrategy.values())
+                    .map(v -> {
+                        if (v.toString().equals(connectionStrategy)) {
+                            return new ListBoxModel.Option(v.toString(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.toString(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doCheckConnectionStrategy(@QueryParameter String connectionStrategy) {
+            return Stream.of(ConnectionStrategy.values())
+                    .filter(v -> v.equalsName(connectionStrategy))
+                    .findFirst()
+                    .map(s -> FormValidation.ok())
+                    .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
     }
 

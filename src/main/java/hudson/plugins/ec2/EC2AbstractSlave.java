@@ -90,7 +90,6 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
-    public final boolean usePrivateDnsName;
     public final boolean useDedicatedTenancy;
     public boolean isConnected = false;
     public List<EC2Tag> tags;
@@ -121,8 +120,12 @@ public abstract class EC2AbstractSlave extends Slave {
     // Deprecated by the AMITypeData data structure
     @Deprecated
     protected transient int sshPort;
+
     @Deprecated
     public transient String rootCommandPrefix; // e.g. 'sudo'
+
+    @Deprecated
+    public transient boolean usePrivateDnsName;
 
     public transient String slaveCommandPrefix;
 
@@ -132,12 +135,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
-            throws FormException, IOException {
-        this(name, instanceId, description, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, useDedicatedTenancy, launchTimeout, amiType, -1);
-    }
-
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, int maxTotalUses)
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
         super(name, remoteFS, launcher);
@@ -156,7 +154,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
-        this.usePrivateDnsName = usePrivateDnsName;
+        this.usePrivateDnsName = connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
@@ -164,6 +162,12 @@ public abstract class EC2AbstractSlave extends Slave {
         this.maxTotalUses = maxTotalUses;
         readResolve();
         fetchLiveInstanceData(true);
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+            throws FormException, IOException {
+        this(name, instanceId, description, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @Override
@@ -522,7 +526,6 @@ public abstract class EC2AbstractSlave extends Slave {
         createdTime = i.getLaunchTime().getTime();
         instanceType = i.getInstanceType();
 
-
         /*
          * Only fetch tags from live instance if tags are set. This check is required to mitigate a race condition
          * when fetchLiveInstanceData() is called before pushLiveInstancedata().
@@ -632,6 +635,7 @@ public abstract class EC2AbstractSlave extends Slave {
         return createdTime;
     }
 
+    @Deprecated
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }

@@ -1,10 +1,12 @@
 package hudson.plugins.ec2.win;
 
+import com.google.common.net.HostAndPort;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.EC2ComputerLauncher;
+import hudson.plugins.ec2.EC2HostAddressProvider;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -112,36 +114,16 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for winrm to be connected");
                 }
                 Instance instance = computer.updateInstanceDescription();
-                String ip, host;
-
-                if (node.usePrivateDnsName) {
-                    host = instance.getPrivateDnsName();
-                    ip = instance.getPrivateIpAddress(); // SmbFile doesn't
-                                                         // quite work with
-                                                         // hostnames
-                } else {
-                    host = instance.getPublicDnsName();
-                    if (host == null || host.equals("")) {
-                        host = instance.getPrivateDnsName();
-                        ip = instance.getPrivateIpAddress(); // SmbFile doesn't
-                                                             // quite work with
-                                                             // hostnames
-                    } else {
-                        host = instance.getPublicDnsName();
-                        ip = instance.getPublicIpAddress(); // SmbFile doesn't
-                                                            // quite work with
-                                                            // hostnames
-                    }
-                }
+                String host = EC2HostAddressProvider.windows(instance, computer.getSlaveTemplate().connectionStrategy).getHostText();
 
                 if ("0.0.0.0".equals(host)) {
                     logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
                 }
 
-                logger.println("Connecting to " + host + "(" + ip + ") with WinRM as " + node.remoteAdmin);
+                logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.remoteAdmin);
 
-                WinConnection connection = new WinConnection(ip, node.remoteAdmin, node.getAdminPassword().getPlainText());
+                WinConnection connection = new WinConnection(host, node.remoteAdmin, node.getAdminPassword().getPlainText());
 
                 connection.setUseHTTPS(node.isUseHTTPS());
                 if (!connection.ping()) {

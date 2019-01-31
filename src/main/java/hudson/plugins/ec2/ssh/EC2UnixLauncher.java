@@ -28,12 +28,7 @@ import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
-import hudson.plugins.ec2.EC2AbstractSlave;
-import hudson.plugins.ec2.EC2Readiness;
-import hudson.plugins.ec2.EC2Cloud;
-import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.*;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
@@ -62,7 +57,6 @@ import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -394,27 +388,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private String getEC2HostAddress(EC2Computer computer) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
-        if (computer.getNode().usePrivateDnsName) {
-            return instance.getPrivateDnsName();
-        } else {
-            String host = instance.getPublicDnsName();
-            // If we fail to get a public DNS name, try to get the public IP
-            // (but only if the plugin config let us use the public IP to
-            // connect to the slave).
-            if (StringUtils.isEmpty(host)) {
-                SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-                if (instance.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
-                    host = instance.getPublicIpAddress();
-                }
-            }
-            // If we fail to get a public DNS name or public IP, use the private
-            // IP.
-            if (StringUtils.isEmpty(host)) {
-                host = instance.getPrivateIpAddress();
-            }
-
-            return host;
-        }
+        ConnectionStrategy strategy = computer.getSlaveTemplate().connectionStrategy;
+        return EC2HostAddressProvider.unix(instance, strategy);
     }
 
     private int waitCompletion(Session session) throws InterruptedException {
