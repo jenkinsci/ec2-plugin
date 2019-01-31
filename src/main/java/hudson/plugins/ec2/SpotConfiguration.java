@@ -5,10 +5,12 @@ import org.kohsuke.stapler.DataBoundConstructor;
 public final class SpotConfiguration {
     public final boolean useBidPrice;
     public final String spotMaxBidPrice;
+    public final boolean fallbackToOndemand;
 
-    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice) {
+    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
+        this.fallbackToOndemand = fallbackToOndemand;
     }
 
     @Override public boolean equals(Object obj) {
@@ -22,7 +24,8 @@ public final class SpotConfiguration {
         boolean normalizedBidsAreEqual =
                 normalizedBid == null ? (otherNormalizedBid == null) : normalizedBid.equals(otherNormalizedBid);
 
-        return this.useBidPrice == config.useBidPrice && normalizedBidsAreEqual;
+        return this.useBidPrice == config.useBidPrice && this.fallbackToOndemand == config.fallbackToOndemand
+                && normalizedBidsAreEqual;
     }
 
     /**

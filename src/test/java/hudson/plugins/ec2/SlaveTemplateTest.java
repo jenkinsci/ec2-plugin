@@ -121,7 +121,7 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SpotConfiguration spotConfig = new SpotConfiguration(true, ".05");
+        SpotConfiguration spotConfig = new SpotConfiguration(true, ".05", false);
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
@@ -151,7 +151,37 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SpotConfiguration spotConfig = new SpotConfiguration(false, "");
+        SpotConfiguration spotConfig = new SpotConfiguration(false, "", false);
+
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+    }
+
+    /**
+     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * has been set properly.
+     *
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
+    @Test public void testSpotConfigWithFallback() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SpotConfiguration spotConfig = new SpotConfiguration(true, "0.1", true);
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();

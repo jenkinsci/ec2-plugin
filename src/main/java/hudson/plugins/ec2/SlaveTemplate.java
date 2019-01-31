@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+
 import javax.servlet.ServletException;
 
 import hudson.util.Secret;
@@ -541,13 +542,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
-        return provisionOndemand(number, provisionOptions, false);
+        return provisionOndemand(number, provisionOptions, false, false);
     }
 
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice)
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
             throws IOException {
         AmazonEC2 ec2 = getParent().connect();
 
@@ -556,11 +557,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
-
-        if (spotWithoutBidPrice) {
-            InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
-            riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
-        }
 
         if (t2Unlimited){
             CreditSpecificationRequest creditRequest = new CreditSpecificationRequest();
@@ -676,8 +672,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
         riRequest.setTagSpecifications(tagSpecifications);
 
+        List<Instance> newInstances;
+        if (spotWithoutBidPrice) {
+            InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+            riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
+            try {
+                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            } catch (AmazonEC2Exception e) {
+                if (fallbackSpotToOndemand && e.getErrorCode().equals("InsufficientInstanceCapacity")) {
+                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                    riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
+                    newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+                } else {
+                    throw e;
+                }
+            }
+        } else {
+            newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+        }
         // Have to create a new instance
-        List<Instance> newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
 
         if (newInstances.isEmpty()) {
             logProvisionInfo("No new instances were created");
@@ -853,7 +866,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(1, provisionOptions, true);
+            return provisionOndemand(1, provisionOptions, true, spotConfig.fallbackToOndemand);
         }
 
         AmazonEC2 ec2 = getParent().connect();
@@ -958,6 +971,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     throw new AmazonClientException("Spot instance request is null");
                 }
                 String slaveName = spotInstReq.getSpotInstanceRequestId();
+
+                if (spotConfig.fallbackToOndemand) {
+                    for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
+                        LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
+                        Thread.sleep(5000);
+                        LOGGER.info("Fetching info about spot request " + slaveName);
+                        DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(slaveName);
+                        spotInstReq = ec2.describeSpotInstanceRequests(describeRequest).getSpotInstanceRequests().get(0);
+                    }
+
+                    List<String> spotRequestBadCodes = Arrays.asList("capacity-not-available", "capacity-oversubscribed", "price-too-low");
+                    if (spotRequestBadCodes.contains(spotInstReq.getStatus().getCode())) {
+                        LOGGER.info("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                        List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
+                        CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
+                        ec2.cancelSpotInstanceRequests(cancelRequest);
+                        return provisionOndemand(number, provisionOptions);
+                    }
+                }
 
                 // Now that we have our Spot request, we can set tags on it
                 updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
