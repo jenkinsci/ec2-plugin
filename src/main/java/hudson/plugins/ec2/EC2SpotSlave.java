@@ -27,22 +27,29 @@ import hudson.slaves.NodeProperty;
 
 import javax.annotation.CheckForNull;
 
-public final class EC2SpotSlave extends EC2AbstractSlave {
+public final class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
 
     private final String spotInstanceRequestId;
 
+    @Deprecated
+    public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
+            throws FormException, IOException {
+        this(name, spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType);
+    }
+
+    @Deprecated
     public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(description + " (" + name + ")", spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, launchTimeout, amiType);
+        this(description + " (" + name + ")", spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @DataBoundConstructor
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
+    public EC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
         super(name, "", description, remoteFS, numExecutors, mode, labelString, amiType.isWindows() ? new EC2WindowsLauncher() :
-                new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, false, idleTerminationMinutes, tags, cloudName, usePrivateDnsName, false, launchTimeout, amiType);
+                new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, false, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType, connectionStrategy, maxTotalUses);
 
         this.name = name;
         this.spotInstanceRequestId = spotInstanceRequestId;
@@ -115,6 +122,10 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
     SpotInstanceRequest getSpotRequest() {
         AmazonEC2 ec2 = getCloud().connect();
 
+        if (this.spotInstanceRequestId == null) {
+            return null;
+        }
+
         DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
         try {
             DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
@@ -181,4 +192,17 @@ public final class EC2SpotSlave extends EC2AbstractSlave {
                 + Messages.EC2SpotSlave_Spot2();
     }
 
+    @Override
+    public boolean isReady() {
+        return getInstanceId() != null;
+    }
+
+    @Override
+    public String getEc2ReadinessStatus() {
+        SpotInstanceRequest sr = getSpotRequest();
+        if (sr != null) {
+            return sr.getStatus().getMessage();
+        }
+        throw new AmazonClientException("No spot instance request");
+    }
 }

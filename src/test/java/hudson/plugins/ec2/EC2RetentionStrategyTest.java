@@ -2,6 +2,7 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import hudson.slaves.NodeProperty;
+import hudson.model.Executor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -12,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class EC2RetentionStrategyTest {
 
@@ -19,6 +21,7 @@ public class EC2RetentionStrategyTest {
     public JenkinsRule r = new JenkinsRule();
 
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
+    final AtomicBoolean terminateCalled = new AtomicBoolean(false);
 
     @Test
     public void testOnBillingHourRetention() throws Exception {
@@ -47,7 +50,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, false, Integer.MAX_VALUE, null) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             public void terminate() {
             }
@@ -78,7 +81,7 @@ public class EC2RetentionStrategyTest {
             public boolean isOffline() {
                 return false;
             }
-            
+
             @Override
             public InstanceState getState() {
                 return InstanceState.RUNNING;
@@ -86,6 +89,58 @@ public class EC2RetentionStrategyTest {
         };
         assertTrue(computer.isIdle());
         assertTrue(computer.isOnline());
+        return computer;
+    }
+
+    @Test
+    public void testOnUsageCountRetention() throws Exception {
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
+        List<Integer> usageCounts = new ArrayList<Integer>();
+        List<Boolean> expected = new ArrayList<Boolean>();
+        usageCounts.add(5);
+        expected.add(false);
+
+        for (int i = 0; i < usageCounts.size(); i++) {
+            int usageCount = usageCounts.get(i);
+            // We test usageCount down to -1 which is unlimited agent uses
+            while (--usageCount > -2 ) {
+                EC2Computer computer = computerWithUsageLimit(usageCount);
+                Executor executor = new Executor(computer, 0);
+                rs.taskAccepted(executor, null);
+                if (!computer.isAcceptingTasks()) {
+                    rs.taskCompleted(executor, null, 0);
+                }
+                // As we want to terminate agent both for usageCount 1 & 0 - setting this to true
+                if (usageCount == 1 || usageCount == 0) {
+                    assertEquals("Expected " + usageCount + " to be " + true, (boolean) true, terminateCalled.get());
+                    // Reset the assumption
+                    terminateCalled.set(false);
+                } else {
+                    assertEquals("Expected " + usageCount + " to be " + expected.get(i), (boolean) expected.get(i), terminateCalled.get());
+                }
+            }
+
+        }
+    }
+
+    private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
+            @Override
+            public void terminate() {
+                terminateCalled.set(true);
+            }
+
+            @Override
+            public String getEc2Type() {
+                return null;
+            }
+        };
+        EC2Computer computer = new EC2Computer(slave) {
+            @Override
+            public EC2AbstractSlave getNode() {
+                return slave;
+            }
+        };
         return computer;
     }
 }

@@ -28,6 +28,9 @@ import com.amazonaws.AmazonClientException;
 
 import hudson.init.InitMilestone;
 import hudson.model.Descriptor;
+import hudson.model.Executor;
+import hudson.model.ExecutorListener;
+import hudson.model.Queue;
 import hudson.slaves.RetentionStrategy;
 import jenkins.model.Jenkins;
 
@@ -44,7 +47,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
  *
  * @author Kohsuke Kawaguchi
  */
-public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
+public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> implements ExecutorListener {
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
 
     public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
@@ -202,5 +205,44 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> {
         checkLock = new ReentrantLock(false);
         return this;
     }
+
+    public void taskAccepted(Executor executor, Queue.Task task) {
+        EC2Computer computer = (EC2Computer) executor.getOwner();
+        EC2AbstractSlave slaveNode = computer.getNode();
+        int maxTotalUses = slaveNode.maxTotalUses;
+        if (maxTotalUses <= -1) {
+            LOGGER.fine("maxTotalUses set to unlimited (" + slaveNode.maxTotalUses + ") for agent " + slaveNode.instanceId);
+            return;
+        } else if (maxTotalUses <= 1) {
+            LOGGER.info("maxTotalUses drained - suspending agent " + slaveNode.instanceId);
+            computer.setAcceptingTasks(false);
+        } else {
+            slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
+            LOGGER.info("Agent " + slaveNode.instanceId + " has " + slaveNode.maxTotalUses + " builds left");
+        }
+    }
+
+    public void taskCompleted(Executor executor, Queue.Task task, long durationMS) {
+        postJobAction(executor);
+    }
+
+    public void taskCompletedWithProblems(Executor executor, Queue.Task task, long durationMS, Throwable problems) {
+        postJobAction(executor);
+    }
+
+    private void postJobAction(Executor executor) {
+        EC2Computer computer = (EC2Computer) executor.getOwner();
+        EC2AbstractSlave slaveNode = computer.getNode();
+        // At this point, if agent is in suspended state and has 1 last executer running, it is safe to terminate.
+        if (computer.countBusy() <= 1 && !computer.isAcceptingTasks()) {
+            LOGGER.info("Agent " + slaveNode.instanceId + " is terminated due to maxTotalUses (" + slaveNode.maxTotalUses + ")");
+            slaveNode.terminate();
+        } else {
+            if (slaveNode.maxTotalUses == 1) {
+                LOGGER.info("Agent " + slaveNode.instanceId + " is still in use by more than one (" + computer.countBusy() + ") executers.");
+            }
+        }
+    }
+
 
 }

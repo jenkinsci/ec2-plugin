@@ -59,12 +59,16 @@ THE SOFTWARE.
   </f:entry>
 
   <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName" />
-
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
-      <f:textbox />
+    <f:entry title="${%Fallback to on-demand instances}" >
+      <f:checkbox field="fallbackToOndemand" checked="${instance.spotConfig.fallbackToOndemand}" />
     </f:entry>
-
+    <f:optionalBlock name="useBidPrice" title="Set bid price" inline="true" checked="${h.defaultToTrue(instance.spotConfig.useBidPrice)}">
+      <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName" />
+      <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+        <f:textbox />
+      </f:entry>
+    </f:optionalBlock>
+    
     <f:entry title="${%Spot Block Reservation Duration}" field="spotBlockReservationDurationStr">
       <f:textbox />
     </f:entry>
@@ -134,10 +138,6 @@ THE SOFTWARE.
        </f:repeatable>
     </f:entry>
 
-    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
-      <f:checkbox />
-    </f:entry>
-
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
@@ -166,12 +166,16 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
-    <f:entry title="${%Connect using Public IP}" field="connectUsingPublicIp">
-      <f:checkbox />
+    <f:entry title="${%Connection Strategy}" field="connectionStrategy">
+      <f:select default="${descriptor.getDefaultConnectionStrategy()}"/>
     </f:entry>
 
     <f:entry title="${%Connect by SSH Process}" field="connectBySSHProcess">
       <f:checkbox />
+    </f:entry>
+
+    <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">
+      <f:textbox default="-1"/>
     </f:entry>
 
   </f:advanced>

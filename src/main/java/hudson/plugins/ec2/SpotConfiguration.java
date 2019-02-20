@@ -3,12 +3,15 @@ package hudson.plugins.ec2;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public final class SpotConfiguration {
+    public final boolean useBidPrice;
     public final String spotMaxBidPrice;
+    public final boolean fallbackToOndemand;
     public final int spotBlockReservationDuration;
 
-    @DataBoundConstructor
-    public SpotConfiguration(String spotMaxBidPrice, String spotBlockReservationDurationStr) {
+    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {
+        this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
+        this.fallbackToOndemand = fallbackToOndemand;
         if (null == spotBlockReservationDurationStr || spotBlockReservationDurationStr.isEmpty()) {
             this.spotBlockReservationDuration = 0;
         } else {
@@ -16,32 +19,30 @@ public final class SpotConfiguration {
         }
     }
 
-    /*
-     * Backwards compat with the unit tests
-     */
-    public SpotConfiguration(String spotMaxBidPrice) {
-        this(spotMaxBidPrice, null);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
+    @Override public boolean equals(Object obj) {
         if (obj == null || (this.getClass() != obj.getClass())) {
             return false;
         }
         final SpotConfiguration config = (SpotConfiguration) obj;
 
+        String normalizedBid = normalizeBid(this.spotMaxBidPrice);
+        String otherNormalizedBid = normalizeBid(config.spotMaxBidPrice);
+        boolean normalizedBidsAreEqual =
+                normalizedBid == null ? (otherNormalizedBid == null) : normalizedBid.equals(otherNormalizedBid);
+        boolean blockReservationIsEqual = true;
         if (this.spotBlockReservationDuration != config.spotBlockReservationDuration) {
-            return false;
+            blockReservationIsEqual = false;
         }
-        return normalizeBid(this.spotMaxBidPrice).equals(normalizeBid(config.spotMaxBidPrice));
+
+        return this.useBidPrice == config.useBidPrice && this.fallbackToOndemand == config.fallbackToOndemand
+                && normalizedBidsAreEqual && blockReservationIsEqual;
     }
 
     /**
      * Check if the specified value is a valid bid price to make a Spot request and return the normalized string for the
      * float of the specified bid Bids must be &gt;= .001
      *
-     * @param bid
-     *            - price to check
+     * @param bid - price to check
      * @return The normalized string for a Float if possible, otherwise null
      */
     public static String normalizeBid(String bid) {

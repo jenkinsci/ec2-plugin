@@ -28,11 +28,7 @@ import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
-import hudson.plugins.ec2.EC2AbstractSlave;
-import hudson.plugins.ec2.EC2Cloud;
-import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.*;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
@@ -61,7 +57,6 @@ import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -74,9 +69,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
     private static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
+    private static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
+    private static final String READINESS_TRIES= "jenkins.ec2.readinessTries";
 
     private static int bootstrapAuthSleepMs = 30000;
     private static int bootstrapAuthTries = 30;
+
+    private static int readinessSleepMs = 1000;
+    private static int readinessTries = 120;
 
     static  {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
@@ -85,6 +85,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         prop = System.getProperty(BOOTSTRAP_AUTH_TRIES);
         if (prop != null)
             bootstrapAuthTries = Integer.parseInt(prop);
+        prop = System.getProperty(READINESS_TRIES);
+        if (prop != null)
+            readinessTries = Integer.parseInt(prop);
+        prop = System.getProperty(READINESS_SLEEP_MS);
+        if (prop != null)
+            readinessSleepMs = Integer.parseInt(prop);
     }
 
     private final int FAILED = -1;
@@ -124,6 +130,25 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                                        // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
+
+        if (computer.getNode() instanceof EC2Readiness) {
+            EC2Readiness node = (EC2Readiness) computer.getNode();
+            int tries = readinessTries;
+
+            while (tries-- > 0) {
+                if (node.isReady()) {
+                    break;
+                }
+
+                logInfo(computer, listener, "Node still not ready. Current status: " + node.getEc2ReadinessStatus());
+                Thread.sleep(readinessSleepMs);
+            }
+
+            if (!node.isReady()) {
+                throw new AmazonClientException("Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000) + "s with status " + node.getEc2ReadinessStatus());
+            }
+        }
+
         logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
 
         try {
@@ -363,27 +388,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private String getEC2HostAddress(EC2Computer computer) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
-        if (computer.getNode().usePrivateDnsName) {
-            return instance.getPrivateDnsName();
-        } else {
-            String host = instance.getPublicDnsName();
-            // If we fail to get a public DNS name, try to get the public IP
-            // (but only if the plugin config let us use the public IP to
-            // connect to the slave).
-            if (StringUtils.isEmpty(host)) {
-                SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-                if (instance.getPublicIpAddress() != null && slaveTemplate.isConnectUsingPublicIp()) {
-                    host = instance.getPublicIpAddress();
-                }
-            }
-            // If we fail to get a public DNS name or public IP, use the private
-            // IP.
-            if (StringUtils.isEmpty(host)) {
-                host = instance.getPrivateIpAddress();
-            }
-
-            return host;
-        }
+        ConnectionStrategy strategy = computer.getSlaveTemplate().connectionStrategy;
+        return EC2HostAddressProvider.unix(instance, strategy);
     }
 
     private int waitCompletion(Session session) throws InterruptedException {

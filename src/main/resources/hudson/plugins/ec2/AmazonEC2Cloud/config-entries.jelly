@@ -28,6 +28,9 @@ THE SOFTWARE.
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
     <f:checkbox />
   </f:entry>
+  <f:entry title="${%Alternate EC2 Endpoint}" field="altEC2Endpoint" description="Used to populate the available regions dropdown. Only set this if you're using a different EC2 endpoint (i.e. operating in govcloud).">
+    <f:textbox />
+  </f:entry>
   <f:description>The regions will be populated once the keys above are entered.
   </f:description>
   <f:entry title="${%Region}" field="region">

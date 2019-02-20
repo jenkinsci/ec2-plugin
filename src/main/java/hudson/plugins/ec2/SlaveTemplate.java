@@ -25,6 +25,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 
 import javax.servlet.ServletException;
 
@@ -118,7 +121,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private final List<EC2Tag> tags;
 
-    public final boolean usePrivateDnsName;
+    public ConnectionStrategy connectionStrategy;
 
     public final boolean associatePublicIp;
 
@@ -132,7 +135,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean connectBySSHProcess;
 
-    public final boolean connectUsingPublicIp;
+    public final int maxTotalUses;
 
     public int nextSubnet;
 
@@ -157,15 +160,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public transient String slaveCommandSuffix;
 
+    @Deprecated
+    public transient boolean usePrivateDnsName;
+
+    @Deprecated
+    public transient boolean connectUsingPublicIp;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
-            boolean t2Unlimited) {
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -196,13 +205,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.subnetId = subnetId;
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
-        this.usePrivateDnsName = usePrivateDnsName;
         this.associatePublicIp = associatePublicIp;
-        this.connectUsingPublicIp = connectUsingPublicIp;
+        this.connectionStrategy = connectionStrategy;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
+        this.maxTotalUses = maxTotalUses;
         this.monitoring = monitoring;
         this.nextSubnet = 0;
+
+        this.usePrivateDnsName = connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
+        this.connectUsingPublicIp = connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -223,6 +235,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.t2Unlimited = t2Unlimited;
 
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
+            boolean t2Unlimited) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+                monitoring, t2Unlimited, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp), -1);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -384,6 +412,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return associatePublicIp;
     }
 
+    @Deprecated
     public boolean isConnectUsingPublicIp() {
         return connectUsingPublicIp;
     }
@@ -469,6 +498,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 '}';
     }
 
+    public int getmMaxTotalUses() {
+        return maxTotalUses;
+    }
+
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
     /**
@@ -479,7 +512,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
-                return provisionSpot(number);
+                return provisionSpot(number, provisionOptions);
             return null;
         }
         return provisionOndemand(number, provisionOptions);
@@ -525,7 +558,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        return provisionOndemand(number, provisionOptions, false, false);
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
+            throws IOException {
         AmazonEC2 ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
@@ -648,8 +690,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
         riRequest.setTagSpecifications(tagSpecifications);
 
+        List<Instance> newInstances;
+        if (spotWithoutBidPrice) {
+            InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+            riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
+            try {
+                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            } catch (AmazonEC2Exception e) {
+                if (fallbackSpotToOndemand && e.getErrorCode().equals("InsufficientInstanceCapacity")) {
+                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                    riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
+                    newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+                } else {
+                    throw e;
+                }
+            }
+        } else {
+            newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+        }
         // Have to create a new instance
-        List<Instance> newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
 
         if (newInstances.isEmpty()) {
             logProvisionInfo("No new instances were created");
@@ -822,7 +881,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provision a new slave for an EC2 spot instance to call back to Jenkins
      */
-    private List<EC2AbstractSlave> provisionSpot(int number) throws AmazonClientException, IOException {
+    private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        if (!spotConfig.useBidPrice) {
+            return provisionOndemand(1, provisionOptions, true, spotConfig.fallbackToOndemand);
+        }
+
         AmazonEC2 ec2 = getParent().connect();
 
         try {
@@ -930,6 +994,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
                 String slaveName = spotInstReq.getSpotInstanceRequestId();
 
+                if (spotConfig.fallbackToOndemand) {
+                    for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
+                        LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
+                        Thread.sleep(5000);
+                        LOGGER.info("Fetching info about spot request " + slaveName);
+                        DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(slaveName);
+                        spotInstReq = ec2.describeSpotInstanceRequests(describeRequest).getSpotInstanceRequests().get(0);
+                    }
+
+                    List<String> spotRequestBadCodes = Arrays.asList("capacity-not-available", "capacity-oversubscribed", "price-too-low");
+                    if (spotRequestBadCodes.contains(spotInstReq.getStatus().getCode())) {
+                        LOGGER.info("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                        List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
+                        CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
+                        ec2.cancelSpotInstanceRequests(cancelRequest);
+                        return provisionOndemand(number, provisionOptions);
+                    }
+                }
+
                 // Now that we have our Spot request, we can set tags on it
                 updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
 
@@ -989,16 +1072,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
-                tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
-                inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name, usePrivateDnsName,
-                useDedicatedTenancy, getLaunchTimeout(), amiType);
+        return new EC2OndemandSlave(inst.getInstanceId(), inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
+                tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
+                inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name,
+                useDedicatedTenancy, getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, String name) throws FormException, IOException {
         return new EC2SpotSlave(name, sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript,
-                tmpDir, labels, remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
-                usePrivateDnsName, getLaunchTimeout(), amiType);
+                tmpDir, labels, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
+                getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
     }
 
     /**
@@ -1274,6 +1357,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Idle Termination time must be a greater than -59 (or null)");
         }
 
+        public FormValidation doCheckMaxTotalUses(@QueryParameter String value) {
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= -1)
+                    return FormValidation.ok();
+            } catch (NumberFormatException nfe) {
+            }
+            return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
+        }
+
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -1430,6 +1523,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 return FormValidation.ok("The current Spot price for a " + type + " in the " + zoneStr + " is $" + cp);
             }
+        }
+
+        public String getDefaultConnectionStrategy() {
+            return ConnectionStrategy.PRIVATE_IP.toString();
+        }
+
+        public ListBoxModel doFillConnectionStrategyItems(@QueryParameter String connectionStrategy) {
+            return Stream.of(ConnectionStrategy.values())
+                    .map(v -> {
+                        if (v.toString().equals(connectionStrategy)) {
+                            return new ListBoxModel.Option(v.toString(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.toString(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doCheckConnectionStrategy(@QueryParameter String connectionStrategy) {
+            return Stream.of(ConnectionStrategy.values())
+                    .filter(v -> v.equalsName(connectionStrategy))
+                    .findFirst()
+                    .map(s -> FormValidation.ok())
+                    .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
     }
 
