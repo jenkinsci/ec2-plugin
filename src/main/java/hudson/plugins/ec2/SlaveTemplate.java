@@ -693,6 +693,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
             InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+            if (getSpotBlockReservationDuration() != 0) {
+                SpotMarketOptions spotOptions = new SpotMarketOptions().withBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
+                instanceMarketOptionsRequest.setSpotOptions(spotOptions);
+            }
             riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
             try {
                 newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
