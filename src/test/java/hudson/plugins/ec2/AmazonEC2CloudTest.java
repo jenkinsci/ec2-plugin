@@ -23,13 +23,16 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.slaves.Cloud;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.xml.sax.SAXException;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
@@ -45,9 +48,13 @@ public class AmazonEC2CloudTest {
     @Rule
     public JenkinsRule r = new JenkinsRule();
 
+    private AmazonEC2Cloud cloud;
+
     @Before
     public void setUp() throws Exception {
         AmazonEC2Cloud.testMode = true;
+        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
+        r.jenkins.clouds.add(cloud);
     }
 
     @After
@@ -55,14 +62,35 @@ public class AmazonEC2CloudTest {
         AmazonEC2Cloud.testMode = false;
     }
 
-    @After
+    @Test
     public void testConfigRoundtrip() throws Exception {
-        AmazonEC2Cloud orig = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
-        r.jenkins.clouds.add(orig);
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(getConfigForm());
+        r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "cloudName,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+    }
 
-        Cloud actual = r.jenkins.clouds.iterator().next();
-        r.assertEqualBeans(orig, actual, "cloudName,region,useInstanceProfileForCredentials,accessId,privateKey,instanceCap,roleArn,roleSessionName");
+    @Test
+    public void testPrivateKeyRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
+        HtmlForm form = getConfigForm();
+        HtmlTextInput input = form.getInputByName("_.cloudName");
+        input.setText("test-cloud-2");
+        r.submit(form);
+        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        assertEquals("test-cloud-2", actual.getCloudName());
+        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+    }
+
+    @Test
+    public void testPrivateKeyUpdate() throws Exception {
+        HtmlForm form = getConfigForm();
+        form.getOneHtmlElementByAttribute("input", "class", "secret-update-btn").click();
+        form.getTextAreaByName("_.privateKey").setText("new secret key");
+        r.submit(form);
+        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        assertEquals("new secret key", actual.getPrivateKey().getPrivateKey());
+    }
+
+    private HtmlForm getConfigForm() throws IOException, SAXException {
+        return r.createWebClient().goTo("configure").getFormByName("config");
     }
 
     /**
