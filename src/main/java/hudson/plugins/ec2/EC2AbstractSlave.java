@@ -154,7 +154,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
-        this.usePrivateDnsName = connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
+        this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
