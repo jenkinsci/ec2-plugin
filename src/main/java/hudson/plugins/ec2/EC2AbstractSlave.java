@@ -205,6 +205,10 @@ public abstract class EC2AbstractSlave extends Slave {
             return 2;
         case M3Medium:
             return 2;
+        case T3Nano:
+            return 2;
+        case T3Micro:
+            return 2;
         case T3Small:
             return 2;
         case T3Medium:
