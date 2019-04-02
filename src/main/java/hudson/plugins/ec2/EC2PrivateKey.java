@@ -34,6 +34,8 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 
 import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -52,6 +54,12 @@ public class EC2PrivateKey {
 
     public String getPrivateKey() {
         return privateKey.getPlainText();
+    }
+
+    @SuppressWarnings("unused") // used by config-entries.jelly
+    @Restricted(NoExternalUse.class)
+    public Secret getPrivateKeySecret() {
+        return privateKey;
     }
 
     /**

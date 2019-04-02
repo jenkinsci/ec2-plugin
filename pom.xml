@@ -150,6 +150,11 @@ THE SOFTWARE.
             <version>4.5.5-3.0</version>
         </dependency>
         <dependency>
+            <groupId>io.jenkins.temp.jelly</groupId>
+            <artifactId>multiline-secrets-ui</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.jenkins-ci.modules</groupId>
             <artifactId>instance-identity</artifactId>
             <version>2.2</version>
