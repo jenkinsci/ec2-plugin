@@ -339,11 +339,11 @@ public abstract class EC2Cloud extends Cloud {
             throw HttpResponses.error(SC_BAD_REQUEST, "No such template: " + template);
         }
 
-        final Jenkins instance = Jenkins.getInstance();
-        if (instance.isQuietingDown()) {
+        final Jenkins jenkinsInstance  = Jenkins.getInstance();
+        if (jenkinsInstance.isQuietingDown()) {
             throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is quieting down");
         }
-        if (instance.isTerminating()) {
+        if (jenkinsInstance.isTerminating()) {
             throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is terminating");
         }
         try {
@@ -356,7 +356,7 @@ public abstract class EC2Cloud extends Cloud {
             if (nodes.get(0).getStopOnTerminate() && c !=  null) {
                 c.connect(false);
             }
-            instance.addNode(nodes.get(0));
+            jenkinsInstance.addNode(nodes.get(0));
 
             return HttpResponses.redirectViaContextPath("/computer/" + nodes.get(0).getNodeName());
         } catch (AmazonClientException e) {
