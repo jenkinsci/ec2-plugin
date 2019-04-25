@@ -670,11 +670,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
         }
 
+        List<TagSpecification> tagList = new ArrayList<TagSpecification>();
         TagSpecification tagSpecification = new TagSpecification();
-        tagSpecification.setResourceType(ResourceType.Instance);
         tagSpecification.setTags(instTags);
-        Set<TagSpecification> tagSpecifications =  Collections.singleton(tagSpecification);
-        riRequest.setTagSpecifications(tagSpecifications);
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
+        riRequest.setTagSpecifications(tagList);
 
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
