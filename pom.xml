@@ -38,6 +38,7 @@ THE SOFTWARE.
     <packaging>hpi</packaging>
 
     <name>Amazon EC2 plugin</name>
+    <description>This is a Jenkins plugin to support ephemeral Jenkins agents on Amazon EC2 or other EC2-compatible clouds</description>
     <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
     <licenses>
         <license>
