@@ -34,6 +34,9 @@ import hudson.model.Queue;
 import hudson.slaves.RetentionStrategy;
 import jenkins.model.Jenkins;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -51,6 +54,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
 
     public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
+
+    private long nextCheckAfter = -1;
+    private Clock clock;
 
     /**
      * Number of minutes of idleness before an instance should be terminated. A value of zero indicates that the
@@ -81,6 +87,18 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
             this.idleTerminationMinutes = value;
         }
+        this.clock = Clock.systemUTC();
+    }
+
+
+    EC2RetentionStrategy(String idleTerminationMinutes, Clock clock, long nextCheckAfter) {
+        this(idleTerminationMinutes);
+        this.clock = clock;
+        this.nextCheckAfter = nextCheckAfter;
+    }
+
+    long getNextCheckAfter() {
+        return this.nextCheckAfter;
     }
 
     @Override
@@ -89,7 +107,15 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             return 1;
         } else {
             try {
-                return internalCheck(c);
+                long currentTime = this.clock.millis();
+
+                if (currentTime > nextCheckAfter) {
+                    long intervalMins = internalCheck(c);
+                    nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
+                    return intervalMins;
+                } else {
+                    return 1;
+                }
             } finally {
                 checkLock.unlock();
             }
@@ -124,7 +150,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 return 1;
             }
 
-            final long idleMilliseconds = System.currentTimeMillis() - computer.getIdleStartMilliseconds();
+            final long idleMilliseconds = this.clock.millis() - computer.getIdleStartMilliseconds();
 
             //Stopped instance restarted and Idletime has not be reset
             if ( uptime <  idleMilliseconds) {
