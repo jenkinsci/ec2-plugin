@@ -52,6 +52,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("Executing init script");
                 OutputStream init = connection.putFile(tmpDir + "init.bat");
                 init.write(initScript.getBytes("utf-8"));
+                init.close();
 
                 WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
                 IOUtils.copy(initProcess.getStdout(), logger);
@@ -64,11 +65,13 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
                 OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init");
                 initGuard.write("init ran".getBytes(StandardCharsets.UTF_8));
+                initGuard.close();
                 logger.println("init script ran successfully");
             }
 
             OutputStream agentJar = connection.putFile(tmpDir + AGENT_JAR);
             agentJar.write(Jenkins.getInstance().getJnlpJars(AGENT_JAR).readFully());
+            agentJar.close();
 
             logger.println("remoting.jar sent remotely. Bootstrapping it");
 

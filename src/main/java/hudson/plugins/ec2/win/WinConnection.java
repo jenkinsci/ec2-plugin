@@ -20,6 +20,7 @@ import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
+import com.hierynomus.mssmb2.SMB2CreateDisposition;
 
 import static java.util.regex.Pattern.quote;
 
@@ -77,16 +78,15 @@ public class WinConnection {
         Connection connection = smbclient.connect(host);
         Session session = connection.authenticate(authentication);
         DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
-        String filepath = path.substring(2);
-        return share.openFile(filepath, EnumSet.of(AccessMask.GENERIC_READ), null, EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ), null, null).getOutputStream();
+        return share.openFile(toFilePath(path), EnumSet.of(AccessMask.GENERIC_READ, AccessMask.GENERIC_WRITE), null, SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OVERWRITE_IF, null).getOutputStream();
+
     }
 
     public InputStream getFile(String path) throws IOException {
         Connection connection = smbclient.connect(host);
         Session session = connection.authenticate(authentication);
         DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
-        String filepath = path.substring(2);
-        return share.openFile(filepath, EnumSet.of(AccessMask.GENERIC_READ), null, EnumSet.of(SMB2ShareAccess.FILE_SHARE_WRITE), null, null).getInputStream();
+        return share.openFile(toFilePath(path), EnumSet.of(AccessMask.GENERIC_READ), null, SMB2ShareAccess.ALL, null, null).getInputStream();
     }
 
     public boolean exists(String path) throws IOException {
@@ -94,30 +94,17 @@ public class WinConnection {
         Session session = connection.authenticate(authentication);
         DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
         String filepath = path.substring(2);
-        return share.fileExists(filepath);
+        return share.fileExists(toFilePath(path));
     }
    
-    private String encodeForSmb(String path) {
-        if (!VALIDATE_WINDOWS_PATH.matcher(path).matches()) {
-            throw new IllegalArgumentException("Path '" + path + "' is not a valid windows path like C:\\Windows\\Temp");
-        }
-
-        StringBuilder smbUrl = new StringBuilder(smbURLPrefix());
-        smbUrl.append(toAdministrativeSharePath(path).replace('\\', '/'));
-        return smbUrl.toString();
-    }
-
-    private static String toAdministrativeSharePath(String path) {
+    private static String toAdministrativeShare(String path) {
         // administrative windows share are DRIVE$path like
         return path.substring(0, 1) + "$";
     }
 
-    private static String urlEncode(String value) {
-        try {
-            return URLEncoder.encode(value, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Invalid SMB URL", e);
-        }
+    private static String toFilePath(String path) {
+        //Strip drive and leading forward slash
+        return path.substring(3);
     }
 
     private static void setLogStreamLevel(int level) {
