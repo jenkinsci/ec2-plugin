@@ -90,7 +90,6 @@ public class WinConnection {
         Connection connection = smbclient.connect(host);
         Session session = connection.authenticate(authentication);
         DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
-        String filepath = path.substring(2);
         return share.fileExists(toFilePath(path));
     }
    
