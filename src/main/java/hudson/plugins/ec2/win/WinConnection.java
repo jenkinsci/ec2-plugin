@@ -11,10 +11,15 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URLEncoder;
 import java.util.regex.Pattern;
+import java.util.EnumSet;
 
-import jcifs.smb.NtlmPasswordAuthentication;
-import jcifs.smb.SmbFile;
-import jcifs.util.LogStream;
+import com.hierynomus.smbj.auth.AuthenticationContext;
+import com.hierynomus.smbj.SMBClient;
+import com.hierynomus.smbj.share.DiskShare;
+import com.hierynomus.smbj.connection.Connection;
+import com.hierynomus.smbj.session.Session;
+import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.mssmb2.SMB2ShareAccess;
 
 import static java.util.regex.Pattern.quote;
 
@@ -31,7 +36,8 @@ public class WinConnection {
     private final String username;
     private final String password;
 
-    private final NtlmPasswordAuthentication authentication;
+    private final SMBClient smbclient;
+    private final AuthenticationContext authentication;
 
     private boolean useHTTPS;
     private static final int TIMEOUT=8000; //8 seconds
@@ -40,7 +46,8 @@ public class WinConnection {
         this.host = host;
         this.username = username;
         this.password = password;
-        this.authentication = new NtlmPasswordAuthentication(null, username, password);
+        this.smbclient = new SMBClient();
+        this.authentication = new AuthenticationContext(username, password.toCharArray(), null);;
         if(log.isLoggable(Level.FINE)){
             setLogStreamLevel(6);
         }
@@ -67,18 +74,27 @@ public class WinConnection {
     }
 
     public OutputStream putFile(String path) throws IOException {
-        SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
-        return smbFile.getOutputStream();
+        Connection connection = smbclient.connect(host);
+        Session session = connection.authenticate(authentication);
+        DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
+        String filepath = path.substring(2);
+        return share.openFile(filepath, EnumSet.of(AccessMask.GENERIC_READ), null, EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ), null, null).getOutputStream();
     }
 
     public InputStream getFile(String path) throws IOException {
-        SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
-        return smbFile.getInputStream();
+        Connection connection = smbclient.connect(host);
+        Session session = connection.authenticate(authentication);
+        DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
+        String filepath = path.substring(2);
+        return share.openFile(filepath, EnumSet.of(AccessMask.GENERIC_READ), null, EnumSet.of(SMB2ShareAccess.FILE_SHARE_WRITE), null, null).getInputStream();
     }
 
     public boolean exists(String path) throws IOException {
-        SmbFile smbFile = new SmbFile(encodeForSmb(path), authentication);
-        return smbFile.exists();
+        Connection connection = smbclient.connect(host);
+        Session session = connection.authenticate(authentication);
+        DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
+        String filepath = path.substring(2);
+        return share.fileExists(filepath);
     }
    
     private String encodeForSmb(String path) {
@@ -93,22 +109,7 @@ public class WinConnection {
 
     private static String toAdministrativeSharePath(String path) {
         // administrative windows share are DRIVE$path like
-        return path.substring(0, 1) + "$" + path.substring(2);
-    }
-
-    private String smbURLPrefix() {
-        StringBuilder prefix = new StringBuilder();
-        prefix.append("smb://");
-        if (username != null) {
-            prefix.append(urlEncode(username.replaceFirst(quote("\\"), ";")))
-                    .append(':')
-                    .append(urlEncode(password))
-                    .append('@');
-        }
-        // port?
-        prefix.append(urlEncode(host));
-        prefix.append('/');
-        return prefix.toString();
+        return path.substring(0, 1) + "$";
     }
 
     private static String urlEncode(String value) {
@@ -130,8 +131,9 @@ public class WinConnection {
             socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
             socket.close();
             winrm().ping();
-            SmbFile test = new SmbFile(smbURLPrefix()+"IPC$", authentication);
-            test.connect();
+            Connection connection = smbclient.connect(host);
+            Session session = connection.authenticate(authentication);
+            session.connectShare("IPC$");;
             return true;
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
