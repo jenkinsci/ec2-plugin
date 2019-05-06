@@ -1243,7 +1243,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Override
         public String getDisplayName() {
-            return null;
+            return "";
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
@@ -1256,11 +1256,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         @Override
         public String getHelpFile(String fieldName) {
             String p = super.getHelpFile(fieldName);
-            if (p == null)
-                p = Jenkins.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
-            if (p == null)
-                p = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
-            return p;
+            if (p != null)
+                return p;
+            Descriptor slaveDescriptor = Jenkins.getInstance().getDescriptor(EC2OndemandSlave.class);
+            if (slaveDescriptor != null) {
+                p = slaveDescriptor.getHelpFile(fieldName);
+                if (p != null)
+                    return p;
+            }
+            slaveDescriptor = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class);
+            if (slaveDescriptor != null)
+                return slaveDescriptor.getHelpFile(fieldName);
+            return null;
         }
 
         @Restricted(NoExternalUse.class)
@@ -1324,19 +1331,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else {
                 ec2 = EC2Cloud.connect(credentialsProvider, new URL(ec2endpoint));
             }
-            if (ec2 != null) {
-                try {
-                    Image img = getAmiImage(ec2, ami);
-                    if (img == null) {
-                        return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
-                    }
-                    String ownerAlias = img.getImageOwnerAlias();
-                    return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
-                } catch (AmazonClientException e) {
-                    return FormValidation.error(e.getMessage());
+            try {
+                Image img = getAmiImage(ec2, ami);
+                if (img == null) {
+                    return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
                 }
-            } else
-                return FormValidation.ok(); // can't test
+                String ownerAlias = img.getImageOwnerAlias();
+                return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
+            } catch (AmazonClientException e) {
+                return FormValidation.error(e.getMessage());
+            }
         }
 
         public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
