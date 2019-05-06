@@ -116,7 +116,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     protected String buildUpCommand(EC2Computer computer, String command) {
-        if (!computer.getRemoteAdmin().equals("root")) {
+        String remoteAdmin = computer.getRemoteAdmin();
+        if (remoteAdmin != null && !remoteAdmin.equals("root")) {
             command = computer.getRootCommandPrefix() + " " + command;
         }
         return command;
@@ -130,26 +131,31 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                                        // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
+        EC2AbstractSlave node = computer.getNode();
 
-        if (computer.getNode() instanceof EC2Readiness) {
-            EC2Readiness node = (EC2Readiness) computer.getNode();
+        if(node == null) {
+            throw new IllegalStateException();
+        }
+
+        if (node instanceof EC2Readiness) {
+            EC2Readiness readinessNode = (EC2Readiness) node;
             int tries = readinessTries;
 
             while (tries-- > 0) {
-                if (node.isReady()) {
+                if (readinessNode.isReady()) {
                     break;
                 }
 
-                logInfo(computer, listener, "Node still not ready. Current status: " + node.getEc2ReadinessStatus());
+                logInfo(computer, listener, "Node still not ready. Current status: " + readinessNode.getEc2ReadinessStatus());
                 Thread.sleep(readinessSleepMs);
             }
 
-            if (!node.isReady()) {
-                throw new AmazonClientException("Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000) + "s with status " + node.getEc2ReadinessStatus());
+            if (!readinessNode.isReady()) {
+                throw new AmazonClientException("Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000) + "s with status " + readinessNode.getEc2ReadinessStatus());
             }
         }
 
-        logInfo(computer, listener, "Launching instance: " + computer.getNode().getInstanceId());
+        logInfo(computer, listener, "Launching instance: " + node.getInstanceId());
 
         try {
             boolean isBootstrapped = bootstrap(computer, listener);
@@ -169,9 +175,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             conn = cleanupConn;
 
             SCPClient scp = conn.createSCPClient();
-            String initScript = computer.getNode().initScript;
-            String tmpDir = (Util.fixEmptyAndTrim(computer.getNode().tmpDir) != null ? computer.getNode().tmpDir
-                    : "/tmp");
+            String initScript = node.initScript;
+            String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
             logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
             conn.exec("mkdir -p " + tmpDir, logger);
@@ -213,7 +218,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
             scp.put(Jenkins.getInstance().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
-            String jvmopts = computer.getNode().jvmopts;
+            String jvmopts = node.jvmopts;
             String prefix = computer.getSlaveCommandPrefix();
             String suffix = computer.getSlaveCommandSuffix();
             String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar" + suffix;
@@ -222,7 +227,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
 
             if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
-                EC2AbstractSlave node = computer.getNode();
                 File identityKeyFile = createIdentityKeyFile(computer);
 
                 try {
@@ -335,7 +339,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private Connection connectToSsh(EC2Computer computer, TaskListener listener) throws AmazonClientException,
             InterruptedException {
-        final long timeout = computer.getNode().getLaunchTimeoutInMillis();
+        final EC2AbstractSlave node = computer.getNode();
+        final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
         while (true) {
             try {

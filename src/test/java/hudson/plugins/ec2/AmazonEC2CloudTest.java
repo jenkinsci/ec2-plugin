@@ -52,14 +52,14 @@ public class AmazonEC2CloudTest {
 
     @Before
     public void setUp() throws Exception {
-        AmazonEC2Cloud.testMode = true;
+        AmazonEC2Cloud.setTestMode(true);
         cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
     }
 
     @After
     public void tearDown() throws Exception {
-        AmazonEC2Cloud.testMode = false;
+        AmazonEC2Cloud.setTestMode(false);
     }
 
     @Test

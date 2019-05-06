@@ -408,12 +408,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
         EC2AbstractSlave result = (EC2AbstractSlave) super.reconfigure(req, form);
 
-        /* Get rid of the old tags, as represented by ourselves. */
-        clearLiveInstancedata();
+        if (result != null) {
+            /* Get rid of the old tags, as represented by ourselves. */
+            clearLiveInstancedata();
 
-        /* Set the new tags, as represented by our successor */
-        result.pushLiveInstancedata();
-        return result;
+            /* Set the new tags, as represented by our successor */
+            result.pushLiveInstancedata();
+            return result;
+        }
+        return null;
     }
 
     void idleTimeout() {
@@ -667,7 +670,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
-        if (AmazonEC2Cloud.testMode) {
+        if (AmazonEC2Cloud.isTestMode()) {
             model.add(TEST_ZONE);
             return model;
         }

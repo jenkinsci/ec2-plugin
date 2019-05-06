@@ -66,7 +66,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
     // Used when running unit tests
-    public static boolean testMode;
+    private static boolean testMode = false;
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
@@ -132,6 +132,14 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @Override
     protected AWSCredentialsProvider createCredentialsProvider() {
         return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getRegion());
+    }
+
+    public static void setTestMode(boolean newTestMode) {
+        testMode = newTestMode;
+    }
+
+    public static boolean isTestMode() {
+        return testMode;
     }
 
     @Extension

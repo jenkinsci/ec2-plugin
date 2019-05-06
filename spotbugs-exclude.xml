@@ -1,20 +1,2 @@
 <FindBugsFilter>
-    <Match>
-        <Class name="hudson.plugins.ec2.AmazonEC2Cloud"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.ssh.EC2UnixLauncher"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.SlaveTemplate"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2AbstractSlave"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2Computer"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2ComputerLauncher"/>
-    </Match>
 </FindBugsFilter>

@@ -774,17 +774,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
             // get the root device (only one expected in the blockmappings)
             final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
-            BlockDeviceMapping rootMapping = null;
-            for (final BlockDeviceMapping deviceMapping : rootDeviceMappings) {
-                System.out.println("AMI had " + deviceMapping.getDeviceName());
-                System.out.println(deviceMapping.getEbs());
-                rootMapping = deviceMapping;
-                break;
+            if (rootDeviceMappings.size() == 0) {
+                LOGGER.warning("AMI missing block devices");
+                return;
             }
+            BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
+            LOGGER.info("AMI had " + rootMapping.getDeviceName());
+            LOGGER.info(rootMapping.getEbs().toString());
 
             // Check if the root device is already in the mapping and update it
             for (final BlockDeviceMapping mapping : deviceMappings) {
-                System.out.println("Request had " + mapping.getDeviceName());
+                LOGGER.info("Request had " + mapping.getDeviceName());
                 if (rootMapping.getDeviceName().equals(mapping.getDeviceName())) {
                     mapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
                     return;
