@@ -376,7 +376,10 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
             LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
-            toComputer().disconnect(null);
+            Computer computer = toComputer();
+            if (computer != null) {
+                computer.disconnect(null);
+            }
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
         }

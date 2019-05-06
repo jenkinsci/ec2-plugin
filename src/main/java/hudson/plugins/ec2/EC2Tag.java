@@ -30,6 +30,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.Objects;
+
 
 import com.amazonaws.services.ec2.model.Tag;
 
@@ -82,6 +84,11 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
             return false;
 
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, value);
     }
 
     @Extension

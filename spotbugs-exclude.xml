@@ -41,19 +41,4 @@
     <Match>
         <Class name="hudson.plugins.ec2.EC2Step$Execution"/>
     </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2RetentionStrategy"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2SlaveMonitor"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2Tag"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.EC2SpotSlave"/>
-    </Match>
-    <Match>
-        <Class name="hudson.plugins.ec2.SpotConfiguration"/>
-    </Match>
 </FindBugsFilter>

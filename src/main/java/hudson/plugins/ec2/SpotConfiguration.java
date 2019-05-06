@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import java.util.Objects;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public final class SpotConfiguration {
@@ -26,6 +27,10 @@ public final class SpotConfiguration {
 
         return this.useBidPrice == config.useBidPrice && this.fallbackToOndemand == config.fallbackToOndemand
                 && normalizedBidsAreEqual;
+    }
+
+    @Override public int hashCode() {
+        return Objects.hash(useBidPrice, spotMaxBidPrice, fallbackToOndemand);
     }
 
     /**

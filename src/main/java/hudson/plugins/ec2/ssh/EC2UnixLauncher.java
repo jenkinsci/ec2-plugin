@@ -233,7 +233,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
                     commandLauncher.launch(computer, listener);
                 } finally {
-                    identityKeyFile.delete();
+                    if(!identityKeyFile.delete()) {
+                        LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+                    }
                 }
             } else {
                 logInfo(computer, listener, "Launching remoting agent (via Trilead SSH2 Connection): " + launchString);
@@ -286,7 +288,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             filePath.chmod(0400); // octal file mask - readonly by owner
             return tempFile;
         } catch (Exception e) {
-            tempFile.delete();
+            if (!tempFile.delete()) {
+                LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+            }
             throw new IOException("Error creating temporary identity key file for connecting to EC2 agent.", e);
         }
     }

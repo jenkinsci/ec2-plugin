@@ -168,7 +168,10 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) +
                             " idle minutes, instance status"+state.toString());
-                    computer.getNode().idleTimeout();
+                    EC2AbstractSlave slaveNode = computer.getNode();
+                    if (slaveNode != null) {
+                        slaveNode.idleTimeout();
+                    }
                 }
             } else {
                 final int freeSecondsLeft = (60 * 60)
@@ -181,7 +184,10 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
                             + TimeUnit.SECONDS.toMinutes(freeSecondsLeft)
                             + " minutes remaining in billing period");
-                    computer.getNode().idleTimeout();
+                    EC2AbstractSlave slaveNode = computer.getNode();
+                    if (slaveNode != null) {
+                        slaveNode.idleTimeout();
+                    }
                 }
             }
         }
@@ -234,17 +240,21 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     public void taskAccepted(Executor executor, Queue.Task task) {
         EC2Computer computer = (EC2Computer) executor.getOwner();
-        EC2AbstractSlave slaveNode = computer.getNode();
-        int maxTotalUses = slaveNode.maxTotalUses;
-        if (maxTotalUses <= -1) {
-            LOGGER.fine("maxTotalUses set to unlimited (" + slaveNode.maxTotalUses + ") for agent " + slaveNode.instanceId);
-            return;
-        } else if (maxTotalUses <= 1) {
-            LOGGER.info("maxTotalUses drained - suspending agent " + slaveNode.instanceId);
-            computer.setAcceptingTasks(false);
-        } else {
-            slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
-            LOGGER.info("Agent " + slaveNode.instanceId + " has " + slaveNode.maxTotalUses + " builds left");
+        if (computer != null) {
+            EC2AbstractSlave slaveNode = computer.getNode();
+            if (slaveNode != null) {
+                int maxTotalUses = slaveNode.maxTotalUses;
+                if (maxTotalUses <= -1) {
+                    LOGGER.fine("maxTotalUses set to unlimited (" + slaveNode.maxTotalUses + ") for agent " + slaveNode.instanceId);
+                    return;
+                } else if (maxTotalUses <= 1) {
+                    LOGGER.info("maxTotalUses drained - suspending agent " + slaveNode.instanceId);
+                    computer.setAcceptingTasks(false);
+                } else {
+                    slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
+                    LOGGER.info("Agent " + slaveNode.instanceId + " has " + slaveNode.maxTotalUses + " builds left");
+                }
+            }
         }
     }
 
@@ -258,17 +268,19 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     private void postJobAction(Executor executor) {
         EC2Computer computer = (EC2Computer) executor.getOwner();
-        EC2AbstractSlave slaveNode = computer.getNode();
-        // At this point, if agent is in suspended state and has 1 last executer running, it is safe to terminate.
-        if (computer.countBusy() <= 1 && !computer.isAcceptingTasks()) {
-            LOGGER.info("Agent " + slaveNode.instanceId + " is terminated due to maxTotalUses (" + slaveNode.maxTotalUses + ")");
-            slaveNode.terminate();
-        } else {
-            if (slaveNode.maxTotalUses == 1) {
-                LOGGER.info("Agent " + slaveNode.instanceId + " is still in use by more than one (" + computer.countBusy() + ") executers.");
+        if (computer != null) {
+            EC2AbstractSlave slaveNode = computer.getNode();
+            if (slaveNode != null) {
+                // At this point, if agent is in suspended state and has 1 last executer running, it is safe to terminate.
+                if (computer.countBusy() <= 1 && !computer.isAcceptingTasks()) {
+                    LOGGER.info("Agent " + slaveNode.instanceId + " is terminated due to maxTotalUses (" + slaveNode.maxTotalUses + ")");
+                    slaveNode.terminate();
+                } else {
+                    if (slaveNode.maxTotalUses == 1) {
+                        LOGGER.info("Agent " + slaveNode.instanceId + " is still in use by more than one (" + computer.countBusy() + ") executers.");
+                    }
+                }
             }
         }
     }
-
-
 }

@@ -187,9 +187,13 @@ public final class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness
 
     @Override
     public String getEc2Type() {
-        String spotMaxBidPrice = this.getSpotRequest().getSpotPrice();
-        return Messages.EC2SpotSlave_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
-                + Messages.EC2SpotSlave_Spot2();
+        SpotInstanceRequest spotRequest = getSpotRequest();
+        if (spotRequest != null) {
+            String spotMaxBidPrice = spotRequest.getSpotPrice();
+            return Messages.EC2SpotSlave_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
+                    + Messages.EC2SpotSlave_Spot2();
+        }
+        return null;
     }
 
     @Override

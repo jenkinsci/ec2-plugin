@@ -148,8 +148,9 @@ public class EC2Computer extends SlaveComputer {
     @Override
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
-        if (getNode() != null)
-            getNode().terminate();
+        EC2AbstractSlave node = getNode();
+        if (node != null)
+            node.terminate();
         return new HttpRedirect("..");
     }
 
