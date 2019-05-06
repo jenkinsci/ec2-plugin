@@ -49,9 +49,6 @@ public class WinConnection {
         this.password = password;
         this.smbclient = new SMBClient();
         this.authentication = new AuthenticationContext(username, password.toCharArray(), null);;
-        if(log.isLoggable(Level.FINE)){
-            setLogStreamLevel(6);
-        }
     }
 
     public WinRM winrm() {
@@ -105,10 +102,6 @@ public class WinConnection {
     private static String toFilePath(String path) {
         //Strip drive and leading forward slash
         return path.substring(3);
-    }
-
-    private static void setLogStreamLevel(int level) {
-        LogStream.level = level;
     }
 
     public boolean ping() {
