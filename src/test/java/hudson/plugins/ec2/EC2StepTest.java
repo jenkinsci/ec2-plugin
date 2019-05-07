@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 /**
  * @author Alicia Doblas
  */
-@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*"})
+@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*", "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({EC2AbstractSlave.class, SlaveTemplate.class})
 public class EC2StepTest {
