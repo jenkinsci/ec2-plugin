@@ -48,7 +48,7 @@ public class WinConnection {
         this.username = username;
         this.password = password;
         this.smbclient = new SMBClient();
-        this.authentication = new AuthenticationContext(username, password.toCharArray(), null);;
+        this.authentication = new AuthenticationContext(username, password.toCharArray(), null);
     }
 
     public WinRM winrm() {
@@ -113,7 +113,7 @@ public class WinConnection {
             winrm().ping();
             Connection connection = smbclient.connect(host);
             Session session = connection.authenticate(authentication);
-            session.connectShare("IPC$");;
+            session.connectShare("IPC$");
             return true;
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
