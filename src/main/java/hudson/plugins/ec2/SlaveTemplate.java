@@ -134,7 +134,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean connectBySSHProcess;
 
-    public final int maxTotalUses;
+    public int maxTotalUses;
 
     public int nextSubnet;
 
@@ -1192,6 +1192,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (amiType == null) {
             amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort);
         }
+        
+         // 1.43 new parameters
+        if (connectionStrategy == null )  {
+            connectionStrategy = ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
+        }
+
+        if (maxTotalUses == 0) {
+            maxTotalUses = -1;
+        }
+        
         return this;
     }
 
