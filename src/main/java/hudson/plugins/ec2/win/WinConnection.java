@@ -71,26 +71,32 @@ public class WinConnection {
         return winrm(timeout).execute(commandLine);
     }
 
-    public OutputStream putFile(String path) throws IOException {
+    private DiskShare getSmbShare(String path) throws IOException {
         Connection connection = smbclient.connect(host);
         Session session = connection.authenticate(authentication);
-        DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
-        return share.openFile(toFilePath(path), EnumSet.of(AccessMask.GENERIC_READ, AccessMask.GENERIC_WRITE), null, SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OVERWRITE_IF, null).getOutputStream();
+        return (DiskShare) session.connectShare(toAdministrativeShare(path));
+    }
 
+    public OutputStream putFile(String path) throws IOException {
+        return getSmbShare(path).openFile(toFilePath(path),
+                                            EnumSet.of(AccessMask.GENERIC_READ, 
+                                            AccessMask.GENERIC_WRITE), 
+                                            null, 
+                                            SMB2ShareAccess.ALL, 
+                                            SMB2CreateDisposition.FILE_OVERWRITE_IF, 
+                                            null).getOutputStream();
     }
 
     public InputStream getFile(String path) throws IOException {
-        Connection connection = smbclient.connect(host);
-        Session session = connection.authenticate(authentication);
-        DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
-        return share.openFile(toFilePath(path), EnumSet.of(AccessMask.GENERIC_READ), null, SMB2ShareAccess.ALL, null, null).getInputStream();
+        return getSmbShare(path).openFile(toFilePath(path),
+                                            EnumSet.of(AccessMask.GENERIC_READ),
+                                            null, SMB2ShareAccess.ALL,
+                                            null,
+                                            null).getInputStream();
     }
 
     public boolean exists(String path) throws IOException {
-        Connection connection = smbclient.connect(host);
-        Session session = connection.authenticate(authentication);
-        DiskShare share = (DiskShare) session.connectShare(toAdministrativeShare(path));
-        return share.fileExists(toFilePath(path));
+        return getSmbShare(path).fileExists(toFilePath(path));
     }
    
     private static String toAdministrativeShare(String path) {
@@ -126,5 +132,4 @@ public class WinConnection {
     public void setUseHTTPS(boolean useHTTPS) {
         this.useHTTPS = useHTTPS;
     }
-
 }
