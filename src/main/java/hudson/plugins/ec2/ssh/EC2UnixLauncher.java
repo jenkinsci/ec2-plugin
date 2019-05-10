@@ -210,13 +210,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
             // Always copy so we get the most recent slave.jar
-            logInfo(computer, listener, "Copying slave.jar to: " + tmpDir);
-            scp.put(Jenkins.getInstance().getJnlpJars("slave.jar").readFully(), "slave.jar", tmpDir);
+            logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+            scp.put(Jenkins.getInstance().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
             String jvmopts = computer.getNode().jvmopts;
             String prefix = computer.getSlaveCommandPrefix();
             String suffix = computer.getSlaveCommandSuffix();
-            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/slave.jar" + suffix;
+            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar" + suffix;
            // launchString = launchString.trim();
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
@@ -229,14 +229,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     // Obviously the master must have an installed ssh client.
                     String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer), node.getSshPort(), launchString);
 
-                    logInfo(computer, listener, "Launching slave agent (via SSH client process): " + sshClientLaunchString);
+                    logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
                     commandLauncher.launch(computer, listener);
                 } finally {
                     identityKeyFile.delete();
                 }
             } else {
-                logInfo(computer, listener, "Launching slave agent (via Trilead SSH2 Connection): " + launchString);
+                logInfo(computer, listener, "Launching remoting agent (via Trilead SSH2 Connection): " + launchString);
                 final Session sess = conn.openSession();
                 sess.execCommand(launchString);
                 computer.setChannel(sess.getStdout(), sess.getStdin(), logger, new Listener() {
@@ -287,7 +287,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             return tempFile;
         } catch (Exception e) {
             tempFile.delete();
-            throw new IOException("Error creating temporary identity key file for connecting to EC2 slave.", e);
+            throw new IOException("Error creating temporary identity key file for connecting to EC2 agent.", e);
         }
     }
 
