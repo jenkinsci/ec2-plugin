@@ -1469,12 +1469,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     if (ec2Type == null) {
                         return FormValidation.error("Could not resolve instance type: " + type);
                     }
-
-                    Image img = getAmiImage(ec2, ami);
-                    if (img != null) {
-                        Collection<String> productDescriptions = new ArrayList<String>();
-                        productDescriptions.add(img.getPlatfomr() == "Windows" ? "Windows" : "Linux/UNIX");
-                        request.setProductDescriptions(productDescriptions);
+                    
+                    if (!ami.isEmpty()) {
+                        Image img = getAmiImage(ec2, ami);
+                        if (img != null) {
+                            Collection<String> productDescriptions = new ArrayList<String>();
+                            productDescriptions.add(img.getPlatform() == "Windows" ? "Windows" : "Linux/UNIX");
+                            request.setProductDescriptions(productDescriptions);
+                        }
                     }
 
                     Collection<String> instanceType = new ArrayList<String>();
