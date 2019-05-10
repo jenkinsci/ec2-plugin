@@ -1289,6 +1289,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
+        private Image getAmiImage(AmazonEC2 ec2, String ami) {
+            List<String> images = new LinkedList<String>();
+            images.add(ami);
+            List<String> owners = new LinkedList<String>();
+            List<String> users = new LinkedList<String>();
+            DescribeImagesRequest request = new DescribeImagesRequest();
+            request.setImageIds(images);
+            request.setOwners(owners);
+            request.setExecutableUsers(users);
+            List<Image> img = ec2.describeImages(request).getImages();
+            if (img == null || img.isEmpty()) {
+                // de-registered AMI causes an empty list to be
+                // returned. so be defensive
+                // against other possibilities
+                return null;
+            } else {
+                return img.get(0);
+            }
+        }
+
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
@@ -1305,23 +1325,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             if (ec2 != null) {
                 try {
-                    List<String> images = new LinkedList<String>();
-                    images.add(ami);
-                    List<String> owners = new LinkedList<String>();
-                    List<String> users = new LinkedList<String>();
-                    DescribeImagesRequest request = new DescribeImagesRequest();
-                    request.setImageIds(images);
-                    request.setOwners(owners);
-                    request.setExecutableUsers(users);
-                    List<Image> img = ec2.describeImages(request).getImages();
-                    if (img == null || img.isEmpty()) {
-                        // de-registered AMI causes an empty list to be
-                        // returned. so be defensive
-                        // against other possibilities
+                    Image img = getAmiImage(ec2, ami);
+                    if (img == null) {
                         return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
                     }
-                    String ownerAlias = img.get(0).getImageOwnerAlias();
-                    return FormValidation.ok(img.get(0).getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
+                    String ownerAlias = img.getImageOwnerAlias();
+                    return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
                 } catch (AmazonClientException e) {
                     return FormValidation.error(e.getMessage());
                 }
@@ -1422,7 +1431,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName) throws IOException, ServletException {
+                @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
 
             String cp = "";
             String zoneStr = "";
@@ -1469,6 +1478,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                      */
                     if (ec2Type == null) {
                         return FormValidation.error("Could not resolve instance type: " + type);
+                    }
+                    
+                    if (!ami.isEmpty()) {
+                        Image img = getAmiImage(ec2, ami);
+                        if (img != null) {
+                            Collection<String> productDescriptions = new ArrayList<String>();
+                            productDescriptions.add(img.getPlatform() == "Windows" ? "Windows" : "Linux/UNIX");
+                            request.setProductDescriptions(productDescriptions);
+                        }
                     }
 
                     Collection<String> instanceType = new ArrayList<String>();

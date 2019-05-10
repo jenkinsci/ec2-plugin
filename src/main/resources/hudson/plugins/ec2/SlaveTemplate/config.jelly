@@ -63,7 +63,7 @@ THE SOFTWARE.
       <f:checkbox field="fallbackToOndemand" checked="${instance.spotConfig.fallbackToOndemand}" />
     </f:entry>
     <f:optionalBlock name="useBidPrice" title="Set bid price" inline="true" checked="${h.defaultToTrue(instance.spotConfig.useBidPrice)}">
-      <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName" />
+      <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName,ami" />
       <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
         <f:textbox />
       </f:entry>
