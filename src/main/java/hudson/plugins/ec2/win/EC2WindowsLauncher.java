@@ -73,8 +73,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
             logger.println("remoting.jar sent remotely. Bootstrapping it");
 
             final String jvmopts = node.jvmopts;
+            final String remoteFS = node.getRemoteFS();
             final WindowsProcess process = connection.execute("java " + (jvmopts != null ? jvmopts : "") + " -jar "
-                    + tmpDir + AGENT_JAR, 86400);
+                    + tmpDir + AGENT_JAR + " -workDir " + remoteFS, 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
                 public void onClosed(Channel channel, IOException cause) {

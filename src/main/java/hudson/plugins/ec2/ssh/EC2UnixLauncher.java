@@ -218,10 +218,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
             scp.put(Jenkins.getInstance().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
-            String jvmopts = node.jvmopts;
-            String prefix = computer.getSlaveCommandPrefix();
-            String suffix = computer.getSlaveCommandSuffix();
-            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar" + suffix;
+            final String jvmopts = node.jvmopts;
+            final String prefix = computer.getSlaveCommandPrefix();
+            final String suffix = computer.getSlaveCommandSuffix();
+            final String remoteFS = computer.getNode().getRemoteFS();
+            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + remoteFS + suffix;
            // launchString = launchString.trim();
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
