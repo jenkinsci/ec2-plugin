@@ -7,6 +7,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -22,26 +26,27 @@ public class EC2RetentionStrategyTest {
 
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
     final AtomicBoolean terminateCalled = new AtomicBoolean(false);
+    private static ZoneId zoneId = ZoneId.systemDefault();
 
     @Test
     public void testOnBillingHourRetention() throws Exception {
-        EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         List<int[]> upTime = new ArrayList<int[]>();
         List<Boolean> expected = new ArrayList<Boolean>();
         upTime.add(new int[] { 58, 0 });
         expected.add(true);
         upTime.add(new int[] { 57, 59 });
         expected.add(false);
-        upTime.add(new int[] { 59, 00 });
+        upTime.add(new int[] { 59, 0 });
         expected.add(true);
         upTime.add(new int[] { 59, 30 });
         expected.add(true);
-        upTime.add(new int[] { 60, 00 });
+        upTime.add(new int[] { 60, 0 });
         expected.add(false);
 
         for (int i = 0; i < upTime.size(); i++) {
             int[] t = upTime.get(i);
             EC2Computer computer = computerWithIdleTime(t[0], t[1]);
+            EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
             rs.check(computer);
             assertEquals("Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i), (boolean) expected.get(i), idleTimeoutCalled.get());
             // reset the assumption
@@ -142,5 +147,41 @@ public class EC2RetentionStrategyTest {
             }
         };
         return computer;
+    }
+
+    @Test
+    public void testInternalCheckRespectsWait() throws Exception {
+        List<Boolean> expected = new ArrayList<Boolean>();
+        EC2Computer computer = computerWithIdleTime(0, 0);
+        List<int[]> upTimeAndCheckAfter = new ArrayList<int[]>();
+
+        upTimeAndCheckAfter.add(new int[] { 0, -1 });
+        expected.add(true);
+        upTimeAndCheckAfter.add(new int[] { 30, 60 });
+        expected.add(false);
+        upTimeAndCheckAfter.add(new int[] { 60, 60 });
+        expected.add(false);
+        upTimeAndCheckAfter.add(new int[] { 61, 60 });
+        expected.add(true);
+
+        Instant now = Instant.now();
+        for (int i = 0; i < upTimeAndCheckAfter.size(); i++) {
+            int[] t = upTimeAndCheckAfter.get(i);
+            int startingUptime = t[0];
+            boolean expectCallCheck = expected.get(i);
+            long nextCheckAfter = now.plusSeconds(t[1]).toEpochMilli();
+            EC2RetentionStrategy rs;
+            if (i > 0) {
+                Clock clock = Clock.fixed(now.plusSeconds(startingUptime), zoneId);
+                rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
+
+            } else {
+                rs = new EC2RetentionStrategy("1");
+            }
+            rs.check(computer);
+            String action = expected.get(i) ? "call" : "not call";
+            long newNextCheckAfter = rs.getNextCheckAfter();
+            assertEquals(String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action), expectCallCheck, nextCheckAfter != newNextCheckAfter);
+        }
     }
 }
