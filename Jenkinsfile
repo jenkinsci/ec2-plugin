@@ -1,1 +1,1 @@
-buildPlugin()
+buildPlugin(configurations: buildPlugin.recommendedConfigurations())
