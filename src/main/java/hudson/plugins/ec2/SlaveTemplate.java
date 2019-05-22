@@ -774,17 +774,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
             // get the root device (only one expected in the blockmappings)
             final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
-            BlockDeviceMapping rootMapping = null;
-            for (final BlockDeviceMapping deviceMapping : rootDeviceMappings) {
-                System.out.println("AMI had " + deviceMapping.getDeviceName());
-                System.out.println(deviceMapping.getEbs());
-                rootMapping = deviceMapping;
-                break;
+            if (rootDeviceMappings.size() == 0) {
+                LOGGER.warning("AMI missing block devices");
+                return;
             }
+            BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
+            LOGGER.info("AMI had " + rootMapping.getDeviceName());
+            LOGGER.info(rootMapping.getEbs().toString());
 
             // Check if the root device is already in the mapping and update it
             for (final BlockDeviceMapping mapping : deviceMappings) {
-                System.out.println("Request had " + mapping.getDeviceName());
+                LOGGER.info("Request had " + mapping.getDeviceName());
                 if (rootMapping.getDeviceName().equals(mapping.getDeviceName())) {
                     mapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
                     return;
@@ -1243,7 +1243,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Override
         public String getDisplayName() {
-            return null;
+            return "";
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
@@ -1256,11 +1256,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         @Override
         public String getHelpFile(String fieldName) {
             String p = super.getHelpFile(fieldName);
-            if (p == null)
-                p = Jenkins.getInstance().getDescriptor(EC2OndemandSlave.class).getHelpFile(fieldName);
-            if (p == null)
-                p = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class).getHelpFile(fieldName);
-            return p;
+            if (p != null)
+                return p;
+            Descriptor slaveDescriptor = Jenkins.getInstance().getDescriptor(EC2OndemandSlave.class);
+            if (slaveDescriptor != null) {
+                p = slaveDescriptor.getHelpFile(fieldName);
+                if (p != null)
+                    return p;
+            }
+            slaveDescriptor = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class);
+            if (slaveDescriptor != null)
+                return slaveDescriptor.getHelpFile(fieldName);
+            return null;
         }
 
         @Restricted(NoExternalUse.class)
@@ -1324,19 +1331,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else {
                 ec2 = EC2Cloud.connect(credentialsProvider, new URL(ec2endpoint));
             }
-            if (ec2 != null) {
-                try {
-                    Image img = getAmiImage(ec2, ami);
-                    if (img == null) {
-                        return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
-                    }
-                    String ownerAlias = img.getImageOwnerAlias();
-                    return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
-                } catch (AmazonClientException e) {
-                    return FormValidation.error(e.getMessage());
+            try {
+                Image img = getAmiImage(ec2, ami);
+                if (img == null) {
+                    return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
                 }
-            } else
-                return FormValidation.ok(); // can't test
+                String ownerAlias = img.getImageOwnerAlias();
+                return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
+            } catch (AmazonClientException e) {
+                return FormValidation.error(e.getMessage());
+            }
         }
 
         public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {

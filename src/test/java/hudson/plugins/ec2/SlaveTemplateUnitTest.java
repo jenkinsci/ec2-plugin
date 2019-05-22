@@ -29,7 +29,7 @@ public class SlaveTemplateUnitTest {
 
     @Before
     public void setUp() throws Exception {
-        AmazonEC2Cloud.testMode = true;
+        AmazonEC2Cloud.setTestMode(true);
 
         handler = new TestHandler();
         logger = Logger.getLogger(SlaveTemplate.class.getName());
@@ -38,7 +38,7 @@ public class SlaveTemplateUnitTest {
 
     @After
     public void tearDown() throws Exception {
-        AmazonEC2Cloud.testMode = false;
+        AmazonEC2Cloud.setTestMode(false);
     }
 
     @Test

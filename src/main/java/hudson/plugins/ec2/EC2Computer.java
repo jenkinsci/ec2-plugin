@@ -57,33 +57,34 @@ public class EC2Computer extends SlaveComputer {
 
     @CheckForNull
     public String getInstanceId() {
-        EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
-        if (node == null) {
-            return null;
-        }
-        return node.getInstanceId();
+        EC2AbstractSlave node = getNode();
+        return node == null ? null : node.getInstanceId();
     }
 
     public String getEc2Type() {
-        return getNode().getEc2Type();
+        EC2AbstractSlave node = getNode();
+        return node == null ? null : node.getEc2Type();
     }
 
     public String getSpotInstanceRequestId() {
-        if (getNode() instanceof EC2SpotSlave) {
-            return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
+        EC2AbstractSlave node = getNode();
+        if (node instanceof EC2SpotSlave) {
+            return ((EC2SpotSlave) node).getSpotInstanceRequestId();
         }
         return "";
     }
 
     public EC2Cloud getCloud() {
         EC2AbstractSlave node = getNode();
-        if (node == null)
-            return null;
-        return node.getCloud();
+        return node == null ? null : node.getCloud();
     }
 
     public SlaveTemplate getSlaveTemplate() {
-        return getCloud().getTemplate(getNode().templateDescription);
+        EC2AbstractSlave node = getNode();
+        if (node != null) {
+            return node.getCloud().getTemplate(node.templateDescription);
+        }
+        return null;
     }
 
     /**
@@ -148,8 +149,9 @@ public class EC2Computer extends SlaveComputer {
     @Override
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
-        if (getNode() != null)
-            getNode().terminate();
+        EC2AbstractSlave node = getNode();
+        if (node != null)
+            node.terminate();
         return new HttpRedirect("..");
     }
 
@@ -165,19 +167,23 @@ public class EC2Computer extends SlaveComputer {
     }
 
     public int getSshPort() {
-        return getNode().getSshPort();
+        EC2AbstractSlave node = getNode();
+        return node == null ? 22 : node.getSshPort();
     }
 
     public String getRootCommandPrefix() {
-        return getNode().getRootCommandPrefix();
+        EC2AbstractSlave node = getNode();
+        return node == null ? "" : node.getRootCommandPrefix();
     }
 
     public String getSlaveCommandPrefix() {
-        return getNode().getSlaveCommandPrefix();
+        EC2AbstractSlave node = getNode();
+        return node == null ? "" : node.getSlaveCommandPrefix();
     }
 
     public String getSlaveCommandSuffix() {
-        return getNode().getSlaveCommandSuffix();
+        EC2AbstractSlave node = getNode();
+        return node == null ? "" : node.getSlaveCommandSuffix();
     }
 
     public void onConnected() {

@@ -47,12 +47,12 @@ public class SlaveTemplateTest {
 
     @Before
     public void setUp() throws Exception {
-        AmazonEC2Cloud.testMode = true;
+        AmazonEC2Cloud.setTestMode(true);
     }
 
     @After
     public void tearDown() throws Exception {
-        AmazonEC2Cloud.testMode = false;
+        AmazonEC2Cloud.setTestMode(false);
     }
 
     @Test

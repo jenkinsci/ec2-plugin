@@ -389,7 +389,10 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
             LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
-            toComputer().disconnect(null);
+            Computer computer = toComputer();
+            if (computer != null) {
+                computer.disconnect(null);
+            }
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
         }
@@ -418,12 +421,15 @@ public abstract class EC2AbstractSlave extends Slave {
 
         EC2AbstractSlave result = (EC2AbstractSlave) super.reconfigure(req, form);
 
-        /* Get rid of the old tags, as represented by ourselves. */
-        clearLiveInstancedata();
+        if (result != null) {
+            /* Get rid of the old tags, as represented by ourselves. */
+            clearLiveInstancedata();
 
-        /* Set the new tags, as represented by our successor */
-        result.pushLiveInstancedata();
-        return result;
+            /* Set the new tags, as represented by our successor */
+            result.pushLiveInstancedata();
+            return result;
+        }
+        return null;
     }
 
     void idleTimeout() {
@@ -677,7 +683,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
-        if (AmazonEC2Cloud.testMode) {
+        if (AmazonEC2Cloud.isTestMode()) {
             model.add(TEST_ZONE);
             return model;
         }
