@@ -202,11 +202,24 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
                 sess.close();
 
+                logInfo(computer, listener, "Creating ~/.hudson-run-init");
+
                 // Needs a tty to run sudo.
                 sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout
                                        // and stderr
                 sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
+
+                sess.getStdin().close(); // nothing to write here
+                sess.getStderr().close(); // we are not supposed to get anything
+                                          // from stderr
+                IOUtils.copy(sess.getStdout(), logger);
+
+                exitStatus = waitCompletion(sess);
+                if (exitStatus != 0) {
+                    logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                    return;
+                }
                 sess.close();
             }
 
