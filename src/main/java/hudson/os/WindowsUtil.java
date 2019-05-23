@@ -28,6 +28,8 @@ package hudson.os;
 
 import hudson.Functions;
 import org.apache.commons.io.IOUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
 import java.io.File;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 
 // adapted from:
 // https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
+@Restricted(NoExternalUse.class)
 public class WindowsUtil {
     private static final Pattern NEEDS_QUOTING = Pattern.compile("[\\s\"]");
 
