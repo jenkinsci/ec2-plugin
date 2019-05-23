@@ -36,8 +36,6 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertTrue;
-
 // adapted from:
 // https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
 public class WindowsUtil {
@@ -103,10 +101,12 @@ public class WindowsUtil {
      * @return the newly created junction point
      * @throws IOException if the call to mklink exits with a non-zero status code
      * @throws InterruptedException if the call to mklink is interrupted before completing
-     * @throws AssertionError if this method is called on a non-Windows platform
+     * @throws UnsupportedOperationException if this method is called on a non-Windows platform
      */
     public static @Nonnull File createJunction(@Nonnull File junction, @Nonnull File target) throws IOException, InterruptedException {
-        assertTrue(Functions.isWindows());
+        if(Functions.isWindows() == false) {
+            throw new UnsupportedOperationException("Can only be called on windows platform");
+        }
         Process mklink = execCmd("mklink", "/J", junction.getAbsolutePath(), target.getAbsolutePath());
         int result = mklink.waitFor();
         if (result != 0) {
