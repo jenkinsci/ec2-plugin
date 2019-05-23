@@ -11,6 +11,8 @@ import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
+import hudson.Util;
+import hudson.os.WindowsUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -42,7 +44,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
         try {
             String initScript = node.initScript;
-            String tmpDir = (node.tmpDir != null && !node.tmpDir.equals("") ? node.tmpDir
+            String tmpDir = (node.tmpDir != null && !node.tmpDir.equals("") ? WindowsUtil.quoteArgument(Util.ensureEndsWith(node.tmpDir,"\\"))
                     : "C:\\Windows\\Temp\\");
 
             logger.println("Creating tmp directory if it does not exist");
@@ -73,9 +75,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
             logger.println("remoting.jar sent remotely. Bootstrapping it");
 
             final String jvmopts = node.jvmopts;
-            final String remoteFS = node.getRemoteFS();
-            final String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + AGENT_JAR + " -workDir \"" + remoteFS + "\"";
-            logger.println(launchString);
+            final String remoteFS = WindowsUtil.quoteArgument(node.getRemoteFS());
+            final String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + AGENT_JAR + " -workDir " + remoteFS;
+            logger.println("Launching via WinRM:" + launchString);
             final WindowsProcess process = connection.execute(launchString, 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
                 @Override
