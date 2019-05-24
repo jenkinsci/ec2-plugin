@@ -177,10 +177,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
-            Jenkins j = Jenkins.getInstance();
-            if(j != null){
-                j.checkPermission(Jenkins.RUN_SCRIPTS);
-            }
+            Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
         }
 
         this.ami = ami;
@@ -1049,7 +1046,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     slaveType, description)));
         }
         JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
-        if (!hasJenkinsServerUrlTag && jenkinsLocation != null && jenkinsLocation.getUrl() != null) {
+        if (!hasJenkinsServerUrlTag && jenkinsLocation.getUrl() != null) {
             instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()));
         }
         return instTags;
@@ -1173,7 +1170,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
-        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
 
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
@@ -1193,7 +1190,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (amiType == null) {
             amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort);
         }
-        
+
          // 1.43 new parameters
         if (connectionStrategy == null )  {
             connectionStrategy = ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
@@ -1202,12 +1199,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (maxTotalUses == 0) {
             maxTotalUses = -1;
         }
-        
+
         return this;
     }
 
     public Descriptor<SlaveTemplate> getDescriptor() {
-        return Jenkins.getInstance().getDescriptor(getClass());
+        return Jenkins.get().getDescriptor(getClass());
     }
 
     public int getLaunchTimeout() {
@@ -1247,7 +1244,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Jenkins.getInstance().getDescriptorList(AMITypeData.class);
+            return Jenkins.get().getDescriptorList(AMITypeData.class);
         }
 
         /**
@@ -1258,13 +1255,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String p = super.getHelpFile(fieldName);
             if (p != null)
                 return p;
-            Descriptor slaveDescriptor = Jenkins.getInstance().getDescriptor(EC2OndemandSlave.class);
+            Descriptor slaveDescriptor = Jenkins.get().getDescriptor(EC2OndemandSlave.class);
             if (slaveDescriptor != null) {
                 p = slaveDescriptor.getHelpFile(fieldName);
                 if (p != null)
                     return p;
             }
-            slaveDescriptor = Jenkins.getInstance().getDescriptor(EC2SpotSlave.class);
+            slaveDescriptor = Jenkins.get().getDescriptor(EC2SpotSlave.class);
             if (slaveDescriptor != null)
                 return slaveDescriptor.getHelpFile(fieldName);
             return null;
@@ -1272,7 +1269,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -1281,7 +1278,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckTmpDir(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -1290,7 +1287,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckJvmopts(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -1484,7 +1481,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     if (ec2Type == null) {
                         return FormValidation.error("Could not resolve instance type: " + type);
                     }
-                    
+
                     if (!ami.isEmpty()) {
                         Image img = getAmiImage(ec2, ami);
                         if (img != null) {

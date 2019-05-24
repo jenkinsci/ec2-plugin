@@ -189,7 +189,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public EC2Cloud getCloud() {
-        return (EC2Cloud) Jenkins.getInstance().getCloud(cloudName);
+        return (EC2Cloud) Jenkins.get().getCloud(cloudName);
     }
 
     /**
@@ -396,7 +396,7 @@ public abstract class EC2AbstractSlave extends Slave {
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
         }
-        
+
     }
 
     boolean terminateInstance() {
@@ -725,7 +725,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Jenkins.getInstance().getDescriptorList(AMITypeData.class);
+            return Jenkins.get().getDescriptorList(AMITypeData.class);
         }
     }
 

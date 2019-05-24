@@ -37,21 +37,19 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         LOGGER.log(Level.FINE, "Available capacity={0}, currentDemand={1}",
                 new Object[]{availableCapacity, currentDemand});
         if (availableCapacity < currentDemand) {
-            Jenkins jenkinsInstance = Jenkins.getInstance();
-            if (jenkinsInstance != null) {
-                for (Cloud cloud : jenkinsInstance.clouds) {
-                    if (!(cloud instanceof AmazonEC2Cloud)) continue;
-                    if (!cloud.canProvision(label)) continue;
-                    AmazonEC2Cloud ec2 = (AmazonEC2Cloud) cloud;
-                    if (!ec2.isNoDelayProvisioning()) continue;
+            Jenkins jenkinsInstance = Jenkins.get();
+            for (Cloud cloud : jenkinsInstance.clouds) {
+                if (!(cloud instanceof AmazonEC2Cloud)) continue;
+                if (!cloud.canProvision(label)) continue;
+                AmazonEC2Cloud ec2 = (AmazonEC2Cloud) cloud;
+                if (!ec2.isNoDelayProvisioning()) continue;
 
-                    Collection<NodeProvisioner.PlannedNode> plannedNodes = cloud.provision(label, currentDemand - availableCapacity);
-                    LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
-                    strategyState.recordPendingLaunches(plannedNodes);
-                    availableCapacity += plannedNodes.size();
-                    LOGGER.log(Level.FINE, "After provisioning, available capacity={0}, currentDemand={1}", new Object[]{availableCapacity, currentDemand});
-                    break;
-                }
+                Collection<NodeProvisioner.PlannedNode> plannedNodes = cloud.provision(label, currentDemand - availableCapacity);
+                LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
+                strategyState.recordPendingLaunches(plannedNodes);
+                availableCapacity += plannedNodes.size();
+                LOGGER.log(Level.FINE, "After provisioning, available capacity={0}, currentDemand={1}", new Object[]{availableCapacity, currentDemand});
+                break;
             }
         }
         if (availableCapacity >= currentDemand) {

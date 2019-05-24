@@ -204,7 +204,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     @Override
     public void start(EC2Computer c) {
         //Jenkins is in the process of starting up
-        if (Jenkins.getInstance().getInitLevel() != InitMilestone.COMPLETED) {
+        if (Jenkins.get().getInitLevel() != InitMilestone.COMPLETED) {
             InstanceState state = null;
             try {
                 state = c.getState();

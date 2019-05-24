@@ -229,7 +229,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             // Always copy so we get the most recent slave.jar
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-            scp.put(Jenkins.getInstance().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
+            scp.put(Jenkins.get().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
             String jvmopts = node.jvmopts;
             String prefix = computer.getSlaveCommandPrefix();
@@ -375,7 +375,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
                         + ".");
                 Connection conn = new Connection(host, port);
-                ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+                ProxyConfiguration proxyConfig = Jenkins.get().proxy;
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
                 if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
                     InetSocketAddress address = (InetSocketAddress) proxy.address();
