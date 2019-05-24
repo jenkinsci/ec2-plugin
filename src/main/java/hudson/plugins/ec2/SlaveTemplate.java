@@ -177,7 +177,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
-            Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
+            // Can be null during tests
+            Jenkins j = Jenkins.getInstanceOrNull();
+            if (j != null)
+                j.checkPermission(Jenkins.RUN_SCRIPTS);
         }
 
         this.ami = ami;
