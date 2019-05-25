@@ -46,11 +46,11 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
     }
 
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(getClass());
+        return (DescriptorImpl) Jenkins.get().getDescriptorOrDie(getClass());
     }
 
     public static PluginImpl get() {
-        return Jenkins.getInstance().getPlugin(PluginImpl.class);
+        return Jenkins.get().getPlugin(PluginImpl.class);
     }
 
     @Extension

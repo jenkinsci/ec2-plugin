@@ -106,7 +106,7 @@ public final class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness
 			// manually or a spot instance was killed due to pricing. If we don't remove the node,
 			// we screw up auto-scaling, since it will continue to count against the quota.
 			try {
-				Jenkins.getInstance().removeNode(this);
+				Jenkins.get().removeNode(this);
 			} catch (IOException e) {
 				LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
 			}

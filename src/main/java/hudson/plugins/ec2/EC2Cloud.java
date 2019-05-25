@@ -220,7 +220,7 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
             // CREATE
-            for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.getInstance())) {
+            for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.get())) {
 
                 if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
 
@@ -324,7 +324,7 @@ public abstract class EC2Cloud extends Cloud {
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
         EC2AbstractSlave node = t.attach(id, listener);
-        Jenkins.getInstance().addNode(node);
+        Jenkins.get().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
@@ -339,7 +339,7 @@ public abstract class EC2Cloud extends Cloud {
             throw HttpResponses.error(SC_BAD_REQUEST, "No such template: " + template);
         }
 
-        final Jenkins jenkinsInstance  = Jenkins.getInstance();
+        final Jenkins jenkinsInstance = Jenkins.get();
         if (jenkinsInstance.isQuietingDown()) {
             throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is quieting down");
         }
@@ -372,9 +372,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
         String jenkinsServerUrl = null;
-        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
-        if (jenkinsLocation != null)
-            jenkinsServerUrl = jenkinsLocation.getUrl();
+        jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
 
         if (jenkinsServerUrl == null) {
             LOGGER.log(Level.WARNING, "No Jenkins server URL specified, it is strongly recommended to open /configure and set the server URL. " +
@@ -395,8 +393,8 @@ public abstract class EC2Cloud extends Cloud {
                     && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
                     && (template == null || template.getAmi().equals(i.getImageId()))) {
                     InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName != InstanceStateName.Terminated && 
-                        stateName != InstanceStateName.ShuttingDown && 
+                    if (stateName != InstanceStateName.Terminated &&
+                        stateName != InstanceStateName.ShuttingDown &&
                         stateName != InstanceStateName.Stopped ) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
@@ -450,7 +448,7 @@ public abstract class EC2Cloud extends Cloud {
                     }
                 } else {
                     // Canceled or otherwise dead
-                    for (Node node : Jenkins.getInstance().getNodes()) {
+                    for (Node node : Jenkins.get().getNodes()) {
                         try {
                             if (!(node instanceof EC2SpotSlave))
                                 continue;
@@ -458,7 +456,7 @@ public abstract class EC2Cloud extends Cloud {
                             if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
                                 LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
                                         + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                                Jenkins.getInstance().removeNode(node);
+                                Jenkins.get().removeNode(node);
                                 break;
                             }
                         } catch (IOException e) {
@@ -473,7 +471,7 @@ public abstract class EC2Cloud extends Cloud {
 
         // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
         // in the EC2 API)
-        for (Node node : Jenkins.getInstance().getNodes()) {
+        for (Node node : Jenkins.get().getNodes()) {
             if (!(node instanceof EC2SpotSlave))
                 continue;
             EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
@@ -495,14 +493,14 @@ public abstract class EC2Cloud extends Cloud {
                     List<Tag> instanceTags = sir.getTags();
                     for (Tag tag : instanceTags) {
                         if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
-                        
+
                             if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
-                
+
                             LOGGER.log(Level.FINE, "Spot instance request found (from node): " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                             n++;
-                            
+
                             if (sir.getInstanceId() != null)
                                 instanceIds.add(sir.getInstanceId());
                         }
@@ -597,16 +595,14 @@ public abstract class EC2Cloud extends Cloud {
         final SlaveTemplate t = getTemplate(label);
         List<PlannedNode> plannedNodes = new ArrayList<>();
 
-        Jenkins jenkinsInstance = Jenkins.getInstance();
-        if (jenkinsInstance != null) {
-            if (jenkinsInstance.isQuietingDown()) {
-                LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is quieting down");
-                return Collections.emptyList();
-            }
-            else if (jenkinsInstance.isTerminating()) {
-                LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is terminating");
-                return Collections.emptyList();
-            }
+        Jenkins jenkinsInstance = Jenkins.get();
+        if (jenkinsInstance.isQuietingDown()) {
+            LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is quieting down");
+            return Collections.emptyList();
+        }
+        else if (jenkinsInstance.isTerminating()) {
+            LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is terminating");
+            return Collections.emptyList();
         }
 
         try {
@@ -631,7 +627,7 @@ public abstract class EC2Cloud extends Cloud {
 
             LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
-                    new Object[]{Jenkins.getInstance().getComputers().length, plannedNodes.size()});
+                    new Object[]{jenkinsInstance.getComputers().length, plannedNodes.size()});
             return plannedNodes;
         } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
@@ -673,7 +669,7 @@ public abstract class EC2Cloud extends Cloud {
                                 if (slave.getStopOnTerminate() && (c != null ))  {
                                     c.connect(false);
                                 }
-                                
+
                                 long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - instance.getLaunchTime().getTime());
                                 LOGGER.log(Level.INFO, "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
                                         new Object[]{t, slave.getNodeName(), startTime});
@@ -748,7 +744,7 @@ public abstract class EC2Cloud extends Cloud {
             return null;
         }
         return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.getInstance(),
+                CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class, Jenkins.get(),
                         ACL.SYSTEM, Collections.emptyList()),
                 CredentialsMatchers.withId(credentialsId));
     }
@@ -785,7 +781,7 @@ public abstract class EC2Cloud extends Cloud {
         // cause problems. Raise it a bit.
         // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
         config.setSignerOverride("AWS4SignerType");
-        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        ProxyConfiguration proxyConfig = Jenkins.get().proxy;
         Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
         if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
             InetSocketAddress address = (InetSocketAddress) proxy.address();
@@ -942,7 +938,7 @@ public abstract class EC2Cloud extends Cloud {
                     .withMatching(
                             CredentialsMatchers.always(),
                             CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class,
-                                    Jenkins.getInstance(),
+                                    Jenkins.get(),
                                     ACL.SYSTEM,
                                     Collections.emptyList()));
         }

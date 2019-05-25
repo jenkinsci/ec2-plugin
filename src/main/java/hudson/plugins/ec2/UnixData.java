@@ -28,7 +28,7 @@ public class UnixData extends AMITypeData {
     }
 
     protected Object readResolve() {
-        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
         return this;
     }
 
@@ -51,7 +51,7 @@ public class UnixData extends AMITypeData {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckRootCommandPrefix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -60,7 +60,7 @@ public class UnixData extends AMITypeData {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckSlaveCommandPrefix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -69,7 +69,7 @@ public class UnixData extends AMITypeData {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckSlaveCommandSuffix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());

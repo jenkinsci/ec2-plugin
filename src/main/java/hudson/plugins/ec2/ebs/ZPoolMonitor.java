@@ -52,7 +52,7 @@ public class ZPoolMonitor extends PeriodicWork {
     @Override
     protected void doRun() {
         ZPoolExpandNotice zen = AdministrativeMonitor.all().get(ZPoolExpandNotice.class);
-        Jenkins jenkinsInstance = Jenkins.getInstance();
+        Jenkins jenkinsInstance = Jenkins.getInstanceOrNull();
         ZFSFileSystem fs = null;
         try {
             if (isInsideEC2() && jenkinsInstance != null)

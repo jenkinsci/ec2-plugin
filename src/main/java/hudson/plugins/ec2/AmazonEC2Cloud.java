@@ -159,7 +159,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
             String cloudId = createCloudId(value);
             int found = 0;
-            for (Cloud c : Jenkins.getInstance().clouds) {
+            for (Cloud c : Jenkins.get().clouds) {
                 if (c.name.equals(cloudId)) {
                     found++;
                 }

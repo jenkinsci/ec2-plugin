@@ -68,7 +68,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
             }
 
             OutputStream agentJar = connection.putFile(tmpDir + AGENT_JAR);
-            agentJar.write(Jenkins.getInstance().getJnlpJars(AGENT_JAR).readFully());
+            agentJar.write(Jenkins.get().getJnlpJars(AGENT_JAR).readFully());
 
             logger.println("remoting.jar sent remotely. Bootstrapping it");
 
