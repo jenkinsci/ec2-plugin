@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
 
+import hudson.RelativePath;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -1398,9 +1399,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName)
+        public ListBoxModel doFillZoneItems(@QueryParameter @RelativePath("..") boolean useInstanceProfileForCredentials,
+                                            @QueryParameter @RelativePath("..") String credentialsId,
+                                            @QueryParameter @RelativePath("..") String region,
+                                            @QueryParameter @RelativePath("..") String roleArn,
+                                            @QueryParameter @RelativePath("..") String roleSessionName)
                 throws IOException, ServletException {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
