@@ -182,7 +182,7 @@ public abstract class EC2Cloud extends Cloud {
             this.templates = templates;
         }
 
-        if (instanceCapStr.isEmpty()) {
+        if (instanceCapStr == null || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
             this.instanceCap = Integer.parseInt(instanceCapStr);
