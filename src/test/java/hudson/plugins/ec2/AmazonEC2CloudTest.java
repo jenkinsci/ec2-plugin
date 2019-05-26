@@ -33,11 +33,8 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Collections;
 
-import static hudson.plugins.ec2.EC2Cloud.DEFAULT_EC2_ENDPOINT;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -91,19 +88,5 @@ public class AmazonEC2CloudTest {
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
         return r.createWebClient().goTo("configure").getFormByName("config");
-    }
-
-    /**
-     * Unit tests related to {@link AmazonEC2Cloud}, but do not require a Jenkins instance.
-     */
-    public static class UnitTests {
-        @Test
-        public void testEC2EndpointURLCreation() throws MalformedURLException {
-            AmazonEC2Cloud.DescriptorImpl descriptor = new AmazonEC2Cloud.DescriptorImpl();
-
-            assertEquals(new URL(DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(null));
-            assertEquals(new URL(DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(""));
-            assertEquals(new URL("https://www.abc.com"), descriptor.determineEC2EndpointURL("https://www.abc.com"));
-        }
     }
 }

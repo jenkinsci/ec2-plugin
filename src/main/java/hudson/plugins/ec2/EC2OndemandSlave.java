@@ -25,7 +25,7 @@ import com.amazonaws.services.ec2.model.*;
 
 /**
  * Slave running on EC2.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public final class EC2OndemandSlave extends EC2AbstractSlave {
@@ -83,7 +83,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
                 ec2.terminateInstances(request);
                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
             }
-            Jenkins.getInstance().removeNode(this);
+            Jenkins.get().removeNode(this);
             LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
         } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
@@ -99,7 +99,7 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
         if (!isAlive(true)) {
             LOGGER.info("EC2 instance terminated externally: " + getInstanceId());
             try {
-                Jenkins.getInstance().removeNode(this);
+                Jenkins.get().removeNode(this);
             } catch (IOException ioe) {
                 LOGGER.log(Level.WARNING, "Attempt to reconfigure EC2 instance which has been externally terminated: "
                         + getInstanceId(), ioe);

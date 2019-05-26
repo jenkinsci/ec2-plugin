@@ -36,7 +36,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     @Override
     protected void execute(TaskListener listener) throws IOException, InterruptedException {
-        for (Node node : Jenkins.getInstance().getNodes()) {
+        for (Node node : Jenkins.get().getNodes()) {
             if (node instanceof EC2AbstractSlave) {
                 final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;
                 try {
@@ -54,7 +54,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     private void removeNode(EC2AbstractSlave ec2Slave) {
         try {
-            Jenkins.getInstance().removeNode(ec2Slave);
+            Jenkins.get().removeNode(ec2Slave);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Slave.getInstanceId());
         }
