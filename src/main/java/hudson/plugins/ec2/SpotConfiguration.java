@@ -7,11 +7,17 @@ public final class SpotConfiguration {
     public final boolean useBidPrice;
     public final String spotMaxBidPrice;
     public final boolean fallbackToOndemand;
+    public final int spotBlockReservationDuration;
 
-    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand) {
+    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
         this.fallbackToOndemand = fallbackToOndemand;
+        if (null == spotBlockReservationDurationStr || spotBlockReservationDurationStr.isEmpty()) {
+            this.spotBlockReservationDuration = 0;
+        } else {
+            this.spotBlockReservationDuration = Integer.parseInt(spotBlockReservationDurationStr);
+        }
     }
 
     @Override public boolean equals(Object obj) {
@@ -24,9 +30,13 @@ public final class SpotConfiguration {
         String otherNormalizedBid = normalizeBid(config.spotMaxBidPrice);
         boolean normalizedBidsAreEqual =
                 normalizedBid == null ? (otherNormalizedBid == null) : normalizedBid.equals(otherNormalizedBid);
+        boolean blockReservationIsEqual = true;
+        if (this.spotBlockReservationDuration != config.spotBlockReservationDuration) {
+            blockReservationIsEqual = false;
+        }
 
         return this.useBidPrice == config.useBidPrice && this.fallbackToOndemand == config.fallbackToOndemand
-                && normalizedBidsAreEqual;
+                && normalizedBidsAreEqual && blockReservationIsEqual;
     }
 
     @Override public int hashCode() {

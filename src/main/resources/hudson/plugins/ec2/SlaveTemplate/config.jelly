@@ -68,6 +68,10 @@ THE SOFTWARE.
         <f:textbox />
       </f:entry>
     </f:optionalBlock>
+    
+    <f:entry title="${%Spot Block Reservation Duration}" field="spotBlockReservationDurationStr">
+      <f:textbox />
+    </f:entry>
   </f:optionalBlock>
 
   <f:entry title="${%Security group names}" field="securityGroups">

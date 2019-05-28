@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
 
+
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -458,6 +459,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return instanceCap;
     }
 
+    public int getSpotBlockReservationDuration() {
+        if (spotConfig == null)
+            return 0;
+        return spotConfig.spotBlockReservationDuration;
+    }
+
+    public String getSpotBlockReservationDurationStr() {
+        if (spotConfig == null) {
+            return "";
+        } else {
+            int dur = getSpotBlockReservationDuration();
+            if (dur == 0)
+                return "";
+            return String.valueOf(getSpotBlockReservationDuration());
+        }
+    }
+
     public String getInstanceCapStr() {
         if (instanceCap == Integer.MAX_VALUE) {
             return "";
@@ -680,6 +698,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
             InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+            if (getSpotBlockReservationDuration() != 0) {
+                SpotMarketOptions spotOptions = new SpotMarketOptions().withBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
+                instanceMarketOptionsRequest.setSpotOptions(spotOptions);
+            }
             riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
             try {
                 newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
@@ -962,6 +984,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             setupBlockDeviceMappings(launchSpecification.getBlockDeviceMappings());
 
             spotRequest.setLaunchSpecification(launchSpecification);
+
+            if (getSpotBlockReservationDuration() != 0) {
+                spotRequest.setBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
+            }
 
             // Make the request for a new Spot instance
             RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
@@ -1384,6 +1410,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
+        }
+
+        /*
+         * Validate the Spot Block Duration to be between 0 & 6 hours as specified in the AWS API
+         */
+        public FormValidation doCheckSpotBlockReservationDurationStr(@QueryParameter String value) {
+            if (value == null || value.trim().isEmpty())
+                return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0 && val <= 6)
+                    return FormValidation.ok();
+            } catch (NumberFormatException nfe) {
+            }
+            return FormValidation.error("Spot Block Reservation Duration must be an integer between 0 & 6");
         }
 
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
