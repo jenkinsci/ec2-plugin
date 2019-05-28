@@ -512,13 +512,9 @@ public abstract class EC2Cloud extends Cloud {
         if (template != null) {
             List<EC2Tag> tags = template.getTags();
             if (tags != null) {
-                String tagName;
-                String tagValue;
                 for (EC2Tag tag : tags) {
-                    tagName = tag.getName();
-                    tagValue = tag.getValue();
-                    if (tagName != null && tagValue != null) {
-                        filters.add(new Filter("tag:" + tagName).withValues(tagValue));
+                    if (tag.getName() != null && tag.getValue() != null) {
+                        filters.add(new Filter("tag:" + tag.getName()).withValues(tag.getValue()));
                     }
                 }
             }
