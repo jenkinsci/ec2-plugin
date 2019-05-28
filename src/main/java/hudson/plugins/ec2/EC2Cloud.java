@@ -86,6 +86,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
@@ -371,8 +372,7 @@ public abstract class EC2Cloud extends Cloud {
      * @param template If left null, then all instances are counted.
      */
     private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
-        String jenkinsServerUrl = null;
-        jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
+        String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
 
         if (jenkinsServerUrl == null) {
             LOGGER.log(Level.WARNING, "No Jenkins server URL specified, it is strongly recommended to open /configure and set the server URL. " +
@@ -386,41 +386,36 @@ public abstract class EC2Cloud extends Cloud {
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
-        //FIXME convert to a filter query
-        for (Reservation r : connect().describeInstances().getReservations()) {
+        List<Filter> filters = getGenericFilters(jenkinsServerUrl);
+        List<String> values = new ArrayList<>();
+        values.add("pending");
+        values.add("running");
+        values.add("stopping");
+        filters.add(new Filter("instance-state-name", values));
+        if (template != null) {
+            values = new ArrayList<>();
+            values.add(template.getAmi());
+            filters.add(new Filter("image-id", values));
+        }
+        DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
+        for (Reservation r : connect().describeInstances(dir).getReservations()) {
             for (Instance i : r.getInstances()) {
-                if (isEc2ProvisionedAmiSlave(i.getTags(), description)
-                    && isEc2ProvisionedJenkinsSlave(i.getTags(), jenkinsServerUrl)
-                    && (template == null || template.getAmi().equals(i.getImageId()))) {
-                    InstanceStateName stateName = InstanceStateName.fromValue(i.getState().getName());
-                    if (stateName != InstanceStateName.Terminated &&
-                        stateName != InstanceStateName.ShuttingDown &&
-                        stateName != InstanceStateName.Stopped ) {
-                        LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
-                        + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
-                        n++;
-                        instanceIds.add(i.getInstanceId());
-                    }
+                if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
+                    LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
+                    + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
+                    n++;
+                    instanceIds.add(i.getInstanceId());
                 }
             }
         }
+
         List<SpotInstanceRequest> sirs = null;
-        List<Filter> filters = new ArrayList<Filter>();
-        List<String> values;
+        filters = getGenericFilters(jenkinsServerUrl);
         if (template != null) {
-            values = new ArrayList<String>();
+            values = new ArrayList<>();
             values.add(template.getAmi());
             filters.add(new Filter("launch.image-id", values));
         }
-
-        if(jenkinsServerUrl!=null) {
-        // The instances must match the jenkins server url
-            filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
-        }
-
-        values = new ArrayList<String>();
-        values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
-        filters.add(new Filter("tag-key", values));
 
         DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
         try {
@@ -512,13 +507,19 @@ public abstract class EC2Cloud extends Cloud {
         return n;
     }
 
-    private boolean isEc2ProvisionedJenkinsSlave(List<Tag> tags, String serverUrl) {
-        for (Tag tag : tags) {
-            if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
-                return StringUtils.equals(tag.getValue(), serverUrl);
-            }
+    private List<Filter> getGenericFilters(String jenkinsServerUrl) {
+        List<Filter> filters = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+        values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
+        if(jenkinsServerUrl!=null) {
+            // The instances must match the jenkins server url
+            filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
+            filters.add(new Filter("tag-key", values));
+        } else {
+            values.add(EC2Tag.TAG_NAME_JENKINS_SERVER_URL);
+            filters.add(new Filter("tag-key", values));
         }
-        return (serverUrl == null);
+        return filters;
     }
 
     private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
