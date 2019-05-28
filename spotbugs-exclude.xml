@@ -1,2 +1,9 @@
 <FindBugsFilter>
+  <Match>
+    <Or>
+      <!-- TODO: Remove once we migrate to SpotBugs with full Java support (JENKINS-53720)-->
+      <!-- This check works unreliably on JDK 11 which tries doing some code generation for annotated fields-->
+      <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/>
+    </Or>
+  </Match>
 </FindBugsFilter>
