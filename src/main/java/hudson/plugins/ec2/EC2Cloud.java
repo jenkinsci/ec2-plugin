@@ -386,7 +386,7 @@ public abstract class EC2Cloud extends Cloud {
         Set<String> instanceIds = new HashSet<String>();
         String description = template != null ? template.description : null;
 
-        List<Filter> filters = getGenericFilters(jenkinsServerUrl);
+        List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         List<String> values = new ArrayList<>();
         values.add("pending");
         values.add("running");
@@ -410,7 +410,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         List<SpotInstanceRequest> sirs = null;
-        filters = getGenericFilters(jenkinsServerUrl);
+        filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
             values = new ArrayList<>();
             values.add(template.getAmi());
@@ -507,17 +507,32 @@ public abstract class EC2Cloud extends Cloud {
         return n;
     }
 
-    private List<Filter> getGenericFilters(String jenkinsServerUrl) {
+    private List<Filter> getGenericFilters(String jenkinsServerUrl, SlaveTemplate template) {
         List<Filter> filters = new ArrayList<>();
         List<String> values = new ArrayList<>();
         values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
-        if(jenkinsServerUrl!=null) {
+        if (jenkinsServerUrl != null) {
             // The instances must match the jenkins server url
             filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
             filters.add(new Filter("tag-key", values));
         } else {
             values.add(EC2Tag.TAG_NAME_JENKINS_SERVER_URL);
             filters.add(new Filter("tag-key", values));
+        }
+
+        if (template != null) {
+            List<EC2Tag> tags = template.getTags();
+            if (tags != null) {
+                String tagName;
+                String tagValue;
+                for (EC2Tag tag : tags) {
+                    tagName = tag.getName();
+                    tagValue = tag.getValue();
+                    if (tagName != null && tagValue != null) {
+                        filters.add(new Filter("tag:" + tagName + "=" + tagValue));
+                    }
+                }
+            }
         }
         return filters;
     }
