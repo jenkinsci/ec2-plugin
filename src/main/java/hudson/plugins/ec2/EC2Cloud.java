@@ -387,15 +387,9 @@ public abstract class EC2Cloud extends Cloud {
         String description = template != null ? template.description : null;
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
-        List<String> values = new ArrayList<>();
-        values.add("pending");
-        values.add("running");
-        values.add("stopping");
-        filters.add(new Filter("instance-state-name", values));
+        filters.add(new Filter("instance-state-name").withValues("running", "pending", "stopping"));
         if (template != null) {
-            values = new ArrayList<>();
-            values.add(template.getAmi());
-            filters.add(new Filter("image-id", values));
+            filters.add(new Filter("image-id").withValues(template.getAmi()));
         }
         DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
         for (Reservation r : connect().describeInstances(dir).getReservations()) {
@@ -412,9 +406,7 @@ public abstract class EC2Cloud extends Cloud {
         List<SpotInstanceRequest> sirs = null;
         filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
-            values = new ArrayList<>();
-            values.add(template.getAmi());
-            filters.add(new Filter("launch.image-id", values));
+            filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
         }
 
         DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
@@ -509,15 +501,12 @@ public abstract class EC2Cloud extends Cloud {
 
     private List<Filter> getGenericFilters(String jenkinsServerUrl, SlaveTemplate template) {
         List<Filter> filters = new ArrayList<>();
-        List<String> values = new ArrayList<>();
-        values.add(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE);
+        filters.add(new Filter("tag-key").withValues(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE));
         if (jenkinsServerUrl != null) {
             // The instances must match the jenkins server url
-            filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL + "=" + jenkinsServerUrl));
-            filters.add(new Filter("tag-key", values));
+            filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL).withValues(jenkinsServerUrl));
         } else {
-            values.add(EC2Tag.TAG_NAME_JENKINS_SERVER_URL);
-            filters.add(new Filter("tag-key", values));
+            filters.add(new Filter("tag-key").withValues(EC2Tag.TAG_NAME_JENKINS_SERVER_URL));
         }
 
         if (template != null) {
@@ -529,7 +518,7 @@ public abstract class EC2Cloud extends Cloud {
                     tagName = tag.getName();
                     tagValue = tag.getValue();
                     if (tagName != null && tagValue != null) {
-                        filters.add(new Filter("tag:" + tagName + "=" + tagValue));
+                        filters.add(new Filter("tag:" + tagName).withValues(tagValue));
                     }
                 }
             }
