@@ -396,11 +396,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String[] subnetIdList= getSubnetId().split(" ");
 
             // Round-robin subnet selection.
-            String subnet = subnetIdList[nextSubnet];
-            currentSubnetId = subnet;
+            currentSubnetId = subnetIdList[nextSubnet];
             nextSubnet = (nextSubnet + 1) % subnetIdList.length;
 
-            return subnet;
+            return currentSubnetId;
         }
     }
 
@@ -596,7 +595,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logProvisionInfo("Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
         }
 
-        List<Filter> diFilters = new ArrayList<Filter>();
+        List<Filter> diFilters = new ArrayList<>();
         diFilters.add(new Filter("image-id").withValues(ami));
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
@@ -662,8 +661,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("tag:" + tag.getKey()).withValues(tag.getValue()));
         }
 
-        DescribeInstancesRequest diRequest = new DescribeInstancesRequest();
-        diRequest.setFilters(diFilters);
+        DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);
 
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
@@ -688,7 +686,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
         }
 
-        List<TagSpecification> tagList = new ArrayList<TagSpecification>();
+        List<TagSpecification> tagList = new ArrayList<>();
         TagSpecification tagSpecification = new TagSpecification();
         tagSpecification.setTags(instTags);
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
@@ -827,16 +825,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
 
-        final Set<String> occupiedDevices = new HashSet<String>();
+        final Set<String> occupiedDevices = new HashSet<>();
         for (final BlockDeviceMapping mapping : oldDeviceMapping) {
 
             occupiedDevices.add(mapping.getDeviceName());
         }
 
-        final List<String> available = new ArrayList<String>(
+        final List<String> available = new ArrayList<>(
                 Arrays.asList("ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"));
 
-        final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<BlockDeviceMapping>(4);
+        final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<>(4);
         for (char suffix = 'b'; suffix <= 'z' && !available.isEmpty(); suffix++) {
 
             final String deviceName = String.format("/dev/xvd%s", suffix);
@@ -944,7 +942,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         if (getAssociatePublicIp()) {
                             net.setGroups(groupIds);
                         } else {
-                            ArrayList<GroupIdentifier> groups = new ArrayList<GroupIdentifier>();
+                            ArrayList<GroupIdentifier> groups = new ArrayList<>();
 
                             for (String group_id : groupIds) {
                                 GroupIdentifier group = new GroupIdentifier();
@@ -1057,9 +1055,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private HashSet<Tag> buildTags(String slaveType) {
         boolean hasCustomTypeTag = false;
         boolean hasJenkinsServerUrlTag = false;
-        HashSet<Tag> instTags = new HashSet<Tag>();
+        HashSet<Tag> instTags = new HashSet<>();
         if (tags != null && !tags.isEmpty()) {
-            instTags = new HashSet<Tag>();
             for (EC2Tag t : tags) {
                 instTags.add(new Tag(t.getName(), t.getValue()));
                 if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
@@ -1137,7 +1134,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a list of security group ids for the slave
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
-        List<String> groupIds = new ArrayList<String>();
+        List<String> groupIds = new ArrayList<>();
 
         DescribeSecurityGroupsResult groupResult = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
         if (groupResult.getSecurityGroups().size() == 0) {
@@ -1146,7 +1143,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         for (SecurityGroup group : groupResult.getSecurityGroups()) {
             if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
-                List<Filter> filters = new ArrayList<Filter>();
+                List<Filter> filters = new ArrayList<>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
                 filters.add(new Filter("state").withValues("available"));
                 filters.add(new Filter("subnet-id").withValues(getCurrentSubnetId()));
@@ -1309,7 +1306,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public FormValidation doCheckTmpDir(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
-            }else{
+            } else {
                 return FormValidation.error(Messages.General_MissingPermission());
             }
         }
@@ -1318,16 +1315,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public FormValidation doCheckJvmopts(@QueryParameter String value){
             if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
                 return FormValidation.ok();
-            }else{
+            } else {
                 return FormValidation.error(Messages.General_MissingPermission());
             }
         }
 
         private Image getAmiImage(AmazonEC2 ec2, String ami) {
-            List<String> images = new LinkedList<String>();
+            List<String> images = new LinkedList<>();
             images.add(ami);
-            List<String> owners = new LinkedList<String>();
-            List<String> users = new LinkedList<String>();
+            List<String> owners = new LinkedList<>();
+            List<String> users = new LinkedList<>();
             DescribeImagesRequest request = new DescribeImagesRequest();
             request.setImageIds(images);
             request.setOwners(owners);
@@ -1459,7 +1456,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         // Retrieve the availability zones for the region
         private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {
-            ArrayList<String> availabilityZones = new ArrayList<String>();
+            ArrayList<String> availabilityZones = new ArrayList<>();
 
             DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
             List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
@@ -1529,13 +1526,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     if (!ami.isEmpty()) {
                         Image img = getAmiImage(ec2, ami);
                         if (img != null) {
-                            Collection<String> productDescriptions = new ArrayList<String>();
+                            Collection<String> productDescriptions = new ArrayList<>();
                             productDescriptions.add(img.getPlatform() == "Windows" ? "Windows" : "Linux/UNIX");
                             request.setProductDescriptions(productDescriptions);
                         }
                     }
 
-                    Collection<String> instanceType = new ArrayList<String>();
+                    Collection<String> instanceType = new ArrayList<>();
                     instanceType.add(ec2Type.toString());
                     request.setInstanceTypes(instanceType);
                     request.setStartTime(new Date());
