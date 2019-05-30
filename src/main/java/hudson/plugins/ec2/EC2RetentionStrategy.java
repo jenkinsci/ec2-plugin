@@ -56,7 +56,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
 
     private long nextCheckAfter = -1;
-    private Clock clock;
+    private transient Clock clock;
 
     /**
      * Number of minutes of idleness before an instance should be terminated. A value of zero indicates that the
@@ -87,7 +87,6 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
             this.idleTerminationMinutes = value;
         }
-        this.clock = Clock.systemUTC();
     }
 
 
@@ -235,6 +234,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     protected Object readResolve() {
         checkLock = new ReentrantLock(false);
+        clock = Clock.systemUTC();
         return this;
     }
 
