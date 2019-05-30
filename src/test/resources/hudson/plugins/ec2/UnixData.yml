@@ -1,0 +1,20 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: "production"
+        useInstanceProfileForCredentials: true
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+          - description:
+            ami: "ami-12345"
+            labelString: "linux ubuntu"
+            type: "T2Micro"
+            remoteFS: "/home/ec2-user"
+            mode: "NORMAL"
+            amiType:
+              unixData:
+                rootCommandPrefix: "sudo"
+                slaveCommandPrefix: "sudo -u jenkins"
+                slaveCommandSuffix: "-fakeFlag"
+                sshPort: "22"

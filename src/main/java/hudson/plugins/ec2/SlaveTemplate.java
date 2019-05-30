@@ -206,15 +206,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.associatePublicIp = associatePublicIp;
-        this.connectionStrategy = connectionStrategy;
+        if (connectionStrategy == null) {
+            this.connectionStrategy = ConnectionStrategy.PRIVATE_IP;
+        } else {
+            this.connectionStrategy = connectionStrategy;
+        }
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
         this.monitoring = monitoring;
         this.nextSubnet = 0;
 
-        this.usePrivateDnsName = connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
-        this.connectUsingPublicIp = connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
+        this.usePrivateDnsName = this.connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
+        this.connectUsingPublicIp = this.connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
