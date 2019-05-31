@@ -86,7 +86,7 @@ public class ConfigurationAsCodeTest {
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("ami-abc123", slaveTemplate.getAmi());
         assertEquals("C:/jenkins", slaveTemplate.remoteFS);
 
         assertEquals("windows vs2019", slaveTemplate.getLabelString());
