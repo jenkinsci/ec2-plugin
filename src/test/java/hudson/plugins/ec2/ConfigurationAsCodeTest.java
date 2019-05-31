@@ -104,4 +104,16 @@ public class ConfigurationAsCodeTest {
         assertTrue(windowsData.isUseHTTPS());
         assertEquals("180", windowsData.getBootDelay());
     }
+
+    @Test
+    @ConfiguredWithCode("BackwardsCompatibleConnectionStrategy.yml")
+    public void testBackwardsCompatibleConnectionStrategy() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals(ConnectionStrategy.PRIVATE_DNS,slaveTemplate.connectionStrategy);
+    }
 }

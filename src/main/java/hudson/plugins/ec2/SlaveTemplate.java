@@ -42,6 +42,7 @@ import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
@@ -414,6 +415,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean getAssociatePublicIp() {
         return associatePublicIp;
+    }
+
+    @Deprecated
+    @DataBoundSetter
+    public void setConnectUsingPublicIp(boolean connectUsingPublicIp) {
+        this.connectUsingPublicIp = connectUsingPublicIp;
+        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+    }
+
+    @Deprecated
+    @DataBoundSetter
+    public void setUsePrivateDnsName(boolean usePrivateDnsName) {
+        this.usePrivateDnsName = usePrivateDnsName;
+        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+    }
+
+    @Deprecated
+    public boolean getUsePrivateDnsName() {
+        return usePrivateDnsName;
     }
 
     @Deprecated
