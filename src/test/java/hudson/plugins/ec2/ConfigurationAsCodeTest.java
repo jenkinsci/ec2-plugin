@@ -24,7 +24,7 @@ public class ConfigurationAsCodeTest {
     public void testEmptyConfig() throws Exception {
         final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-");
         assertNotNull(ec2Cloud);
-        assertEquals(ec2Cloud.getTemplates().size(), 0);
+        assertEquals(0, ec2Cloud.getTemplates().size());
     }
 
     @Test
@@ -35,13 +35,13 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
-        assertEquals(templates.size(), 1);
+        assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals(slaveTemplate.getAmi(), "ami-12345");
-        assertEquals(slaveTemplate.remoteFS, "/home/ec2-user");
+        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("/home/ec2-user", slaveTemplate.remoteFS);
 
-        assertEquals(slaveTemplate.getLabelString(), "linux ubuntu");
-        assertEquals(slaveTemplate.getLabelSet().size(), 2);
+        assertEquals("linux ubuntu", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
@@ -50,10 +50,10 @@ public class ConfigurationAsCodeTest {
         assertTrue(amiType.isUnix());
         assertTrue(amiType instanceof UnixData);
         final UnixData unixData = (UnixData) amiType;
-        assertEquals(unixData.getRootCommandPrefix(), "sudo");
-        assertEquals(unixData.getSlaveCommandPrefix(), "sudo -u jenkins");
-        assertEquals(unixData.getSlaveCommandSuffix(), "-fakeFlag");
-        assertEquals(unixData.getSshPort(), "22");
+        assertEquals("sudo", unixData.getRootCommandPrefix());
+        assertEquals("sudo -u jenkins", unixData.getSlaveCommandPrefix());
+        assertEquals("-fakeFlag", unixData.getSlaveCommandSuffix());
+        assertEquals("22", unixData.getSshPort());
     }
 
     @Test
@@ -64,13 +64,13 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
-        assertEquals(templates.size(), 1);
+        assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals(slaveTemplate.getAmi(), "ami-5678");
-        assertEquals(slaveTemplate.remoteFS, "/mnt/jenkins");
+        assertEquals("ami-5678", slaveTemplate.getAmi());
+        assertEquals("/mnt/jenkins", slaveTemplate.remoteFS);
 
-        assertEquals(slaveTemplate.getLabelString(), "linux clear");
-        assertEquals(slaveTemplate.getLabelSet().size(), 2);
+        assertEquals("linux clear", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
@@ -84,13 +84,13 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
-        assertEquals(templates.size(), 1);
+        assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals(slaveTemplate.getAmi(), "ami-abc123");
-        assertEquals(slaveTemplate.remoteFS, "C:/jenkins");
+        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("C:/jenkins", slaveTemplate.remoteFS);
 
-        assertEquals(slaveTemplate.getLabelString(), "windows vs2019");
-        assertEquals(slaveTemplate.getLabelSet().size(), 2);
+        assertEquals("windows vs2019", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("windows")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("vs2019")));
@@ -100,8 +100,8 @@ public class ConfigurationAsCodeTest {
         assertTrue(amiType.isWindows());
         assertTrue(amiType instanceof WindowsData);
         final WindowsData windowsData = (WindowsData) amiType;
-        assertEquals(windowsData.getPassword(), Secret.fromString("password"));
+        assertEquals(Secret.fromString("password"), windowsData.getPassword());
         assertTrue(windowsData.isUseHTTPS());
-        assertEquals(windowsData.getBootDelay(), "180");
+        assertEquals("180", windowsData.getBootDelay());
     }
 }
