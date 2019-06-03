@@ -1,0 +1,19 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: "development"
+        useInstanceProfileForCredentials: true
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+          - description:
+            ami: "ami-abc123"
+            labelString: "windows vs2019"
+            type: "M5aLarge"
+            remoteFS: "C:/jenkins"
+            mode: "NORMAL"
+            amiType:
+              windowsData:
+                password: "password"
+                useHTTPS: true
+                bootDelay: "180"

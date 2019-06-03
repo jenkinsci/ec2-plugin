@@ -42,6 +42,7 @@ import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import com.amazonaws.AmazonClientException;
@@ -206,15 +207,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.associatePublicIp = associatePublicIp;
-        this.connectionStrategy = connectionStrategy;
+        this.connectionStrategy = connectionStrategy == null ? ConnectionStrategy.PRIVATE_IP : connectionStrategy;
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
         this.monitoring = monitoring;
         this.nextSubnet = 0;
 
-        this.usePrivateDnsName = connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
-        this.connectUsingPublicIp = connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
+        this.usePrivateDnsName = this.connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
+        this.connectUsingPublicIp = this.connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -413,6 +414,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean getAssociatePublicIp() {
         return associatePublicIp;
+    }
+
+    @Deprecated
+    @DataBoundSetter
+    public void setConnectUsingPublicIp(boolean connectUsingPublicIp) {
+        this.connectUsingPublicIp = connectUsingPublicIp;
+        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+    }
+
+    @Deprecated
+    @DataBoundSetter
+    public void setUsePrivateDnsName(boolean usePrivateDnsName) {
+        this.usePrivateDnsName = usePrivateDnsName;
+        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+    }
+
+    @Deprecated
+    public boolean getUsePrivateDnsName() {
+        return usePrivateDnsName;
     }
 
     @Deprecated
