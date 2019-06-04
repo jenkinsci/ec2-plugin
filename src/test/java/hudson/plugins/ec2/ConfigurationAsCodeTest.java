@@ -13,7 +13,7 @@ import io.jenkins.plugins.casc.model.CNode;
 
 import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
 import static io.jenkins.plugins.casc.misc.Util.toYamlString;
-// import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile
+import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -131,6 +131,7 @@ public class ConfigurationAsCodeTest {
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = getJenkinsRoot(context).get("clouds");
         String exported = toYamlString(clouds);
-        assertNotNull(exported);
+        String expected = toStringFromYamlFile(this, "UnixDataExport.yml");
+        assertEquals(expected, exported);
     }
 }
