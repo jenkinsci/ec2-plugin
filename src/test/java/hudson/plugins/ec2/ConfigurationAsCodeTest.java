@@ -10,7 +10,8 @@ import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
 import io.jenkins.plugins.casc.ConfiguratorRegistry;
 import io.jenkins.plugins.casc.ConfigurationContext;
 import io.jenkins.plugins.casc.model.CNode;
-import static io.jenkins.plugins.casc.misc.Util.getUnclassifiedRoot;
+
+import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
 import static io.jenkins.plugins.casc.misc.Util.toYamlString;
 // import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile
 
@@ -128,7 +129,8 @@ public class ConfigurationAsCodeTest {
     public void testConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode cloud = getUnclassifiedRoot(context).get("cloud");
-        String exported = toYamlString(cloud);
+        CNode clouds = getJenkinsRoot(context).get("clouds");
+        String exported = toYamlString(clouds);
+        assertNotNull(exported);
     }
 }
