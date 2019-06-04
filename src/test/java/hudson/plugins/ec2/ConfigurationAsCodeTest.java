@@ -7,6 +7,13 @@ import hudson.util.Secret;
 import hudson.model.labels.LabelAtom;
 import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
 import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
+import io.jenkins.plugins.casc.ConfiguratorRegistry;
+import io.jenkins.plugins.casc.ConfigurationContext;
+import io.jenkins.plugins.casc.model.CNode;
+
+import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
+import static io.jenkins.plugins.casc.misc.Util.toYamlString;
+import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -115,5 +122,16 @@ public class ConfigurationAsCodeTest {
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
         assertEquals(ConnectionStrategy.PRIVATE_DNS,slaveTemplate.connectionStrategy);
+    }
+
+    @Test
+    @ConfiguredWithCode("UnixData.yml")
+    public void testConfigAsCodeExport() throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = getJenkinsRoot(context).get("clouds");
+        String exported = toYamlString(clouds);
+        String expected = toStringFromYamlFile(this, "UnixDataExport.yml");
+        assertEquals(expected, exported);
     }
 }

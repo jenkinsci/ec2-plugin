@@ -1,0 +1,28 @@
+- amazonEC2:
+    cloudName: "production"
+    region: "us-east-1"
+    templates:
+    - ami: "ami-12345"
+      amiType:
+        unixData:
+          rootCommandPrefix: "sudo"
+          slaveCommandPrefix: "sudo -u jenkins"
+          slaveCommandSuffix: "-fakeFlag"
+          sshPort: "22"
+      associatePublicIp: false
+      connectBySSHProcess: false
+      connectionStrategy: PRIVATE_IP
+      deleteRootOnTermination: false
+      ebsOptimized: false
+      labelString: "linux ubuntu"
+      maxTotalUses: -1
+      mode: NORMAL
+      monitoring: false
+      numExecutors: 1
+      remoteFS: "/home/ec2-user"
+      stopOnTerminate: false
+      t2Unlimited: false
+      type: T2Micro
+      useDedicatedTenancy: false
+      useEphemeralDevices: false
+    useInstanceProfileForCredentials: true
