@@ -754,15 +754,15 @@ n++;
      */
     public AmazonEC2 connect() throws AmazonClientException {
         try {
-            if (connection != null) {
-                try {
-                    connection.describeInstances();
-                } catch (AmazonClientException e) {
-                    connection = null;
+            synchronized (this) {
+                if (connection != null) {
+                    try {
+                        connection.describeInstances();
+                    } catch (AmazonClientException e) {
+                        connection = null;
+                    }
                 }
-            }
-            if (connection == null) {
-                synchronized (this) {
+                if (connection == null) {
                     connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
                 }
             }
@@ -771,7 +771,7 @@ n++;
             throw new AmazonClientException("Failed to retrieve the endpoint", e);
         }
     }
-    
+
     /***
      * Connect to an EC2 instance.
      *
