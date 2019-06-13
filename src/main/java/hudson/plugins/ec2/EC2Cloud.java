@@ -163,7 +163,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private transient KeyPair usableKeyPair;
 
-    protected volatile transient AmazonEC2 connection;
+    protected transient volatile AmazonEC2 connection;
 
     private static AWSCredentialsProvider awsCredentialsProvider;
 
