@@ -275,8 +275,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
             KeyPair key = computer.getCloud().getKeyPair();
-            logInfo(computer, listener, "Using key: " + key.getKeyName() + "\n" + key.getKeyFingerprint() + "\n"
-                    + key.getKeyMaterial().substring(0, 160));
+            logInfo(computer, listener,
+                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
