@@ -442,7 +442,7 @@ public abstract class EC2Cloud extends Cloud {
                         LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                                 + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
 
-n++;
+                        n++;
                         if (sir.getInstanceId() != null)
                             instanceIds.add(sir.getInstanceId());
                     }
@@ -749,24 +749,30 @@ n++;
                 CredentialsMatchers.withId(credentialsId));
     }
 
+    private AmazonEC2 reconnectToEc2() throws IOException {
+        synchronized(this) {
+            connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+            return connection;
+        }
+    }
+
     /**
      * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
      */
     public AmazonEC2 connect() throws AmazonClientException {
         try {
-            synchronized (this) {
-                if (connection != null) {
-                    try {
-                        connection.describeInstances();
-                    } catch (AmazonClientException e) {
-                        connection = null;
-                    }
-                }
-                if (connection == null) {
-                    connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+            if (connection != null) {
+                try {
+                    AmazonEC2 conn = connection;
+                    conn.describeInstances();
+                    return conn;
+                } catch (AmazonClientException e) {
+                    return reconnectToEc2();
                 }
             }
-            return connection;
+            else {
+                return reconnectToEc2();
+            }
         } catch (IOException e) {
             throw new AmazonClientException("Failed to retrieve the endpoint", e);
         }
