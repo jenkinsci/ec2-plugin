@@ -86,7 +86,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean monitoring;
 
+    /**
+     * @deprecated Replaced by {@link #burstableUnlimitedMode}.
+     */
+    @Deprecated
     public final boolean t2Unlimited;
+
+    private final BurstableUnlimitedMode burstableUnlimitedMode;
 
     public final String labels;
 
@@ -175,7 +181,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+            boolean t2Unlimited, BurstableUnlimitedMode burstableUnlimitedMode, ConnectionStrategy connectionStrategy,
+            int maxTotalUses) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -234,6 +241,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
+        this.burstableUnlimitedMode = burstableUnlimitedMode;
 
         readResolve(); // initialize
     }
@@ -251,7 +259,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
-                monitoring, t2Unlimited, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp), -1);
+                monitoring, t2Unlimited, null, ConnectionStrategy.backwardsCompatible(usePrivateDnsName,
+                connectUsingPublicIp, associatePublicIp), -1);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -316,6 +325,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public EC2Cloud getParent() {
         return parent;
+    }
+
+    public BurstableUnlimitedMode getBurstableUnlimitedMode() {
+        if (burstableUnlimitedMode == null) {
+            // For backward-compatibility.
+            return t2Unlimited ? BurstableUnlimitedMode.ENABLED : BurstableUnlimitedMode.DEFAULT;
+        }
+
+        return burstableUnlimitedMode;
     }
 
     public String getLabelString() {
@@ -599,9 +617,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
 
-        if (t2Unlimited){
+        BurstableUnlimitedMode burstableUnlimitedMode = getBurstableUnlimitedMode();
+        if (burstableUnlimitedMode != BurstableUnlimitedMode.DEFAULT) {
             CreditSpecificationRequest creditRequest = new CreditSpecificationRequest();
-            creditRequest.setCpuCredits("unlimited");
+            creditRequest.setCpuCredits(burstableUnlimitedMode == BurstableUnlimitedMode.ENABLED ? "unlimited" : "standard");
             riRequest.setCreditSpecification(creditRequest);
         }
 
@@ -1281,6 +1300,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
     }
 
+    public enum BurstableUnlimitedMode {
+        DEFAULT(Messages.SlaveTemplate_BurstableUnlimitedMode_DEFAULT()),
+        DISABLED(Messages.SlaveTemplate_BurstableUnlimitedMode_DISABLED()),
+        ENABLED(Messages.SlaveTemplate_BurstableUnlimitedMode_ENABLED());
+
+        public final String label;
+
+        BurstableUnlimitedMode(String label) {
+            this.label = label;
+        }
+    }
+
     @Extension
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
 
@@ -1608,5 +1639,4 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
     }
-
 }

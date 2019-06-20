@@ -25,7 +25,6 @@ package hudson.plugins.ec2;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
@@ -90,7 +89,14 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1);
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default",
+            "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description,
+            "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", tags, null,
+            null, "", true, false,
+            false, "", false, "",
+            false, false, false, SlaveTemplate.BurstableUnlimitedMode.DEFAULT,
+            ConnectionStrategy.PUBLIC_IP, -1);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -345,5 +351,64 @@ public class SlaveTemplateTest {
         assertEquals(subnet1, "subnet-123");
         assertEquals(subnet2, "subnet-456");
         assertEquals(subnet3, "subnet-123");
+    }
+
+    @Test
+    public void testBackwardCompatibleT2UnlimitedDisabled() {
+        // If burstableUnlimitedMode is null, then we fallback to the value of t2Unlimited:
+        SlaveTemplate.BurstableUnlimitedMode burstableUnlimitedMode = null;
+        boolean t2Unlimited = false;
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami", EC2AbstractSlave.TEST_ZONE, null,
+            "default", "foo", InstanceType.M1Large, false, "ttt",
+            Node.Mode.NORMAL, "description", "bar", "bbb", "aaa",
+            "10", "fff", null, "-Xmx1g", false,
+            "subnet 456", null, null, null, "",
+            true, false, false, "",
+            false, "", false, false,
+            t2Unlimited, burstableUnlimitedMode, ConnectionStrategy.PUBLIC_IP, -1);
+
+        // t2Unlimited==false means that we don't specify a preference for Unlimited Mode when talking to AWS, i. e. we
+        // let AWS choose a suitable value depending on the instance type:
+        assertEquals(slaveTemplate.getBurstableUnlimitedMode(), SlaveTemplate.BurstableUnlimitedMode.DEFAULT);
+    }
+
+    @Test
+    public void testBackwardCompatibleT2UnlimitedEnabled() {
+        // If burstableUnlimitedMode is null, then we fallback to the value of t2Unlimited:
+        SlaveTemplate.BurstableUnlimitedMode burstableUnlimitedMode = null;
+        boolean t2Unlimited = true;
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami", EC2AbstractSlave.TEST_ZONE, null,
+            "default", "foo", InstanceType.M1Large, false, "ttt",
+            Node.Mode.NORMAL, "description", "bar", "bbb", "aaa",
+            "10", "fff", null, "-Xmx1g", false,
+            "subnet 456", null, null, null, "",
+            true, false, false, "",
+            false, "", false, false,
+            t2Unlimited, burstableUnlimitedMode, ConnectionStrategy.PUBLIC_IP, -1);
+
+        // t2Unlimited==true means that we explicitly enable Unlimited Mode:
+        assertEquals(slaveTemplate.getBurstableUnlimitedMode(), SlaveTemplate.BurstableUnlimitedMode.ENABLED);
+    }
+
+    @Test
+    public void testBurstableUnlimitedModeLegacyOverride() {
+        // If burstableUnlimitedMode is NOT null, then we ignore the value of the legacy t2Unlimited parameter:
+        for (SlaveTemplate.BurstableUnlimitedMode burstableUnlimitedMode
+                : SlaveTemplate.BurstableUnlimitedMode.class.getEnumConstants()) {
+            boolean t2Unlimited = true;
+
+            SlaveTemplate slaveTemplate = new SlaveTemplate("ami", EC2AbstractSlave.TEST_ZONE, null,
+                "default", "foo", InstanceType.M1Large, false, "ttt",
+                Node.Mode.NORMAL, "description", "bar", "bbb", "aaa",
+                "10", "fff", null, "-Xmx1g", false,
+                "subnet 456", null, null, null, "",
+                true, false, false, "",
+                false, "", false, false,
+                t2Unlimited, burstableUnlimitedMode, ConnectionStrategy.PUBLIC_IP, -1);
+
+            assertEquals(slaveTemplate.getBurstableUnlimitedMode(), burstableUnlimitedMode);
+        }
     }
 }
