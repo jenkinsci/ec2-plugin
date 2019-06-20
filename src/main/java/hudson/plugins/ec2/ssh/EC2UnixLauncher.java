@@ -366,6 +366,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
                 String host = getEC2HostAddress(computer);
 
+                if ((computer.getNode() instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
+                     // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
+                     // the instance id that it is starting. Continue to wait until the instanceId is set.
+                    logInfo(computer, listener, "empty instanceId for Spot Slave.");
+                    throw new IOException("goto sleep");
+                }
+
                 if ("0.0.0.0".equals(host)) {
                     logWarning(computer, listener, "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
