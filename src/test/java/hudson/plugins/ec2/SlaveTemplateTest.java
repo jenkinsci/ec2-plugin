@@ -23,35 +23,100 @@
  */
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.Assert.*;
 
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.plugins.credentials.*;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import hudson.model.Node;
+import hudson.plugins.ec2.util.CredentialStoreNotFoundException;
+import hudson.plugins.ec2.util.CredentialUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
  * Basic test to validate SlaveTemplate.
  */
 public class SlaveTemplateTest {
+    private static final String TEST_PRIVATE_SSH_KEY =
+        "-----BEGIN RSA PRIVATE KEY-----\n" +
+        "MIICXAIBAAKBgQDOi1No7rKb/2c6/K7xUv1I3Zy5duoJENm8c/OZ2oaMRmThkJ2s\n" +
+        "pSznT1+weJwmCiEgF8hF1vVk7OduSinc+sRa/AuQ7IuK87/VOjAOjhTsAc+T/Dkk\n" +
+        "XJjVp/mSGJmr1xoP1GsJI+AnGuo9+unmOVl7l3L+ZKuKeEK7tDoGb3fAXQIDAQAB\n" +
+        "AoGBAJ9qa/OGoLbE11Fw7Dn4+uN9oNSJErPynIvW1wM95jFot75dl0VEq7bQzaNw\n" +
+        "Q90cXlrd4Eb/VaITM8EtXshfiKLpFKEmtuj4ZPm7lagEotWNT212ZPBl+oMY77KL\n" +
+        "XR8G8S2Dme33J8uCaAZBNwfvbJpQg+PLUCrEj0gt+qbjy/2BAkEA91kTrH4oAz7V\n" +
+        "DpUseSgRn4T1hmNsOQKbrdsXyR2rsm8UNJyAnVq5WCn5rlNFH/qMQOmFmDHJpupK\n" +
+        "dzvLM1OFfQJBANXE3VI7JkgvkZcHEFPb/nPwctCyozeg+HcfF8CidQBLJU13oNFa\n" +
+        "rNrmPblG2NvYw60hJeyMGpssInueXeaCnGECQDoo9dlPaLUqpwpgxS5P36T0rI7G\n" +
+        "/gGBvX1p0PP3SBIS0Ft2mT9mv8IdTJpS9iQI08XHoyQgQNxApvXWV3dgIjkCQBz3\n" +
+        "1YocK97iW1ddBLBogn3Rmq1/V7DlJmZ2FzDqkvJcPIzX5joYkI4FX13pJN/96t5e\n" +
+        "PJZmkgBvJakc19qx3mECQG6S23/tHJ9Mc7tvCv26ncf4X/ZEbctIG9AoHSH7HfBu\n" +
+        "ldJiiRUiL4X8eWuVuRVtHkyD9b6G1iHeIE98a9+ICm0=\n" +
+        "-----END RSA PRIVATE KEY-----\n";
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    public WireMockRule wireMockRule = new WireMockRule(
+        WireMockConfiguration.options()
+            .dynamicPort()
+            .withRootDirectory("src/test/resources/" +
+                getClass().getPackage().getName().replace(".", "/")));
+    public JenkinsRule r = new JenkinsRule();
+
+    @Rule
+    public RuleChain ruleChain = RuleChain
+        .outerRule(wireMockRule)
+        .around(r);
 
     @Before
     public void setUp() throws Exception {
         AmazonEC2Cloud.setTestMode(true);
+        AmazonEC2Cloud.setEc2TestEndpointUrl(wireMockRule.url("/ec2"));
+
+        stubFor(
+            post(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=DescribeImages"))
+                .willReturn(ok().withBodyFile("ec2Responses/DescribeImages.xml"))
+        );
+        stubFor(
+            post(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=DescribeKeyPairs"))
+                .willReturn(ok().withBodyFile("ec2Responses/DescribeKeyPairs.xml"))
+        );
+        stubFor(
+            post(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=DescribeInstances"))
+                .withRequestBody(matching(".*(?:Filter|InstanceId)\\.\\d+=.*"))
+                .willReturn(ok().withBodyFile("ec2Responses/DescribeInstances.xml"))
+        );
+        stubFor(
+            post(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=DescribeInstances"))
+                .withRequestBody(notMatching(".*(?:Filter|InstanceId)\\.\\d+=.*"))
+                .willReturn(ok().withBodyFile("ec2Responses/DescribeInstancesEmpty.xml"))
+        );
+        stubFor(
+            post(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=RunInstances"))
+                .willReturn(ok().withBodyFile("ec2Responses/RunInstances.xml"))
+        );
     }
 
     @After
     public void tearDown() throws Exception {
         AmazonEC2Cloud.setTestMode(false);
+        AmazonEC2Cloud.setEc2TestEndpointUrl(null);
     }
 
     @Test
@@ -410,5 +475,119 @@ public class SlaveTemplateTest {
 
             assertEquals(slaveTemplate.getBurstableUnlimitedMode(), burstableUnlimitedMode);
         }
+    }
+
+    /**
+     * Verifies that when creating an EC2 instance with BurstableUnlimitedMode.DEFAULT, no CreditSpecification parameter
+     * is included in the request that is made to AWS.
+     */
+    @Test
+    public void testBurstableUnlimitedModeDefault()
+            throws IOException, CredentialStoreNotFoundException {
+        SlaveTemplate.BurstableUnlimitedMode burstableUnlimitedMode = SlaveTemplate.BurstableUnlimitedMode.DEFAULT;
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami", null, null,
+            "default", "foo", InstanceType.M1Large, false, "ttt",
+            Node.Mode.NORMAL, "description", "bar", "bbb", "aaa",
+            "10", "fff", null, "-Xmx1g", false,
+            null, null, null, null, "",
+            true, false, false, "",
+            false, "", false, false,
+            false, burstableUnlimitedMode, ConnectionStrategy.PUBLIC_IP, -1);
+
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(slaveTemplate);
+
+        CredentialUtils.addGlobalSystemCredentials(
+            new AWSCredentialsImpl(CredentialsScope.SYSTEM, "abc", "foo", "bar", null)
+        );
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("test-cloud", false,
+            "abc", "dummy-region-1", TEST_PRIVATE_SSH_KEY, "3", templates,
+            null, null);
+        r.jenkins.clouds.add(ac);
+
+        slaveTemplate.provision(1, EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE));
+
+        verify(
+            postRequestedFor(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=RunInstances"))
+                .withRequestBody(notMatching(".*CreditSpecification.*"))
+        );
+    }
+
+    /**
+     * Verifies that when creating an EC2 instance with BurstableUnlimitedMode.ENABLED, the
+     * CreditSpecification.CPUCredits parameter in the request that is made to AWS is set to "unlimited".
+     */
+    @Test
+    public void testBurstableUnlimitedModeEnabled()
+        throws IOException, CredentialStoreNotFoundException {
+        SlaveTemplate.BurstableUnlimitedMode burstableUnlimitedMode = SlaveTemplate.BurstableUnlimitedMode.ENABLED;
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami", null, null,
+            "default", "foo", InstanceType.M1Large, false, "ttt",
+            Node.Mode.NORMAL, "description", "bar", "bbb", "aaa",
+            "10", "fff", null, "-Xmx1g", false,
+            null, null, null, null, "",
+            true, false, false, "",
+            false, "", false, false,
+            false, burstableUnlimitedMode, ConnectionStrategy.PUBLIC_IP, -1);
+
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(slaveTemplate);
+
+        CredentialUtils.addGlobalSystemCredentials(
+                new AWSCredentialsImpl(CredentialsScope.SYSTEM, "abc", "foo", "bar", null)
+        );
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("test-cloud", false,
+            "abc", "dummy-region-1", TEST_PRIVATE_SSH_KEY, "3", templates,
+            null, null);
+        r.jenkins.clouds.add(ac);
+
+        slaveTemplate.provision(1, EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE));
+
+        verify(
+            postRequestedFor(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=RunInstances"))
+                .withRequestBody(containing("CreditSpecification.CpuCredits=unlimited"))
+        );
+    }
+
+    /**
+     * Verifies that when creating an EC2 instance with BurstableUnlimitedMode.DISABLED, the
+     * CreditSpecification.CPUCredits parameter in the request that is made to AWS is set to "standard".
+     */
+    @Test
+    public void testBurstableUnlimitedModeDisabled()
+        throws IOException, CredentialStoreNotFoundException {
+        SlaveTemplate.BurstableUnlimitedMode burstableUnlimitedMode = SlaveTemplate.BurstableUnlimitedMode.DISABLED;
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami", null, null,
+            "default", "foo", InstanceType.M1Large, false, "ttt",
+            Node.Mode.NORMAL, "description", "bar", "bbb", "aaa",
+            "10", "fff", null, "-Xmx1g", false,
+            null, null, null, null, "",
+            true, false, false, "",
+            false, "", false, false,
+            false, burstableUnlimitedMode, ConnectionStrategy.PUBLIC_IP, -1);
+
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(slaveTemplate);
+
+        CredentialUtils.addGlobalSystemCredentials(
+                new AWSCredentialsImpl(CredentialsScope.SYSTEM, "abc", "foo", "bar", null)
+        );
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("test-cloud", false,
+            "abc", "dummy-region-1", TEST_PRIVATE_SSH_KEY, "3", templates,
+            null, null);
+        r.jenkins.clouds.add(ac);
+
+        slaveTemplate.provision(1, EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE));
+
+        verify(
+            postRequestedFor(urlEqualTo("/ec2/"))
+                .withRequestBody(containing("Action=RunInstances"))
+                .withRequestBody(containing("CreditSpecification.CpuCredits=standard"))
+        );
     }
 }

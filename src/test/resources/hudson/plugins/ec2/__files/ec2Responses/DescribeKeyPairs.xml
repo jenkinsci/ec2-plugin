@@ -1,0 +1,9 @@
+<DescribeKeyPairsResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+  <requestId>50aaa400-d3ac-4e13-922b-5c59bc20bf02</requestId>
+  <keySet>
+    <item>
+      <keyName>test-key</keyName>
+      <keyFingerprint>c2:70:f6:bd:6e:76:7d:25:5d:7d:dc:7f:de:fe:b8:a4:9e:ce:bb:dd</keyFingerprint>
+    </item>
+  </keySet>
+</DescribeKeyPairsResponse>

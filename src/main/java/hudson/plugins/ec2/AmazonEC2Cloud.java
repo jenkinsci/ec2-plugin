@@ -67,6 +67,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     // Used when running unit tests
     private static boolean testMode = false;
+    private static String ec2TestEndpointUrl;
+
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
@@ -100,6 +102,13 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
+            if (isTestMode()) {
+                String testEndpointUrl = getEc2TestEndpointUrl();
+                if (testEndpointUrl != null) {
+                    return new URL(testEndpointUrl);
+                }
+            }
+
             return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
@@ -140,6 +149,14 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static boolean isTestMode() {
         return testMode;
+    }
+
+    public static void setEc2TestEndpointUrl(String ec2TestEndpointUrl) {
+        AmazonEC2Cloud.ec2TestEndpointUrl = ec2TestEndpointUrl;
+    }
+
+    public static String getEc2TestEndpointUrl() {
+        return ec2TestEndpointUrl;
     }
 
     @Extension

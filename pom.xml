@@ -130,6 +130,17 @@ THE SOFTWARE.
             <scope>provided</scope><!-- comes from the core -->
         </dependency>
         <dependency>
+            <!-- During testing, WireMock pulls in Guava 27. Jenkins provides Guava 11, and doesn't work with Guava
+                 27. WireMock doesn't work with Guava 11. Guava 20 works for both WireMock and Jenkins, so use that.
+
+                 NB: In production, we use Guava 11, as provided by Jenkins, as WireMock is only used during testing.
+            -->
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>20.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-module-junit4</artifactId>
             <scope>test</scope>
@@ -155,6 +166,12 @@ THE SOFTWARE.
                     <artifactId>hamcrest-core</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>2.23.2</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -393,6 +410,30 @@ THE SOFTWARE.
                 <configuration>
                     <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>display-info</id>
+                        <configuration>
+                            <rules>
+                                <requireUpperBoundDeps>
+                                    <excludes combine.children="append">
+                                        <!-- WireMock requires more recent versions of these three artifacts, but the
+                                             older versions we actually pull in are API-compatible, so ignore this
+                                             issue:
+                                        -->
+                                        <exclude>org.apache.commons:commons-lang3</exclude>
+                                        <exclude>org.apache.httpcomponents:httpclient</exclude>
+                                        <exclude>org.eclipse.jetty:jetty-security</exclude>
+                                    </excludes>
+                                </requireUpperBoundDeps>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
