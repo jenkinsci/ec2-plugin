@@ -39,11 +39,11 @@ THE SOFTWARE.
 
     <name>Amazon EC2 plugin</name>
     <description>This is a Jenkins plugin to support ephemeral Jenkins agents on Amazon EC2 or other EC2-compatible clouds</description>
-    <url>http://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
+    <url>https://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
     <licenses>
         <license>
             <name>The MIT License</name>
-            <url>http://www.opensource.org/licenses/mit-license.php</url>
+            <url>https://www.opensource.org/licenses/mit-license.php</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -79,7 +79,7 @@ THE SOFTWARE.
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.121.1</jenkins.version>
         <java.level>8</java.level>
-        <jcasc.version>1.19</jcasc.version>
+        <jcasc.version>1.21</jcasc.version>
     </properties>
 
     <dependencies>
@@ -101,7 +101,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-java-sdk</artifactId>
-            <version>1.11.457</version>
+            <version>1.11.562</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
