@@ -83,8 +83,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPrivateDnsName()).thenReturn("0-0-0-0.ec2.internal");
         when(instance.getPrivateIpAddress()).thenReturn("0.0.0.0");
 
-        HostAndPort expected = HostAndPort.fromString("0.0.0.0");
-        assertThat(windows(instance, strategy), equalTo(expected));
+        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -95,8 +94,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPrivateDnsName()).thenReturn("");
         when(instance.getPrivateIpAddress()).thenReturn("0.0.0.0");
 
-        HostAndPort expected = HostAndPort.fromString("0.0.0.0");
-        assertThat(windows(instance, strategy), equalTo(expected));
+        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -107,8 +105,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPublicDnsName()).thenReturn("ec2-0-0-0-0.compute-1.amazonaws.com");
         when(instance.getPublicIpAddress()).thenReturn("0.0.0.0");
 
-        HostAndPort expected = HostAndPort.fromString("0.0.0.0");
-        assertThat(windows(instance, strategy), equalTo(expected));
+        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -119,7 +116,6 @@ public class EC2HostAddressProviderTest {
         when(instance.getPublicDnsName()).thenReturn("");
         when(instance.getPublicIpAddress()).thenReturn("0.0.0.0");
 
-        HostAndPort expected = HostAndPort.fromString("0.0.0.0");
-        assertThat(windows(instance, strategy), equalTo(expected));
+        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
     }
 }

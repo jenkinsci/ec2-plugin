@@ -1,7 +1,6 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.model.Instance;
-import com.google.common.net.HostAndPort;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.Optional;
@@ -24,11 +23,11 @@ public class EC2HostAddressProvider {
         }
     }
 
-    public static HostAndPort windows(Instance instance, ConnectionStrategy strategy) {
+    public static String windows(Instance instance, ConnectionStrategy strategy) {
         if (strategy.equals(PRIVATE_DNS) || strategy.equals(PRIVATE_IP)) {
-            return HostAndPort.fromString(getPrivateIpAddress(instance));
+            return getPrivateIpAddress(instance);
         } else if (strategy.equals(PUBLIC_DNS) || strategy.equals(PUBLIC_IP)) {
-            return HostAndPort.fromString(getPublicIpAddress(instance));
+            return getPublicIpAddress(instance);
         } else {
             throw new IllegalArgumentException("Could not unix host address for strategy = " + strategy.toString());
         }
