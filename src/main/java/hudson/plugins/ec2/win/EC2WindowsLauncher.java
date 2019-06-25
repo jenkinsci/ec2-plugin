@@ -1,6 +1,5 @@
 package hudson.plugins.ec2.win;
 
-import com.google.common.net.HostAndPort;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2AbstractSlave;
@@ -121,7 +120,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for winrm to be connected");
                 }
                 Instance instance = computer.updateInstanceDescription();
-                String host = EC2HostAddressProvider.windows(instance, computer.getSlaveTemplate().connectionStrategy).getHostText();
+                String host = EC2HostAddressProvider.windows(instance, computer.getSlaveTemplate().connectionStrategy);
 
                 if ("0.0.0.0".equals(host)) {
                     logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
