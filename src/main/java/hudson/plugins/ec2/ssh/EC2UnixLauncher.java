@@ -235,7 +235,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             final String prefix = computer.getSlaveCommandPrefix();
             final String suffix = computer.getSlaveCommandSuffix();
             final String remoteFS = node.getRemoteFS();
-            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + remoteFS + suffix;
+            final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
+            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + workDir + suffix;
            // launchString = launchString.trim();
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
