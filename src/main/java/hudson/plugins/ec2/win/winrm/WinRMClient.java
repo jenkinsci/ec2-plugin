@@ -44,6 +44,7 @@ import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
+import org.dom4j.Node;
 import org.dom4j.XPath;
 import org.jaxen.SimpleNamespaceContext;
 
@@ -133,13 +134,16 @@ public class WinRMClient {
         xpath.setNamespaceContext(namespaceContext);
 
         Base64 base64 = new Base64();
-        for (Element e : (List<Element>) xpath.selectNodes(response)) {
-            FastPipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
-            final byte[] decode = base64.decode(e.getText());
-            log.log(Level.FINE, "piping " + decode.length + " bytes from "
-                    + e.attribute("Name").getText().toLowerCase());
+        for (Object node : xpath.selectNodes(response)) {
+            if (node instanceof Element) {
+                Element e = (Element) node;
+                FastPipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
+                final byte[] decode = base64.decode(e.getText());
+                log.log(Level.FINE, "piping " + decode.length + " bytes from "
+                        + e.attribute("Name").getText().toLowerCase());
 
-            stream.write(decode);
+                stream.write(decode);
+            }
         }
 
         XPath done = DocumentHelper.createXPath("//*[@State='http://schemas.microsoft.com/wbem/wsman/1/windows/shell/CommandState/Done']");
@@ -160,11 +164,11 @@ public class WinRMClient {
 
     private static String first(Document doc, String selector) {
         XPath xpath = DocumentHelper.createXPath(selector);
-        try {
-            return Iterables.get((List<Element>) xpath.selectNodes(doc), 0).getText();
-        } catch (IndexOutOfBoundsException e) {
-            throw new RuntimeException("Malformed response for " + selector + " in " + doc.asXML());
+        List<Node> nodes = xpath.selectNodes(doc);
+        if (!nodes.isEmpty() && nodes.get(0) instanceof Element) {
+            return nodes.get(0).getText();
         }
+        throw new RuntimeException("Malformed response for " + selector + " in " + doc.asXML());
     }
 
     private void setupHTTPClient() {
