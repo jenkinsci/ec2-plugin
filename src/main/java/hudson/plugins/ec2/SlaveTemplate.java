@@ -521,7 +521,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 '}';
     }
 
-    public int getmMaxTotalUses() {
+    public int getMaxTotalUses() {
         return maxTotalUses;
     }
 

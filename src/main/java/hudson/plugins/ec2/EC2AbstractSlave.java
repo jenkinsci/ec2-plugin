@@ -185,6 +185,18 @@ public abstract class EC2AbstractSlave extends Slave {
             amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, Integer.toString(sshPort));
         }
 
+        if (maxTotalUses == 0) {
+            EC2Cloud cloud = getCloud();
+            if (cloud != null) {
+                SlaveTemplate template = cloud.getTemplate(templateDescription);
+                if (template != null) {
+                    if (template.getMaxTotalUses() == -1) {
+                        maxTotalUses = -1;
+                    }
+                }
+            }
+        }
+
         return this;
     }
 
