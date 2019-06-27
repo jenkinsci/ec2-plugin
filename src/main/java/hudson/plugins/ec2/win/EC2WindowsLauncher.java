@@ -78,7 +78,8 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
             final String jvmopts = node.jvmopts;
             final String remoteFS = WindowsUtil.quoteArgument(node.getRemoteFS());
-            final String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + AGENT_JAR + " -workDir " + remoteFS;
+            final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
+            final String launchString = "java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + AGENT_JAR + " -workDir " + workDir;
             logger.println("Launching via WinRM:" + launchString);
             final WindowsProcess process = connection.execute(launchString, 86400);
             computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
