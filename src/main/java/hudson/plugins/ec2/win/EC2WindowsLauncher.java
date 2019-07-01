@@ -133,8 +133,6 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                         throw new IOException("goto sleep");
                     }
 
-                    logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
-
                     if (node.isRetrievePassword()) {
                         GetPasswordDataResult result;
                         try {
@@ -160,6 +158,8 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     }
                     connection.setUseHTTPS(node.isUseHTTPS());
                 }
+
+                logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
 
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");
