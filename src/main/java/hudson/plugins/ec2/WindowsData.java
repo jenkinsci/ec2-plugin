@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import java.util.concurrent.TimeUnit;
+import java.util.Objects;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
@@ -13,12 +14,18 @@ public class WindowsData extends AMITypeData {
     private final Secret password;
     private final boolean useHTTPS;
     private final String bootDelay;
+    private final boolean retrievePassword;
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean retrievePassword) {
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
+        this.retrievePassword = retrievePassword;
+    }
+
+    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
+        this(password, useHTTPS, bootDelay, false);
     }
 
     @Override
@@ -43,6 +50,10 @@ public class WindowsData extends AMITypeData {
         return bootDelay;
     }
 
+    public boolean isRetrievePassword() {
+        return retrievePassword;
+    }
+
     public int getBootDelayInMillis() {
         try {
             return (int) TimeUnit.SECONDS.toMillis(Integer.parseInt(bootDelay));
@@ -61,12 +72,7 @@ public class WindowsData extends AMITypeData {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((bootDelay == null) ? 0 : bootDelay.hashCode());
-        result = prime * result + ((password == null) ? 0 : password.hashCode());
-        result = prime * result + (useHTTPS ? 1231 : 1237);
-        return result;
+        return Objects.hash(password,useHTTPS, bootDelay, retrievePassword);
     }
 
     @Override
@@ -88,6 +94,6 @@ public class WindowsData extends AMITypeData {
                 return false;
         } else if (!password.equals(other.password))
             return false;
-        return useHTTPS == other.useHTTPS;
+        return useHTTPS == other.useHTTPS && retrievePassword == other.retrievePassword;
     }
 }

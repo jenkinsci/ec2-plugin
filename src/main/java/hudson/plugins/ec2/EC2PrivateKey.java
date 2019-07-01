@@ -34,6 +34,10 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 
 import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
+import org.bouncycastle.util.encoders.Base64;
+import javax.crypto.Cipher;
+import java.nio.charset.Charset;
+import com.amazonaws.AmazonClientException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -124,6 +128,18 @@ public class EC2PrivateKey {
             }
         }
         return null;
+    }
+
+    public String decryptWindowsPassword(String encodedPassword) throws AmazonClientException {
+        try {
+            Cipher cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding");
+            cipher.init(Cipher.DECRYPT_MODE, PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
+            byte[] cipherText = Base64.decode(encodedPassword);
+            byte[] plainText = cipher.doFinal(cipherText);
+            return new String(plainText, Charset.forName("ASCII"));
+        } catch (Exception e) {
+            throw new AmazonClientException("Unable to decode password:\n" + e.toString());
+        }
     }
 
     @Override
