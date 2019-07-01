@@ -79,7 +79,7 @@ THE SOFTWARE.
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.121.1</jenkins.version>
         <java.level>8</java.level>
-        <jcasc.version>1.21</jcasc.version>
+        <jcasc.version>1.22</jcasc.version>
     </properties>
 
     <dependencies>
