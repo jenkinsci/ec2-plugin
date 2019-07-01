@@ -152,14 +152,14 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                         if (!node.getRemoteAdmin().equals("Administrator")) {
                             logger.println("WARNING: For password retrieval remote admin must be Administrator, ignoring user provided value");
                         }
+                        logger.println("Connecting to " + "(" + host + ") with WinRM as Administrator");
                         connection = new WinConnection(host, "Administrator", password);
                     } else {
+                        logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
                         connection = new WinConnection(host, node.getRemoteAdmin(), node.getAdminPassword().getPlainText());
                     }
                     connection.setUseHTTPS(node.isUseHTTPS());
                 }
-
-                logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
 
                 if (!connection.ping()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");
