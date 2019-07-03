@@ -1,8 +1,12 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.model.InstanceType;
+
 import hudson.slaves.NodeProperty;
 import hudson.model.Executor;
+import hudson.model.Node;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -90,6 +94,11 @@ public class EC2RetentionStrategyTest {
             @Override
             public InstanceState getState() {
                 return InstanceState.RUNNING;
+            }
+            
+            @Override
+            public SlaveTemplate getSlaveTemplate() {
+                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
             }
         };
         assertTrue(computer.isIdle());
