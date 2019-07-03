@@ -366,7 +366,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
                 String host = getEC2HostAddress(computer);
 
-                if ((computer.getNode() instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
+                if ((node instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
                      // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
                      // the instance id that it is starting. Continue to wait until the instanceId is set.
                     logInfo(computer, listener, "empty instanceId for Spot Slave.");
