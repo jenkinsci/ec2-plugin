@@ -14,14 +14,18 @@ public class WindowsData extends AMITypeData {
     private final Secret password;
     private final boolean useHTTPS;
     private final String bootDelay;
-    private final boolean retrievePassword;
+    private final boolean specifyPassword;
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean retrievePassword) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword) {
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
-        this.retrievePassword = retrievePassword;
+        this.specifyPassword = specifyPassword;
+        //Backwards compatibility
+        if (!specifyPassword && !this.password.getPlainText().isEmpty()) {
+            specifyPassword = true;
+        }
     }
 
     public WindowsData(String password, boolean useHTTPS, String bootDelay) {
@@ -50,8 +54,8 @@ public class WindowsData extends AMITypeData {
         return bootDelay;
     }
 
-    public boolean isRetrievePassword() {
-        return retrievePassword;
+    public boolean isSpecifyPassword() {
+        return specifyPassword;
     }
 
     public int getBootDelayInMillis() {
@@ -72,7 +76,7 @@ public class WindowsData extends AMITypeData {
 
     @Override
     public int hashCode() {
-        return Objects.hash(password,useHTTPS, bootDelay, retrievePassword);
+        return Objects.hash(password,useHTTPS, bootDelay, specifyPassword);
     }
 
     @Override
@@ -94,6 +98,6 @@ public class WindowsData extends AMITypeData {
                 return false;
         } else if (!password.equals(other.password))
             return false;
-        return useHTTPS == other.useHTTPS && retrievePassword == other.retrievePassword;
+        return useHTTPS == other.useHTTPS && specifyPassword == other.specifyPassword;
     }
 }

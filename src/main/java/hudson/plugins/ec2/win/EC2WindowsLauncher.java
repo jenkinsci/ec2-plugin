@@ -133,7 +133,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                         throw new IOException("goto sleep");
                     }
 
-                    if (node.isRetrievePassword()) {
+                    if (!node.isSpecifyPassword()) {
                         GetPasswordDataResult result;
                         try {
                             result = node.getCloud().connect().getPasswordData(new GetPasswordDataRequest(instance.getInstanceId()));
@@ -154,7 +154,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                         }
                         logger.println("Connecting to " + "(" + host + ") with WinRM as Administrator");
                         connection = new WinConnection(host, "Administrator", password);
-                    } else {
+                    } else { //password Specified
                         logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
                         connection = new WinConnection(host, node.getRemoteAdmin(), node.getAdminPassword().getPlainText());
                     }

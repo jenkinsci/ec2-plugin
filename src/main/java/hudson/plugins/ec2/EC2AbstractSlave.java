@@ -693,8 +693,8 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.isWindows() ? ((WindowsData) amiType).getBootDelayInMillis() : 0;
     }
 
-    public boolean isRetrievePassword() {
-        return amiType.isWindows() && ((WindowsData) amiType).isRetrievePassword();
+    public boolean isSpecifyPassword() {
+        return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
