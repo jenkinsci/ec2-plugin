@@ -458,7 +458,7 @@ public abstract class EC2AbstractSlave extends Slave {
         return launchTimeout * 1000L;
     }
 
-    String getRemoteAdmin() {
+    public String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
             return amiType.isWindows() ? "Administrator" : "root";
         return remoteAdmin;
@@ -691,6 +691,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public int getBootDelay() {
         return amiType.isWindows() ? ((WindowsData) amiType).getBootDelayInMillis() : 0;
+    }
+
+    public boolean isSpecifyPassword() {
+        return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
