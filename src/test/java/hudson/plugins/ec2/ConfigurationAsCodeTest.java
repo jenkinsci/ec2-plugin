@@ -189,6 +189,23 @@ public class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("BurstableUnlimitedModeOverride.yml")
+    public void testBurstableUnlimitedModeOverride() throws Exception {
+        // Setting burstableUnlimitedMode in the JCasC file should override any t2Unlimited setting that is also
+        // present.
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(3, templates.size());
+
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.DEFAULT, templates.get(0).getBurstableUnlimitedMode());
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.ENABLED, templates.get(1).getBurstableUnlimitedMode());
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.DISABLED, templates.get(2).getBurstableUnlimitedMode());
+    }
+
+
+    @Test
     @ConfiguredWithCode("UnixData.yml")
     public void testConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
