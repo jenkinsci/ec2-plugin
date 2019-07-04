@@ -92,7 +92,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public final boolean t2Unlimited;
 
-    private final BurstableUnlimitedMode burstableUnlimitedMode;
+    private BurstableUnlimitedMode burstableUnlimitedMode;
 
     public final String labels;
 
@@ -251,6 +251,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description,
+                initScript, tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId,
+                tags, idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
+                connectBySSHProcess, monitoring, t2Unlimited, null, connectionStrategy, maxTotalUses);
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
@@ -259,8 +275,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
                 useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
-                monitoring, t2Unlimited, null, ConnectionStrategy.backwardsCompatible(usePrivateDnsName,
-                connectUsingPublicIp, associatePublicIp), -1);
+                monitoring, t2Unlimited, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp), -1);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -328,11 +343,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public BurstableUnlimitedMode getBurstableUnlimitedMode() {
-        if (burstableUnlimitedMode == null) {
-            // For backward-compatibility.
-            return t2Unlimited ? BurstableUnlimitedMode.ENABLED : BurstableUnlimitedMode.DEFAULT;
-        }
-
         return burstableUnlimitedMode;
     }
 
@@ -1263,6 +1273,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (maxTotalUses == 0) {
             maxTotalUses = -1;
+        }
+
+        // Migrate old t2Unlimited setting:
+        if (burstableUnlimitedMode == null) {
+            burstableUnlimitedMode = t2Unlimited ? BurstableUnlimitedMode.ENABLED : BurstableUnlimitedMode.DEFAULT;
         }
 
         return this;

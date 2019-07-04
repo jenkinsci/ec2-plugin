@@ -154,14 +154,7 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default",
-            "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description,
-            "bar", "bbb", "aaa", "10", "fff", null,
-            "-Xmx1g", false, "subnet 456", tags, null,
-            null, "", true, false,
-            false, "", false, "",
-            false, false, false, SlaveTemplate.BurstableUnlimitedMode.DEFAULT,
-            ConnectionStrategy.PUBLIC_IP, -1);
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
