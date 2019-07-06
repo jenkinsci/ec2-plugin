@@ -64,6 +64,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      * billing period.
      */
     public final int idleTerminationMinutes;
+    
+    //Retains ephemeral agents for specified hours before applying "idle termination minutes" rules.
+    public final int minUpHours;
 
     private transient ReentrantLock checkLock;
     private static final int STARTUP_TIME_DEFAULT_VALUE = 30;
@@ -73,7 +76,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     String.valueOf(STARTUP_TIME_DEFAULT_VALUE)), STARTUP_TIME_DEFAULT_VALUE);
 
     @DataBoundConstructor
-    public EC2RetentionStrategy(String idleTerminationMinutes) {
+    public EC2RetentionStrategy(String idleTerminationMinutes, String minUpHours) {
         readResolve();
         if (idleTerminationMinutes == null || idleTerminationMinutes.trim().isEmpty()) {
             this.idleTerminationMinutes = 0;
@@ -87,11 +90,24 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
             this.idleTerminationMinutes = value;
         }
+        
+        if (minUpHours == null || minUpHours.trim() == "") {
+            this.minUpHours = 0;
+        } else {
+            int value = 0;
+            try {
+                value = Integer.parseInt(minUpHours);
+            } catch (NumberFormatException nfe) {
+                LOGGER.info("Malformed default minUpHours value: " + minUpHours);
+            }
+
+            this.minUpHours = value;
+        }
     }
 
 
-    EC2RetentionStrategy(String idleTerminationMinutes, Clock clock, long nextCheckAfter) {
-        this(idleTerminationMinutes);
+    EC2RetentionStrategy(String idleTerminationMinutes, String minUpHours, Clock clock, long nextCheckAfter) {
+        this(idleTerminationMinutes, minUpHours);
         this.clock = clock;
         this.nextCheckAfter = nextCheckAfter;
     }
@@ -161,6 +177,12 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             if (computer.isOffline() && uptime < TimeUnit.MINUTES.toMillis(STARTUP_TIMEOUT)) {
                 return 1;
             }
+            
+            // Check min number of hours instance must be up - if stayed up at least that minimum.
+            long minUpHoursInMills = TimeUnit.MILLISECONDS.toHours(minUpHours);
+            if (minUpHoursInMills > uptime) {
+            		return 1;
+            } 
 
             final long idleMilliseconds = this.clock.millis() - computer.getIdleStartMilliseconds();
 

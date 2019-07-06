@@ -50,7 +50,7 @@ public class EC2RetentionStrategyTest {
         for (int i = 0; i < upTime.size(); i++) {
             int[] t = upTime.get(i);
             EC2Computer computer = computerWithIdleTime(t[0], t[1]);
-            EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
+            EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", "0");
             rs.check(computer);
             assertEquals("Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i), (boolean) expected.get(i), idleTimeoutCalled.get());
             // reset the assumption
@@ -98,7 +98,7 @@ public class EC2RetentionStrategyTest {
             
             @Override
             public SlaveTemplate getSlaveTemplate() {
-                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "", "0");
             }
         };
         assertTrue(computer.isIdle());
@@ -108,7 +108,7 @@ public class EC2RetentionStrategyTest {
 
     @Test
     public void testOnUsageCountRetention() throws Exception {
-        EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("0", "0");
         List<Integer> usageCounts = new ArrayList<Integer>();
         List<Boolean> expected = new ArrayList<Boolean>();
         usageCounts.add(5);
@@ -182,10 +182,10 @@ public class EC2RetentionStrategyTest {
             EC2RetentionStrategy rs;
             if (i > 0) {
                 Clock clock = Clock.fixed(now.plusSeconds(startingUptime), zoneId);
-                rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
+                rs = new EC2RetentionStrategy("1", "0", clock, nextCheckAfter);
 
             } else {
-                rs = new EC2RetentionStrategy("1");
+                rs = new EC2RetentionStrategy("1", "0");
             }
             rs.check(computer);
             String action = expected.get(i) ? "call" : "not call";
