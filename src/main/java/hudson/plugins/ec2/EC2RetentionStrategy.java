@@ -91,7 +91,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             this.idleTerminationMinutes = value;
         }
         
-        if (minUpHours == null || minUpHours.trim() == "") {
+        if (minUpHours == null || minUpHours.trim().isEmpty()) {
             this.minUpHours = 0;
         } else {
             int value = 0;
