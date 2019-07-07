@@ -32,21 +32,21 @@ public final class EC2OndemandSlave extends EC2AbstractSlave {
     private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 
     @Deprecated
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, String minUpHours)
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout, amiType, minUpHours);
+        this(instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout, amiType);
     }
 
     @Deprecated
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, String minUpHours)
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, useDedicatedTenancy, launchTimeout, amiType, minUpHours);
+        this(instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, useDedicatedTenancy, launchTimeout, amiType);
     }
 
     @Deprecated
-    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, String minUpHours)
+    public EC2OndemandSlave(String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1, minUpHours);
+        this(description + " (" + instanceId + ")", instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1, "0");
     }
 
     @DataBoundConstructor

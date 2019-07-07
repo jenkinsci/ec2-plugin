@@ -420,7 +420,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
     
     public String getMinUpHours() {
- 		return minUpHours;
+    		return minUpHours;
  	}
 
     @Deprecated
