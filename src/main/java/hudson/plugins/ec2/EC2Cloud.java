@@ -405,9 +405,6 @@ public abstract class EC2Cloud extends Cloud {
 
         List<SpotInstanceRequest> sirs = null;
         filters = getGenericFilters(jenkinsServerUrl, template);
-        if (template != null) {
-            filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
-        }
 
         DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
         try {
