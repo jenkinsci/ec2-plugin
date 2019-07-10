@@ -388,9 +388,6 @@ public abstract class EC2Cloud extends Cloud {
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         filters.add(new Filter("instance-state-name").withValues("running", "pending", "stopping"));
-        if (template != null) {
-            filters.add(new Filter("image-id").withValues(template.getAmi()));
-        }
         DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
         for (Reservation r : connect().describeInstances(dir).getReservations()) {
             for (Instance i : r.getInstances()) {
@@ -405,6 +402,9 @@ public abstract class EC2Cloud extends Cloud {
 
         List<SpotInstanceRequest> sirs = null;
         filters = getGenericFilters(jenkinsServerUrl, template);
+        if (template != null) {
+            filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
+        }
 
         DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
         try {
