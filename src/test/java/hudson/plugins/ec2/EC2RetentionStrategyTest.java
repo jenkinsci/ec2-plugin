@@ -57,9 +57,36 @@ public class EC2RetentionStrategyTest {
             idleTimeoutCalled.set(false);
         }
     }
+    
+    @Test
+    public void testOnMinUpHoursRetention() throws Exception {
+        List<int[]> upTime = new ArrayList<int[]>();
+        List<String[]> retentionChecks = new ArrayList<String[]>();
+        List<Boolean> expected = new ArrayList<Boolean>();
+        upTime.add(new int[] { 58, 0 });
+        retentionChecks.add(new String[] { "-2", "0" }); // idleTerminationMinutes, minUpHours
+        expected.add(true);
+        upTime.add(new int[] { 58, 0 });
+        retentionChecks.add(new String[] { "-2", "2" });
+        expected.add(false); //idleTimeoutCalled should not get called since minUpHours = 2 
+        upTime.add(new int[] { 58, 0 });
+        retentionChecks.add(new String[] { "0", "2" });
+        expected.add(false); //idleTimeoutCalled should not get called since idleTerminationMinutes = 0
+
+        for (int i = 0; i < upTime.size(); i++) {
+            int[] t = upTime.get(i);
+            String[] r = retentionChecks.get(i);
+            EC2Computer computer = computerWithIdleTime(t[0], t[1]);
+            EC2RetentionStrategy rs = new EC2RetentionStrategy(r[0], r[1]);
+            rs.check(computer);
+            assertEquals("Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i) + "Uptime-->"+computer.getUptime() + "Idle "+computer.getIdleStartMilliseconds(), (boolean) expected.get(i), idleTimeoutCalled.get());
+            // reset the assumption
+            idleTimeoutCalled.set(false);
+        }
+    }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1, "0") {
             @Override
             public void terminate() {
             }
@@ -98,8 +125,9 @@ public class EC2RetentionStrategyTest {
             
             @Override
             public SlaveTemplate getSlaveTemplate() {
-                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "", "0");
+                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "", false);
             }
+            
         };
         assertTrue(computer.isIdle());
         assertTrue(computer.isOnline());
@@ -193,4 +221,5 @@ public class EC2RetentionStrategyTest {
             assertEquals(String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action), expectCallCheck, nextCheckAfter != newNextCheckAfter);
         }
     }
+    
 }

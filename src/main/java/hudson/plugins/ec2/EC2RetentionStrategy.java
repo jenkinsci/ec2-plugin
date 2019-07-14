@@ -179,7 +179,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
             
             // Check min number of hours instance must be up - if stayed up at least that minimum.
-            long minUpHoursInMills = TimeUnit.MILLISECONDS.toHours(minUpHours);
+            long minUpHoursInMills = TimeUnit.HOURS.toMillis(minUpHours);
             if (minUpHoursInMills > uptime) {
             		return 1;
             } 
