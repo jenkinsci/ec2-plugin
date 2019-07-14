@@ -139,7 +139,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int maxTotalUses;
 
     public int nextSubnet;
-    
+
     private String minUpHours;
 
     public String currentSubnetId;
@@ -240,7 +240,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         readResolve(); // initialize
     }
-    
+
     @Deprecated
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
@@ -434,10 +434,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public boolean getAssociatePublicIp() {
         return associatePublicIp;
     }
-    
+
     public String getMinUpHours() {
-    		return minUpHours;
- 	}
+        return minUpHours;
+    }
 
     @Deprecated
     @DataBoundSetter
