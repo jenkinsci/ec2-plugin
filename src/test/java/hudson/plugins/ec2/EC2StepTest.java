@@ -18,6 +18,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -51,7 +52,7 @@ public class EC2StepTest {
     private EC2AbstractSlave instance;
 
     @Before
-    public void setup () throws Exception {
+    public void setup() throws Exception {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(st);
 
@@ -71,6 +72,7 @@ public class EC2StepTest {
         when(cl.connect()).thenCallRealMethod();
         when(cl.getEc2EndpointUrl()).thenCallRealMethod();
         when(cl.createCredentialsProvider()).thenCallRealMethod();
+        cl.clock = Clock.systemUTC();
 
         // not expired ec2 client
         AmazonEC2 notExpiredClient = mock(AmazonEC2.class);
@@ -88,6 +90,7 @@ public class EC2StepTest {
 
         AmazonEC2 expiredClient = mock(AmazonEC2.class, new ThrowsException(expiredException));
         cl.connection = expiredClient;
+        cl.checkAfter = -1;
         assertNotSame("EC2 client should be re-created when it is expired", expiredClient, cl.connect());
     }
 
@@ -132,9 +135,7 @@ public class EC2StepTest {
     }
 
     @After
-    public void teardown () {
+    public void teardown() {
         r.jenkins.clouds.clear();
     }
-
-
 }

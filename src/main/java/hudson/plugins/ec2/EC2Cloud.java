@@ -46,6 +46,7 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -140,6 +141,10 @@ public abstract class EC2Cloud extends Cloud {
 
     private final String roleSessionName;
 
+    protected volatile long checkAfter = -1;
+
+    protected transient Clock clock;
+
     /**
      * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
      */
@@ -197,6 +202,7 @@ public abstract class EC2Cloud extends Cloud {
 
     protected Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
+        this.clock = Clock.systemUTC();
         for (SlaveTemplate t : templates)
             t.parent = this;
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
@@ -763,8 +769,14 @@ public abstract class EC2Cloud extends Cloud {
         try {
             if (connection != null) {
                 try {
+                    final long currentTime = clock.millis();
                     AmazonEC2 conn = connection;
-                    conn.describeInstances();
+                    if (currentTime > checkAfter) {
+                        synchronized(this) {
+                            checkAfter = currentTime + TimeUnit.MINUTES.toMillis(1);
+                        }
+                        conn.describeInstances();
+                    }
                     return conn;
                 } catch (AmazonClientException e) {
                     return reconnectToEc2();
