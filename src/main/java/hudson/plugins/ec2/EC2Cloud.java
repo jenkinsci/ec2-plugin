@@ -991,7 +991,7 @@ public abstract class EC2Cloud extends Cloud {
                                 ec2_cloud.connection.describeInstances();
                             }
                         } catch (AmazonClientException e) {
-                            LOGGER.finer("Reconnecting to EC2 on: " + ec2_cloud.getDisplayName());
+                            LOGGER.finer(() -> "Reconnecting to EC2 on: " + ec2_cloud.getDisplayName());
                             ec2_cloud.reconnectToEc2();
                         }
                     }
