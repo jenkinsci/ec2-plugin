@@ -2,6 +2,7 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
+import hudson.model.PeriodicWork;
 import hudson.model.Result;
 import hudson.plugins.ec2.util.PluginTestRule;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -18,12 +19,12 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
@@ -72,7 +73,6 @@ public class EC2StepTest {
         when(cl.connect()).thenCallRealMethod();
         when(cl.getEc2EndpointUrl()).thenCallRealMethod();
         when(cl.createCredentialsProvider()).thenCallRealMethod();
-        cl.clock = Clock.systemUTC();
 
         // not expired ec2 client
         AmazonEC2 notExpiredClient = mock(AmazonEC2.class);
@@ -90,7 +90,9 @@ public class EC2StepTest {
 
         AmazonEC2 expiredClient = mock(AmazonEC2.class, new ThrowsException(expiredException));
         cl.connection = expiredClient;
-        cl.checkAfter = -1;
+        PeriodicWork work = PeriodicWork.all().get(EC2Cloud.EC2ConnectionUpdater.class);
+        assertNotNull(work);
+        work.run();
         assertNotSame("EC2 client should be re-created when it is expired", expiredClient, cl.connect());
     }
 

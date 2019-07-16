@@ -46,7 +46,6 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,6 +65,8 @@ import java.util.logging.SimpleFormatter;
 
 import javax.servlet.ServletException;
 
+import hudson.Extension;
+import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
@@ -141,10 +142,6 @@ public abstract class EC2Cloud extends Cloud {
 
     private final String roleSessionName;
 
-    protected volatile long checkAfter = -1;
-
-    protected transient Clock clock;
-
     /**
      * Id of the {@link AmazonWebServicesCredentials} used to connect to Amazon ECS
      */
@@ -202,7 +199,6 @@ public abstract class EC2Cloud extends Cloud {
 
     protected Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
-        this.clock = Clock.systemUTC();
         for (SlaveTemplate t : templates)
             t.parent = this;
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
@@ -768,19 +764,7 @@ public abstract class EC2Cloud extends Cloud {
     public AmazonEC2 connect() throws AmazonClientException {
         try {
             if (connection != null) {
-                try {
-                    final long currentTime = clock.millis();
-                    AmazonEC2 conn = connection;
-                    if (currentTime > checkAfter) {
-                        synchronized(this) {
-                            checkAfter = currentTime + TimeUnit.MINUTES.toMillis(1);
-                        }
-                        conn.describeInstances();
-                    }
-                    return conn;
-                } catch (AmazonClientException e) {
-                    return reconnectToEc2();
-                }
+                return connection;
             }
             else {
                 return reconnectToEc2();
@@ -987,4 +971,28 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    @Extension
+    public static class EC2ConnectionUpdater extends PeriodicWork {
+        @Override
+        public long getRecurrencePeriod() {
+            return TimeUnit.SECONDS.toMillis(60);
+        }
+
+        @Override
+        protected void doRun() throws IOException {
+            Jenkins instance = Jenkins.get();
+            if (instance.clouds != null) {
+                for (Cloud cloud : instance.clouds) {
+                    if (cloud instanceof EC2Cloud) {
+                        EC2Cloud ec2_cloud = (EC2Cloud) cloud;
+                        try {
+                            ec2_cloud.connection.describeInstances();
+                        } catch (AmazonClientException e) {
+                            ec2_cloud.reconnectToEc2();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
