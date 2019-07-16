@@ -985,7 +985,7 @@ public abstract class EC2Cloud extends Cloud {
                 for (Cloud cloud : instance.clouds) {
                     if (cloud instanceof EC2Cloud) {
                         EC2Cloud ec2_cloud = (EC2Cloud) cloud;
-                        LOGGER.finer("Checking EC2 Connection on: " + ec2_cloud.getDisplayName());
+                        LOGGER.finer(() -> "Checking EC2 Connection on: " + ec2_cloud.getDisplayName());
                         try {
                             if(ec2_cloud.connection != null) {
                                 ec2_cloud.connection.describeInstances();
