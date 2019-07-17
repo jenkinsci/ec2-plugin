@@ -6,13 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.Before;
-import org.junit.After;
 import org.jvnet.hudson.test.JenkinsRule;
 import com.amazonaws.services.ec2.model.InstanceType;
-
-
-import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 
@@ -21,17 +16,7 @@ public class EC2AbstractSlaveTest {
     @Rule
     public JenkinsRule r = new JenkinsRule();
 
-    int timeoutInSecs = Integer.MAX_VALUE;
-
-    @Before
-    public void setUp() throws Exception {
-        AmazonEC2Cloud.setTestMode(true);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        AmazonEC2Cloud.setTestMode(false);
-    }
+    private int timeoutInSecs = Integer.MAX_VALUE;
 
     @Test
     public void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {

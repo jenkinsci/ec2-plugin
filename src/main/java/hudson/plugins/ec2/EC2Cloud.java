@@ -35,6 +35,7 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
 
 import java.io.BufferedReader;
@@ -83,7 +84,6 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.Filter;
@@ -152,20 +152,18 @@ public abstract class EC2Cloud extends Cloud {
     @Deprecated
     private transient Secret secretKey;
 
-    protected final EC2PrivateKey privateKey;
+    private final EC2PrivateKey privateKey;
 
     /**
      * Upper bound on how many instances we may provision.
      */
-    public final int instanceCap;
+    private final int instanceCap;
 
     private final List<? extends SlaveTemplate> templates;
 
     private transient KeyPair usableKeyPair;
 
-    protected transient volatile AmazonEC2 connection;
-
-    private static AWSCredentialsProvider awsCredentialsProvider;
+    private transient volatile AmazonEC2 connection;
 
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
             String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
@@ -195,7 +193,7 @@ public abstract class EC2Cloud extends Cloud {
 
     public abstract URL getS3EndpointUrl() throws IOException;
 
-    protected Object readResolve() {
+    private Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
         for (SlaveTemplate t : templates)
             t.parent = this;
@@ -271,6 +269,10 @@ public abstract class EC2Cloud extends Cloud {
             return "";
         else
             return String.valueOf(instanceCap);
+    }
+
+    public int getInstanceCap() {
+        return instanceCap;
     }
 
     public List<SlaveTemplate> getTemplates() {
@@ -751,7 +753,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private AmazonEC2 reconnectToEc2() throws IOException {
         synchronized(this) {
-            connection = connect(createCredentialsProvider(), getEc2EndpointUrl());
+            connection = AmazonEC2Factory.getInstance().connect(createCredentialsProvider(), getEc2EndpointUrl());
             return connection;
         }
     }
@@ -776,18 +778,6 @@ public abstract class EC2Cloud extends Cloud {
         } catch (IOException e) {
             throw new AmazonClientException("Failed to retrieve the endpoint", e);
         }
-    }
-
-    /***
-     * Connect to an EC2 instance.
-     *
-     * @return {@link AmazonEC2} client
-     */
-    public static AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL endpoint) {
-        awsCredentialsProvider = credentialsProvider;
-        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, createClientConfiguration(endpoint.getHost()));
-        client.setEndpoint(endpoint.toString());
-        return client;
     }
 
     public static ClientConfiguration createClientConfiguration(final String host) {
@@ -836,7 +826,7 @@ public abstract class EC2Cloud extends Cloud {
      * @param path String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
      */
     public URL buildPresignedURL(String path) throws AmazonClientException {
-        AWSCredentials credentials = awsCredentialsProvider.getCredentials();
+        AWSCredentials credentials = createCredentialsProvider().getCredentials();
         long expires = System.currentTimeMillis() + 60 * 60 * 1000;
         GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(path, credentials.getAWSSecretKey());
         request.setExpiration(new Date(expires));
@@ -893,7 +883,7 @@ public abstract class EC2Cloud extends Cloud {
                 throws IOException, ServletException {
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-                AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
+                AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
                 if (privateKey == null)
@@ -919,7 +909,7 @@ public abstract class EC2Cloud extends Cloud {
                 throws IOException, ServletException {
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-                AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
+                AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2EndpointUrl);
                 List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
 
                 int n = 0;

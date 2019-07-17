@@ -23,13 +23,15 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.AmazonEC2;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
-import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
@@ -49,20 +51,23 @@ public class AmazonEC2CloudTest {
 
     @Before
     public void setUp() throws Exception {
-        AmazonEC2Cloud.setTestMode(true);
         cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        AmazonEC2Cloud.setTestMode(false);
     }
 
     @Test
     public void testConfigRoundtrip() throws Exception {
         r.submit(getConfigForm());
         r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "cloudName,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+    }
+
+    @Test
+    public void testAmazonEC2FactoryGetInstance() throws Exception {
+        r.configRoundtrip();
+        AmazonEC2Cloud cloud = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        AmazonEC2 connection = cloud.connect();
+        Assert.assertNotNull(connection);
+        Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
     }
 
     @Test

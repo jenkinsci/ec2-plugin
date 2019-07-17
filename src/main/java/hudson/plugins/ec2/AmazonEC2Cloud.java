@@ -28,6 +28,7 @@ import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -65,8 +66,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
-    // Used when running unit tests
-    private static boolean testMode = false;
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
@@ -134,14 +133,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
         return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getRegion());
     }
 
-    public static void setTestMode(boolean newTestMode) {
-        testMode = newTestMode;
-    }
-
-    public static boolean isTestMode() {
-        return testMode;
-    }
-
     @Extension
     public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
 
@@ -178,15 +169,11 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 throws IOException, ServletException {
 
             ListBoxModel model = new ListBoxModel();
-            if (testMode) {
-                model.add(DEFAULT_EC2_HOST);
-                return model;
-            }
 
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
                         credentialsId);
-                AmazonEC2 client = connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
+                AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
                 DescribeRegionsResult regions = client.describeRegions();
                 List<Region> regionList = regions.getRegions();
                 for (Region r : regionList) {

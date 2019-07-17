@@ -3,6 +3,7 @@ package hudson.plugins.ec2;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.model.Result;
+import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import hudson.plugins.ec2.util.PluginTestRule;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -28,7 +29,6 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -73,8 +73,8 @@ public class EC2StepTest {
         when(cl.createCredentialsProvider()).thenCallRealMethod();
 
         // not expired ec2 client
-        AmazonEC2 notExpiredClient = mock(AmazonEC2.class);
-        cl.connection = notExpiredClient;
+        AmazonEC2 notExpiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock();
+        AmazonEC2FactoryMockImpl.mock = notExpiredClient;
         assertSame("EC2 client not expired should be reused", notExpiredClient, cl.connect());
 
         // expired ec2 client
@@ -86,8 +86,8 @@ public class EC2StepTest {
         expiredException.setErrorCode("RequestExpired");
         expiredException.setRequestId("00000000-0000-0000-0000-000000000000");
 
-        AmazonEC2 expiredClient = mock(AmazonEC2.class, new ThrowsException(expiredException));
-        cl.connection = expiredClient;
+        AmazonEC2 expiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock(new ThrowsException(expiredException));
+        AmazonEC2FactoryMockImpl.mock = expiredClient;
         assertNotSame("EC2 client should be re-created when it is expired", expiredClient, cl.connect());
     }
 
@@ -135,6 +135,5 @@ public class EC2StepTest {
     public void teardown () {
         r.jenkins.clouds.clear();
     }
-
 
 }

@@ -42,8 +42,8 @@ import org.kohsuke.stapler.StaplerResponse;
  * @author Kohsuke Kawaguchi
  */
 public class Eucalyptus extends EC2Cloud {
-    public final URL ec2endpoint;
-    public final URL s3endpoint;
+    private final URL ec2endpoint;
+    private final URL s3endpoint;
 
     @DataBoundConstructor
     public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
