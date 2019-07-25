@@ -153,7 +153,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int maxTotalUses;
 
-    public /* almost final */DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
+    private /* lazily initialized */ DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
 
     public int nextSubnet;
 
@@ -586,8 +586,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
-        assert nodeProperties != null;
-    	return nodeProperties;
+    	return Objects.requireNonNull(nodeProperties);
     }
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
