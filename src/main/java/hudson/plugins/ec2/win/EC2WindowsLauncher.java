@@ -49,7 +49,12 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     : "C:\\Windows\\Temp\\");
 
             logger.println("Creating tmp directory if it does not exist");
-            connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
+            WindowsProcess mkdirProcess = connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
+            int exitCode = mkdirProcess.waitFor();
+            if (exitCode != 0) {
+                logger.println("Creating tmpdir failed=" + exitCode);
+                return;
+            }
 
             if (initScript != null && initScript.trim().length() > 0 && !connection.exists(tmpDir + ".jenkins-init")) {
                 logger.println("Executing init script");
