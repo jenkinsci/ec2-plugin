@@ -72,6 +72,7 @@ public class WindowsProcess {
             } finally {
                 client.deleteShell();
                 terminated = true;
+                Closeables.closeQuietly(toCallersStdin);
             }
             return client.exitCode();
         } catch (InterruptedException exc) {
