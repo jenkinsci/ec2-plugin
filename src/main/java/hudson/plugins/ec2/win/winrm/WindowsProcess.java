@@ -72,6 +72,7 @@ public class WindowsProcess {
             } finally {
                 client.deleteShell();
                 terminated = true;
+                Closeables.closeQuietly(toCallersStdin);
             }
             return client.exitCode();
         } catch (InterruptedException exc) {
@@ -88,6 +89,12 @@ public class WindowsProcess {
         client.signal();
         client.deleteShell();
         terminated = true;
+        Closeables.closeQuietly(toCallersStdout);
+        Closeables.closeQuietly(toCallersStdin);
+        Closeables.closeQuietly(toCallersStderr);
+        Closeables.closeQuietly(callersStdout);
+        Closeables.closeQuietly(callersStdin);
+        Closeables.closeQuietly(callersStderr);
     }
 
     private void startStdoutCopyThread() {

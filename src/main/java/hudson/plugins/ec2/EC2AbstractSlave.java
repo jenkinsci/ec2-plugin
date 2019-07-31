@@ -220,15 +220,25 @@ public abstract class EC2AbstractSlave extends Slave {
             return 2;
         case T3Nano:
             return 2;
+        case T3aNano:
+            return 2;
         case T3Micro:
+            return 2;
+        case T3aMicro:
             return 2;
         case T3Small:
             return 2;
+        case T3aSmall:
+            return 2;
         case T3Medium:
+            return 2;
+        case T3aMedium:
             return 2;
         case A1Large:
             return 2;
         case T3Large:
+            return 3;
+        case T3aLarge:
             return 3;
         case M1Large:
             return 4;
@@ -241,6 +251,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case M5aLarge:
             return 4;
         case T3Xlarge:
+            return 5;
+        case T3aXlarge:
             return 5;
         case A1Xlarge:
             return 5;
@@ -259,6 +271,8 @@ public abstract class EC2AbstractSlave extends Slave {
         case M1Xlarge:
             return 8;
         case T32xlarge:
+            return 10;
+        case T3a2xlarge:
             return 10;
         case A12xlarge:
             return 10;
