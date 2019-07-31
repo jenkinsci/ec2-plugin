@@ -88,6 +88,12 @@ public class WindowsProcess {
         client.signal();
         client.deleteShell();
         terminated = true;
+        Closeables.closeQuietly(toCallersStdout);
+        Closeables.closeQuietly(toCallersStdin);
+        Closeables.closeQuietly(toCallersStderr);
+        Closeables.closeQuietly(callersStdout);
+        Closeables.closeQuietly(callersStdin);
+        Closeables.closeQuietly(callersStderr);
     }
 
     private void startStdoutCopyThread() {
