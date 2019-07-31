@@ -88,6 +88,9 @@ public class WindowsProcess {
         client.signal();
         client.deleteShell();
         terminated = true;
+        Closeables.closeQuietly(toCallersStdout);
+        Closeables.closeQuietly(toCcallersStdin);
+        Closeables.closeQuietly(toCcallersStderr);
         Closeables.closeQuietly(callersStdout);
         Closeables.closeQuietly(callersStdin);
         Closeables.closeQuietly(callersStderr);
