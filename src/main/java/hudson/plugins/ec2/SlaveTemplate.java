@@ -140,6 +140,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int nextSubnet;
 
+    private String minUpHours;
+
     public String currentSubnetId;
 
     private transient/* almost final */Set<LabelAtom> labelSet;
@@ -175,7 +177,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses, String minUpHours) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -234,8 +236,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
+        this.minUpHours = minUpHours;
 
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+	    	this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+                monitoring, t2Unlimited, connectionStrategy, -1, "0");
     }
 
     @Deprecated
@@ -414,6 +433,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean getAssociatePublicIp() {
         return associatePublicIp;
+    }
+
+    public String getMinUpHours() {
+        return minUpHours;
     }
 
     @Deprecated
@@ -1102,13 +1125,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return new EC2OndemandSlave(getSlaveName(inst.getInstanceId()), inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
                 tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
                 inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name,
-                useDedicatedTenancy, getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
+                useDedicatedTenancy, getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses, minUpHours);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
         return new EC2SpotSlave(getSlaveName(sir.getSpotInstanceRequestId()), sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript,
                 tmpDir, labels, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
-                getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
+                getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses, minUpHours);
     }
 
     /**
