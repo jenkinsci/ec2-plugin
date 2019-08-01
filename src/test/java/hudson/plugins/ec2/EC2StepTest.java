@@ -2,6 +2,7 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
+import hudson.model.PeriodicWork;
 import hudson.model.Result;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import hudson.plugins.ec2.util.PluginTestRule;
@@ -24,6 +25,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
@@ -51,7 +53,7 @@ public class EC2StepTest {
     private EC2AbstractSlave instance;
 
     @Before
-    public void setup () throws Exception {
+    public void setup() throws Exception {
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(st);
 
@@ -88,6 +90,9 @@ public class EC2StepTest {
 
         AmazonEC2 expiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock(new ThrowsException(expiredException));
         AmazonEC2FactoryMockImpl.mock = expiredClient;
+        PeriodicWork work = PeriodicWork.all().get(EC2Cloud.EC2ConnectionUpdater.class);
+        assertNotNull(work);
+        work.run();
         assertNotSame("EC2 client should be re-created when it is expired", expiredClient, cl.connect());
     }
 
@@ -132,8 +137,7 @@ public class EC2StepTest {
     }
 
     @After
-    public void teardown () {
+    public void teardown() {
         r.jenkins.clouds.clear();
     }
-
 }
