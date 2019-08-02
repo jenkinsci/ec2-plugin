@@ -1,0 +1,30 @@
+<DescribeImagesResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+  <requestId>50aaa400-d3ac-4e13-922b-5c59bc20bf02</requestId>
+  <imagesSet>
+    <item>
+      <architecture>x86_64</architecture>
+      <blockDeviceMapping>
+        <item>
+          <deviceName>/dev/sda1</deviceName>
+          <ebs>
+            <snapshotId>snap-90000000000000001</snapshotId>
+            <volumeSize>100</volumeSize>
+          </ebs>
+        </item>
+      </blockDeviceMapping>
+      <creationDate>1993-06-14T00:00:42.000Z</creationDate>
+      <description>Fake AMI for testing</description>
+      <hypervisor>xen</hypervisor>
+      <imageId>ami</imageId>
+      <imageLocation>788678676856/ami</imageLocation>
+      <imageOwnerAlias>788678676856</imageOwnerAlias>
+      <imageOwnerId>788678676856</imageOwnerId>
+      <imageState>available</imageState>
+      <imageType>machine</imageType>
+      <name>ami</name>
+      <rootDeviceName>/dev/sda1</rootDeviceName>
+      <rootDeviceType>ebs</rootDeviceType>
+      <virtualizationType>hvm</virtualizationType>
+    </item>
+  </imagesSet>
+</DescribeImagesResponse>

@@ -10,6 +10,7 @@
           slaveCommandSuffix: "-fakeFlag"
           sshPort: "22"
       associatePublicIp: false
+      burstableUnlimitedMode: DEFAULT
       connectBySSHProcess: false
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false

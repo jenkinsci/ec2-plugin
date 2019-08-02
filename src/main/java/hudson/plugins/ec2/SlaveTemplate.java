@@ -86,7 +86,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean monitoring;
 
+    /**
+     * @deprecated Replaced by {@link #burstableUnlimitedMode}.
+     */
+    @Deprecated
     public final boolean t2Unlimited;
+
+    private BurstableUnlimitedMode burstableUnlimitedMode;
 
     public final String labels;
 
@@ -175,7 +181,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+            boolean t2Unlimited, BurstableUnlimitedMode burstableUnlimitedMode, ConnectionStrategy connectionStrategy,
+            int maxTotalUses) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -234,8 +241,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useEphemeralDevices = useEphemeralDevices;
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
+        this.burstableUnlimitedMode = burstableUnlimitedMode;
 
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description,
+                initScript, tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId,
+                tags, idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
+                connectBySSHProcess, monitoring, t2Unlimited, null, connectionStrategy, maxTotalUses);
     }
 
     @Deprecated
@@ -316,6 +340,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public EC2Cloud getParent() {
         return parent;
+    }
+
+    public BurstableUnlimitedMode getBurstableUnlimitedMode() {
+        return burstableUnlimitedMode;
     }
 
     public String getLabelString() {
@@ -599,9 +627,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
 
-        if (t2Unlimited){
+        BurstableUnlimitedMode burstableUnlimitedMode = getBurstableUnlimitedMode();
+        if (burstableUnlimitedMode != BurstableUnlimitedMode.DEFAULT) {
             CreditSpecificationRequest creditRequest = new CreditSpecificationRequest();
-            creditRequest.setCpuCredits("unlimited");
+            creditRequest.setCpuCredits(burstableUnlimitedMode == BurstableUnlimitedMode.ENABLED ? "unlimited" : "standard");
             riRequest.setCreditSpecification(creditRequest);
         }
 
@@ -1246,6 +1275,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             maxTotalUses = -1;
         }
 
+        // Migrate old t2Unlimited setting:
+        if (burstableUnlimitedMode == null) {
+            burstableUnlimitedMode = t2Unlimited ? BurstableUnlimitedMode.ENABLED : BurstableUnlimitedMode.DEFAULT;
+        }
+
         return this;
     }
 
@@ -1279,6 +1313,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean isUseHTTPS() {
         return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
+    }
+
+    public enum BurstableUnlimitedMode {
+        DEFAULT(Messages.SlaveTemplate_BurstableUnlimitedMode_DEFAULT()),
+        DISABLED(Messages.SlaveTemplate_BurstableUnlimitedMode_DISABLED()),
+        ENABLED(Messages.SlaveTemplate_BurstableUnlimitedMode_ENABLED());
+
+        public final String label;
+
+        BurstableUnlimitedMode(String label) {
+            this.label = label;
+        }
     }
 
     @Extension
@@ -1608,5 +1654,4 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
     }
-
 }

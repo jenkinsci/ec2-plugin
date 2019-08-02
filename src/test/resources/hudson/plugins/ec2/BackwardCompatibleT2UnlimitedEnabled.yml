@@ -1,0 +1,14 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: "us-east-1"
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+        - description:
+          ami: "ami-5678"
+          labelString: "linux clear"
+          type: "T3Micro"
+          remoteFS: "/mnt/jenkins"
+          mode: "NORMAL"
+          t2Unlimited: true

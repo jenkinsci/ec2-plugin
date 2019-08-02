@@ -125,6 +125,87 @@ public class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("BackwardCompatibleT2UnlimitedDefault.yml")
+    public void testBackwardCompatibleT2UnlimitedDefault() throws Exception {
+        // Not setting t2Unlimited in the JCasC config file should yield BurstableUnlimitedMode.DEFAULT
+        // (since the default of t2Unlimited==false used to _not_ send any Unlimited Mode preference to AWS):
+        SlaveTemplate.BurstableUnlimitedMode expectedBurstableUnlimitedMode = SlaveTemplate.BurstableUnlimitedMode.DEFAULT;
+
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals(expectedBurstableUnlimitedMode, slaveTemplate.getBurstableUnlimitedMode());
+    }
+
+    @Test
+    @ConfiguredWithCode("BackwardCompatibleT2UnlimitedEnabled.yml")
+    public void testBackwardCompatibleT2UnlimitedEnabled() throws Exception {
+        // t2Unlimited=true in the JCasC config file should yield BurstableUnlimitedMode.ENABLED:
+        SlaveTemplate.BurstableUnlimitedMode expectedBurstableUnlimitedMode = SlaveTemplate.BurstableUnlimitedMode.ENABLED;
+
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals(expectedBurstableUnlimitedMode, slaveTemplate.getBurstableUnlimitedMode());
+    }
+
+    @Test
+    @ConfiguredWithCode("BackwardCompatibleT2UnlimitedDisabled.yml")
+    public void testBackwardCompatibleT2UnlimitedDisabled() throws Exception {
+        // t2Unlimited=false in the JCasC config file should yield BurstableUnlimitedMode.DEFAULT
+        // (since t2Unlimited==false used to _not_ send any Unlimited Mode preference to AWS):
+        SlaveTemplate.BurstableUnlimitedMode expectedBurstableUnlimitedMode = SlaveTemplate.BurstableUnlimitedMode.DEFAULT;
+
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals(expectedBurstableUnlimitedMode, slaveTemplate.getBurstableUnlimitedMode());
+    }
+
+    @Test
+    @ConfiguredWithCode("BurstableUnlimitedMode.yml")
+    public void testBurstableUnlimitedMode() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(3, templates.size());
+
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.DEFAULT, templates.get(0).getBurstableUnlimitedMode());
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.ENABLED, templates.get(1).getBurstableUnlimitedMode());
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.DISABLED, templates.get(2).getBurstableUnlimitedMode());
+    }
+
+    @Test
+    @ConfiguredWithCode("BurstableUnlimitedModeOverride.yml")
+    public void testBurstableUnlimitedModeOverride() throws Exception {
+        // Setting burstableUnlimitedMode in the JCasC file should override any t2Unlimited setting that is also
+        // present.
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(3, templates.size());
+
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.DEFAULT, templates.get(0).getBurstableUnlimitedMode());
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.ENABLED, templates.get(1).getBurstableUnlimitedMode());
+        assertEquals(SlaveTemplate.BurstableUnlimitedMode.DISABLED, templates.get(2).getBurstableUnlimitedMode());
+    }
+
+
+    @Test
     @ConfiguredWithCode("UnixData.yml")
     public void testConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
