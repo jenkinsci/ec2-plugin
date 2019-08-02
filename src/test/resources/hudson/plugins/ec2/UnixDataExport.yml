@@ -16,6 +16,7 @@
       ebsOptimized: false
       labelString: "linux ubuntu"
       maxTotalUses: -1
+      minimumNumberOfInstancesStr: "0"
       mode: NORMAL
       monitoring: false
       numExecutors: 1

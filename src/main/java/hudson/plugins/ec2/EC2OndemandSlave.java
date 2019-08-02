@@ -28,7 +28,7 @@ import com.amazonaws.services.ec2.model.*;
  *
  * @author Kohsuke Kawaguchi
  */
-public final class EC2OndemandSlave extends EC2AbstractSlave {
+public class EC2OndemandSlave extends EC2AbstractSlave {
     private static final Logger LOGGER = Logger.getLogger(EC2OndemandSlave.class.getName());
 
     @Deprecated

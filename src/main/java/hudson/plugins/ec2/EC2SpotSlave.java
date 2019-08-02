@@ -27,7 +27,7 @@ import hudson.slaves.NodeProperty;
 
 import javax.annotation.CheckForNull;
 
-public final class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
+public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
 
     private final String spotInstanceRequestId;

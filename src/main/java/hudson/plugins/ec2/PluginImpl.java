@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import jenkins.model.Jenkins;
 import hudson.Extension;
 import hudson.Plugin;
@@ -59,5 +60,10 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         public String getDisplayName() {
             return "EC2 PluginImpl";
         }
+    }
+
+    @Override
+    public void postInitialize() {
+        MinimumInstanceChecker.checkForMinimumInstances();
     }
 }

@@ -1,6 +1,6 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.model.PeriodicWork;
 import hudson.model.Result;
@@ -75,7 +75,7 @@ public class EC2StepTest {
         when(cl.createCredentialsProvider()).thenCallRealMethod();
 
         // not expired ec2 client
-        AmazonEC2 notExpiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock();
+        AmazonEC2Client notExpiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock();
         AmazonEC2FactoryMockImpl.mock = notExpiredClient;
         assertSame("EC2 client not expired should be reused", notExpiredClient, cl.connect());
 
@@ -88,7 +88,7 @@ public class EC2StepTest {
         expiredException.setErrorCode("RequestExpired");
         expiredException.setRequestId("00000000-0000-0000-0000-000000000000");
 
-        AmazonEC2 expiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock(new ThrowsException(expiredException));
+        AmazonEC2Client expiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock(new ThrowsException(expiredException));
         AmazonEC2FactoryMockImpl.mock = expiredClient;
         PeriodicWork work = PeriodicWork.all().get(EC2Cloud.EC2ConnectionUpdater.class);
         assertNotNull(work);

@@ -3,6 +3,8 @@ package hudson.plugins.ec2;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.InstanceType;
 
+import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
+import hudson.plugins.ec2.util.PrivateKeyHelper;
 import hudson.slaves.NodeProperty;
 import hudson.model.Executor;
 import hudson.model.Node;
@@ -14,14 +16,15 @@ import org.jvnet.hudson.test.JenkinsRule;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
 
 public class EC2RetentionStrategyTest {
 
@@ -192,5 +195,65 @@ public class EC2RetentionStrategyTest {
             long newNextCheckAfter = rs.getNextCheckAfter();
             assertEquals(String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action), expectCallCheck, nextCheckAfter != newNextCheckAfter);
         }
+    }
+
+    @Test
+    public void testRetentionDespiteIdleWithMinimumInstances() throws Exception {
+
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
+          InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+          "-Xmx1g", false, "subnet 456", null, null, "2", "10", null, true, true, false, "", false, "", false, false,
+          true, ConnectionStrategy.PRIVATE_IP, 0);
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+          Collections
+            .singletonList(template), "roleArn", "roleSessionName");
+        r.jenkins.clouds.add(cloud);
+        r.configRoundtrip();
+
+        List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
+
+        // Should have two slaves before any checking
+        assertEquals(2, computers.size());
+
+        Instant now = Instant.now();
+        Clock clock = Clock.fixed(now, zoneId);
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
+        rs.check(computers.get(0));
+
+        computers = Arrays.stream(r.jenkins.getComputers())
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
+
+        // Should have two slaves after check too
+        assertEquals(2, computers.size());
+        assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
+
+        // Add a new slave
+        cloud.provision(template, 1);
+
+        computers = Arrays.stream(r.jenkins.getComputers())
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
+
+        // Should have three slaves before any checking
+        assertEquals(3, computers.size());
+        assertEquals(3, AmazonEC2FactoryMockImpl.instances.size());
+
+        rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
+        rs.check(computers.get(0));
+
+        computers = Arrays.stream(r.jenkins.getComputers())
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
+
+        // Should have two slaves after check
+        assertEquals(2, computers.size());
+        assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
     }
 }
