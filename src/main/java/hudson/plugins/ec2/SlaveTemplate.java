@@ -633,11 +633,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
+        net.setAssociatePublicIpAddress(false);
         if (getAssociatePublicIp()) {
             net.setAssociatePublicIpAddress(true);
-            net.setDeviceIndex(0);
-            riRequest.withNetworkInterfaces(net);
         }
+        net.setDeviceIndex(0);
+        riRequest.withNetworkInterfaces(net);
 
         HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
         for (Tag tag : instTags) {
