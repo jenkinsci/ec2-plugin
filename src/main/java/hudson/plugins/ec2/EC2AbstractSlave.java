@@ -29,6 +29,7 @@ import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.model.Slave;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
@@ -713,13 +714,9 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
-        if (AmazonEC2Cloud.isTestMode()) {
-            model.add(TEST_ZONE);
-            return model;
-        }
 
         if (!StringUtils.isEmpty(region)) {
-            AmazonEC2 client = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
             DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
             List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
             model.add("<not specified>", "");

@@ -28,10 +28,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
 import javax.servlet.ServletException;
 
-
+import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -1370,9 +1369,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
-                ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
             } else {
-                ec2 = EC2Cloud.connect(credentialsProvider, new URL(ec2endpoint));
+                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, new URL(ec2endpoint));
             }
             try {
                 Image img = getAmiImage(ec2, ami);
@@ -1502,7 +1501,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {
 

@@ -45,16 +45,6 @@ public class SlaveTemplateTest {
 
     @Rule public JenkinsRule r = new JenkinsRule();
 
-    @Before
-    public void setUp() throws Exception {
-        AmazonEC2Cloud.setTestMode(true);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        AmazonEC2Cloud.setTestMode(false);
-    }
-
     @Test
     public void testConfigRoundtrip() throws Exception {
         String ami = "ami1";
@@ -141,7 +131,8 @@ public class SlaveTemplateTest {
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
      */
-    @Test public void testSpotConfigWithoutBidPrice() throws Exception {
+    @Test
+    public void testSpotConfigWithoutBidPrice() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
 
@@ -171,7 +162,8 @@ public class SlaveTemplateTest {
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
      */
-    @Test public void testSpotConfigWithFallback() throws Exception {
+    @Test
+    public void testSpotConfigWithFallback() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
 
