@@ -47,6 +47,10 @@ THE SOFTWARE.
            <input type="hidden" name="cloudName" value="${instance.cloud.name}" />
         </f:invisibleEntry>
 
+		<f:invisibleEntry>
+           <input type="hidden" name="templateDescription" value="${instance.templateDescription}" />
+        </f:invisibleEntry>
+
         <f:entry title="${%Instance ID}" field="instanceId">
           <f:readOnlyTextbox />
         </f:entry>
