@@ -350,7 +350,7 @@ THE SOFTWARE.
                 <artifactId>maven-hpi-plugin</artifactId>
                 <extensions>true</extensions>
                 <configuration>
-                    <compatibleSinceVersion>1.41</compatibleSinceVersion>
+                    <compatibleSinceVersion>1.45</compatibleSinceVersion>
                     <pluginFirstClassLoader>true</pluginFirstClassLoader>
                 </configuration>
             </plugin>
