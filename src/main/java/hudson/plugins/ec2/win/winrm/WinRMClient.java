@@ -22,11 +22,15 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.AuthSchemeProvider;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.params.AuthPolicy;
+import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.protocol.ClientContext;
+import org.apache.http.client.HttpClient;
+import org.apache.http.config.Lookup;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
@@ -35,7 +39,7 @@ import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.params.CoreConnectionPNames;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
@@ -175,13 +179,14 @@ public class WinRMClient {
         credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials(username, password));
     }
 
-    private DefaultHttpClient buildHTTPClient() {
-        DefaultHttpClient httpclient = new DefaultHttpClient();
+    private HttpClient buildHTTPClient() {
+        HttpClientBuilder builder = HttpClientBuilder.create().setDefaultCredentialsProvider(credsProvider);
         if(! (username.contains("\\")|| username.contains("/"))){
             //user is not a domain user
-            httpclient.getAuthSchemes().register(AuthPolicy.SPNEGO,new NegotiateNTLMSchemaFactory());
+            Lookup<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider>create().register(AuthSchemes.SPNEGO,new NegotiateNTLMSchemaFactory()).build();
+            builder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
         }
-        httpclient.setCredentialsProvider(credsProvider);
+        HttpClient httpclient = builder.build();
         httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
         // httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
         return httpclient;
@@ -196,7 +201,7 @@ public class WinRMClient {
             throw new RuntimeException("Too many retry for request");
         }
 
-        DefaultHttpClient httpclient = buildHTTPClient();
+        HttpClient httpclient = buildHTTPClient();
         HttpContext context = new BasicHttpContext();
 
         if (authCache.get() == null) {

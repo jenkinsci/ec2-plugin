@@ -152,7 +152,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                         + ", will retry next check. Exception: " + e);
                 return 1;
             }
-            
+
             //Don't bother checking anything else if the instance is already in the desired state:
             // * Already Terminated
             // * We use stop-on-terminate and the instance is currently stopped or stopping
@@ -164,7 +164,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
                 return 1;
             }
-            
+
             //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
             //need terminate such fault instance by {@link #STARTUP_TIMEOUT}
             if (computer.isOffline() && uptime < TimeUnit.MINUTES.toMillis(STARTUP_TIMEOUT)) {

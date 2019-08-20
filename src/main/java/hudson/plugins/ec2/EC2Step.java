@@ -89,7 +89,7 @@ public class EC2Step extends Step {
         public ListBoxModel doFillCloudItems() {
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
-            Jenkins.CloudList clouds = jenkins.model.Jenkins.getActiveInstance().clouds;
+            Jenkins.CloudList clouds = jenkins.model.Jenkins.get().clouds;
             for (Cloud cList : clouds) {
                 if (cList instanceof AmazonEC2Cloud) {
                     r.add(cList.getDisplayName(), cList.getDisplayName());
@@ -101,7 +101,7 @@ public class EC2Step extends Step {
         public ListBoxModel doFillTemplateItems(@QueryParameter String cloud) {
             cloud = Util.fixEmpty(cloud);
             ListBoxModel r = new ListBoxModel();
-            for (Cloud cList : jenkins.model.Jenkins.getActiveInstance().clouds) {
+            for (Cloud cList : jenkins.model.Jenkins.get().clouds) {
                 if (cList.getDisplayName().equals(cloud)) {
                     List<SlaveTemplate> templates = ((AmazonEC2Cloud) cList).getTemplates();
                     for (SlaveTemplate template : templates) {
@@ -135,7 +135,7 @@ public class EC2Step extends Step {
 
         @Override
         protected Instance run() throws Exception {
-            Cloud cl = getByDisplayName(jenkins.model.Jenkins.getActiveInstance().clouds, this.cloud);
+            Cloud cl = getByDisplayName(jenkins.model.Jenkins.get().clouds, this.cloud);
             if (cl instanceof AmazonEC2Cloud) {
                 SlaveTemplate t;
                 t = ((AmazonEC2Cloud) cl).getTemplate(this.template);
@@ -160,15 +160,15 @@ public class EC2Step extends Step {
         }
 
         public Cloud getByDisplayName(Jenkins.CloudList clouds, String name) {
-            Iterator i$ = clouds.iterator();
+            Iterator<Cloud> i$ = clouds.iterator();
             Cloud c;
-            c = (Cloud) i$.next();
+            c = i$.next();
 
             while (!c.getDisplayName().equals(name)) {
                 if (!i$.hasNext()) {
                     return null;
                 }
-                c = (Cloud) i$.next();
+                c = i$.next();
             }
             return c;
         }

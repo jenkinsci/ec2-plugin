@@ -6,11 +6,8 @@ import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URLEncoder;
-import java.util.regex.Pattern;
 import java.util.EnumSet;
 
 import com.hierynomus.smbj.auth.AuthenticationContext;
@@ -22,16 +19,11 @@ import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 
-import static java.util.regex.Pattern.quote;
-
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WinConnection {
     private static final Logger log = Logger.getLogger(WinConnection.class.getName());
-
-    // ^[a-zA-Z]\:(\\|\/)([^\\\/\:\*\?\<\>\"\|]+(\\|\/){0,1})+$
-    private static final Pattern VALIDATE_WINDOWS_PATH = Pattern.compile("^[A-Za-z]:\\\\[-a-zA-Z0-9_.\\\\]*");
 
     private final String host;
     private final String username;
@@ -79,11 +71,11 @@ public class WinConnection {
 
     public OutputStream putFile(String path) throws IOException {
         return getSmbShare(path).openFile(toFilePath(path),
-                                            EnumSet.of(AccessMask.GENERIC_READ, 
-                                            AccessMask.GENERIC_WRITE), 
-                                            null, 
-                                            SMB2ShareAccess.ALL, 
-                                            SMB2CreateDisposition.FILE_OVERWRITE_IF, 
+                                            EnumSet.of(AccessMask.GENERIC_READ,
+                                            AccessMask.GENERIC_WRITE),
+                                            null,
+                                            SMB2ShareAccess.ALL,
+                                            SMB2CreateDisposition.FILE_OVERWRITE_IF,
                                             null).getOutputStream();
     }
 
@@ -98,7 +90,7 @@ public class WinConnection {
     public boolean exists(String path) throws IOException {
         return getSmbShare(path).fileExists(toFilePath(path));
     }
-   
+
     private static String toAdministrativeShare(String path) {
         // administrative windows share are DRIVE$path like
         return path.substring(0, 1) + "$";

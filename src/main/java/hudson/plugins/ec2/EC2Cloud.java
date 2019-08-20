@@ -84,7 +84,7 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
-import com.amazonaws.internal.StaticCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
@@ -99,6 +99,7 @@ import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
 import hudson.ProxyConfiguration;
@@ -750,13 +751,13 @@ public abstract class EC2Cloud extends Cloud {
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {
         if (useInstanceProfileForCredentials) {
-            return new InstanceProfileCredentialsProvider();
+            return new InstanceProfileCredentialsProvider(false);
         } else if (StringUtils.isBlank(credentialsId)) {
             return new DefaultAWSCredentialsProviderChain();
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
             if (credentials != null)
-                return new StaticCredentialsProvider(credentials.getCredentials());
+                return new AWSStaticCredentialsProvider(credentials.getCredentials());
         }
         return new DefaultAWSCredentialsProviderChain();
     }
@@ -863,11 +864,12 @@ public abstract class EC2Cloud extends Cloud {
      * @param path String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
      */
     public URL buildPresignedURL(String path) throws AmazonClientException {
-        AWSCredentials credentials = createCredentialsProvider().getCredentials();
-        long expires = System.currentTimeMillis() + 60 * 60 * 1000;
+        AWSCredentialsProvider provider = createCredentialsProvider();
+        AWSCredentials credentials = provider.getCredentials();
+        long expires = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(60);
         GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(path, credentials.getAWSSecretKey());
         request.setExpiration(new Date(expires));
-        AmazonS3 s3 = new AmazonS3Client(credentials);
+        AmazonS3 s3 =  AmazonS3ClientBuilder.standard().withCredentials(provider).build();
         return s3.generatePresignedUrl(request);
     }
 
@@ -889,7 +891,7 @@ public abstract class EC2Cloud extends Cloud {
         public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
             if (value) {
                 try {
-                    new InstanceProfileCredentialsProvider().getCredentials();
+                    new InstanceProfileCredentialsProvider(false).getCredentials();
                 } catch (AmazonClientException e) {
                     return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
                 }
