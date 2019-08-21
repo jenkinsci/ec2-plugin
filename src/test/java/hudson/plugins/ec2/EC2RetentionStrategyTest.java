@@ -98,7 +98,7 @@ public class EC2RetentionStrategyTest {
             public InstanceState getState() {
                 return InstanceState.RUNNING;
             }
-            
+
             @Override
             public SlaveTemplate getSlaveTemplate() {
                 return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
