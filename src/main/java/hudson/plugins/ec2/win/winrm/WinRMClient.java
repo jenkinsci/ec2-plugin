@@ -12,7 +12,6 @@ import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -21,25 +20,33 @@ import java.util.logging.Logger;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
+import org.apache.http.auth.AuthSchemeProvider;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.config.AuthSchemes;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.config.Lookup;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.HttpHostConnectException;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
-import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.auth.BasicSchemeFactory;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -67,7 +74,6 @@ public class WinRMClient {
 
     private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
     private boolean useHTTPS;
-    private Scheme httpsScheme;
     private BasicCredentialsProvider credsProvider;
 
     public WinRMClient(URL url, String username, String password) {
@@ -177,16 +183,39 @@ public class WinRMClient {
     }
 
     private HttpClient buildHTTPClient() {
-        DefaultHttpClient httpclient = new DefaultHttpClient();
-        if(! (username.contains("\\")|| username.contains("/"))){
+        HttpClientBuilder builder = HttpClientBuilder.create().setDefaultCredentialsProvider(credsProvider);
+        if(! (username.contains("\\")|| username.contains("/"))) {
             //user is not a domain user
-            httpclient.getAuthSchemes().register(AuthSchemes.SPNEGO,new NegotiateNTLMSchemaFactory());
+            Lookup<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider>create()
+                                                            .register(AuthSchemes.BASIC, new BasicSchemeFactory())
+                                                            .register(AuthSchemes.SPNEGO,new NegotiateNTLMSchemaFactory())
+                                                            .build();
+            builder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
         }
-        httpclient.setCredentialsProvider(credsProvider);
         if (useHTTPS) {
-            httpclient.getConnectionManager().getSchemeRegistry().register(httpsScheme);
+            try {
+                SSLConnectionSocketFactory sslConnectionFactory = new SSLConnectionSocketFactory(
+                                                                  new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
+                                                                  NoopHostnameVerifier.INSTANCE);
+                builder.setSSLSocketFactory(sslConnectionFactory);
+                Lookup<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                                                                .register("https", sslConnectionFactory)
+                                                                .build();
+                HttpClientConnectionManager ccm = new BasicHttpClientConnectionManager(registry);
+                builder.setConnectionManager(ccm);
+            } catch (KeyStoreException | KeyManagementException | NoSuchAlgorithmException e) {
+            }
         }
-        httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
+        RequestConfig requestConfig = RequestConfig.custom()
+                                      .setConnectTimeout(5000)
+                                      .setSocketTimeout(0)
+                                      .build();
+        builder.setDefaultRequestConfig(requestConfig);
+        SocketConfig socketConfig = SocketConfig.custom()
+                                    .setTcpNoDelay(true)
+                                    .build();
+        builder.setDefaultSocketConfig(socketConfig);
+        HttpClient httpclient = builder.build();
         return httpclient;
     }
 
@@ -295,15 +324,5 @@ public class WinRMClient {
 
     public void setUseHTTPS(boolean useHTTPS) {
         this.useHTTPS = useHTTPS;
-        if (useHTTPS) {
-            SSLSocketFactory socketFactory;
-            try {
-                socketFactory = new SSLSocketFactory(new TrustSelfSignedStrategy(), new AllowAllHostnameVerifier());
-                httpsScheme = new Scheme("https", 443, socketFactory);
-            } catch (KeyManagementException | UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
-            }
-        }else{
-            httpsScheme=null;
-        }
     }
 }
