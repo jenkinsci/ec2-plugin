@@ -22,16 +22,12 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.AuthSchemeProvider;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.params.AuthPolicy;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.config.Lookup;
-import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
@@ -41,7 +37,6 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.params.CoreConnectionPNames;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
@@ -183,20 +178,15 @@ public class WinRMClient {
 
     private HttpClient buildHTTPClient() {
         DefaultHttpClient httpclient = new DefaultHttpClient();
-        // HttpClientBuilder builder = HttpClientBuilder.create().setDefaultCredentialsProvider(credsProvider);
         if(! (username.contains("\\")|| username.contains("/"))){
             //user is not a domain user
             httpclient.getAuthSchemes().register(AuthSchemes.SPNEGO,new NegotiateNTLMSchemaFactory());
-            // Lookup<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider>create().register(AuthSchemes.SPNEGO,new NegotiateNTLMSchemaFactory()).build();
-            // builder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
         }
         httpclient.setCredentialsProvider(credsProvider);
         if (useHTTPS) {
             httpclient.getConnectionManager().getSchemeRegistry().register(httpsScheme);
         }
-        // HttpClient httpclient = builder.build();
         httpclient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 5000);
-        // httpclient.setHttpRequestRetryHandler(new WinRMRetryHandler());
         return httpclient;
     }
 
