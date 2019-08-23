@@ -27,6 +27,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.UnrecoverableKeyException;
+import java.util.Base64;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -34,7 +35,6 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 
 import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
-import org.bouncycastle.util.encoders.Base64;
 import javax.crypto.Cipher;
 import java.nio.charset.Charset;
 import com.amazonaws.AmazonClientException;
@@ -134,7 +134,7 @@ public class EC2PrivateKey {
         try {
             Cipher cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding");
             cipher.init(Cipher.DECRYPT_MODE, PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
-            byte[] cipherText = Base64.decode(encodedPassword);
+            byte[] cipherText = Base64.getDecoder().decode(encodedPassword);
             byte[] plainText = cipher.doFinal(cipherText);
             return new String(plainText, Charset.forName("ASCII"));
         } catch (Exception e) {
