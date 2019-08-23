@@ -240,7 +240,7 @@ public class WinRMClient {
                         // throw away our auth cache
                         log.log(Level.WARNING, "winrm returned 401 - shouldn't happen though - retrying in 2 minutes");
                         try {
-                            Thread.sleep(TimeUnit.MINUTES.toMillis(3));
+                            Thread.sleep(TimeUnit.MINUTES.toMillis(2));
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }
