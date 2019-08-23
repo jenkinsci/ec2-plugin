@@ -13,11 +13,11 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
@@ -133,12 +133,11 @@ public class WinRMClient {
         namespaceContext.addNamespace(Namespaces.NS_WIN_SHELL.getPrefix(), Namespaces.NS_WIN_SHELL.getURI());
         xpath.setNamespaceContext(namespaceContext);
 
-        Base64 base64 = new Base64();
         for (Object node : xpath.selectNodes(response)) {
             if (node instanceof Element) {
                 Element e = (Element) node;
                 FastPipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
-                final byte[] decode = base64.decode(e.getText());
+                final byte[] decode = Base64.getDecoder().decode(e.getText());
                 log.log(Level.FINE, "piping " + decode.length + " bytes from "
                         + e.attribute("Name").getText().toLowerCase());
 
