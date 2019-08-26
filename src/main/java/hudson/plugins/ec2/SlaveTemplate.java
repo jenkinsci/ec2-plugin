@@ -587,7 +587,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
      *
-     * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
+     * @return always non-null. This needs to be then added to {@link Jenkins#addNode(Node)}.
      */
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         if (this.spotConfig != null) {
