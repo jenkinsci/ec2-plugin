@@ -272,7 +272,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
           monitoring, t2Unlimited, connectionStrategy, maxTotalUses);
     }
 
-@Deprecated
+    @Deprecated
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
