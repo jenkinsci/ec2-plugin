@@ -389,9 +389,6 @@ public abstract class EC2Cloud extends Cloud {
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         filters.add(new Filter("instance-state-name").withValues("running", "pending", "stopping"));
-        if (template != null) {
-            filters.add(new Filter("image-id").withValues(template.getAmi()));
-        }
         DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
         DescribeInstancesResult result = null;
         do {
@@ -518,13 +515,9 @@ public abstract class EC2Cloud extends Cloud {
         if (template != null) {
             List<EC2Tag> tags = template.getTags();
             if (tags != null) {
-                String tagName;
-                String tagValue;
                 for (EC2Tag tag : tags) {
-                    tagName = tag.getName();
-                    tagValue = tag.getValue();
-                    if (tagName != null && tagValue != null) {
-                        filters.add(new Filter("tag:" + tagName).withValues(tagValue));
+                    if (tag.getName() != null && tag.getValue() != null) {
+                        filters.add(new Filter("tag:" + tag.getName()).withValues(tag.getValue()));
                     }
                 }
             }
