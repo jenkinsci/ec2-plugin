@@ -87,6 +87,7 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceStateName;
@@ -383,7 +384,7 @@ public abstract class EC2Cloud extends Cloud {
             + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
             + " Jenkins Server: " + jenkinsServerUrl);
         int n = 0;
-        Set<String> instanceIds = new HashSet<String>();
+        Set<String> instanceIds = new HashSet<>();
         String description = template != null ? template.description : null;
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
@@ -392,16 +393,21 @@ public abstract class EC2Cloud extends Cloud {
             filters.add(new Filter("image-id").withValues(template.getAmi()));
         }
         DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
-        for (Reservation r : connect().describeInstances(dir).getReservations()) {
-            for (Instance i : r.getInstances()) {
-                if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
-                    LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
-                    + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
-                    n++;
-                    instanceIds.add(i.getInstanceId());
+        DescribeInstancesResult result = null;
+        do {
+            result = connect().describeInstances(dir);
+            dir.setNextToken(result.getNextToken());
+            for (Reservation r : result.getReservations()) {
+                for (Instance i : r.getInstances()) {
+                    if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
+                        LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
+                        + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
+                        n++;
+                        instanceIds.add(i.getInstanceId());
+                    }
                 }
             }
-        }
+        } while(result.getNextToken() != null);
 
         List<SpotInstanceRequest> sirs = null;
         filters = getGenericFilters(jenkinsServerUrl, template);
@@ -410,13 +416,13 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
+        Set<SpotInstanceRequest> sirSet = new HashSet<>();
         try {
             sirs = connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests();
         } catch (Exception ex) {
             // Some ec2 implementations don't implement spot requests (Eucalyptus)
             LOGGER.log(Level.FINEST, "Describe spot instance requests failed", ex);
         }
-        Set<SpotInstanceRequest> sirSet = new HashSet<>();
 
         if (sirs != null) {
             for (SpotInstanceRequest sir : sirs) {
