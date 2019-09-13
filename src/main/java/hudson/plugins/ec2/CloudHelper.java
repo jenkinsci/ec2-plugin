@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.CheckForNull;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 final class CloudHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(CloudHelper.class);
@@ -25,8 +26,14 @@ final class CloudHelper {
                 return getInstance(instanceId, cloud);
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals("InvalidInstanceID.NotFound")) {
-                    // retry in 5 seconds.
-                    Thread.sleep(5000);
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+                    continue;
+                }
+                throw e;
+            } catch (AmazonClientException e) {
+                //Retry incase instance is missing [JENKINS-57795]
+                if (e.getMessage().contains("Unexpected number of")) {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(3));
                     continue;
                 }
                 throw e;
@@ -46,23 +53,23 @@ final class CloudHelper {
 
         List<Reservation> reservations = cloud.connect().describeInstances(request).getReservations();
         if (reservations.size() != 1) {
-          String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + reservations + ".";
-          if (reservations.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.info(message);
-          throw new AmazonClientException(message);
+            String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + reservations + ".";
+            if (reservations.size() == 0) {
+                message += " Instance seems to be dead.";
+            }
+            LOGGER.warn(message);
+            throw new AmazonClientException(message);
         }
         Reservation reservation = reservations.get(0);
 
         List<Instance> instances = reservation.getInstances();
         if (instances.size() != 1) {
-          String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
-          if (instances.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.info(message);
-          throw new AmazonClientException(message);
+            String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
+            if (instances.size() == 0) {
+                message += " Instance seems to be dead.";
+            }
+            LOGGER.warn(message);
+            throw new AmazonClientException(message);
         }
         return instances.get(0);
     }
