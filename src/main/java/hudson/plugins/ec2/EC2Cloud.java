@@ -642,6 +642,8 @@ public abstract class EC2Cloud extends Cloud {
     private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
         return new PlannedNode(t.getDisplayName(),
                 Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                    int retryCount     = 0;
+                    int DESCRIBE_LIMIT = 1;
                     public Node call() throws Exception {
                         while (true) {
                             String instanceId = slave.getInstanceId();
@@ -681,9 +683,16 @@ public abstract class EC2Cloud extends Cloud {
                             }
 
                             if (!state.equals(InstanceStateName.Pending)) {
-                                LOGGER.log(Level.WARNING, "{0}. Node {1} is neither pending, neither running, it's {2}. Terminate provisioning",
-                                        new Object[]{t, state, slave.getNodeName()});
-                                return null;
+                                
+                                if (retryCount >= DESCRIBE_LIMIT){
+                                    LOGGER.log(Level.WARNING,"Instance {0} did not move to running after {1} attempts, terminating provisioning",
+                                        new Object[]{instanceId, retryCount});
+                                    return null;
+                                }
+
+                                LOGGER.log(Level.INFO, "Attempt {0}: {1}. Node {2} is neither pending, neither running, it''s {3}. Will try again after 5s",
+                                        new Object[]{retryCount, t, slave.getNodeName(), state});
+                                retryCount++;
                             }
 
                             Thread.sleep(5000);
