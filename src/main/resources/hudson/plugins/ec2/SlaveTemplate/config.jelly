@@ -138,7 +138,7 @@ THE SOFTWARE.
        </f:repeatable>
     </f:entry>
 
-    <f:entry title="${%Minimum number of instances}" field="minimumNumberOfInstancesStr">
+    <f:entry title="${%Minimum number of instances}" field="minimumNumberOfInstances">
       <f:textbox />
     </f:entry>
 

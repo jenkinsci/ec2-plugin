@@ -183,7 +183,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, String minimumNumberOfInstancesStr,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
@@ -229,11 +229,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.usePrivateDnsName = this.connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
         this.connectUsingPublicIp = this.connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
-        if (null == minimumNumberOfInstancesStr || minimumNumberOfInstancesStr.isEmpty()) {
-            this.minimumNumberOfInstances = 0;
-        } else {
-            this.minimumNumberOfInstances = Integer.parseInt(minimumNumberOfInstancesStr);
-        }
+        this.minimumNumberOfInstances = minimumNumberOfInstances;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -267,7 +263,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
           tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-          idleTerminationMinutes, "0", instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
+          idleTerminationMinutes, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
           useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
           monitoring, t2Unlimited, connectionStrategy, maxTotalUses);
     }
@@ -510,14 +506,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMinimumNumberOfInstances() {
         return minimumNumberOfInstances;
-    }
-
-    public String getMinimumNumberOfInstancesStr() {
-        if (minimumNumberOfInstances <= 0) {
-            return "0";
-        } else {
-            return String.valueOf(minimumNumberOfInstances);
-        }
     }
 
     public int getInstanceCap() {
@@ -1514,7 +1502,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
         }
 
-        public FormValidation doCheckMinimumNumberOfInstancesStr(@QueryParameter String value, @QueryParameter String instanceCapStr) {
+        public FormValidation doCheckMinimumNumberOfInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
             try {
@@ -1533,7 +1521,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     }
                     return FormValidation.ok();
                 }
-            } catch (NumberFormatException nfe) {
+            } catch (NumberFormatException ignore) {
             }
             return FormValidation.error("Minimum number of instances must be a non-negative integer (or null)");
         }
