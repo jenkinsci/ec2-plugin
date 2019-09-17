@@ -643,6 +643,10 @@ public abstract class EC2Cloud extends Cloud {
         return new PlannedNode(t.getDisplayName(),
                 Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     public Node call() throws Exception {
+                        //JENKINS-57795 due to eventual consistency of aws apis
+                        //a newly woke node may not show as pending
+                        //Retry up to 4 times.
+                        int attempts = 0;
                         while (true) {
                             String instanceId = slave.getInstanceId();
                             if (slave instanceof EC2SpotSlave) {
@@ -681,6 +685,12 @@ public abstract class EC2Cloud extends Cloud {
                             }
 
                             if (!state.equals(InstanceStateName.Pending)) {
+                                if (attempts++ < 4) {
+                                    LOGGER.log(Level.FINE, "{0}. Node {1} is neither pending, neither running, it's {2}. retrying attempt: {3}",
+                                                new Object[]{t, slave.getNodeName(), state, attempts});
+                                    Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+                                    continue;
+                                }
                                 LOGGER.log(Level.WARNING, "{0}. Node {1} is neither pending, neither running, it's {2}. Terminate provisioning",
                                         new Object[]{t, state, slave.getNodeName()});
                                 return null;
