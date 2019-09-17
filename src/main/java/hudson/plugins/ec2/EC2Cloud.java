@@ -688,7 +688,7 @@ public abstract class EC2Cloud extends Cloud {
                                 if (attempts++ < 4) {
                                     LOGGER.log(Level.FINE, "{0}. Node {1} is neither pending, neither running, it's {2}. retrying attempt: {3}",
                                                 new Object[]{t, slave.getNodeName(), state, attempts});
-                                    Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+                                    TimeUnit.SECONDS.sleep(5);
                                     continue;
                                 }
                                 LOGGER.log(Level.WARNING, "{0}. Node {1} is neither pending, neither running, it's {2}. Terminate provisioning",
