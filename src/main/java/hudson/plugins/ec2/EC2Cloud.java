@@ -643,7 +643,7 @@ public abstract class EC2Cloud extends Cloud {
         return new PlannedNode(t.getDisplayName(),
                 Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     int retryCount     = 0;
-                    int DESCRIBE_LIMIT = 1;
+                    final int DESCRIBE_LIMIT = 2;
                     public Node call() throws Exception {
                         while (true) {
                             String instanceId = slave.getInstanceId();
