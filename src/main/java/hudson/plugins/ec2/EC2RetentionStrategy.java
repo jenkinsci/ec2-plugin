@@ -133,7 +133,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         */
         SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
         if (slaveTemplate != null) {
-            long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfSlaves(slaveTemplate);
+            long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfAgents(slaveTemplate);
             if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances()) {
                 return 1;
             }

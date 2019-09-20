@@ -14,7 +14,7 @@ import java.util.Objects;
 @Restricted(NoExternalUse.class)
 public class MinimumInstanceChecker {
 
-    public static int countCurrentNumberOfSlaves(@Nonnull SlaveTemplate slaveTemplate) {
+    public static int countCurrentNumberOfAgents(@Nonnull SlaveTemplate slaveTemplate) {
         return (int) Arrays.stream(Jenkins.get().getComputers()).filter(computer -> {
             if (computer instanceof EC2Computer) {
                 SlaveTemplate computerTemplate = ((EC2Computer) computer).getSlaveTemplate();
@@ -33,7 +33,7 @@ public class MinimumInstanceChecker {
             .forEach(cloud -> {
                 cloud.getTemplates().forEach(slaveTemplate -> {
                     if (slaveTemplate.getMinimumNumberOfInstances() > 0) {
-                        int currentNumberOfSlavesForTemplate = countCurrentNumberOfSlaves(slaveTemplate);
+                        int currentNumberOfSlavesForTemplate = countCurrentNumberOfAgents(slaveTemplate);
                         int numberToProvision = slaveTemplate.getMinimumNumberOfInstances()
                                 - currentNumberOfSlavesForTemplate;
                         if (numberToProvision > 0) {

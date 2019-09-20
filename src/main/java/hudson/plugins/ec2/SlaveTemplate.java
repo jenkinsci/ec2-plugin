@@ -1158,7 +1158,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .build();
-        return EC2AgentFactory.getInstance().createOnDemandSlave(config);
+        return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
@@ -1183,7 +1183,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .build();
-        return EC2AgentFactory.getInstance().createSpotSlave(config);
+        return EC2AgentFactory.getInstance().createSpotAgent(config);
     }
 
     /**
