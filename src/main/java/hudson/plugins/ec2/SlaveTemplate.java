@@ -128,7 +128,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int instanceCap;
 
-    public int minimumNumberOfInstances;
+    private int minimumNumberOfInstances;
 
     public final boolean stopOnTerminate;
 
