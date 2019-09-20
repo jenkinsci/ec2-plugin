@@ -28,6 +28,7 @@ import hudson.model.Node;
 import jenkins.model.Jenkins;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.ArrayList;
@@ -340,6 +341,7 @@ public class SlaveTemplateTest {
         assertEquals(subnet3, "subnet-123");
     }
 
+    @Issue("JENKINS-59460")
     @Test
     public void testConnectionStrategyDeprecatedFieldsAreExported() {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
