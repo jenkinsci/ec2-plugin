@@ -78,7 +78,7 @@ public abstract class EC2SlaveConfig {
         }
     }
 
-    private static abstract class Builder<B extends Builder, C extends EC2SlaveConfig> {
+    private static abstract class Builder<B extends Builder<B, C>, C extends EC2SlaveConfig> {
 
         private String name;
         private String description;
