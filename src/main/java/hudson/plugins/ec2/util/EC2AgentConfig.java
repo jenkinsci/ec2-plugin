@@ -8,7 +8,7 @@ import hudson.slaves.NodeProperty;
 
 import java.util.List;
 
-public abstract class EC2SlaveConfig {
+public abstract class EC2AgentConfig {
 
     final String name;
     final String description;
@@ -29,7 +29,7 @@ public abstract class EC2SlaveConfig {
     final ConnectionStrategy connectionStrategy;
     final int maxTotalUses;
 
-    private EC2SlaveConfig(Builder<? extends Builder, ? extends EC2SlaveConfig> builder) {
+    private EC2AgentConfig(Builder<? extends Builder, ? extends EC2AgentConfig> builder) {
         this.name = builder.name;
         this.description = builder.description;
         this.remoteFS = builder.remoteFS;
@@ -50,7 +50,7 @@ public abstract class EC2SlaveConfig {
         this.maxTotalUses = builder.maxTotalUses;
     }
 
-    public static class OnDemand extends EC2SlaveConfig {
+    public static class OnDemand extends EC2AgentConfig {
 
         final String instanceId;
         final boolean stopOnTerminate;
@@ -68,7 +68,7 @@ public abstract class EC2SlaveConfig {
         }
     }
 
-    public static class Spot extends EC2SlaveConfig {
+    public static class Spot extends EC2AgentConfig {
 
         final String spotInstanceRequestId;
 
@@ -78,7 +78,7 @@ public abstract class EC2SlaveConfig {
         }
     }
 
-    private static abstract class Builder<B extends Builder<B, C>, C extends EC2SlaveConfig> {
+    private static abstract class Builder<B extends Builder<B, C>, C extends EC2AgentConfig> {
 
         private String name;
         private String description;

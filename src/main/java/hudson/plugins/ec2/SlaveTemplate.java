@@ -1133,7 +1133,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        EC2SlaveConfig.OnDemand config = new EC2SlaveConfig.OnDemandBuilder()
+        EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
             .withName(getSlaveName(inst.getInstanceId()))
             .withInstanceId(inst.getInstanceId())
             .withDescription(description)
@@ -1158,11 +1158,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .build();
-        return EC2SlaveFactory.getInstance().createOnDemandSlave(config);
+        return EC2AgentFactory.getInstance().createOnDemandSlave(config);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
-        EC2SlaveConfig.Spot config = new EC2SlaveConfig.SpotBuilder()
+        EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
             .withName(getSlaveName(sir.getSpotInstanceRequestId()))
             .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
             .withDescription(description)
@@ -1183,7 +1183,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .build();
-        return EC2SlaveFactory.getInstance().createSpotSlave(config);
+        return EC2AgentFactory.getInstance().createSpotSlave(config);
     }
 
     /**
