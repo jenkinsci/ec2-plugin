@@ -1360,7 +1360,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public static final class OnSaveListener extends SaveableListener {
         @Override
         public void onChange(Saveable o, XmlFile file) {
-            if (o instanceof Hudson) {
+            if (o instanceof Jenkins) {
                 MinimumInstanceChecker.checkForMinimumInstances();
             }
         }
