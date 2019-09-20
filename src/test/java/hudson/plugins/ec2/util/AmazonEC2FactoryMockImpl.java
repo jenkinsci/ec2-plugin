@@ -22,6 +22,8 @@ import hudson.plugins.ec2.AmazonEC2Cloud;
 import hudson.plugins.ec2.EC2Cloud;
 import jenkins.model.Jenkins;
 
+import static org.mockito.Mockito.mock;
+
 @Extension
 public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
 
@@ -53,9 +55,9 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
     public static AmazonEC2Client createAmazonEC2Mock(@Nullable Answer defaultAnswer) {
         AmazonEC2Client mock;
         if (defaultAnswer != null) {
-            mock = Mockito.mock(AmazonEC2Client.class, defaultAnswer);
+            mock = mock(AmazonEC2Client.class, defaultAnswer);
         } else {
-            mock = Mockito.mock(AmazonEC2Client.class);
+            mock = mock(AmazonEC2Client.class);
             mockDescribeRegions(mock);
             mockDescribeInstances(mock);
             mockDescribeImages(mock);
@@ -69,7 +71,7 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
     }
 
     private static void mockDescribeRegions(AmazonEC2Client mock) {
-        DescribeRegionsResult describeRegionsResultMock = Mockito.mock(DescribeRegionsResult.class);
+        DescribeRegionsResult describeRegionsResultMock = mock(DescribeRegionsResult.class);
         Mockito.doReturn(Collections.singletonList(new Region().withRegionName(EC2Cloud.DEFAULT_EC2_HOST))).when(describeRegionsResultMock).getRegions();
         Mockito.doReturn(describeRegionsResultMock).when(mock).describeRegions();
     }
