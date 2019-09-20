@@ -4,11 +4,14 @@ import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.SlaveTemplate;
 import jenkins.model.Jenkins;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Objects;
 
+@Restricted(NoExternalUse.class)
 public class MinimumInstanceChecker {
 
     public static int countCurrentNumberOfSlaves(@Nonnull SlaveTemplate slaveTemplate) {
