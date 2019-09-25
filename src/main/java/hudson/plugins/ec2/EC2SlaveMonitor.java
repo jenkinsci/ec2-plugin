@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import jenkins.model.Jenkins;
 
 import com.amazonaws.AmazonClientException;
@@ -36,6 +37,11 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     @Override
     protected void execute(TaskListener listener) throws IOException, InterruptedException {
+        removeDeadNodes();
+        MinimumInstanceChecker.checkForMinimumInstances();
+    }
+
+    private void removeDeadNodes() {
         for (Node node : Jenkins.get().getNodes()) {
             if (node instanceof EC2AbstractSlave) {
                 final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;

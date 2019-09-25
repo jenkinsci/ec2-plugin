@@ -639,6 +639,47 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    public void provision(SlaveTemplate t, int number) {
+
+        Jenkins jenkinsInstance = Jenkins.get();
+        if (jenkinsInstance.isQuietingDown()) {
+            LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is quieting down");
+            return;
+        } else if (jenkinsInstance.isTerminating()) {
+            LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is terminating");
+            return;
+        }
+
+        try {
+            LOGGER.log(Level.INFO, "{0}. Attempting to provision {1} slave(s)", new Object[]{t, number});
+            final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
+
+            if (slaves == null || slaves.isEmpty()) {
+                LOGGER.warning("Can't raise nodes for " + t);
+                return;
+            }
+
+            for (final EC2AbstractSlave slave : slaves) {
+                if (slave == null) {
+                    LOGGER.warning("Can't raise node for " + t);
+                    continue;
+                }
+
+                Computer c = slave.toComputer();
+                if (slave.getStopOnTerminate() && c != null) {
+                    c.connect(false);
+                }
+                jenkinsInstance.addNode(slave);
+            }
+
+            LOGGER.log(Level.INFO, "{0}. Attempting provision finished", t);
+            LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
+              new Object[]{Jenkins.get().getComputers().length, number});
+        } catch (AmazonClientException | IOException e) {
+            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+        }
+    }
+
     private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
         return new PlannedNode(t.getDisplayName(),
                 Computer.threadPoolForRemoting.submit(new Callable<Node>() {

@@ -186,7 +186,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return model;
         }
 
-        // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParamter field), or use the default
+        // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParameter field), or use the default
         // value if not specified.
         @VisibleForTesting
         URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {

@@ -31,11 +31,10 @@ import hudson.model.Descriptor;
 import hudson.model.Executor;
 import hudson.model.ExecutorListener;
 import hudson.model.Queue;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.slaves.RetentionStrategy;
 import jenkins.model.Jenkins;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -129,6 +128,16 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             return 1;
         }
 
+        /*
+        * If we have equal or less number of slaves than the template's minimum instance count, don't perform check.
+        */
+        SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
+        if (slaveTemplate != null) {
+            long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfAgents(slaveTemplate);
+            if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances()) {
+                return 1;
+            }
+        }
 
         if (computer.isIdle() && !DISABLED) {
             final long uptime;
@@ -148,7 +157,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             // * Already Terminated
             // * We use stop-on-terminate and the instance is currently stopped or stopping
             if (InstanceState.TERMINATED.equals(state)
-                  || computer.getSlaveTemplate().stopOnTerminate && (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state))) {
+                  || (slaveTemplate != null && slaveTemplate.stopOnTerminate) && (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state))) {
                 if (computer.isOnline()) {
                     LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status" + state.toString());
                     computer.disconnect(null);

@@ -40,7 +40,10 @@ import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
 
-import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.*;
+
+import hudson.XmlFile;
+import hudson.model.listeners.SaveableListener;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -64,7 +67,6 @@ import hudson.Util;
 import hudson.model.*;
 import hudson.model.Descriptor.FormException;
 import hudson.model.labels.LabelAtom;
-import hudson.plugins.ec2.util.DeviceMappingParser;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
@@ -126,6 +128,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int instanceCap;
 
+    private int minimumNumberOfInstances;
+
     public final boolean stopOnTerminate;
 
     private final List<EC2Tag> tags;
@@ -179,7 +183,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
@@ -225,6 +229,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.usePrivateDnsName = this.connectionStrategy.equals(ConnectionStrategy.PRIVATE_DNS);
         this.connectUsingPublicIp = this.connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
+        this.minimumNumberOfInstances = minimumNumberOfInstances;
+
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
         } else {
@@ -244,6 +250,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.t2Unlimited = t2Unlimited;
 
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+                         String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+          tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+          idleTerminationMinutes, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
+          useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+          monitoring, t2Unlimited, connectionStrategy, maxTotalUses);
     }
 
     @Deprecated
@@ -480,6 +502,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public void setAmiType(AMITypeData amiType) {
         this.amiType = amiType;
+    }
+
+    public int getMinimumNumberOfInstances() {
+        return minimumNumberOfInstances;
     }
 
     public int getInstanceCap() {
@@ -1109,16 +1135,57 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
-        return new EC2OndemandSlave(getSlaveName(inst.getInstanceId()), inst.getInstanceId(), description, remoteFS, getNumExecutors(), labels, mode, initScript,
-                tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, inst.getPublicDnsName(),
-                inst.getPrivateDnsName(), EC2Tag.fromAmazonTags(inst.getTags()), parent.name,
-                useDedicatedTenancy, getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
+        EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
+            .withName(getSlaveName(inst.getInstanceId()))
+            .withInstanceId(inst.getInstanceId())
+            .withDescription(description)
+            .withRemoteFS(remoteFS)
+            .withNumExecutors(getNumExecutors())
+            .withLabelString(labels)
+            .withMode(mode)
+            .withInitScript(initScript)
+            .withTmpDir(tmpDir)
+            .withNodeProperties(Collections.emptyList())
+            .withRemoteAdmin(remoteAdmin)
+            .withJvmopts(jvmopts)
+            .withStopOnTerminate(stopOnTerminate)
+            .withIdleTerminationMinutes(idleTerminationMinutes)
+            .withPublicDNS(inst.getPublicDnsName())
+            .withPrivateDNS(inst.getPrivateDnsName())
+            .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
+            .withCloudName(parent.name)
+            .withUseDedicatedTenancy(useDedicatedTenancy)
+            .withLaunchTimeout(getLaunchTimeout())
+            .withAmiType(amiType)
+            .withConnectionStrategy(connectionStrategy)
+            .withMaxTotalUses(maxTotalUses)
+            .build();
+        return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
-        return new EC2SpotSlave(getSlaveName(sir.getSpotInstanceRequestId()), sir.getSpotInstanceRequestId(), description, remoteFS, getNumExecutors(), mode, initScript,
-                tmpDir, labels, Collections.emptyList(), remoteAdmin, jvmopts, idleTerminationMinutes, EC2Tag.fromAmazonTags(sir.getTags()), parent.name,
-                getLaunchTimeout(), amiType, connectionStrategy, maxTotalUses);
+        EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
+            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
+            .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
+            .withDescription(description)
+            .withRemoteFS(remoteFS)
+            .withNumExecutors(getNumExecutors())
+            .withMode(mode)
+            .withInitScript(initScript)
+            .withTmpDir(tmpDir)
+            .withLabelString(labels)
+            .withNodeProperties(Collections.emptyList())
+            .withRemoteAdmin(remoteAdmin)
+            .withJvmopts(jvmopts)
+            .withIdleTerminationMinutes(idleTerminationMinutes)
+            .withTags(EC2Tag.fromAmazonTags(sir.getTags()))
+            .withCloudName(parent.name)
+            .withLaunchTimeout(getLaunchTimeout())
+            .withAmiType(amiType)
+            .withConnectionStrategy(connectionStrategy)
+            .withMaxTotalUses(maxTotalUses)
+            .build();
+        return EC2AgentFactory.getInstance().createSpotAgent(config);
     }
 
     /**
@@ -1292,6 +1359,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Extension
+    public static final class OnSaveListener extends SaveableListener {
+        @Override
+        public void onChange(Saveable o, XmlFile file) {
+            if (o instanceof Jenkins) {
+                MinimumInstanceChecker.checkForMinimumInstances();
+            }
+        }
+    }
+
+    @Extension
     public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
 
         @Override
@@ -1425,6 +1502,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
+        }
+
+        public FormValidation doCheckMinimumNumberOfInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
+            if (value == null || value.trim().isEmpty())
+                return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val > 0) {
+                    int instanceCap;
+                    try {
+                        instanceCap = Integer.parseInt(instanceCapStr);
+                    } catch (NumberFormatException ignore) {
+                        instanceCap = Integer.MAX_VALUE;
+                    }
+                    if (val > instanceCap) {
+                        return FormValidation
+                          .error("Minimum number of instances must not be larger than AMI Instance Cap %d",
+                            instanceCap);
+                    }
+                    return FormValidation.ok();
+                }
+            } catch (NumberFormatException ignore) {
+            }
+            return FormValidation.error("Minimum number of instances must be a non-negative integer (or null)");
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
