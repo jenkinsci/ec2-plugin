@@ -23,20 +23,22 @@
  */
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
-import org.junit.After;
-import org.junit.Before;
+import jenkins.model.Jenkins;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -337,5 +339,15 @@ public class SlaveTemplateTest {
         assertEquals(subnet1, "subnet-123");
         assertEquals(subnet2, "subnet-456");
         assertEquals(subnet3, "subnet-123");
+    }
+
+    @Issue("JENKINS-59460")
+    @Test
+    public void testConnectionStrategyDeprecatedFieldsAreExported() {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
+
+        String exported = Jenkins.XSTREAM.toXML(template);
+        assertThat(exported, containsString("usePrivateDnsName"));
+        assertThat(exported, containsString("connectUsingPublicIp"));
     }
 }

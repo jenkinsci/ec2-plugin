@@ -170,10 +170,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public transient String slaveCommandSuffix;
 
     @Deprecated
-    public transient boolean usePrivateDnsName;
+    public boolean usePrivateDnsName;
 
     @Deprecated
-    public transient boolean connectUsingPublicIp;
+    public boolean connectUsingPublicIp;
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
