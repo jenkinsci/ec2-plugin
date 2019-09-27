@@ -1509,7 +1509,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();
             try {
                 int val = Integer.parseInt(value);
-                if (val > 0) {
+                if (val >= 0) {
                     int instanceCap;
                     try {
                         instanceCap = Integer.parseInt(instanceCapStr);
