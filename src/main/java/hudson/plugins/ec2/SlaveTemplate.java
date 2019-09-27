@@ -672,11 +672,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
-            if (getAssociatePublicIp()) {
-                net.setSubnetId(subnetId);
-            } else {
-                riRequest.setSubnetId(subnetId);
-            }
+            net.setSubnetId(subnetId);
 
             diFilters.add(new Filter("subnet-id").withValues(subnetId));
 
@@ -704,10 +700,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
-        net.setAssociatePublicIpAddress(false);
-        if (getAssociatePublicIp()) {
-            net.setAssociatePublicIpAddress(true);
-        }
+        net.setAssociatePublicIpAddress(getAssociatePublicIp());
         net.setDeviceIndex(0);
         riRequest.withNetworkInterfaces(net);
 
@@ -982,11 +975,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
             String subnetId = chooseSubnetId();
             if (StringUtils.isNotBlank(subnetId)) {
-                if (getAssociatePublicIp()) {
-                    net.setSubnetId(subnetId);
-                } else {
-                    launchSpecification.setSubnetId(subnetId);
-                }
+                net.setSubnetId(subnetId);
 
                 /*
                  * If we have a subnet ID then we can only use VPC security groups
@@ -1022,10 +1011,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecification.setKeyName(keyPair.getKeyName());
             launchSpecification.setInstanceType(type.toString());
 
-            net.setAssociatePublicIpAddress(false);
-            if (getAssociatePublicIp()) {
-                net.setAssociatePublicIpAddress(true);
-            }
+            net.setAssociatePublicIpAddress(getAssociatePublicIp());
             net.setDeviceIndex(0);
             launchSpecification.withNetworkInterfaces(net);
 
