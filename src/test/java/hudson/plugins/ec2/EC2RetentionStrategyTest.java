@@ -4,17 +4,22 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.InstanceType;
 
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import hudson.plugins.ec2.util.PrivateKeyHelper;
 import hudson.slaves.NodeProperty;
 import hudson.model.Executor;
 import hudson.model.Node;
 
+import net.sf.json.JSONObject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -255,5 +260,215 @@ public class EC2RetentionStrategyTest {
         // Should have two slaves after check
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
+    }
+
+    @Test
+    public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0);
+
+        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("monday", false);
+        jsonObject.put("tuesday", true);
+        jsonObject.put("wednesday", false);
+        jsonObject.put("thursday", false);
+        jsonObject.put("friday", false);
+        jsonObject.put("saturday", false);
+        jsonObject.put("sunday", false);
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
+
+        LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 12, 0); //Tuesday
+
+        //Set fixed clock to be able to test properly
+        MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
+        r.jenkins.clouds.add(cloud);
+        r.configRoundtrip();
+
+        List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have two slaves before any checking
+        assertEquals(2, computers.size());
+
+        Instant now = Instant.now();
+        Clock clock = Clock.fixed(now, zoneId);
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
+        rs.check(computers.get(0));
+
+        computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have two slaves after check too
+        assertEquals(2, computers.size());
+        assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
+
+    }
+
+    @Test
+    public void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0);
+
+        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("monday", false);
+        jsonObject.put("tuesday", true);
+        jsonObject.put("wednesday", false);
+        jsonObject.put("thursday", false);
+        jsonObject.put("friday", false);
+        jsonObject.put("saturday", false);
+        jsonObject.put("sunday", false);
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
+
+        LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 10, 0); //Tuesday before range
+
+        //Set fixed clock to be able to test properly
+        MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
+        r.jenkins.clouds.add(cloud);
+        r.configRoundtrip();
+
+        List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have zero slaves
+        assertEquals(0, computers.size());
+    }
+
+    @Test
+    public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0);
+
+        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("15:00");
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("03:00");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("monday", false);
+        jsonObject.put("tuesday", true);
+        jsonObject.put("wednesday", false);
+        jsonObject.put("thursday", false);
+        jsonObject.put("friday", false);
+        jsonObject.put("saturday", false);
+        jsonObject.put("sunday", false);
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
+
+        LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 25, 1, 0); //Wednesday
+
+        //Set fixed clock to be able to test properly
+        MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
+        r.jenkins.clouds.add(cloud);
+        r.configRoundtrip();
+
+        List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have two slaves before any checking
+        assertEquals(2, computers.size());
+
+        Instant now = Instant.now();
+        Clock clock = Clock.fixed(now, zoneId);
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
+        rs.check(computers.get(0));
+
+        computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have two slaves after check too
+        assertEquals(2, computers.size());
+        assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
+    }
+
+    @Test
+    public void testRetentionStopsAfterActiveRangeEnds() throws Exception {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0);
+
+        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("monday", false);
+        jsonObject.put("tuesday", true);
+        jsonObject.put("wednesday", false);
+        jsonObject.put("thursday", false);
+        jsonObject.put("friday", false);
+        jsonObject.put("saturday", false);
+        jsonObject.put("sunday", false);
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
+
+        //Set fixed clock to be able to test properly
+        LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 14, 0); //Tuesday
+        MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
+        r.jenkins.clouds.add(cloud);
+        r.configRoundtrip();
+
+        List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have two slaves before any checking
+        assertEquals(2, computers.size());
+
+        //Set fixed clock to after active period
+        localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 16, 0); //Tuesday
+        MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+
+        Instant now = Instant.now();
+        Clock clock = Clock.fixed(now, zoneId);
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
+        rs.check(computers.get(0));
+
+        computers = Arrays.stream(r.jenkins.getComputers())
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
+
+        // Should have 1 slaves after check
+        assertEquals(1, computers.size());
+        assertEquals(1, AmazonEC2FactoryMockImpl.instances.size());
     }
 }

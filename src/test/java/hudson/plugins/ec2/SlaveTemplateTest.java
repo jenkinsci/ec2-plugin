@@ -25,8 +25,11 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import jenkins.model.Jenkins;
 
+import net.sf.json.JSONObject;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -350,5 +353,38 @@ public class SlaveTemplateTest {
         String exported = Jenkins.XSTREAM.toXML(template);
         assertThat(exported, containsString("usePrivateDnsName"));
         assertThat(exported, containsString("connectUsingPublicIp"));
+    }
+
+    @Test
+    public void testMinimumNumberOfInstancesActiveRangeConfig() throws Exception {
+        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("monday", false);
+        jsonObject.put("tuesday", true);
+        jsonObject.put("wednesday", false);
+        jsonObject.put("thursday", false);
+        jsonObject.put("friday", false);
+        jsonObject.put("saturday", false);
+        jsonObject.put("sunday", false);
+        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, new SpotConfiguration(true, "22", true, "1"), "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
+        slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(slaveTemplate);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.configRoundtrip();
+
+        MinimumNumberOfInstancesTimeRangeConfig stored = r.jenkins.clouds.get(AmazonEC2Cloud.class).getTemplates().get(0).getMinimumNumberOfInstancesTimeRangeConfig();
+        Assert.assertNotNull(stored);
+        Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
+        Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
+        Assert.assertEquals(false, stored.getMinimumNoInstancesActiveTimeRangeDays().get("monday"));
+        Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
     }
 }
