@@ -683,20 +683,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 List<String> groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
-                    if (getAssociatePublicIp()) {
-                        net.setGroups(groupIds);
-                    } else {
-                        riRequest.setSecurityGroupIds(groupIds);
-                    }
-
+                    net.setGroups(groupIds);
                     diFilters.add(new Filter("instance.group-id").withValues(groupIds));
                 }
             }
         } else {
-            /* No subnet: we can use standard security groups by name */
-            riRequest.setSecurityGroups(securityGroupSet);
-            if (!securityGroupSet.isEmpty()) {
-                diFilters.add(new Filter("instance.group-name").withValues(securityGroupSet));
+            List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
+                                            .getSecurityGroups()
+                                            .stream().map(SecurityGroup::getGroupId)
+                                            .collect(Collectors.toList());
+            net.setGroups(groupIds);
+            if (!groupIds.isEmpty()) {
+                diFilters.add(new Filter("instance.group-id").withValues(groupIds));
             }
         }
 
@@ -983,25 +981,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 if (!securityGroupSet.isEmpty()) {
                     List<String> groupIds = getEc2SecurityGroups(ec2);
                     if (!groupIds.isEmpty()) {
-                        if (getAssociatePublicIp()) {
-                            net.setGroups(groupIds);
-                        } else {
-                            ArrayList<GroupIdentifier> groups = new ArrayList<>();
-
-                            for (String group_id : groupIds) {
-                                GroupIdentifier group = new GroupIdentifier();
-                                group.setGroupId(group_id);
-                                groups.add(group);
-                            }
-                            if (!groups.isEmpty())
-                                launchSpecification.setAllSecurityGroups(groups);
-                        }
+                        net.setGroups(groupIds);
                     }
                 }
             } else {
-                /* No subnet: we can use standard security groups by name */
                 if (!securityGroupSet.isEmpty()) {
-                    launchSpecification.setSecurityGroups(securityGroupSet);
+                    List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
+                                                    .getSecurityGroups()
+                                                    .stream().map(SecurityGroup::getGroupId)
+                                                    .collect(Collectors.toList());
+                    net.setGroups(groupIds);
                 }
             }
 
