@@ -32,6 +32,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,6 +42,9 @@ import java.util.stream.Stream;
 import javax.servlet.ServletException;
 
 import hudson.plugins.ec2.util.*;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.NodePropertyDescriptor;
+import hudson.util.DescribableList;
 
 import hudson.XmlFile;
 import hudson.model.listeners.SaveableListener;
@@ -154,6 +158,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String currentSubnetId;
 
+    private /* lazily initialized */ DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
+
     private transient/* almost final */Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -187,7 +193,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
@@ -223,6 +230,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
+        this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
         this.monitoring = monitoring;
         this.nextSubnet = 0;
 
@@ -254,6 +262,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @Deprecated
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                        InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                        String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                        boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                        String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                        boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                        String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                        boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+            tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+            idleTerminationMinutes, minimumNumberOfInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
+            useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+            monitoring, t2Unlimited, connectionStrategy, maxTotalUses, Collections.emptyList());
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
@@ -265,7 +289,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
           tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
           idleTerminationMinutes, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
           useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
-          monitoring, t2Unlimited, connectionStrategy, maxTotalUses);
+          monitoring, t2Unlimited, connectionStrategy, maxTotalUses, Collections.emptyList());
     }
 
     @Deprecated
@@ -557,6 +581,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMaxTotalUses() {
         return maxTotalUses;
+    }
+
+    public List<NodePropertyDescriptor> getNodePropertyDescriptors() {
+        return NodePropertyDescriptor.for_(NodeProperty.all(), EC2AbstractSlave.class);
+    }
+
+    public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
+        if (nodeProperties == null)
+            throw new IllegalStateException();
+        return nodeProperties;
     }
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
@@ -1120,7 +1154,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withMode(mode)
             .withInitScript(initScript)
             .withTmpDir(tmpDir)
-            .withNodeProperties(Collections.emptyList())
+            .withNodeProperties(nodeProperties.toList())
             .withRemoteAdmin(remoteAdmin)
             .withJvmopts(jvmopts)
             .withStopOnTerminate(stopOnTerminate)
@@ -1149,7 +1183,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withInitScript(initScript)
             .withTmpDir(tmpDir)
             .withLabelString(labels)
-            .withNodeProperties(Collections.emptyList())
+            .withNodeProperties(nodeProperties.toList())
             .withRemoteAdmin(remoteAdmin)
             .withJvmopts(jvmopts)
             .withIdleTerminationMinutes(idleTerminationMinutes)
@@ -1296,6 +1330,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (maxTotalUses == 0) {
             maxTotalUses = -1;
+        }
+
+        if (nodeProperties == null) {
+            nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
 
         return this;

@@ -182,6 +182,8 @@ THE SOFTWARE.
       <f:textbox default="-1"/>
     </f:entry>
 
+    <f:descriptorList title="${%Node Properties}" field="nodeProperties" descriptors="${it.getNodePropertyDescriptors()}" />
+
   </f:advanced>
 
   <f:entry title="">

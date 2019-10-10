@@ -203,7 +203,7 @@ public class EC2RetentionStrategyTest {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
           InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
           "-Xmx1g", false, "subnet 456", null, null, 2, "10", null, true, true, false, "", false, "", false, false,
-          true, ConnectionStrategy.PRIVATE_IP, 0);
+          true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
           Collections
             .singletonList(template), "roleArn", "roleSessionName");
