@@ -22,7 +22,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 
 import static org.junit.Assert.assertNotNull;
@@ -65,7 +64,7 @@ public class EC2StepTest {
 
         when(instance.getNodeName()).thenReturn("nodeName");
         List<EC2AbstractSlave> slaves = Collections.singletonList(instance);
-        when(st.provision(anyInt(),any(EnumSet.class))).thenReturn(slaves);
+        when(st.provision(anyInt(),any())).thenReturn(slaves);
     }
 
     @Test

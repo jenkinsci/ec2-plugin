@@ -93,18 +93,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             readinessSleepMs = Integer.parseInt(prop);
     }
 
-    private final int FAILED = -1;
-
     protected void log(Level level, EC2Computer computer, TaskListener listener, String message) {
-        EC2Cloud cloud = computer.getCloud();
-        if (cloud != null)
-            cloud.log(LOGGER, level, listener, message);
+        EC2Cloud.log(LOGGER, level, listener, message);
     }
 
     protected void logException(EC2Computer computer, TaskListener listener, String message, Throwable exception) {
-        EC2Cloud cloud = computer.getCloud();
-        if (cloud != null)
-            cloud.log(LOGGER, Level.WARNING, listener, message, exception);
+        EC2Cloud.log(LOGGER, Level.WARNING, listener, message, exception);
     }
 
     protected void logInfo(EC2Computer computer, TaskListener listener, String message) {

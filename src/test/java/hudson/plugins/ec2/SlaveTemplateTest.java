@@ -26,6 +26,7 @@ package hudson.plugins.ec2;
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
 import jenkins.model.Jenkins;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;

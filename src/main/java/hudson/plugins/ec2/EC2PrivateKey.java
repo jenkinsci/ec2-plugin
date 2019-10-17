@@ -37,7 +37,6 @@ import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
 import javax.crypto.Cipher;
 import java.nio.charset.Charset;
-import com.amazonaws.AmazonClientException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
