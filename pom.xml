@@ -65,6 +65,11 @@ THE SOFTWARE.
             <name>Matt Sicker</name>
             <email>msicker@cloudbees.com</email>
         </developer>
+        <developer>
+            <id>raihaan</id>
+            <name>Raihaan Shouhell</name>
+            <email>raihaanhimself@gmail.com</email>
+        </developer>
     </developers>
 
     <scm>
