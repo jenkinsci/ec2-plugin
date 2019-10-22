@@ -173,11 +173,6 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
             final long idleMilliseconds = this.clock.millis() - computer.getIdleStartMilliseconds();
 
-            //Stopped instance restarted and Idletime has not be reset
-            if ( uptime <  idleMilliseconds) {
-                return 1;
-            }
-
 
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
