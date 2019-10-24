@@ -468,6 +468,11 @@ public abstract class EC2AbstractSlave extends Slave {
         }
     }
 
+    void launchTimeout(){
+        LOGGER.info("EC2 instance failed to launch: " + getInstanceId());
+        terminate();
+    }
+
     public long getLaunchTimeoutInMillis() {
         // this should be fine as long as launchTimeout remains an int type
         return launchTimeout * 1000L;

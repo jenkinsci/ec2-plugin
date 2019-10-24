@@ -1,0 +1,16 @@
+<div>
+    <p>Set a minimum number of spare instances to make available.</p>
+
+    <p>The idea is that up to the instance cap, there will always be this number
+    of instances unused and waiting for builds.</p>
+
+   <p>This is different from the minimum number of instances, which only guarantees
+    that n instances exist, not whether there is any available capacity.</p>
+
+    <p>If this value is set 1, there will be one instance available, then if that
+    instance is used by a build, another will be provisoned. The idea being that
+    there is always a waiting instance ready for an incoming build. If you
+    have a high rate of incoming builds this value can be set higher.</p>
+
+   <p>Note that value is local to this specific AMI and associated configurations.</p>
+</div>
