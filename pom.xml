@@ -127,7 +127,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>trilead-api</artifactId>
-            <version>1.0.3</version><!-- TODO: BUMP when trilead split is in LTS and is the baseline -->
+            <version>1.0.4</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.temp.jelly</groupId>
