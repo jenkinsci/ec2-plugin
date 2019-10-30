@@ -1329,7 +1329,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             maxTotalUses = -1;
         }
 
-         // 1.45 new parameters
         if (nodeProperties == null) {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
