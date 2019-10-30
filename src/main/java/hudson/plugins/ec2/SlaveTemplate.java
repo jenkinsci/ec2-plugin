@@ -229,7 +229,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = useDedicatedTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
-        this.nodeProperties = new DescribableList<NodeProperty<?>,NodePropertyDescriptor>(Saveable.NOOP, nodeProperties);
+        this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
         this.monitoring = monitoring;
         this.nextSubnet = 0;
 
