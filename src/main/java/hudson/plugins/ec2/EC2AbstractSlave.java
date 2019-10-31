@@ -162,7 +162,8 @@ public abstract class EC2AbstractSlave extends Slave {
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
         readResolve();
-        fetchLiveInstanceData(true);
+        // Wait up to 1 minute for the instance to show up
+        fetchLiveInstanceData(true, 60);
     }
 
     @Deprecated
@@ -541,7 +542,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to time to ensure we
      * reflect the reality of the instances.
      */
-    private void fetchLiveInstanceData(boolean force) throws AmazonClientException {
+    private void fetchLiveInstanceData(boolean force, int timeout) throws AmazonClientException {
         /*
          * If we've grabbed the data recently, don't bother getting it again unless we are forced
          */
@@ -563,7 +564,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
         Instance i = null;
         try {
-            i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+            i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud(), timeout);
         } catch (InterruptedException e) {
             // We'll just retry next time we test for idleness.
             LOGGER.fine("InterruptedException while get " + getInstanceId()
@@ -592,6 +593,10 @@ public abstract class EC2AbstractSlave extends Slave {
                 tags.add(new EC2Tag(t.getKey(), t.getValue()));
             }
         }
+    }
+
+    private void fetchLiveInstanceData(boolean force) throws AmazonClientException {
+        fetchLiveInstanceData(force, 25);
     }
 
     /*

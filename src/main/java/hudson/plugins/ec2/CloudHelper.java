@@ -16,11 +16,12 @@ import java.util.List;
 final class CloudHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(CloudHelper.class);
 
-    static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud) throws AmazonClientException, InterruptedException {
+    static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud, int timeout) throws AmazonClientException, InterruptedException {
         // Sometimes even after a successful RunInstances, DescribeInstances
         // returns an error for a few seconds. We do a few retries instead of
         // failing instantly. See [JENKINS-15319].
-        for (int i = 0; i < 5; i++) {
+        int waitCount = timeout / 5;
+        for (int i = 0; i < waitCount; i++) {
             try {
                 return getInstance(instanceId, cloud);
             } catch (AmazonServiceException e) {
@@ -34,6 +35,10 @@ final class CloudHelper {
         }
         // Last time, throw on any error.
         return getInstance(instanceId, cloud);
+    }
+
+    static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud) throws AmazonClientException, InterruptedException {
+        return getInstanceWithRetry(instanceId, cloud, 25);
     }
 
     @CheckForNull
