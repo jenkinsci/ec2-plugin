@@ -162,8 +162,19 @@ public abstract class EC2AbstractSlave extends Slave {
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
         readResolve();
-        // Wait up to 1 minute for the instance to show up
-        fetchLiveInstanceData(true, 60);
+        try {
+            // Wait up to 1 minute for the instance to show up
+            fetchLiveInstanceData(true, 60);
+        } catch (com.amazonaws.AmazonClientException e) {
+            /*
+             * If DescribeInstances didn't return any information about this
+             * instance, try to terminate it so that if it does come up later
+             * it doesn't affect capacity calculations.
+             */
+            LOGGER.log(Level.WARNING, "Failed to get instance data for new instance " + getInstanceId() + ", terminating");
+            terminateInstance();
+            throw e;
+        }
     }
 
     @Deprecated
