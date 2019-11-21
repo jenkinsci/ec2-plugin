@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.win;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.plugins.ec2.win.winrm.WinRM;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 
@@ -101,6 +102,7 @@ public class WinConnection {
         return path.substring(3);
     }
 
+    @SuppressFBWarnings(value = "UNENCRYPTED_SOCKET", justification = "Socket is opened and closed to check connection without sending any data.")
     public boolean ping() {
         log.log(Level.FINE, "checking SMB connection to " + host);
         try {
