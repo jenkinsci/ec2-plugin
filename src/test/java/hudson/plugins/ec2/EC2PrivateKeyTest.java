@@ -86,6 +86,13 @@ public class EC2PrivateKeyTest {
         assertEquals("$32s7y%zAZ#xWHu3xm0TT0PH%5kKgmHO", password);
     }
 
+    @Test
+    public void testDecryptPasswordwNewLines() throws AmazonClientException {
+        EC2PrivateKey k = getPrivateKey();
+        final String password = k.decryptWindowsPassword("\r\nLXOVLWjPem85Gy3B/AbIQ2/aQKIT5PZuq+Egg97EJSLKXVkdxDSdP7XbfpkKSNSZdhLV8XAE/vfAvU7MU2FfKArxZ6vvN2Gy8ukSoQW2UC2p1xm8ygI4sr40+Op2Hva/Svcjka4sVLYJy/ySTZCEedFkEzxhPV7FM6KHhZZ9L56hxSJe1P/7E1dY2pxbJbj/QeAKu8ps/RYTHPgqvTw0oeq1/Sal362nNPPAG+aznocazp8g0gNhySg58/9i+xjtyqm4mjWsN0p8s4JhRKPZ/iHJSqu+ZfaJqURXd9OHLdnzkvHpyzKCbU3URmnY3dha4B8dlPGAX0z3hSEtaI0LJA==\r\n");
+        assertEquals("$32s7y%zAZ#xWHu3xm0TT0PH%5kKgmHO", password);
+    }
+
     @Issue("JENKINS-41824")
     @Test(expected = IOException.class)
     public void testEmptyPrivateKey() throws Exception {
