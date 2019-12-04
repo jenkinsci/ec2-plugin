@@ -43,7 +43,7 @@ Use "Test Connection" button to verify that Jenkins can successfully
 talk to EC2. If you are using UEC you need to click on Advanced and fill
 out the endpoint details for your cluster.
 
-![](https://wiki.jenkins.io/download/attachments/37324430/ec2-credential.png?version=1&modificationDate=1242152086000&api=v2)
+![](docs/images/cloud.png)
 
 Next, configure AMIs that you want to launch. For this, you need to find
 the AMI IDs for the OS of your choice.
@@ -67,7 +67,7 @@ for your builds and tests.  The init script is located at
 the "Remote User" field (so use of "sudo" may be required for non-root
 accounts).
 
-![](https://wiki.jenkins.io/download/attachments/37324430/ec2-ami.png?version=1&modificationDate=1242152086000&api=v2)
+![](docs/images/ami.png)
 
 Configure several AMIs if you need different OS images.
 
@@ -464,8 +464,7 @@ This issue can be solved in different ways:
 3.  Force security upgrade through the "init-script" in the Cloud
     configuration  
       
-    ![](https://wiki.jenkins.io/download/attachments/37324430/jenkins-cloud-ec2-init-script.png?version=1&modificationDate=1567511458000&api=v2){.confluence-embedded-image
-    height="250"}
+    ![](docs/images/init-scripts.png)
 
 # Change Log
 
