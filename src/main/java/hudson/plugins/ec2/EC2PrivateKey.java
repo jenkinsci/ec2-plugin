@@ -37,6 +37,8 @@ import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
 import javax.crypto.Cipher;
 import java.nio.charset.Charset;
+
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
@@ -133,7 +135,7 @@ public class EC2PrivateKey {
         try {
             Cipher cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding");
             cipher.init(Cipher.DECRYPT_MODE, PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
-            byte[] cipherText = Base64.getDecoder().decode(encodedPassword);
+            byte[] cipherText = Base64.getDecoder().decode(StringUtils.deleteWhitespace(encodedPassword));
             byte[] plainText = cipher.doFinal(cipherText);
             return new String(plainText, Charset.forName("ASCII"));
         } catch (Exception e) {
