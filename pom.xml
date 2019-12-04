@@ -39,7 +39,7 @@ THE SOFTWARE.
 
     <name>Amazon EC2 plugin</name>
     <description>This is a Jenkins plugin to support ephemeral Jenkins agents on Amazon EC2 or other EC2-compatible clouds</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin</url>
+    <url>https://github.com/jenkinsci/ec2-plugin</url>
     <licenses>
         <license>
             <name>The MIT License</name>
