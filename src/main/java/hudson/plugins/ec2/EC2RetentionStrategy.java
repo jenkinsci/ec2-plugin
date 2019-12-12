@@ -135,7 +135,10 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         if (slaveTemplate != null) {
             long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfAgents(slaveTemplate);
             if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances()) {
-                return 1;
+                //Check if we're in an active time-range for keeping minimum number of instances
+                if (MinimumInstanceChecker.minimumInstancesActive(slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
+                    return 1;
+                }
             }
         }
 

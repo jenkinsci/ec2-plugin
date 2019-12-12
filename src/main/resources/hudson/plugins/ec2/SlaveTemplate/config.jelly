@@ -142,6 +142,34 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
+    <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
+                     title="${%Only apply minimum number of instances during specific time range}" checked="${instance.minimumNumberOfInstancesTimeRangeConfig != null}"
+        help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >
+      <f:entry title="${%From/to}" description="${%''13:00'' or ''1:00 PM'' format supported}">
+        From: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeFrom" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeFrom}" />
+        To: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeTo" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeTo}" />
+      </f:entry>
+      <f:rowSet name="minimumNoInstancesActiveTimeRangeDays">
+          <f:entry title="${%On days}" >
+              <f:checkbox field="monday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.monday}"/>
+              <label>${%Monday}</label>
+              <f:checkbox field="tuesday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.tuesday}"/>
+              <label>${%Tuesday}</label>
+              <f:checkbox field="wednesday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.wednesday}"/>
+              <label>${%Wednesday}</label>
+              <f:checkbox field="thursday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.thursday}"/>
+              <label>${%Thursday}</label>
+              <f:checkbox field="friday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.friday}"/>
+              <label>${%Friday}</label>
+              <f:checkbox field="saturday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.saturday}"/>
+              <label>${%Saturday}</label>
+              <f:checkbox field="sunday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeDays.sunday}"/>
+              <label>${%Sunday}</label>
+          </f:entry>
+      </f:rowSet>
+    </f:optionalBlock>
+    <f:entry />
+
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>

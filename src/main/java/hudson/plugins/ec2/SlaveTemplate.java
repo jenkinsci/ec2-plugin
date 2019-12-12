@@ -134,6 +134,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private int minimumNumberOfInstances;
 
+    private MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig;
+
     public final boolean stopOnTerminate;
 
     private final List<EC2Tag> tags;
@@ -529,6 +531,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMinimumNumberOfInstances() {
         return minimumNumberOfInstances;
+    }
+
+    public MinimumNumberOfInstancesTimeRangeConfig getMinimumNumberOfInstancesTimeRangeConfig() {
+        return minimumNumberOfInstancesTimeRangeConfig;
+    }
+
+    @DataBoundSetter
+    public void setMinimumNumberOfInstancesTimeRangeConfig(MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig) {
+        this.minimumNumberOfInstancesTimeRangeConfig = minimumNumberOfInstancesTimeRangeConfig;
     }
 
     public int getInstanceCap() {
@@ -1536,6 +1547,38 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch (NumberFormatException ignore) {
             }
             return FormValidation.error("Minimum number of instances must be a non-negative integer (or null)");
+        }
+
+        public FormValidation doCheckMinimumNoInstancesActiveTimeRangeFrom(@QueryParameter String value) {
+            try {
+                MinimumNumberOfInstancesTimeRangeConfig.validateLocalTimeString(value);
+                return FormValidation.ok();
+            } catch (IllegalArgumentException e) {
+                return FormValidation.error("Please enter value in format 'h:mm a' or 'HH:mm'");
+            }
+        }
+
+        public FormValidation doCheckMinimumNoInstancesActiveTimeRangeTo(@QueryParameter String value) {
+            try {
+                MinimumNumberOfInstancesTimeRangeConfig.validateLocalTimeString(value);
+                return FormValidation.ok();
+            } catch (IllegalArgumentException e) {
+                return FormValidation.error("Please enter value in format 'h:mm a' or 'HH:mm'");
+            }
+        }
+
+        // For some reason, all days will validate against this method so no need to repeat for each day.
+        public FormValidation doCheckMonday(@QueryParameter boolean monday,
+                                            @QueryParameter boolean tuesday,
+                                            @QueryParameter boolean wednesday,
+                                            @QueryParameter boolean thursday,
+                                            @QueryParameter boolean friday,
+                                            @QueryParameter boolean saturday,
+                                            @QueryParameter boolean sunday) {
+            if (!(monday || tuesday || wednesday || thursday || friday || saturday || sunday)) {
+                return FormValidation.warning("At least one day should be checked or minimum number of instances won't be active");
+            }
+            return FormValidation.ok();
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
