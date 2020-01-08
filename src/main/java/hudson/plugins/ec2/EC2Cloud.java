@@ -127,7 +127,7 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String DEFAULT_EC2_HOST = "us-east-1";
 
-    public static final String DEFAULT_EC2_ENDPOINT = "http://ec2.amazonaws.com";
+    public static final String DEFAULT_EC2_ENDPOINT = "https://ec2.amazonaws.com";
 
     public static final String AWS_URL_HOST = "amazonaws.com";
 
