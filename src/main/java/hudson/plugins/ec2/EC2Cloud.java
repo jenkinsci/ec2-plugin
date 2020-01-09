@@ -66,6 +66,7 @@ import java.util.logging.SimpleFormatter;
 import javax.servlet.ServletException;
 
 import hudson.model.TaskListener;
+import hudson.security.Permission;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -859,6 +860,7 @@ public abstract class EC2Cloud extends Cloud {
 
         protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
+            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2endpoint);
@@ -885,6 +887,7 @@ public abstract class EC2Cloud extends Cloud {
 
         public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
+            Jenkins.getInstance().checkPermission(Jenkins.ADMINISTER);
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = connect(credentialsProvider, ec2EndpointUrl);
