@@ -941,7 +941,7 @@ public abstract class EC2Cloud extends Cloud {
                 ec2.describeInstances();
 
                 if (privateKey == null)
-                    return FormValidation.error("Private key is not specified. Click 'Generate Key' to generate one.");
+                    return FormValidation.error("Private key is not specified. Please fill up the private key field with a valid one.");
 
                 if (privateKey.trim().length() > 0) {
                     // check if this key exists
@@ -951,39 +951,6 @@ public abstract class EC2Cloud extends Cloud {
                                 .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
                                         + pk.getFingerprint() + ")");
                 }
-
-                return FormValidation.ok(Messages.EC2Cloud_Success());
-            } catch (AmazonClientException e) {
-                LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
-                return FormValidation.error(e.getMessage());
-            }
-        }
-
-        public FormValidation doGenerateKey(StaplerResponse rsp, URL ec2EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String roleArn, String roleSessionName, String region)
-                throws IOException, ServletException {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-                AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2EndpointUrl);
-                List<KeyPairInfo> existingKeys = ec2.describeKeyPairs().getKeyPairs();
-
-                int n = 0;
-                while (true) {
-                    boolean found = false;
-                    for (KeyPairInfo k : existingKeys) {
-                        if (k.getKeyName().equals("hudson-" + n))
-                            found = true;
-                    }
-                    if (!found)
-                        break;
-                    n++;
-                }
-
-                CreateKeyPairRequest request = new CreateKeyPairRequest("hudson-" + n);
-                KeyPair key = ec2.createKeyPair(request).getKeyPair();
-
-                rsp.addHeader("script",
-                        "findPreviousFormItem(button,'privateKey').value='" + key.getKeyMaterial().replace("\n", "\\n") + "'");
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
             } catch (AmazonClientException e) {

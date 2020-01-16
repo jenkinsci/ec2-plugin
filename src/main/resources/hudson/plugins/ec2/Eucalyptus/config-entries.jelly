@@ -39,6 +39,5 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="ec2endpoint,useInstanceProfileForCredentials,credentialsId" />
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="ec2endpoint,useInstanceProfileForCredentials,credentialsId,privateKey" />
 </j:jelly>
