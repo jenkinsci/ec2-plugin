@@ -941,7 +941,7 @@ public abstract class EC2Cloud extends Cloud {
                 ec2.describeInstances();
 
                 if (privateKey == null)
-                    return FormValidation.error("Private key is not specified. Please fill up the private key field with a valid one.");
+                    return FormValidation.error("Private key is not specified. Please fill the private key field with a valid one.");
 
                 if (privateKey.trim().length() > 0) {
                     // check if this key exists
