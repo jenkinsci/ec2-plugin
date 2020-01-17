@@ -29,7 +29,7 @@ Access Key which act like a username/password (see IAM section). Because
 of the way EC2 works, you also need to have an RSA private key that the
 cloud has the other half for, to permit sshing into the instances that
 are started. Please use the AWS console or any other tool of your choice
-+ to generate the private key to interactively log in to EC2 instances.
+to generate the private key to interactively log in to EC2 instances.
 
 Once you have put in your Access Key and Secret Access Key, select a
 region for the cloud (not shown in screenshot). You may define only one
