@@ -215,11 +215,5 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
             return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
         }
-
-        @RequirePOST
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName)
-                throws IOException, ServletException {
-            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-        }
     }
 }

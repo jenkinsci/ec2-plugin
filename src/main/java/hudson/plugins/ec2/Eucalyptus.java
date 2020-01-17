@@ -77,12 +77,5 @@ public class Eucalyptus extends EC2Cloud {
                 throws IOException, ServletException {
             return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
         }
-
-        @Override
-        @RequirePOST
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
-                throws IOException, ServletException {
-            return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-        }
     }
 }
