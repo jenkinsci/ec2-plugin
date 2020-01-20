@@ -97,6 +97,16 @@ public class EC2Computer extends SlaveComputer {
     }
 
     /**
+     * Gets the EC2 decoded console output.
+     * @since TODO
+     */
+    public String getDecodedConsoleOutput() throws AmazonClientException {
+        AmazonEC2 ec2 = getCloud().connect();
+        GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
+        return ec2.getConsoleOutput(request).getDecodedOutput();
+    }
+    
+    /**
      * Obtains the instance state description in EC2.
      *
      * <p>

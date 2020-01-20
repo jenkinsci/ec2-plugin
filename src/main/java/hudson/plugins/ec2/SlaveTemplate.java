@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,10 +42,12 @@ import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.plugins.ec2.util.*;
 
 import hudson.XmlFile;
 import hudson.model.listeners.SaveableListener;
+import hudson.security.Permission;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -73,6 +76,8 @@ import hudson.slaves.NodePropertyDescriptor;
 import hudson.util.DescribableList;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -143,6 +148,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
 
     public ConnectionStrategy connectionStrategy;
+    
+    public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
     public final boolean associatePublicIp;
 
@@ -191,14 +198,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-            List<? extends NodeProperty<?>> nodeProperties) {
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
             // Can be null during tests
@@ -261,7 +268,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, null);
     }
 
     @Deprecated
@@ -604,6 +634,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
+    @DataBoundSetter
+    public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+    }
+    
+    @NonNull
+    public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
+        return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+    }
+    
     @Override
     public String toString() {
         return "SlaveTemplate{" +
@@ -1402,6 +1442,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
     }
 
+    public boolean isAllowSelfSignedCertificate() {
+        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+    }
+    
     @Extension
     public static final class OnSaveListener extends SaveableListener {
         @Override
@@ -1494,10 +1538,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
+        @RequirePOST
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
                 @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName) throws IOException {
+            checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
@@ -1514,6 +1560,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
             } catch (AmazonClientException e) {
                 return FormValidation.error(e.getMessage());
+            }
+        }
+
+        private void checkPermission(Permission p) {
+            final EC2Cloud ancestorObject = Stapler.getCurrentRequest().findAncestorObject(EC2Cloud.class);
+            if (ancestorObject != null) {
+                ancestorObject.checkPermission(p);
+            } else {
+                Jenkins.get().checkPermission(p);
             }
         }
 
@@ -1666,10 +1721,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
+        @RequirePOST
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
+            checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
@@ -1701,11 +1758,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /*
          * Check the current Spot price of the selected instance type for the selected region
          */
+        @RequirePOST
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
 
+            checkPermission(EC2Cloud.PROVISION);
             String cp = "";
             String zoneStr = "";
 
@@ -1817,6 +1876,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
-    }
+        
+        public String getDefaultHostKeyVerificationStrategy() {
+            // new templates default to the most secure strategy
+            return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
+        }
 
+        public ListBoxModel doFillHostKeyVerificationStrategyItems(@QueryParameter String hostKeyVerificationStrategy) {
+            return Stream.of(HostKeyVerificationStrategyEnum.values())
+                    .map(v -> {
+                        if (v.name().equals(hostKeyVerificationStrategy)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doCheckHostKeyVerificationStrategy(@QueryParameter String hostKeyVerificationStrategy) {
+            Stream<HostKeyVerificationStrategyEnum> stream = Stream.of(HostKeyVerificationStrategyEnum.values());
+            Stream<HostKeyVerificationStrategyEnum> filteredStream = stream.filter(v -> v.name().equals(hostKeyVerificationStrategy));
+            Optional<HostKeyVerificationStrategyEnum> matched = filteredStream.findFirst();
+            Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
+            return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
+        }
+    }
 }

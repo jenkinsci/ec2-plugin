@@ -175,7 +175,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     return 1;
                 }
                 long launchTimeout = node.getLaunchTimeoutInMillis();
-                if(uptime > launchTimeout){
+                if (launchTimeout > 0 && uptime > launchTimeout){
                     // Computer is offline and startup time has expired
                     LOGGER.info("Startup timeout of " + computer.getName() + " after "
                     + uptime +

@@ -75,12 +75,20 @@ public class WinRMClient {
     private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
     private boolean useHTTPS;
     private BasicCredentialsProvider credsProvider;
-
+    private boolean allowSelfSignedCertificate;
+    
+    @Deprecated
     public WinRMClient(URL url, String username, String password) {
+        this(url, username, password, false);
+    }
+
+    public WinRMClient(URL url, String username, String password, boolean allowSelfSignedCertificate) {
         this.url = url;
         this.username = username;
         this.password = password;
         this.factory = new RequestFactory(url);
+        this.allowSelfSignedCertificate = allowSelfSignedCertificate;
+        
         setupHTTPClient();
     }
 
@@ -194,9 +202,18 @@ public class WinRMClient {
         }
         if (useHTTPS) {
             try {
-                SSLConnectionSocketFactory sslConnectionFactory = new SSLConnectionSocketFactory(
-                                                                  new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
-                                                                  NoopHostnameVerifier.INSTANCE);
+                SSLConnectionSocketFactory sslConnectionFactory;
+                
+                if (allowSelfSignedCertificate) {
+                    sslConnectionFactory = new SSLConnectionSocketFactory(
+                            new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
+                            NoopHostnameVerifier.INSTANCE);
+                    log.log(Level.FINE, "Allowing self-signed certificates");
+                } else {
+                    sslConnectionFactory = SSLConnectionSocketFactory.getSystemSocketFactory();
+                    log.log(Level.FINE, "Using system socket factory");
+                }
+                
                 builder.setSSLSocketFactory(sslConnectionFactory);
                 Lookup<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
                                                                 .register("https", sslConnectionFactory)
