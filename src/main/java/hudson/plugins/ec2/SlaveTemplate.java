@@ -136,6 +136,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig;
 
+    private int minimumNumberOfSpareInstances;
+
     public final boolean stopOnTerminate;
 
     private final List<EC2Tag> tags;
@@ -192,7 +194,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
             boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
             boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
@@ -239,6 +241,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.connectUsingPublicIp = this.connectionStrategy.equals(ConnectionStrategy.PUBLIC_IP);
 
         this.minimumNumberOfInstances = minimumNumberOfInstances;
+        this.minimumNumberOfSpareInstances = minimumNumberOfSpareInstances;
 
         if (null == instanceCapStr || instanceCapStr.isEmpty()) {
             this.instanceCap = Integer.MAX_VALUE;
@@ -259,6 +262,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.t2Unlimited = t2Unlimited;
 
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,List<? extends NodeProperty<?>> nodeProperties ) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, minimumNumberOfInstances, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
+                connectBySSHProcess, monitoring, t2Unlimited, connectionStrategy, maxTotalUses, nodeProperties);
     }
 
     @Deprecated
@@ -531,6 +550,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMinimumNumberOfInstances() {
         return minimumNumberOfInstances;
+    }
+
+    public int getMinimumNumberOfSpareInstances() {
+        return minimumNumberOfSpareInstances;
     }
 
     public MinimumNumberOfInstancesTimeRangeConfig getMinimumNumberOfInstancesTimeRangeConfig() {
@@ -1579,6 +1602,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.warning("At least one day should be checked or minimum number of instances won't be active");
             }
             return FormValidation.ok();
+        }
+        public FormValidation doCheckMinimumNumberOfSpareInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
+            if (value == null || value.trim().isEmpty())
+                return FormValidation.ok();
+            try {
+                int val = Integer.parseInt(value);
+                if (val >= 0) {
+                    int instanceCap;
+                    try {
+                        instanceCap = Integer.parseInt(instanceCapStr);
+                    } catch (NumberFormatException ignore) {
+                        instanceCap = Integer.MAX_VALUE;
+                    }
+                    if (val > instanceCap) {
+                        return FormValidation
+                          .error("Minimum number of spare instances must not be larger than AMI Instance Cap %d",
+                            instanceCap);
+                    }
+                    return FormValidation.ok();
+                }
+            } catch (NumberFormatException ignore) {
+            }
+            return FormValidation.error("Minimum number of spare instances must be a non-negative integer (or null)");
         }
 
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {

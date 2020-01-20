@@ -36,6 +36,7 @@ import hudson.slaves.RetentionStrategy;
 import jenkins.model.Jenkins;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -66,10 +67,6 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     private transient ReentrantLock checkLock;
     private static final int STARTUP_TIME_DEFAULT_VALUE = 30;
-    //ec2 instances charged by hour, time less than 1 hour is acceptable
-    private static final int STARTUP_TIMEOUT = NumberUtils.toInt(
-            System.getProperty(EC2RetentionStrategy.class.getCanonicalName() + ".startupTimeout",
-                    String.valueOf(STARTUP_TIME_DEFAULT_VALUE)), STARTUP_TIME_DEFAULT_VALUE);
 
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
@@ -169,8 +166,22 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
 
             //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
-            //need terminate such fault instance by {@link #STARTUP_TIMEOUT}
-            if (computer.isOffline() && uptime < TimeUnit.MINUTES.toMillis(STARTUP_TIMEOUT)) {
+            //need terminate such fault instance.
+            // An instance may also fail running user data scripts and
+            // need to be cleaned up.
+            if (computer.isOffline()){
+                EC2AbstractSlave node = computer.getNode();
+                if (Objects.isNull(node)){
+                    return 1;
+                }
+                long launchTimeout = node.getLaunchTimeoutInMillis();
+                if(uptime > launchTimeout){
+                    // Computer is offline and startup time has expired
+                    LOGGER.info("Startup timeout of " + computer.getName() + " after "
+                    + uptime +
+                    " milliseconds (timeout: "+launchTimeout+" milliseconds), instance status: "+state.toString());
+                    node.launchTimeout();
+                }
                 return 1;
             }
 

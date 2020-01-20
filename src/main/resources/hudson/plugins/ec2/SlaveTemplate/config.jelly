@@ -142,6 +142,10 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
+    <f:entry title="${%Minimum number of spare instances}" field="minimumNumberOfSpareInstances">
+      <f:textbox />
+    </f:entry>
+
     <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
                      title="${%Only apply minimum number of instances during specific time range}" checked="${instance.minimumNumberOfInstancesTimeRangeConfig != null}"
         help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >

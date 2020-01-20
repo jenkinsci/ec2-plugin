@@ -4,6 +4,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.SlaveTemplate;
+import hudson.model.Computer;
+import hudson.model.Label;
+import hudson.model.Queue;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -14,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 @Restricted(NoExternalUse.class)
 public class MinimumInstanceChecker {
@@ -21,16 +25,47 @@ public class MinimumInstanceChecker {
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Needs to be overridden from tests")
     public static Clock clock = Clock.systemDefaultZone();
 
-    public static int countCurrentNumberOfAgents(@Nonnull SlaveTemplate slaveTemplate) {
-        return (int) Arrays.stream(Jenkins.get().getComputers()).filter(computer -> {
-            if (computer instanceof EC2Computer) {
-                SlaveTemplate computerTemplate = ((EC2Computer) computer).getSlaveTemplate();
-                if (computerTemplate != null) {
-                    return Objects.equals(computerTemplate.description, slaveTemplate.description);
-                }
-            }
-            return false;
-        }).count();
+    private static Stream<Computer> agentsForTemplate(@Nonnull SlaveTemplate agentTemplate) {
+        return (Stream<Computer>) Arrays.stream(Jenkins.get().getComputers())
+                .filter(computer -> computer instanceof EC2Computer)
+                .filter(computer -> {
+                    SlaveTemplate computerTemplate = ((EC2Computer) computer).getSlaveTemplate();
+                    return computerTemplate != null
+                            && Objects.equals(computerTemplate.description, agentTemplate.description);
+                });
+    }
+
+    public static int countCurrentNumberOfAgents(@Nonnull SlaveTemplate agentTemplate) {
+        return (int) agentsForTemplate(agentTemplate).count();
+    }
+
+    public static int countCurrentNumberOfSpareAgents(@Nonnull SlaveTemplate agentTemplate) {
+        return (int) agentsForTemplate(agentTemplate)
+            .filter(computer -> computer.countBusy() == 0)
+            .filter(computer -> computer.isOnline())
+            .count();
+    }
+
+    public static int countCurrentNumberOfProvisioningAgents(@Nonnull SlaveTemplate agentTemplate) {
+        return (int) agentsForTemplate(agentTemplate)
+            .filter(computer -> computer.countBusy() == 0)
+            .filter(computer -> computer.isOffline())
+            .filter(computer -> computer.isConnecting())
+            .count();
+    }
+
+    /*
+        Get the number of queued builds that match an AMI (agentTemplate)
+    */
+    public static int countQueueItemsForAgentTemplate(@Nonnull SlaveTemplate agentTemplate) {
+        return (int)
+            Queue
+            .getInstance()
+            .getBuildableItems()
+            .stream()
+            .map((Queue.Item item) -> item.getAssignedLabel())
+            .filter((Label label) -> label.matches(agentTemplate.getLabelSet()))
+            .count();
     }
 
     public static void checkForMinimumInstances() {
@@ -38,16 +73,44 @@ public class MinimumInstanceChecker {
             .filter(cloud -> cloud instanceof EC2Cloud)
             .map(cloud -> (EC2Cloud) cloud)
             .forEach(cloud -> {
-                cloud.getTemplates().forEach(slaveTemplate -> {
-                    if (slaveTemplate.getMinimumNumberOfInstances() > 0) {
-                        if (minimumInstancesActive(slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
-                            int currentNumberOfSlavesForTemplate = countCurrentNumberOfAgents(slaveTemplate);
-                            int numberToProvision = slaveTemplate.getMinimumNumberOfInstances()
-                                - currentNumberOfSlavesForTemplate;
-                            if (numberToProvision > 0) {
-                                cloud.provision(slaveTemplate, numberToProvision);
-                            }
-                        }
+                cloud.getTemplates().forEach(agentTemplate -> {
+                    // Minimum instances now have a time range, check to see
+                    // if we are within that time range and return early if not.
+                    if (! minimumInstancesActive(agentTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
+                        return;
+                    }
+                    int requiredMinAgents = agentTemplate.getMinimumNumberOfInstances();
+                    int requiredMinSpareAgents = agentTemplate.getMinimumNumberOfSpareInstances();
+                    int currentNumberOfAgentsForTemplate = countCurrentNumberOfAgents(agentTemplate);
+                    int currentNumberOfSpareAgentsForTemplate = countCurrentNumberOfSpareAgents(agentTemplate);
+                    int currentNumberOfProvisioningAgentsForTemplate = countCurrentNumberOfProvisioningAgents(agentTemplate);
+                    int currentBuildsWaitingForTemplate = countQueueItemsForAgentTemplate(agentTemplate);
+                    int provisionForMinAgents = 0;
+                    int provisionForMinSpareAgents = 0;
+
+                    // Check if we need to provision any agents because we
+                    // don't have the minimum number of agents
+                    provisionForMinAgents = requiredMinAgents - currentNumberOfAgentsForTemplate;
+                    if (provisionForMinAgents < 0){
+                        provisionForMinAgents = 0;
+                    }
+
+                    // Check if we need to provision any agents because we
+                    // don't have the minimum number of spare agents.
+                    // Don't double provision if minAgents and minSpareAgents are set.
+                    provisionForMinSpareAgents = (requiredMinSpareAgents + currentBuildsWaitingForTemplate) -
+                                                 (
+                                                    currentNumberOfSpareAgentsForTemplate +
+                                                    provisionForMinAgents +
+                                                    currentNumberOfProvisioningAgentsForTemplate
+                                                  );
+                    if (provisionForMinSpareAgents < 0){
+                        provisionForMinSpareAgents = 0;
+                    }
+
+                    int numberToProvision = provisionForMinAgents + provisionForMinSpareAgents;
+                    if (numberToProvision > 0) {
+                        cloud.provision(agentTemplate, numberToProvision);
                     }
                 });
         });
