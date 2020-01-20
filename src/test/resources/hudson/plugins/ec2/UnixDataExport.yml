@@ -14,6 +14,7 @@
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false
       ebsOptimized: false
+      hostKeyVerificationStrategy: CHECK_NEW_SOFT
       labelString: "linux ubuntu"
       maxTotalUses: -1
       minimumNumberOfInstances: 0

@@ -116,6 +116,7 @@ import hudson.util.FormValidation;
 import hudson.util.HttpResponses;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Hudson's view of EC2.
@@ -325,6 +326,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Debug command to attach to a running instance.
      */
+    @RequirePOST
     public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id)
             throws ServletException, IOException, AmazonClientException {
         checkPermission(PROVISION);
@@ -338,6 +340,7 @@ public abstract class EC2Cloud extends Cloud {
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
 
+    @RequirePOST
     public HttpResponse doProvision(@QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if (template == null) {
@@ -959,6 +962,21 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
+        /**
+         * Tests the connection settings.
+         *
+         * Overriding needs to {@code @RequirePOST}
+         * @param ec2endpoint
+         * @param useInstanceProfileForCredentials
+         * @param credentialsId
+         * @param privateKey
+         * @param roleArn
+         * @param roleSessionName
+         * @param region
+         * @return the validation result
+         * @throws IOException
+         * @throws ServletException
+         */
         protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
@@ -986,7 +1004,9 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
+        @RequirePOST
         public ListBoxModel doFillCredentialsIdItems() {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel()
                     .withEmptySelection()
                     .withMatching(
