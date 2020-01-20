@@ -6,11 +6,8 @@ import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URLEncoder;
-import java.util.regex.Pattern;
 import java.util.EnumSet;
 
 import com.hierynomus.smbj.auth.AuthenticationContext;
@@ -22,16 +19,12 @@ import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 
-import static java.util.regex.Pattern.quote;
-
+import javax.net.ssl.SSLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WinConnection {
     private static final Logger log = Logger.getLogger(WinConnection.class.getName());
-
-    // ^[a-zA-Z]\:(\\|\/)([^\\\/\:\*\?\<\>\"\|]+(\\|\/){0,1})+$
-    private static final Pattern VALIDATE_WINDOWS_PATH = Pattern.compile("^[A-Za-z]:\\\\[-a-zA-Z0-9_.\\\\]*");
 
     private final String host;
     private final String username;
@@ -42,17 +35,24 @@ public class WinConnection {
 
     private boolean useHTTPS;
     private static final int TIMEOUT=8000; //8 seconds
+    private boolean allowSelfSignedCertificate;
 
+    @Deprecated
     public WinConnection(String host, String username, String password) {
+        this(host, username, password, true);
+    }
+    
+    public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
         this.host = host;
         this.username = username;
         this.password = password;
         this.smbclient = new SMBClient();
         this.authentication = new AuthenticationContext(username, password.toCharArray(), null);
+        this.allowSelfSignedCertificate = allowSelfSignedCertificate;
     }
 
     public WinRM winrm() {
-        WinRM winrm = new WinRM(host, username, password);
+        WinRM winrm = new WinRM(host, username, password, allowSelfSignedCertificate);
         winrm.setUseHTTPS(useHTTPS);
         return winrm;
     }
@@ -109,7 +109,16 @@ public class WinConnection {
         return path.substring(3);
     }
 
+    // keep this method for compatibility, not used in this plugin anymore
     public boolean ping() {
+        try {
+            return pingFailingIfSSHHandShakeError();
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+    
+    public boolean pingFailingIfSSHHandShakeError() throws IOException {
         log.log(Level.FINE, "checking SMB connection to " + host);
         try {
             Socket socket=new Socket();
@@ -122,6 +131,11 @@ public class WinConnection {
             return true;
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
+            if (e instanceof SSLException) {
+                throw e;
+            } else if (e.getCause() instanceof SSLException) {
+                throw (SSLException) e.getCause();
+            }
             return false;
         }
     }

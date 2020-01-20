@@ -235,6 +235,12 @@ THE SOFTWARE.
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.8.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -403,6 +409,7 @@ THE SOFTWARE.
                 <configuration>
                     <compatibleSinceVersion>1.45</compatibleSinceVersion>
                     <pluginFirstClassLoader>true</pluginFirstClassLoader>
+                    <minimumJavaVersion>8</minimumJavaVersion>
                 </configuration>
             </plugin>
             <plugin>

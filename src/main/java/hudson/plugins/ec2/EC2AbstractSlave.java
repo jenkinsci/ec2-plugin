@@ -711,6 +711,10 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean isSpecifyPassword() {
         return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
+    
+    public boolean isAllowSelfSignedCertificate() {
+        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+    }
 
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
