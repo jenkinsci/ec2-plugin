@@ -1,6 +1,7 @@
 # ec2-plugin
 [![Jenkins](https://ci.jenkins.io/job/Plugins/job/ec2-plugin/job/master/badge/icon)](https://ci.jenkins.io/job/Plugins/job/ec2-plugin/job/master/)
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/ec2.svg)](https://plugins.jenkins.io/ec2)
+[![GitHub release](https://img.shields.io/github/release/jenkinsci/ec2-plugin.svg?label=changelog)](https://github.com/jenkinsci/ec2-plugin/releases/latest)
 [![Gitter](https://badges.gitter.im/ec2-plugin/Lobby.svg)](https://gitter.im/ec2-plugin/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Introduction
