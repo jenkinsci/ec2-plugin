@@ -79,6 +79,7 @@ public class EC2Computer extends SlaveComputer {
         return node == null ? null : node.getCloud();
     }
 
+    @CheckForNull
     public SlaveTemplate getSlaveTemplate() {
         EC2AbstractSlave node = getNode();
         if (node != null) {

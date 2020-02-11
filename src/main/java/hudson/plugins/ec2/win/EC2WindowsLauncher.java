@@ -6,6 +6,7 @@ import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.EC2ComputerLauncher;
 import hudson.plugins.ec2.EC2HostAddressProvider;
+import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -18,6 +19,8 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nonnull;
 
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
@@ -36,12 +39,17 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
             AmazonClientException, InterruptedException {
         final PrintStream logger = listener.getLogger();
-        final WinConnection connection = connectToWinRM(computer, logger);
         EC2AbstractSlave node = computer.getNode();
-        if (node == null || connection == null) {
+        if (node == null) {
             logger.println("Unable to fetch node information");
             return;
         }
+        final SlaveTemplate template = computer.getSlaveTemplate();
+        if (template == null) {
+            throw new IOException("Could not find corresponding slave template for " + computer.getDisplayName());
+        }
+
+        final WinConnection connection = connectToWinRM(computer, node, template, logger);
 
         try {
             String initScript = node.initScript;
@@ -104,13 +112,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private WinConnection connectToWinRM(EC2Computer computer, PrintStream logger) throws AmazonClientException,
+    @Nonnull
+    private WinConnection connectToWinRM(EC2Computer computer, EC2AbstractSlave node, SlaveTemplate template, PrintStream logger) throws AmazonClientException,
             InterruptedException {
-        EC2AbstractSlave node = computer.getNode();
-        if (node == null) {
-            return null;
-        }
-
         final long minTimeout = 3000;
         long timeout = node.getLaunchTimeoutInMillis(); // timeout is less than 0 when jenkins is booting up.
         if (timeout < minTimeout) {
@@ -131,7 +135,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
                 if (connection == null) {
                     Instance instance = computer.updateInstanceDescription();
-                    String host = EC2HostAddressProvider.windows(instance, computer.getSlaveTemplate().connectionStrategy);
+                    String host = EC2HostAddressProvider.windows(instance, template.connectionStrategy);
 
                     if ("0.0.0.0".equals(host)) {
                         logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");

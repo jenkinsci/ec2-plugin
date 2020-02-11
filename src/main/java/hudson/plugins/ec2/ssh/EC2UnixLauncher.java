@@ -126,9 +126,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         boolean successful = false;
         PrintStream logger = listener.getLogger();
         EC2AbstractSlave node = computer.getNode();
+        SlaveTemplate template = computer.getSlaveTemplate();
 
         if(node == null) {
             throw new IllegalStateException();
+        }
+
+        if (template == null) {
+            throw new IOException("Could not find corresponding slave template for " + computer.getDisplayName());
         }
 
         if (node instanceof EC2Readiness) {
@@ -152,11 +157,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         logInfo(computer, listener, "Launching instance: " + node.getInstanceId());
 
         try {
-            boolean isBootstrapped = bootstrap(computer, listener);
+            boolean isBootstrapped = bootstrap(computer, listener, template);
             if (isBootstrapped) {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
-                cleanupConn = connectToSsh(computer, listener);
+                cleanupConn = connectToSsh(computer, listener, template);
                 KeyPair key = computer.getCloud().getKeyPair();
                 if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
@@ -240,7 +245,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 try {
                     // Obviously the master must have an installed ssh client.
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer), node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -308,7 +313,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener) throws IOException,
+    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
@@ -322,7 +327,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
-                    bootstrapConn = connectToSsh(computer, listener);
+                    bootstrapConn = connectToSsh(computer, listener, template);
                     isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
                 } catch(IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
@@ -346,7 +351,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         return true;
     }
 
-    private Connection connectToSsh(EC2Computer computer, TaskListener listener) throws AmazonClientException,
+    private Connection connectToSsh(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws AmazonClientException,
             InterruptedException {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
@@ -359,7 +364,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             + " seconds of waiting for ssh to become available. (maximum timeout configured is "
                             + (timeout / 1000) + ")");
                 }
-                String host = getEC2HostAddress(computer);
+                String host = getEC2HostAddress(computer, template);
 
                 if ((node instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
                      // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
@@ -411,9 +416,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private String getEC2HostAddress(EC2Computer computer) throws InterruptedException {
+    private static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
-        ConnectionStrategy strategy = computer.getSlaveTemplate().connectionStrategy;
+        ConnectionStrategy strategy = template.connectionStrategy;
         return EC2HostAddressProvider.unix(instance, strategy);
     }
 

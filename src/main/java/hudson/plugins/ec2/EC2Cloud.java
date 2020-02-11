@@ -33,8 +33,6 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
 
@@ -64,6 +62,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import hudson.Extension;
@@ -285,6 +284,7 @@ public abstract class EC2Cloud extends Cloud {
         return Collections.unmodifiableList(templates);
     }
 
+    @CheckForNull
     public SlaveTemplate getTemplate(String template) {
         for (SlaveTemplate t : templates) {
             if (t.description.equals(template)) {
@@ -799,7 +799,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @CheckForNull
-    private static AmazonWebServicesCredentials getCredentials(@Nullable String credentialsId) {
+    private static AmazonWebServicesCredentials getCredentials(@CheckForNull String credentialsId) {
         if (StringUtils.isBlank(credentialsId)) {
             return null;
         }
