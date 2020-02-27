@@ -465,6 +465,11 @@ public abstract class EC2AbstractSlave extends Slave {
         return null;
     }
 
+    @Override
+    public boolean isAcceptingTasks() {
+        return !terminateScheduled;
+    }
+
     void idleTimeout() {
         LOGGER.info("EC2 instance idle time expired: " + getInstanceId());
         if (!stopOnTerminate) {
