@@ -45,6 +45,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
@@ -108,6 +110,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     /* The time at which we fetched the last instance data */
     protected transient long lastFetchTime;
+
+    /** Terminate was scheduled */
+    @GuardedBy("this")
+    protected transient volatile boolean terminateScheduled = false;
 
     /*
      * The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked

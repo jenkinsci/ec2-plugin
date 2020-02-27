@@ -20,6 +20,7 @@ import com.amazonaws.services.ec2.model.SpotInstanceState;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 import hudson.Extension;
+import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
@@ -65,52 +66,64 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
      */
     @Override
     public void terminate() {
-		try {
-			// Cancel the spot request
-			AmazonEC2 ec2 = getCloud().connect();
+        if (!terminateScheduled) {
+            synchronized(this) {
+                if (!terminateScheduled) {
+                    Computer.threadPoolForRemoting.submit(() -> {
+                        try {
+                            // Cancel the spot request
+                            AmazonEC2 ec2 = getCloud().connect();
 
-			String instanceId = getInstanceId();
-			List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
-			CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
-			try {
-				ec2.cancelSpotInstanceRequests(cancelRequest);
-				LOGGER.info("Canceled Spot request: " + spotInstanceRequestId);
-			} catch (AmazonClientException e) {
-				// Spot request is no longer valid
-				LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
-            }
+                            String instanceId = getInstanceId();
+                            List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
+                            CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
+                            try {
+                                ec2.cancelSpotInstanceRequests(cancelRequest);
+                                LOGGER.info("Canceled Spot request: " + spotInstanceRequestId);
+                            } catch (AmazonClientException e) {
+                                // Spot request is no longer valid
+                                LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
+                            }
 
-            // Terminate the slave if it is running
-            if (instanceId != null && !instanceId.equals("")) {
-                if (!super.isAlive(true)) {
-                    /*
-                     * The node has been killed externally, so we've nothing to do here
-                     */
-                    LOGGER.info("EC2 instance already terminated: " + instanceId);
-                } else {
-                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
-                    try {
-                        ec2.terminateInstances(request);
-                        LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
-                    } catch (AmazonClientException e) {
-                        // Spot request is no longer valid
-                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
-                    }
+                            // Terminate the slave if it is running
+                            if (instanceId != null && !instanceId.equals("")) {
+                                if (!super.isAlive(true)) {
+                                    /*
+                                    * The node has been killed externally, so we've nothing to do here
+                                    */
+                                    LOGGER.info("EC2 instance already terminated: " + instanceId);
+                                } else {
+                                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
+                                    try {
+                                        ec2.terminateInstances(request);
+                                        LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
+                                    } catch (AmazonClientException e) {
+                                        // Spot request is no longer valid
+                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            LOGGER.log(Level.WARNING,"Failed to remove slave: ", e);
+                        } finally {
+                            // Remove the instance even if deletion failed, otherwise it will hang around forever in
+                            // the nodes page. One way for this to occur is that an instance was terminated
+                            // manually or a spot instance was killed due to pricing. If we don't remove the node,
+                            // we screw up auto-scaling, since it will continue to count against the quota.
+                            try {
+                                Jenkins.get().removeNode(this);
+                            } catch (IOException e) {
+                                LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
+                            }
+                            synchronized(this) {
+                                terminateScheduled = false;
+                            }
+                        }
+                    });
+                    terminateScheduled = true;
                 }
             }
-		} catch (Exception e) {
-			LOGGER.log(Level.WARNING,"Failed to remove slave: ", e);
-		} finally {
-			// Remove the instance even if deletion failed, otherwise it will hang around forever in
-			// the nodes page. One way for this to occur is that an instance was terminated
-			// manually or a spot instance was killed due to pricing. If we don't remove the node,
-			// we screw up auto-scaling, since it will continue to count against the quota.
-			try {
-				Jenkins.get().removeNode(this);
-			} catch (IOException e) {
-				LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
-			}
-		}
+        }
     }
 
     /**
