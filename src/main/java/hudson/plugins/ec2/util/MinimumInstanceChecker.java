@@ -64,6 +64,7 @@ public class MinimumInstanceChecker {
             .getBuildableItems()
             .stream()
             .map((Queue.Item item) -> item.getAssignedLabel())
+            .filter(Objects::nonNull)
             .filter((Label label) -> label.matches(agentTemplate.getLabelSet()))
             .count();
     }
