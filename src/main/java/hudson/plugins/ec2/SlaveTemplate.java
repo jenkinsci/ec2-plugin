@@ -200,11 +200,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
             List<? extends NodeProperty<?>> nodeProperties) {
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
-            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has RUN_SCRIPTS rights.");
+            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
             Jenkins j = Jenkins.getInstanceOrNull();
             if (j != null)
-                j.checkPermission(Jenkins.RUN_SCRIPTS);
+                j.checkPermission(Jenkins.ADMINISTER);
         }
 
         this.ami = ami;
@@ -1333,7 +1333,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.RUN_SCRIPTS);
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
         labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
@@ -1446,7 +1446,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -1455,7 +1455,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckTmpDir(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
                 return FormValidation.ok();
             } else {
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -1464,7 +1464,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckJvmopts(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
                 return FormValidation.ok();
             } else {
                 return FormValidation.error(Messages.General_MissingPermission());

@@ -13,7 +13,7 @@ import org.dom4j.QName;
 
 import com.google.common.collect.ImmutableList;
 
-public class OpenShellRequest extends AbstractWinRMRequest implements WinRMRequest {
+public class OpenShellRequest extends AbstractWinRMRequest {
 
     public OpenShellRequest(URL url) {
         super(url);
