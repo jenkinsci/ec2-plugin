@@ -168,7 +168,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             //need terminate such fault instance.
             // An instance may also fail running user data scripts and
             // need to be cleaned up.
-            if (computer.isOffline()){
+            if (this.isHardOffline(computer)) {
                 EC2AbstractSlave node = computer.getNode();
                 if (Objects.isNull(node)){
                     return 1;
@@ -223,6 +223,21 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
         }
         return 1;
+    }
+
+    /**
+     * This convenience method checks if a computer is offline, i.e. it is connected
+     * to its Jenkins master or not. We can not use {@link EC2Computer#isOffline()}
+     * because that reports a node as offline also when it has been put temporarily
+     * offline, for example by an operator. In those case we don't want to
+     * consider the instance for termination.
+     *
+     * @param computer The computer whose state we want to check
+     * @return True if the computer is not connected to it master, false in
+     *  all other cases including being put temporarily offline.
+     */
+    private boolean isHardOffline(final EC2Computer computer) {
+        return computer.getChannel()==null;
     }
 
     /**
