@@ -39,6 +39,9 @@ THE SOFTWARE.
   <f:entry title="${%EC2 Key Pair's Private Key}" field="privateKey">
     <s:secretTextarea value="${instance.privateKey.privateKeySecret}"/>
   </f:entry>
+  <f:entry title="${%Allow Start/Stop other EC2 instances}" field="startStopNodes">
+    <f:checkbox/>
+  </f:entry>
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
@@ -51,6 +54,15 @@ THE SOFTWARE.
     </f:entry>
     <f:entry title="${%Session Name}" field="roleSessionName">
       <f:textbox />
+    </f:entry>
+    <f:entry title="${%Stop/Start Jenkins node role}" field="nodeTagForEc2">
+      <f:textbox default="ec2" />
+    </f:entry>
+    <f:entry title="${%Stop/Start EC2 Instance Tag}" field="instanceTagForJenkins">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Max minutes instance idle}" field="maxIdleMinutes">
+      <f:textbox default="15" />
     </f:entry>
   </f:advanced>
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey,roleArn,roleSessionName" />

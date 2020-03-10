@@ -26,27 +26,44 @@ package hudson.plugins.ec2;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.Region;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.StartInstancesRequest;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
+import hudson.model.Computer;
 import hudson.model.Failure;
+import hudson.model.Node;
+import hudson.model.labels.LabelAtom;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
@@ -62,9 +79,25 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     private String altEC2Endpoint;
 
+    private static final Logger LOGGER = Logger.getLogger(AmazonEC2Cloud.class.getName());
+
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
+    private static final int MAX_RESULTS = 1000;
+
+    private static final String INSTANCE_NAME_TAG = "Name";
+
+    private static final String TAG_PREFIX = "tag";
+
     private boolean noDelayProvisioning;
+
+    private boolean startStopNodes;
+
+    private String instanceTagForJenkins;
+
+    private String nodeTagForEc2;
+
+    private String maxIdleMinutes;
 
     @DataBoundConstructor
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
@@ -126,6 +159,24 @@ public class AmazonEC2Cloud extends EC2Cloud {
         this.noDelayProvisioning = noDelayProvisioning;
     }
 
+    @DataBoundSetter
+    public void setStartStopNodes(boolean startStopNodes) {
+        this.startStopNodes = startStopNodes;
+    }
+
+    public boolean isStartStopNodes() {
+        return startStopNodes;
+    }
+
+    public String getInstanceTagForJenkins() {
+        return instanceTagForJenkins;
+    }
+
+    @DataBoundSetter
+    public void setInstanceTagForJenkins(String instanceTagForJenkins) {
+        this.instanceTagForJenkins = instanceTagForJenkins;
+    }
+
     public String getAltEC2Endpoint() {
         return altEC2Endpoint;
     }
@@ -135,9 +186,157 @@ public class AmazonEC2Cloud extends EC2Cloud {
         this.altEC2Endpoint = altEC2Endpoint;
     }
 
+    public String getNodeTagForEc2() {
+        return nodeTagForEc2;
+    }
+
+    @DataBoundSetter
+    public void setNodeTagForEc2(String nodeTagForEc2) {
+        this.nodeTagForEc2 = nodeTagForEc2;
+    }
+
+    public boolean isEc2Node(Node node) {
+        //If no label is specified then we check all nodes
+        if (nodeTagForEc2 == null || nodeTagForEc2.trim().length() == 0) {
+            return true;
+        }
+
+        for (LabelAtom label : node.getAssignedLabels()) {
+            if (label.getExpression().equalsIgnoreCase(nodeTagForEc2)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public String getMaxIdleMinutes() {
+        return maxIdleMinutes;
+    }
+
+    @DataBoundSetter
+    public void setMaxIdleMinutes(String maxIdleMinutes) {
+        this.maxIdleMinutes = maxIdleMinutes;
+    }
+
+    public PlannedNode startNode(Node node) {
+        Instance nodeInstance = getInstanceByLabel(node.getSelfLabel().getExpression(), InstanceStateName.Stopped);
+        if (nodeInstance == null) {
+            nodeInstance = getInstanceByNodeName(node.getNodeName(), InstanceStateName.Stopped);
+        }
+
+        if (nodeInstance == null) {
+            return null;
+        }
+
+        final String instanceId = nodeInstance.getInstanceId();
+
+        return new PlannedNode(node.getDisplayName(),
+                Computer.threadPoolForRemoting.submit(() -> {
+                    try {
+                        while (true) {
+                            StartInstancesRequest startRequest = new StartInstancesRequest();
+                            startRequest.setInstanceIds(Collections.singletonList(instanceId));
+                            connect().startInstances(startRequest);
+
+                            Instance instance = CloudHelper.getInstanceWithRetry(instanceId, this);
+                            if (instance == null) {
+                                LOGGER.log(Level.WARNING, "Can't find instance with instance id `{0}` in cloud {1}. Terminate provisioning ", new Object[] {
+                                        instanceId, this.getCloudName() });
+                                return null;
+                            }
+
+                            InstanceStateName state = InstanceStateName.fromValue(instance.getState().getName());
+                            if (state.equals(InstanceStateName.Running)) {
+                                long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - instance.getLaunchTime().getTime());
+                                LOGGER.log(Level.INFO, "{0} moved to RUNNING state in {1} seconds and is ready to be connected by Jenkins", new Object[] {
+                                        instanceId, startTime });
+                                return node;
+                            }
+
+                            if (!state.equals(InstanceStateName.Pending)) {
+                                LOGGER.log(Level.WARNING, "{0}. Node {1} is neither pending nor running, it's {2}. Terminate provisioning", new Object[] {
+                                        instanceId, node.getNodeName(), state });
+                                return null;
+                            }
+
+                            Thread.sleep(5000);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.log(Level.WARNING, "Unable to start " + instanceId, e);
+                        return null;
+                    }
+                })
+                , node.getNumExecutors());
+    }
+
+    public void stopNode(Node node) {
+        Instance nodeInstance = getInstanceByLabel(node.getSelfLabel().getExpression(), InstanceStateName.Running);
+        if (nodeInstance == null) {
+            nodeInstance = getInstanceByNodeName(node.getNodeName(), InstanceStateName.Running);
+        }
+
+        if (nodeInstance == null) {
+            return;
+        }
+
+        final String instanceId = nodeInstance.getInstanceId();
+
+        try {
+            StopInstancesRequest request = new StopInstancesRequest();
+            request.setInstanceIds(Collections.singletonList(instanceId));
+            connect().stopInstances(request);
+            LOGGER.log(Level.INFO, "Stopped instance: {0}", instanceId);
+        } catch (Exception e) {
+            LOGGER.log(Level.INFO, "Unable to stop instance: " + instanceId, e);
+        }
+    }
+
     @Override
     protected AWSCredentialsProvider createCredentialsProvider() {
         return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getRegion());
+    }
+
+    private Instance getInstanceByLabel(String label, InstanceStateName desiredState) {
+        String tag = getInstanceTagForJenkins();
+        if (tag == null) {
+            return null;
+        }
+        return getInstance(Collections.singletonList(getTagFilter(tag, label)), desiredState);
+    }
+
+    private Instance getInstanceByNodeName(String name, InstanceStateName desiredState) {
+        return getInstance(Collections.singletonList(getTagFilter(INSTANCE_NAME_TAG, name)), desiredState);
+    }
+
+    private Filter getTagFilter(String name, String value) {
+        Filter filter = new Filter();
+        filter.setName(TAG_PREFIX + ":" + name.trim());
+        filter.setValues(Collections.singletonList(value.trim()));
+        LOGGER.log(Level.FINEST,"Created filter to query for instance: {0}", filter);
+        return filter;
+    }
+
+    private Instance getInstance(List<Filter> filters, InstanceStateName desiredState) {
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+        request.setFilters(filters);
+        request.setMaxResults(MAX_RESULTS);
+        request.setNextToken(null);
+        DescribeInstancesResult response = connect().describeInstances( request );
+
+        if (!response.getReservations().isEmpty()) {
+            for (Reservation reservation : response.getReservations()) {
+                for (Instance instance : reservation.getInstances()) {
+                    com.amazonaws.services.ec2.model.InstanceState state = instance.getState();
+                    LOGGER.log(Level.FINEST,"Instance {0} state: {1}", new Object[] {instance.getInstanceId(), state.getName()});
+                    if (state.getName().equals(desiredState.toString())) {
+                        return instance;
+                    }
+                }
+            }
+        } else {
+            LOGGER.log(Level.FINEST,"No instances found that matched filter criteria");
+        }
+        return null;
     }
 
     @Extension
