@@ -8,7 +8,7 @@
 
 Allow Jenkins to start agents on
 [EC2](http://aws.amazon.com/ec2/) or
-[Eucalyptus](https://www.eucalyptus.com/) on demand, and
+[Eucalyptus](https://www.eucalyptus.cloud/) on demand, and
 kill them as they get unused.  
 
 With this plugin, if Jenkins notices that your build cluster is
