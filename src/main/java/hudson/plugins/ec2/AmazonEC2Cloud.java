@@ -24,10 +24,17 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsMatcher;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
+import hudson.model.Item;
+import hudson.model.ItemGroup;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
@@ -38,15 +45,13 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.*;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -70,8 +75,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 
@@ -187,6 +192,30 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return model;
         }
 
+        public ListBoxModel doFillSshKeysCredentialsIdItems(
+                @AncestorInPath Item item,
+                @QueryParameter String sshKeysCredentialsId
+        ) {
+
+            //CredentialsProvider.lookupCredentials(BasicSSHUserPrivateKey.class,)
+
+            StandardListBoxModel result = new StandardListBoxModel();
+            if (item == null) {
+                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                    return result.includeCurrentValue(sshKeysCredentialsId);
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ)
+                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return result.includeCurrentValue(sshKeysCredentialsId);
+                }
+            }
+
+            return result
+                    .includeMatchingAs(null, (ItemGroup) null, BasicSSHUserPrivateKey.class, null, null)
+                    .includeCurrentValue(sshKeysCredentialsId);
+        }
+
         // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParameter field), or use the default
         // value if not specified.
         @VisibleForTesting
@@ -203,7 +232,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String region,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId,
-                @QueryParameter String privateKey,
+                @QueryParameter String sshKeysCredentialsId,
                 @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
 
@@ -213,7 +242,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

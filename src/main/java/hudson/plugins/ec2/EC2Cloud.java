@@ -25,6 +25,7 @@ import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -33,6 +34,7 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
 
@@ -66,8 +68,6 @@ import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import hudson.Extension;
-import hudson.model.PeriodicWork;
-import hudson.model.TaskListener;
 import hudson.security.Permission;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
@@ -105,10 +105,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
 import hudson.ProxyConfiguration;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Label;
-import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
@@ -170,14 +166,15 @@ public abstract class EC2Cloud extends Cloud {
 
     private transient volatile AmazonEC2 connection;
 
-    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId,
             String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
         this.credentialsId = credentialsId;
-        this.privateKey = new EC2PrivateKey(privateKey);
+
+        this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey()); ///'################################################################################# TODO
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -896,6 +893,16 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    private static BasicSSHUserPrivateKey getSshCredential(String id){
+        return CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(
+                        BasicSSHUserPrivateKey.class, // (1)
+                        (ItemGroup) null,
+                        null,
+                        Collections.emptyList()),
+                CredentialsMatchers.withId(id));
+    }
+
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
 
         public InstanceType[] getInstanceTypes() {
@@ -914,9 +921,16 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckPrivateKey(@QueryParameter String value) throws IOException, ServletException {
+        public FormValidation doCheckSshKeysCredentialsId(@QueryParameter String value) throws IOException, ServletException {
+
+            if (value == null || value.isEmpty()){
+                return FormValidation.error("No ssh credentials selected");
+            }
+
+            String privateKey = getSshCredential(value).getPrivateKey();
+
             boolean hasStart = false, hasEnd = false;
-            BufferedReader br = new BufferedReader(new StringReader(value));
+            BufferedReader br = new BufferedReader(new StringReader(privateKey));
             String line;
             while ((line = br.readLine()) != null) {
                 if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
@@ -932,10 +946,13 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String roleArn, String roleSessionName, String region)
+        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
+
+                String privateKey = getSshCredential(sshKeysCredentialsId).getPrivateKey();
+
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
