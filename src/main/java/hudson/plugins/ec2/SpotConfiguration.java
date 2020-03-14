@@ -20,6 +20,19 @@ public final class SpotConfiguration {
         }
     }
 
+    /**
+     * Export the spotBlockReservationDuration attribute for CasC plugin.
+     *
+     * @return The spotBlockReservationDuration attribute as a string.
+     */
+    public String getSpotBlockReservationDurationStr() {
+        if (spotBlockReservationDuration == Integer.MAX_VALUE) {
+            return "";
+        } else {
+            return String.valueOf(spotBlockReservationDuration);
+        }
+    }
+
     @Override public boolean equals(Object obj) {
         if (obj == null || (this.getClass() != obj.getClass())) {
             return false;
