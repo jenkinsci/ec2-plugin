@@ -153,7 +153,9 @@ public abstract class EC2Cloud extends Cloud {
     @Deprecated
     private transient Secret secretKey;
 
-    private final EC2PrivateKey privateKey;
+    private String sshKeysCredentialsId;
+
+    private transient EC2PrivateKey privateKey;
 
     /**
      * Upper bound on how many instances we may provision.
@@ -173,8 +175,7 @@ public abstract class EC2Cloud extends Cloud {
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
         this.credentialsId = credentialsId;
-
-        this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey()); ///'################################################################################# TODO
+        this.sshKeysCredentialsId = sshKeysCredentialsId;
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -197,6 +198,11 @@ public abstract class EC2Cloud extends Cloud {
 
     protected Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
+
+        if (this.sshKeysCredentialsId != null)
+            this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey()); ///'################################################################################# TODO
+
+
         for (SlaveTemplate t : templates)
             t.parent = this;
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
@@ -260,6 +266,10 @@ public abstract class EC2Cloud extends Cloud {
 
     public String getCredentialsId() {
         return credentialsId;
+    }
+
+    public String getSshKeysCredentialsId() {
+        return sshKeysCredentialsId;
     }
 
     public EC2PrivateKey getPrivateKey() {
