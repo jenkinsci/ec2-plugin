@@ -36,6 +36,7 @@ import com.amazonaws.services.ec2.model.Region;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.StopInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
@@ -63,7 +64,6 @@ import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
@@ -95,7 +95,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     private String instanceTagForJenkins;
 
-    private String nodeTagForEc2;
+    private String nodeLabelForEc2;
+
+    private String preventStopAwsTag;
 
     private String maxIdleMinutes;
 
@@ -186,23 +188,32 @@ public class AmazonEC2Cloud extends EC2Cloud {
         this.altEC2Endpoint = altEC2Endpoint;
     }
 
-    public String getNodeTagForEc2() {
-        return nodeTagForEc2;
+    public String getNodeLabelForEc2() {
+        return nodeLabelForEc2;
     }
 
     @DataBoundSetter
-    public void setNodeTagForEc2(String nodeTagForEc2) {
-        this.nodeTagForEc2 = nodeTagForEc2;
+    public void setNodeLabelForEc2(String nodeLabelForEc2 ) {
+        this.nodeLabelForEc2 = nodeLabelForEc2;
+    }
+
+    public String getPreventStopAwsTag() {
+       return preventStopAwsTag;
+    }
+
+    @DataBoundSetter
+    public void setPreventStopAwsTag( String preventStopAwsTag ) {
+        this.preventStopAwsTag = preventStopAwsTag;
     }
 
     public boolean isEc2Node(Node node) {
         //If no label is specified then we check all nodes
-        if (nodeTagForEc2 == null || nodeTagForEc2.trim().length() == 0) {
+        if ( nodeLabelForEc2 == null || nodeLabelForEc2.trim().length() == 0) {
             return true;
         }
 
         for (LabelAtom label : node.getAssignedLabels()) {
-            if (label.getExpression().equalsIgnoreCase(nodeTagForEc2)) {
+            if (label.getExpression().equalsIgnoreCase( nodeLabelForEc2 )) {
                 return true;
             }
         }
@@ -281,13 +292,17 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         final String instanceId = nodeInstance.getInstanceId();
 
-        try {
-            StopInstancesRequest request = new StopInstancesRequest();
-            request.setInstanceIds(Collections.singletonList(instanceId));
-            connect().stopInstances(request);
-            LOGGER.log(Level.INFO, "Stopped instance: {0}", instanceId);
-        } catch (Exception e) {
-            LOGGER.log(Level.INFO, "Unable to stop instance: " + instanceId, e);
+        if (stopAllowed( nodeInstance )) {
+            try {
+                StopInstancesRequest request = new StopInstancesRequest();
+                request.setInstanceIds( Collections.singletonList( instanceId ) );
+                connect().stopInstances( request );
+                LOGGER.log( Level.INFO, "Stopped instance: {0}", instanceId );
+            } catch ( Exception e ) {
+                LOGGER.log( Level.INFO, "Unable to stop instance: " + instanceId, e );
+            }
+        } else {
+            LOGGER.log( Level.FINEST, "Not allowed to stop node: {0}", instanceId);
         }
     }
 
@@ -337,6 +352,18 @@ public class AmazonEC2Cloud extends EC2Cloud {
             LOGGER.log(Level.FINEST,"No instances found that matched filter criteria");
         }
         return null;
+    }
+
+    private boolean stopAllowed(Instance instance) {
+        List<Tag> tags = instance.getTags();
+        if (tags != null) {
+            for ( Tag tag : tags) {
+                if (tag.getKey().trim().equals( preventStopAwsTag )) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     @Extension

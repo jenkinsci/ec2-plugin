@@ -79,7 +79,7 @@ public class InstanceStopTimer extends AsyncPeriodicWork {
                 continue;
             AmazonEC2Cloud ec2 = (AmazonEC2Cloud) cloud;
             if (ec2.isStartStopNodes() && ec2.isEc2Node(node)) {
-                LOGGER.log(Level.INFO, "Requesting stop on {0} of {1}", new Object[] {ec2.getCloudName(), node.getNodeName()});
+                LOGGER.log(Level.FINE, "Requesting stop on {0} of {1}", new Object[] {ec2.getCloudName(), node.getNodeName()});
                 try {
                     ec2.stopNode(node);
                 } catch (Exception e) {

@@ -55,11 +55,14 @@ THE SOFTWARE.
     <f:entry title="${%Session Name}" field="roleSessionName">
       <f:textbox />
     </f:entry>
-    <f:entry title="${%Stop/Start Jenkins node role}" field="nodeTagForEc2">
+    <f:entry title="${%Stop/Start Jenkins node label}" field="nodeLabelForEc2">
       <f:textbox default="ec2" />
     </f:entry>
     <f:entry title="${%Stop/Start EC2 Instance Tag}" field="instanceTagForJenkins">
       <f:textbox />
+    </f:entry>
+    <f:entry title="${%Prevent Stop EC2 Instance Tag}" field="preventStopAwsTag">
+      <f:textbox default="prevent_stop"/>
     </f:entry>
     <f:entry title="${%Max minutes instance idle}" field="maxIdleMinutes">
       <f:textbox default="15" />
