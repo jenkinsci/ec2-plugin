@@ -13,8 +13,8 @@ jenkins:
             remoteFS: "/home/ec2-user"
             mode: "NORMAL"
             spotConfig:
-                fallbackToOndemand: false
-                spotBlockReservationDurationStr: "0"
+                fallbackToOndemand: true
+                spotBlockReservationDuration: 3
                 spotMaxBidPrice: "0.15"
                 useBidPrice: true
             amiType:

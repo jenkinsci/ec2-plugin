@@ -1,15 +1,20 @@
 package hudson.plugins.ec2;
 
+import hudson.Extension;
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
 import java.util.Objects;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
-public final class SpotConfiguration {
+public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfiguration>  {
     public final boolean useBidPrice;
-    public final String spotMaxBidPrice;
-    public final boolean fallbackToOndemand;
-    public final int spotBlockReservationDuration;
+    public String spotMaxBidPrice;
+    public boolean fallbackToOndemand;
+    public int spotBlockReservationDuration;
 
-    @DataBoundConstructor public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {
+    @Deprecated
+    public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
         this.fallbackToOndemand = fallbackToOndemand;
@@ -20,17 +25,39 @@ public final class SpotConfiguration {
         }
     }
 
-    /**
-     * Export the spotBlockReservationDuration attribute for CasC plugin.
-     *
-     * @return The spotBlockReservationDuration attribute as a string.
-     */
-    public String getSpotBlockReservationDurationStr() {
-        if (spotBlockReservationDuration == Integer.MAX_VALUE) {
-            return "";
-        } else {
-            return String.valueOf(spotBlockReservationDuration);
-        }
+    @DataBoundConstructor
+    public SpotConfiguration(boolean useBidPrice) {
+        this.useBidPrice = useBidPrice;
+        this.spotMaxBidPrice = "";
+        this.fallbackToOndemand = false;
+        this.spotBlockReservationDuration = 0;
+    }
+
+    public String getSpotMaxBidPrice() {
+        return spotMaxBidPrice;
+    }
+
+    @DataBoundSetter
+    public void setSpotMaxBidPrice(String spotMaxBidPrice) {
+        this.spotMaxBidPrice = spotMaxBidPrice;
+    }
+
+    public boolean getFallbackToOndemand() {
+        return fallbackToOndemand;
+    }
+
+    @DataBoundSetter
+    public void setFallbackToOndemand(boolean fallbackToOndemand) {
+        this.fallbackToOndemand = fallbackToOndemand;
+    }
+
+    public int getSpotBlockReservationDuration() {
+        return spotBlockReservationDuration;
+    }
+
+    @DataBoundSetter
+    public void setSpotBlockReservationDuration(int spotBlockReservationDuration) {
+        this.spotBlockReservationDuration = spotBlockReservationDuration;
     }
 
     @Override public boolean equals(Object obj) {
@@ -76,5 +103,13 @@ public final class SpotConfiguration {
             return null;
         }
 
+    }
+
+    @Extension
+    public static class DescriptorImpl extends Descriptor<SpotConfiguration> {
+        @Override
+        public String getDisplayName() {
+            return "spotConfig";
+        }
     }
 }
