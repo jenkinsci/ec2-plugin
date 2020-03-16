@@ -80,7 +80,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
                             try {
                                 ec2.cancelSpotInstanceRequests(cancelRequest);
-                                LOGGER.info("Canceled Spot request: " + spotInstanceRequestId);
+                                LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId);
                             } catch (AmazonClientException e) {
                                 // Spot request is no longer valid
                                 LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);

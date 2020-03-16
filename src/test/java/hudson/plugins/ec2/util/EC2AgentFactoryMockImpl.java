@@ -27,8 +27,15 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     }
 
     private static class MockEC2OndemandSlave extends EC2OndemandSlave {
+        private static final long serialVersionUID = 1L;
 
-        private MockEC2OndemandSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+        private MockEC2OndemandSlave(String name, String instanceId, String description, String remoteFS,
+                int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
+                List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
+                boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
+                List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout,
+                AMITypeData amiType, ConnectionStrategy connectionStrategy,
+                int maxTotalUses)
                 throws Descriptor.FormException, IOException {
             super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, connectionStrategy, maxTotalUses);
         }
@@ -40,6 +47,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     }
 
     private static class MockEC2SpotSlave extends EC2SpotSlave {
+        private static final long serialVersionUID = 1L;
 
         private MockEC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
                 throws Descriptor.FormException, IOException {

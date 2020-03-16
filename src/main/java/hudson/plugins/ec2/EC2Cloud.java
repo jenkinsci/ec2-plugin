@@ -443,7 +443,7 @@ public abstract class EC2Cloud extends Cloud {
                             instanceIds.add(sir.getInstanceId());
                     }
                 } else {
-                    // Canceled or otherwise dead
+                    // Cancelled or otherwise dead
                     for (Node node : Jenkins.get().getNodes()) {
                         try {
                             if (!(node instanceof EC2SpotSlave))
