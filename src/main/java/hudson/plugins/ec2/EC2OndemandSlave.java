@@ -11,6 +11,7 @@ import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -72,9 +73,9 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
      * Terminates the instance in EC2.
      */
     public void terminate() {
-        if (!terminateScheduled) {
+        if (terminateScheduled.getCount() == 0) {
             synchronized(this) {
-                if (!terminateScheduled) {
+                if (terminateScheduled.getCount() == 0) {
                     Computer.threadPoolForRemoting.submit(() -> {
                         try {
                             if (!isAlive(true)) {
@@ -93,12 +94,10 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                         } catch (AmazonClientException | IOException e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
                         } finally {
-                            synchronized(this) {
-                                terminateScheduled = false;
-                            }
+                            terminateScheduled.countDown();
                         }
                     });
-                    terminateScheduled = true;
+                    terminateScheduled = new CountDownLatch(1);
                 }
             }
         }

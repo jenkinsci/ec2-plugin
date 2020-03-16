@@ -476,7 +476,6 @@ public class EC2RetentionStrategyTest {
     private static void checkRetentionStrategy(EC2RetentionStrategy rs, EC2Computer c) throws InterruptedException {
         rs.check(c);
         EC2AbstractSlave node = c.getNode();
-        while (node.terminateScheduled)
-            Thread.sleep(TimeUnit.SECONDS.toMillis(1));
+        assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
     }
 }

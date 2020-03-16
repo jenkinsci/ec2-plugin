@@ -41,10 +41,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
 import hudson.util.Secret;
@@ -113,7 +115,8 @@ public abstract class EC2AbstractSlave extends Slave {
 
     /** Terminate was scheduled */
     @GuardedBy("this")
-    protected transient volatile boolean terminateScheduled = false;
+    @Nonnull
+    protected transient volatile CountDownLatch terminateScheduled = new CountDownLatch(0);
 
     /*
      * The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked
@@ -467,7 +470,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     @Override
     public boolean isAcceptingTasks() {
-        return !terminateScheduled;
+        return terminateScheduled.getCount() == 0;
     }
 
     void idleTimeout() {

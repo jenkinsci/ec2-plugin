@@ -3,6 +3,7 @@ package hudson.plugins.ec2;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -66,9 +67,9 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
      */
     @Override
     public void terminate() {
-        if (!terminateScheduled) {
+        if (terminateScheduled.getCount() == 0) {
             synchronized(this) {
-                if (!terminateScheduled) {
+                if (terminateScheduled.getCount() == 0) {
                     Computer.threadPoolForRemoting.submit(() -> {
                         try {
                             // Cancel the spot request
@@ -115,12 +116,10 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             } catch (IOException e) {
                                 LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
                             }
-                            synchronized(this) {
-                                terminateScheduled = false;
-                            }
+                            terminateScheduled.countDown();
                         }
                     });
-                    terminateScheduled = true;
+                    terminateScheduled = new CountDownLatch(1);
                 }
             }
         }
