@@ -32,6 +32,7 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import hudson.model.*;
@@ -47,15 +48,7 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -155,7 +148,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private String sshKeysCredentialsId;
 
-    private transient EC2PrivateKey privateKey;
+    private EC2PrivateKey privateKey;
 
     /**
      * Upper bound on how many instances we may provision.
@@ -199,17 +192,30 @@ public abstract class EC2Cloud extends Cloud {
     protected Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
 
-        if (this.sshKeysCredentialsId != null)
-            this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey()); ///'################################################################################# TODO
+        if (this.sshKeysCredentialsId == null && this.privateKey != null){
+            Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
+                    .stream()
+                    .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
+                    .filter((cred) -> ((BasicSSHUserPrivateKey)cred).getPrivateKey().trim().equals(this.privateKey.getPrivateKey().trim()))
+                    .map(cred -> (BasicSSHUserPrivateKey)cred)
+                    .findFirst();
 
+            System.out.println("Test");
+
+        } if (this.sshKeysCredentialsId != null) {
+            this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey()); ///'################################################################################# TODO
+        }
 
         for (SlaveTemplate t : templates)
             t.parent = this;
+
+
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
             String secretKeyEncryptedValue = this.secretKey.getEncryptedValue();
             // REPLACE this.accessId and this.secretId by a credential
 
             SystemCredentialsProvider systemCredentialsProvider = SystemCredentialsProvider.getInstance();
+
             // ITERATE ON EXISTING CREDS AND DON'T CREATE IF EXIST
             for (Credentials credentials: systemCredentialsProvider.getCredentials()) {
                 if (credentials instanceof AmazonWebServicesCredentials) {
@@ -225,6 +231,7 @@ public abstract class EC2Cloud extends Cloud {
                     }
                 }
             }
+
             // CREATE
             for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.get())) {
 
@@ -246,9 +253,11 @@ public abstract class EC2Cloud extends Cloud {
                 }
 
             }
+
             // PROBLEM, GLOBAL STORE NOT FOUND
             LOGGER.log(Level.WARNING, "EC2 Plugin could not migrate credentials to the Jenkins Global Credentials Store, EC2 Plugin for cloud {0} must be manually reconfigured", getDisplayName());
         }
+
         return this;
     }
 
