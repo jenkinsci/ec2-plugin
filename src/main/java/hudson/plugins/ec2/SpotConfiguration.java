@@ -29,8 +29,6 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
     public SpotConfiguration(boolean useBidPrice) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = "";
-        this.fallbackToOndemand = false;
-        this.spotBlockReservationDuration = 0;
     }
 
     public String getSpotMaxBidPrice() {
