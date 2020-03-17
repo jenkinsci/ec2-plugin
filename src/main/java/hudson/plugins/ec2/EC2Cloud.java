@@ -204,15 +204,17 @@ public abstract class EC2Cloud extends Cloud {
             } else {
                 // CREATE new credential
                 String credsId = UUID.randomUUID().toString();
-                addNewGlobalCredential(
-                        new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "",
-                                new BasicSSHUserPrivateKey.PrivateKeySource() {
-                                    @NonNull
-                                    @Override
-                                    public List<String> getPrivateKeys() {
-                                        return Collections.singletonList(privateKey.getPrivateKey());
-                                    }
-                                }, "", "EC2 Cloud Private Key - " + getDisplayName()));
+
+                BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
+                        new BasicSSHUserPrivateKey.PrivateKeySource() {
+                            @NonNull
+                            @Override
+                            public List<String> getPrivateKeys() {
+                                return Collections.singletonList(privateKey.getPrivateKey().trim());
+                            }
+                        }, "", "EC2 Cloud Private Key - " + getDisplayName());
+
+                addNewGlobalCredential(sshKeyCredentials);
 
                 sshKeysCredentialsId = credsId;
             }
