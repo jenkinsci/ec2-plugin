@@ -32,9 +32,9 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
@@ -61,7 +61,6 @@ import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import hudson.Extension;
-import hudson.security.Permission;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -79,7 +78,6 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -93,7 +91,6 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
@@ -193,6 +190,7 @@ public abstract class EC2Cloud extends Cloud {
         this.slaveCountingLock = new ReentrantLock();
 
         if (this.sshKeysCredentialsId == null && this.privateKey != null){
+            // GET matching private key credential from Credential API if exists
             Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
                     .stream()
                     .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
@@ -200,15 +198,34 @@ public abstract class EC2Cloud extends Cloud {
                     .map(cred -> (BasicSSHUserPrivateKey)cred)
                     .findFirst();
 
-            System.out.println("Test");
+            if (keyCredential.isPresent()){
+                // SET this.sshKeysCredentialsId with the found credential
+                sshKeysCredentialsId = keyCredential.get().getId();
+            } else {
+                // CREATE new credential
+                String credsId = UUID.randomUUID().toString();
+                addNewGlobalCredential(
+                        new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "",
+                                new BasicSSHUserPrivateKey.PrivateKeySource() {
+                                    @NonNull
+                                    @Override
+                                    public List<String> getPrivateKeys() {
+                                        return Collections.singletonList(privateKey.getPrivateKey());
+                                    }
+                                }, "", "EC2 Cloud Private Key - " + getDisplayName()));
 
-        } if (this.sshKeysCredentialsId != null) {
-            this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey()); ///'################################################################################# TODO
+                sshKeysCredentialsId = credsId;
+            }
+
+        }
+
+        // Make sure this.privateKey variable exists as before and that it is taken from credentials
+        if (this.sshKeysCredentialsId != null) {
+            this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey());
         }
 
         for (SlaveTemplate t : templates)
             t.parent = this;
-
 
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
             String secretKeyEncryptedValue = this.secretKey.getEncryptedValue();
@@ -233,32 +250,37 @@ public abstract class EC2Cloud extends Cloud {
             }
 
             // CREATE
-            for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.get())) {
+            String credsId = UUID.randomUUID().toString();
+            addNewGlobalCredential(new AWSCredentialsImpl(
+                    CredentialsScope.SYSTEM, credsId, this.accessId, secretKeyEncryptedValue,
+                    "EC2 Cloud - " + getDisplayName()));
 
-                if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+            this.credentialsId = credsId;
+            this.accessId = null;
+            this.secretKey = null;
 
-                    try {
-                        String credsId = UUID.randomUUID().toString();
-                        credentialsStore.addCredentials(Domain.global(), new AWSCredentialsImpl(
-                                CredentialsScope.SYSTEM, credsId, this.accessId, secretKeyEncryptedValue,
-                                "EC2 Cloud - " + getDisplayName()));
-                        this.credentialsId = credsId;
-                        this.accessId = null;
-                        this.secretKey = null;
-                        return this;
-                    } catch (IOException e) {
-                        this.credentialsId = null;
-                        LOGGER.log(Level.WARNING, "Exception converting legacy configuration to the new credentials API", e);
-                    }
-                }
-
-            }
 
             // PROBLEM, GLOBAL STORE NOT FOUND
             LOGGER.log(Level.WARNING, "EC2 Plugin could not migrate credentials to the Jenkins Global Credentials Store, EC2 Plugin for cloud {0} must be manually reconfigured", getDisplayName());
         }
 
         return this;
+    }
+
+    private void addNewGlobalCredential(Credentials credentials){
+        for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(Jenkins.get())) {
+
+            if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+
+                try {
+                    credentialsStore.addCredentials(Domain.global(), credentials);
+                } catch (IOException e) {
+                    this.credentialsId = null;
+                    LOGGER.log(Level.WARNING, "Exception converting legacy configuration to the new credentials API", e);
+                }
+            }
+
+        }
     }
 
     public boolean isUseInstanceProfileForCredentials() {
