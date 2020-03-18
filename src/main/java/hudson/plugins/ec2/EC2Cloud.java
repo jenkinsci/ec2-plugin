@@ -145,7 +145,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private String sshKeysCredentialsId;
 
-    private EC2PrivateKey privateKey;
+    private transient EC2PrivateKey privateKey; // Transient from now on, should maybe be deprecated and the usage be replaced everywhere?
 
     /**
      * Upper bound on how many instances we may provision.
