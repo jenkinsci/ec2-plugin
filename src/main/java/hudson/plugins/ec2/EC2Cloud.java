@@ -34,6 +34,7 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
@@ -290,6 +291,11 @@ public abstract class EC2Cloud extends Cloud {
 
     public boolean isUseInstanceProfileForCredentials() {
         return useInstanceProfileForCredentials;
+    }
+
+    @VisibleForTesting
+    void setPrivateKey(String key) {
+        this.privateKey = new EC2PrivateKey(key);
     }
 
     public String getRoleArn() {

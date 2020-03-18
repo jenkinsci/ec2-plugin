@@ -23,7 +23,10 @@
  */
 package hudson.plugins.ec2;
 
+import hudson.plugins.ec2.util.PrivateKeyHelper;
+import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -36,6 +39,10 @@ import static org.junit.Assert.assertEquals;
 * Unit tests related to {@link AmazonEC2Cloud}, but do not require a Jenkins instance.
 */
 public class AmazonEC2CloudUnitTest {
+
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+
     @Test
     public void testEC2EndpointURLCreation() throws MalformedURLException {
         AmazonEC2Cloud.DescriptorImpl descriptor = new AmazonEC2Cloud.DescriptorImpl();
@@ -50,6 +57,7 @@ public class AmazonEC2CloudUnitTest {
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
                                                     "{}", null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName");
+        cloud.setPrivateKey(PrivateKeyHelper.generate());
         assertEquals(cloud.getInstanceCap(), Integer.MAX_VALUE);
         assertEquals(cloud.getInstanceCapStr(), "");
 
@@ -58,6 +66,7 @@ public class AmazonEC2CloudUnitTest {
         cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
                                     "{}", capStr, Collections.emptyList(),
                                     "roleArn", "roleSessionName");
+        cloud.setPrivateKey(PrivateKeyHelper.generate());
         assertEquals(cloud.getInstanceCap(), cap);
         assertEquals(cloud.getInstanceCapStr(), capStr);
     }
