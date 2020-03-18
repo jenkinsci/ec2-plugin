@@ -18,6 +18,7 @@ import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
 import org.junit.Rule;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -53,6 +54,14 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
 
+        final SpotConfiguration spotConfig = slaveTemplate.spotConfig;
+        assertNotEquals(null, spotConfig);
+        assertEquals(true, spotConfig.getFallbackToOndemand());
+        assertEquals(3, spotConfig.getSpotBlockReservationDuration());
+        assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
+        assertTrue(spotConfig.useBidPrice);
+
+
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isUnix());
         assertTrue(amiType instanceof UnixData);
@@ -81,6 +90,8 @@ public class ConfigurationAsCodeTest {
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
+
+        assertEquals(null, slaveTemplate.spotConfig);
     }
 
     @Test
