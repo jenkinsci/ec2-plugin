@@ -9,9 +9,9 @@ import org.kohsuke.stapler.DataBoundSetter;
 
 public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfiguration>  {
     public final boolean useBidPrice;
-    public String spotMaxBidPrice;
-    public boolean fallbackToOndemand;
-    public int spotBlockReservationDuration;
+    private String spotMaxBidPrice;
+    private boolean fallbackToOndemand;
+    private int spotBlockReservationDuration;
 
     @Deprecated
     public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {

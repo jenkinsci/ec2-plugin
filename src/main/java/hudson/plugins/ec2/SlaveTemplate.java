@@ -572,7 +572,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int getSpotBlockReservationDuration() {
         if (spotConfig == null)
             return 0;
-        return spotConfig.spotBlockReservationDuration;
+        return spotConfig.getSpotBlockReservationDuration();
     }
 
     public String getSpotBlockReservationDurationStr() {
@@ -597,7 +597,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getSpotMaxBidPrice() {
         if (spotConfig == null)
             return null;
-        return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
+        return SpotConfiguration.normalizeBid(spotConfig.getSpotMaxBidPrice());
     }
 
     public String getIamInstanceProfile() {
@@ -1003,7 +1003,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(1, provisionOptions, true, spotConfig.fallbackToOndemand);
+            return provisionOndemand(1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         AmazonEC2 ec2 = getParent().connect();
@@ -1098,7 +1098,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
                 String slaveName = spotInstReq.getSpotInstanceRequestId();
 
-                if (spotConfig.fallbackToOndemand) {
+                if (spotConfig.getFallbackToOndemand()) {
                     for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
                         LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
                         Thread.sleep(5000);
