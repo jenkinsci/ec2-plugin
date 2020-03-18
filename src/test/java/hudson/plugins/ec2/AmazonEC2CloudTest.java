@@ -81,16 +81,6 @@ public class AmazonEC2CloudTest {
         r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
-    @Test
-    public void testPrivateKeyUpdate() throws Exception {
-        HtmlForm form = getConfigForm();
-        form.getOneHtmlElementByAttribute("input", "class", "secret-update-btn").click();
-        form.getTextAreaByName("_.privateKey").setText("new secret key");
-        r.submit(form);
-        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
-        assertEquals("new secret key", actual.getPrivateKey().getPrivateKey());
-    }
-
     private HtmlForm getConfigForm() throws IOException, SAXException {
         return r.createWebClient().goTo("configure").getFormByName("config");
     }
