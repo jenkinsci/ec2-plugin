@@ -68,7 +68,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     @Override
     public void terminate() {
         if (terminateScheduled.getCount() == 0) {
-            synchronized(this) {
+            synchronized(terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
                     Computer.threadPoolForRemoting.submit(() -> {
                         try {
@@ -116,10 +116,12 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             } catch (IOException e) {
                                 LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
                             }
-                            terminateScheduled.countDown();
+                            synchronized(terminateScheduled) {
+                                terminateScheduled.countDown();
+                            }
                         }
                     });
-                    terminateScheduled = new CountDownLatch(1);
+                    terminateScheduled.reset();
                 }
             }
         }

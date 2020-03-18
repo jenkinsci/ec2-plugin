@@ -74,7 +74,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
      */
     public void terminate() {
         if (terminateScheduled.getCount() == 0) {
-            synchronized(this) {
+            synchronized(terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
                     Computer.threadPoolForRemoting.submit(() -> {
                         try {
@@ -94,10 +94,12 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                         } catch (AmazonClientException | IOException e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
                         } finally {
-                            terminateScheduled.countDown();
+                            synchronized(terminateScheduled) {
+                                terminateScheduled.countDown();
+                            }
                         }
                     });
-                    terminateScheduled = new CountDownLatch(1);
+                    terminateScheduled.reset();
                 }
             }
         }
