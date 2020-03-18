@@ -223,7 +223,10 @@ public abstract class EC2Cloud extends Cloud {
 
         // Make sure this.privateKey variable exists as before and that it is taken from credentials
         if (this.sshKeysCredentialsId != null) {
-            this.privateKey = new EC2PrivateKey(getSshCredential(sshKeysCredentialsId).getPrivateKey());
+            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
+            if (privateKeyCredential != null) {
+                this.privateKey = new EC2PrivateKey(privateKeyCredential.getPrivateKey());
+            }
         }
 
         for (SlaveTemplate t : templates)
@@ -937,13 +940,20 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private static BasicSSHUserPrivateKey getSshCredential(String id){
-        return CredentialsMatchers.firstOrNull(
+
+        BasicSSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(
                         BasicSSHUserPrivateKey.class, // (1)
                         (ItemGroup) null,
                         null,
                         Collections.emptyList()),
                 CredentialsMatchers.withId(id));
+
+        if (credential == null){
+            LOGGER.log(Level.WARNING, "EC2 Plugin could not find the specified credentials ({0}) in the Jenkins Global Credentials Store, EC2 Plugin for cloud must be manually reconfigured", new String[]{id});
+        }
+
+        return credential;
     }
 
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
@@ -970,7 +980,13 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.error("No ssh credentials selected");
             }
 
-            String privateKey = getSshCredential(value).getPrivateKey();
+            BasicSSHUserPrivateKey sshCredential = getSshCredential(value);
+            String privateKey = "";
+            if (sshCredential != null) {
+                privateKey = sshCredential.getPrivateKey();
+            } else {
+                return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
+            }
 
             boolean hasStart = false, hasEnd = false;
             BufferedReader br = new BufferedReader(new StringReader(privateKey));
@@ -994,7 +1010,13 @@ public abstract class EC2Cloud extends Cloud {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
 
-                String privateKey = getSshCredential(sshKeysCredentialsId).getPrivateKey();
+                BasicSSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId);
+                String privateKey = "";
+                if (sshCredential != null) {
+                    privateKey = sshCredential.getPrivateKey();
+                } else {
+                    return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                }
 
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
