@@ -61,6 +61,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
+import org.apache.commons.lang.BooleanUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -359,11 +360,24 @@ public class AmazonEC2Cloud extends EC2Cloud {
         if (tags != null) {
             for ( Tag tag : tags) {
                 if (tag.getKey().trim().equals( preventStopAwsTag )) {
-                    return false;
+                    boolean value = isValueTrue( tag.getValue() );
+                    return !value;
                 }
             }
         }
         return true;
+    }
+
+    private boolean isValueTrue(String value) {
+        boolean boolValue = false;
+
+        if (value == null) {
+            return false;
+        } else {
+            boolValue = BooleanUtils.isTrue( BooleanUtils.toBooleanObject( value ) );
+        }
+
+        return boolValue;
     }
 
     @Extension

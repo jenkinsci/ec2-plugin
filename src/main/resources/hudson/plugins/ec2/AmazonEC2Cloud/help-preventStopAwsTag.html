@@ -1,2 +1,2 @@
-Marker tag used on EC2 instances that should not be stopped by this plugin.
-Tag value is not checked as the presence of the tag is enough to prevent the plugin from stopping the instance.
+Tag used on EC2 instances that should not be stopped by this plugin.
+Tag value set to "true" will prevent the plugin from stopping a given instance. If the tag isn't present or value is false, the instance will be stopped.
