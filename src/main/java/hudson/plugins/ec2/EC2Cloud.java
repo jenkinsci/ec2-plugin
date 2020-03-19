@@ -34,8 +34,11 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
+<<<<<<< HEAD
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
+=======
+>>>>>>> 4aac4c01abe80e5462f7e8ed88e6b91e1e5fb9d3
 import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
@@ -62,6 +65,10 @@ import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import hudson.Extension;
+<<<<<<< HEAD
+=======
+import hudson.security.Permission;
+>>>>>>> 4aac4c01abe80e5462f7e8ed88e6b91e1e5fb9d3
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -219,7 +226,6 @@ public abstract class EC2Cloud extends Cloud {
 
                 sshKeysCredentialsId = credsId;
             }
-
         }
 
         // Make sure this.privateKey variable exists as before and that it is taken from credentials
