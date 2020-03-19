@@ -39,7 +39,6 @@ import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
 
-import java.beans.Transient;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;

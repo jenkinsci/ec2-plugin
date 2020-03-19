@@ -36,14 +36,9 @@ THE SOFTWARE.
   <f:entry title="${%Region}" field="region">
     <f:select/>
   </f:entry>
-  <!--<f:entry title="${%EC2 Key Pair's Private Key}" field="privateKey">
-    <s:secretTextarea value="${instance.privateKey.privateKeySecret}"/>
-  </f:entry>-->
-
-    <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
-      <c:select includeUser="true"/>
-    </f:entry>
-
+  <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
+    <c:select includeUser="true"/>
+  </f:entry>
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
