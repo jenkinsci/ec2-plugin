@@ -4,7 +4,7 @@ jenkins:
     - amazonEC2:
         cloudName: "production"
         useInstanceProfileForCredentials: true
-        privateKey: "${PRIVATE_KEY}"
+        sshKeysCredentialsId: "random credentials id"
         templates:
           - description:
             ami: "ami-12345"
