@@ -1232,7 +1232,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a KeyPair from the configured information for the slave template
      */
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
-        KeyPair keyPair = parent.getPrivateKey().find(ec2);
+        KeyPair keyPair = EC2Cloud.resolvePrivateKey(parent).find(ec2);
         if (keyPair == null) {
             throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
         }

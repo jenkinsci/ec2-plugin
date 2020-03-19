@@ -289,7 +289,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        String privateKey = computer.getCloud().getPrivateKey().getPrivateKey();
+        String privateKey = EC2Cloud.resolvePrivateKey(computer.getCloud()).getPrivateKey();
         File tempFile = File.createTempFile("ec2_", ".pem");
 
         try {

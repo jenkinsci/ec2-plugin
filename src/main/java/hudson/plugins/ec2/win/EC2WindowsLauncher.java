@@ -2,11 +2,7 @@ package hudson.plugins.ec2.win;
 
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
-import hudson.plugins.ec2.EC2AbstractSlave;
-import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2HostAddressProvider;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -157,7 +153,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             Thread.sleep(sleepBetweenAttempts);
                             continue;
                         }
-                        String password = node.getCloud().getPrivateKey().decryptWindowsPassword(passwordData);
+                        String password = EC2Cloud.resolvePrivateKey(node.getCloud()).decryptWindowsPassword(passwordData);
                         if (!node.getRemoteAdmin().equals("Administrator")) {
                             logger.println("WARNING: For password retrieval remote admin must be Administrator, ignoring user provided value");
                         }

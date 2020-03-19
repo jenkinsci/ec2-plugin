@@ -34,12 +34,12 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
 
+import java.beans.Transient;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -145,8 +145,6 @@ public abstract class EC2Cloud extends Cloud {
     private transient Secret secretKey;
     @CheckForNull
     private String sshKeysCredentialsId;
-    @CheckForNull
-    private transient EC2PrivateKey privateKey; // Transient from now on, should maybe be deprecated and the usage be replaced everywhere?
 
     /**
      * Upper bound on how many instances we may provision.
@@ -168,8 +166,9 @@ public abstract class EC2Cloud extends Cloud {
         this.credentialsId = credentialsId;
         this.sshKeysCredentialsId = sshKeysCredentialsId;
 
-        if (privateKey != null)
-            this.privateKey = new EC2PrivateKey(privateKey);
+        if (this.sshKeysCredentialsId == null && privateKey != null){
+            migratePrivateSshKeyToCredential(privateKey);
+        }
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -196,47 +195,39 @@ public abstract class EC2Cloud extends Cloud {
 
     public abstract URL getS3EndpointUrl() throws IOException;
 
+    private void migratePrivateSshKeyToCredential(String privateKey){
+        // GET matching private key credential from Credential API if exists
+        Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
+                .stream()
+                .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
+                .filter((cred) -> ((BasicSSHUserPrivateKey)cred).getPrivateKey().trim().equals(privateKey.trim()))
+                .map(cred -> (BasicSSHUserPrivateKey)cred)
+                .findFirst();
+
+        if (keyCredential.isPresent()){
+            // SET this.sshKeysCredentialsId with the found credential
+            sshKeysCredentialsId = keyCredential.get().getId();
+        } else {
+            // CREATE new credential
+            String credsId = UUID.randomUUID().toString();
+
+            BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
+                    new BasicSSHUserPrivateKey.PrivateKeySource() {
+                        @NonNull
+                        @Override
+                        public List<String> getPrivateKeys() {
+                            return Collections.singletonList(privateKey.trim());
+                        }
+                    }, "", "EC2 Cloud Private Key - " + getDisplayName());
+
+            addNewGlobalCredential(sshKeyCredentials);
+
+            sshKeysCredentialsId = credsId;
+        }
+    }
+
     protected Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
-
-        if (this.sshKeysCredentialsId == null && this.privateKey != null){
-            // GET matching private key credential from Credential API if exists
-            Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
-                    .stream()
-                    .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
-                    .filter((cred) -> ((BasicSSHUserPrivateKey)cred).getPrivateKey().trim().equals(this.privateKey.getPrivateKey().trim()))
-                    .map(cred -> (BasicSSHUserPrivateKey)cred)
-                    .findFirst();
-
-            if (keyCredential.isPresent()){
-                // SET this.sshKeysCredentialsId with the found credential
-                sshKeysCredentialsId = keyCredential.get().getId();
-            } else {
-                // CREATE new credential
-                String credsId = UUID.randomUUID().toString();
-
-                BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
-                        new BasicSSHUserPrivateKey.PrivateKeySource() {
-                            @NonNull
-                            @Override
-                            public List<String> getPrivateKeys() {
-                                return Collections.singletonList(privateKey.getPrivateKey().trim());
-                            }
-                        }, "", "EC2 Cloud Private Key - " + getDisplayName());
-
-                addNewGlobalCredential(sshKeyCredentials);
-
-                sshKeysCredentialsId = credsId;
-            }
-        }
-
-        // Make sure this.privateKey variable exists as before and that it is taken from credentials
-        if (this.sshKeysCredentialsId != null) {
-            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
-            if (privateKeyCredential != null) {
-                this.privateKey = new EC2PrivateKey(privateKeyCredential.getPrivateKey());
-            }
-        }
 
         for (SlaveTemplate t : templates)
             t.parent = this;
@@ -317,8 +308,9 @@ public abstract class EC2Cloud extends Cloud {
         return sshKeysCredentialsId;
     }
 
+    @Deprecated
     public EC2PrivateKey getPrivateKey() {
-        return privateKey;
+        return null; // This enforces that CasC will never output privateKey on export
     }
 
     public String getInstanceCapStr() {
@@ -369,7 +361,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
         if (usableKeyPair == null)
-            usableKeyPair = privateKey.find(connect());
+            usableKeyPair = resolvePrivateKey(this).find(connect());
         return usableKeyPair;
     }
 
@@ -946,6 +938,16 @@ public abstract class EC2Cloud extends Cloud {
         } catch (MalformedURLException ex) {
             throw FormValidation.error("Endpoint URL is not a valid URL");
         }
+    }
+
+    public static EC2PrivateKey resolvePrivateKey(EC2Cloud cloud){
+        if (cloud.sshKeysCredentialsId != null) {
+            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(cloud.sshKeysCredentialsId);
+            if (privateKeyCredential != null) {
+                return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
+            }
+        }
+        return null;
     }
 
     private static BasicSSHUserPrivateKey getSshCredential(String id){
