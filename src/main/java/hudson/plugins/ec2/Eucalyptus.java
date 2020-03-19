@@ -23,7 +23,12 @@
  */
 package hudson.plugins.ec2;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import hudson.Extension;
+import hudson.model.Item;
+import hudson.model.ItemGroup;
 import hudson.util.FormValidation;
 
 import java.io.IOException;
@@ -32,6 +37,9 @@ import java.util.List;
 
 import javax.servlet.ServletException;
 
+import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerResponse;
@@ -47,6 +55,14 @@ public class Eucalyptus extends EC2Cloud {
     private final URL s3endpoint;
 
     @DataBoundConstructor
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
+            throws IOException {
+        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.ec2endpoint = ec2endpoint;
+        this.s3endpoint = s3endpoint;
+    }
+
+    @Deprecated
     public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
             throws IOException {
         super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
@@ -71,11 +87,32 @@ public class Eucalyptus extends EC2Cloud {
             return "Eucalyptus";
         }
 
+        public ListBoxModel doFillSshKeysCredentialsIdItems(
+                @AncestorInPath Item item,
+                @QueryParameter String sshKeysCredentialsId) {
+
+            StandardListBoxModel result = new StandardListBoxModel();
+            if (item == null) {
+                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                    return result.includeCurrentValue(sshKeysCredentialsId);
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ)
+                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return result.includeCurrentValue(sshKeysCredentialsId);
+                }
+            }
+
+            return result
+                    .includeMatchingAs(null, (ItemGroup) null, BasicSSHUserPrivateKey.class, null, null)
+                    .includeCurrentValue(sshKeysCredentialsId);
+        }
+
         @Override
         @RequirePOST
-        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
+        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
                 throws IOException, ServletException {
-            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
+            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

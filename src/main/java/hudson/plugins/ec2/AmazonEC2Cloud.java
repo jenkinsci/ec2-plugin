@@ -200,10 +200,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         public ListBoxModel doFillSshKeysCredentialsIdItems(
                 @AncestorInPath Item item,
-                @QueryParameter String sshKeysCredentialsId
-        ) {
-
-            //CredentialsProvider.lookupCredentials(BasicSSHUserPrivateKey.class,)
+                @QueryParameter String sshKeysCredentialsId) {
 
             StandardListBoxModel result = new StandardListBoxModel();
             if (item == null) {
