@@ -75,8 +75,14 @@ public class AmazonEC2Cloud extends EC2Cloud {
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.region = region;
+    }
+
+    @Deprecated
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 

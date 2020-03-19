@@ -209,10 +209,9 @@ public class EC2RetentionStrategyTest {
           InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
           "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
           true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
           Collections
             .singletonList(template), "roleArn", "roleSessionName");
-        cloud.setPrivateKey(PrivateKeyHelper.generate());
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
@@ -289,10 +288,9 @@ public class EC2RetentionStrategyTest {
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
-        cloud.setPrivateKey(PrivateKeyHelper.generate());
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
@@ -346,10 +344,9 @@ public class EC2RetentionStrategyTest {
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
-        cloud.setPrivateKey(PrivateKeyHelper.generate());
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
@@ -388,10 +385,9 @@ public class EC2RetentionStrategyTest {
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
-        cloud.setPrivateKey(PrivateKeyHelper.generate());
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
@@ -443,10 +439,9 @@ public class EC2RetentionStrategyTest {
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 14, 0); //Tuesday
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
-        cloud.setPrivateKey(PrivateKeyHelper.generate());
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 

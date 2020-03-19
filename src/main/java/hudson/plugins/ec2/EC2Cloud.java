@@ -34,11 +34,8 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
-<<<<<<< HEAD
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
-=======
->>>>>>> 4aac4c01abe80e5462f7e8ed88e6b91e1e5fb9d3
 import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
@@ -65,10 +62,6 @@ import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import hudson.Extension;
-<<<<<<< HEAD
-=======
-import hudson.security.Permission;
->>>>>>> 4aac4c01abe80e5462f7e8ed88e6b91e1e5fb9d3
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -150,9 +143,9 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     @Deprecated
     private transient Secret secretKey;
-
+    @CheckForNull
     private String sshKeysCredentialsId;
-
+    @CheckForNull
     private transient EC2PrivateKey privateKey; // Transient from now on, should maybe be deprecated and the usage be replaced everywhere?
 
     /**
@@ -166,14 +159,17 @@ public abstract class EC2Cloud extends Cloud {
 
     private transient volatile AmazonEC2 connection;
 
-    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId,
-            String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId,
+                       String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(id);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
         this.credentialsId = credentialsId;
         this.sshKeysCredentialsId = sshKeysCredentialsId;
+
+        if (privateKey != null)
+            this.privateKey = new EC2PrivateKey(privateKey);
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -188,6 +184,12 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         readResolve(); // set parents
+    }
+
+    @Deprecated
+    protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
+            String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        this(id, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
     public abstract URL getEc2EndpointUrl() throws IOException;
@@ -297,11 +299,6 @@ public abstract class EC2Cloud extends Cloud {
 
     public boolean isUseInstanceProfileForCredentials() {
         return useInstanceProfileForCredentials;
-    }
-
-    @VisibleForTesting
-    void setPrivateKey(String key) {
-        this.privateKey = new EC2PrivateKey(key);
     }
 
     public String getRoleArn() {
