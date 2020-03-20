@@ -14,8 +14,11 @@ public class AmazonEC2FactoryImpl implements AmazonEC2Factory {
 
     @Override
     public AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL ec2Endpoint) {
-        AmazonEC2 client = new AmazonEC2Client(credentialsProvider, EC2Cloud.createClientConfiguration(ec2Endpoint.getHost()));
-        client.setEndpoint(ec2Endpoint.toString());
-        return client;
+        if (ec2Endpoint != null && ec2Endpoint.toString().trim().length() > 0) {
+            AmazonEC2 client = new AmazonEC2Client(credentialsProvider, EC2Cloud.createClientConfiguration(ec2Endpoint.getHost()));
+            client.setEndpoint( ec2Endpoint.toString() );
+            return client;
+        }
+        return null;
     }
 }
