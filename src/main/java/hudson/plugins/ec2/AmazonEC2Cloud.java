@@ -25,7 +25,7 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
-import com.cloudbees.plugins.credentials.CredentialsMatcher;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
@@ -34,8 +34,8 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
 import hudson.model.Item;
-import hudson.model.ItemGroup;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -43,9 +43,9 @@ import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
@@ -215,7 +215,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
             }
 
             return result
-                    .includeMatchingAs(null, (ItemGroup) null, BasicSSHUserPrivateKey.class, null, null)
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 

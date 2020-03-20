@@ -24,15 +24,18 @@
 package hudson.plugins.ec2;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.Extension;
 import hudson.model.Item;
-import hudson.model.ItemGroup;
+import hudson.security.ACL;
 import hudson.util.FormValidation;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 
 import javax.servlet.ServletException;
@@ -42,7 +45,6 @@ import jenkins.model.Jenkins;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
@@ -104,7 +106,8 @@ public class Eucalyptus extends EC2Cloud {
             }
 
             return result
-                    .includeMatchingAs(null, (ItemGroup) null, BasicSSHUserPrivateKey.class, null, null)
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 
