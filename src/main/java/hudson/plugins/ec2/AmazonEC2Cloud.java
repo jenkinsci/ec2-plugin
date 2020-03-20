@@ -26,14 +26,12 @@ package hudson.plugins.ec2;
 import com.amazonaws.SdkClientException;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
-import hudson.model.Item;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
@@ -198,25 +196,13 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return model;
         }
 
-        public ListBoxModel doFillSshKeysCredentialsIdItems(
-                @AncestorInPath Item item,
-                @QueryParameter String sshKeysCredentialsId) {
+        public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
 
             StandardListBoxModel result = new StandardListBoxModel();
-            if (item == null) {
-                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-                    return result.includeCurrentValue(sshKeysCredentialsId);
-                }
-            } else {
-                if (!item.hasPermission(Item.EXTENDED_READ)
-                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                    return result.includeCurrentValue(sshKeysCredentialsId);
-                }
-            }
 
             return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 

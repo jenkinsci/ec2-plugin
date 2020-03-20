@@ -25,11 +25,9 @@ package hudson.plugins.ec2;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.Extension;
-import hudson.model.Item;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 
@@ -42,7 +40,6 @@ import javax.servlet.ServletException;
 
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -89,25 +86,13 @@ public class Eucalyptus extends EC2Cloud {
             return "Eucalyptus";
         }
 
-        public ListBoxModel doFillSshKeysCredentialsIdItems(
-                @AncestorInPath Item item,
-                @QueryParameter String sshKeysCredentialsId) {
+        public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
 
             StandardListBoxModel result = new StandardListBoxModel();
-            if (item == null) {
-                if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-                    return result.includeCurrentValue(sshKeysCredentialsId);
-                }
-            } else {
-                if (!item.hasPermission(Item.EXTENDED_READ)
-                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                    return result.includeCurrentValue(sshKeysCredentialsId);
-                }
-            }
 
             return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, Jenkins.getInstanceOrNull(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 
