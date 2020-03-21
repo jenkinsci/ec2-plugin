@@ -375,7 +375,11 @@ public class SlaveTemplateTest {
         jsonObject.put("saturday", false);
         jsonObject.put("sunday", false);
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
-        SlaveTemplate slaveTemplate = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, new SpotConfiguration(true, "22", true, "1"), "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
+        SpotConfiguration spotConfig = new SpotConfiguration(true);
+        spotConfig.setSpotMaxBidPrice("22");
+        spotConfig.setFallbackToOndemand(true);
+        spotConfig.setSpotBlockReservationDuration(1);
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
