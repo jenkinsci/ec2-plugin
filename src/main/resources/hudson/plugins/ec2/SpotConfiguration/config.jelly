@@ -21,11 +21,11 @@ THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
-  <f:entry title="${%Fallback to on-demand instances}" >
-    <f:checkbox field="fallbackToOndemand" checked="${instance.spotConfig.fallbackToOndemand}" />
+  <f:entry title="${%Fallback to on-demand instances}" field="fallbackToOndemand">
+    <f:checkbox />
   </f:entry>
 
-  <f:optionalBlock name="useBidPrice" title="Set bid price" inline="true" checked="${h.defaultToTrue(instance.spotConfig.useBidPrice)}">
+  <f:optionalBlock name="useBidPrice" title="Set bid price" inline="true" checked="${h.defaultToTrue(instance.useBidPrice)}" field="useBidPrice">
     <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName,ami" />
     <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
       <f:textbox />
