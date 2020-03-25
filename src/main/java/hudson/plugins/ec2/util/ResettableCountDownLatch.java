@@ -4,6 +4,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.accmod.Restricted;
+
+@Restricted(NoExternalUse.class)
 public class ResettableCountDownLatch {
     private final int count;
     private final AtomicReference<CountDownLatch> latchHolder = new AtomicReference<>();
