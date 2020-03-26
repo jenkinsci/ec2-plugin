@@ -6,7 +6,6 @@ import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.LoadStatistics;
 import hudson.model.Node;
-import hudson.model.labels.LabelAtom;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -30,6 +29,10 @@ public class StartInstanceProvisionerStrategy extends NodeProvisioner.Strategy {
     public NodeProvisioner.StrategyDecision apply(NodeProvisioner.StrategyState strategyState) {
         final Label label = strategyState.getLabel();
 
+        if (label == null) {
+            return NodeProvisioner.StrategyDecision.CONSULT_REMAINING_STRATEGIES;
+        }
+
         LOGGER.log(Level.FINEST, "Calling into StartInstanceProvisionerStrategy for label: {0}", label.getExpression());
 
         LoadStatistics.LoadStatisticsSnapshot snapshot = strategyState.getSnapshot();
@@ -44,7 +47,7 @@ public class StartInstanceProvisionerStrategy extends NodeProvisioner.Strategy {
             Jenkins jenkinsInstance = Jenkins.get();
             LOGGER.log(Level.FINE, "Attempting to find node for label: {0}", label);
             for (Node node : jenkinsInstance.getNodes()) {
-                if (nodeHasLabel(node, label.getExpression())) {
+                if (nodeHasLabel(node, label)) {
                     LOGGER.log(Level.FINE,"Found the node, checking if it's running");
                     if (!isNodeOnline(node)) {
                         LOGGER.log(Level.FINE,"Attempting to start node: {0}", node.getNodeName());
@@ -105,7 +108,7 @@ public class StartInstanceProvisionerStrategy extends NodeProvisioner.Strategy {
             if (isNodeOnline(node)) {
                 Computer computer = node.toComputer();
                 if (computer != null && computer.isOnline() && !computer.isConnecting()) {
-                    if (nodeHasLabel(node, label.getExpression())) {
+                    if (nodeHasLabel(node, label)) {
                         currentCapacity += node.getNumExecutors();
                     }
                 }
@@ -114,12 +117,10 @@ public class StartInstanceProvisionerStrategy extends NodeProvisioner.Strategy {
         return currentCapacity;
     }
 
-    private boolean nodeHasLabel(Node node, String desiredLabel) {
-        for (LabelAtom label : node.getAssignedLabels()) {
-            if (label.getExpression().equalsIgnoreCase(desiredLabel)) {
-                return true;
-            }
+    private boolean nodeHasLabel(Node node, Label desiredLabel) {
+        if (node == null) {
+            return false;
         }
-        return false;
+        return desiredLabel.matches( node );
     }
 }

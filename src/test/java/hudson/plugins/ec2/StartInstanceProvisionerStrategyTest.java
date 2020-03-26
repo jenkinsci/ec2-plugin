@@ -80,8 +80,7 @@ public class StartInstanceProvisionerStrategyTest {
     }
 
     private StrategyState getStrategyState(int queueLength, int planned) throws Exception {
-        Label label = mock(Label.class);
-        when(label.getExpression()).thenReturn(TEST_HOST_LABEL);
+        Label label = Label.parseExpression( TEST_HOST_LABEL );
         LoadStatisticsSnapshot snapshot = LoadStatisticsSnapshot.builder().withQueueLength(queueLength).build();
         NodeProvisioner nodeProvisioner = new NodeProvisioner(label, null);
         NodeProvisioner.StrategyState strategyState = null;
