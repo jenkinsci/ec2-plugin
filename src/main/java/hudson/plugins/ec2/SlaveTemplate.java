@@ -733,7 +733,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
-            net.setSubnetId(subnetId);
+            if (getAssociatePublicIp()) {
+                net.setSubnetId(subnetId);
+            } else {
+                riRequest.setSubnetId(subnetId);
+            }
 
             diFilters.add(new Filter("subnet-id").withValues(subnetId));
 
@@ -744,11 +748,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 List<String> groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
-                    net.setGroups(groupIds);
+                    if (getAssociatePublicIp()) {
+                        net.setGroups(groupIds);
+                    } else {
+                        riRequest.setSecurityGroupIds(groupIds);
+                    }
+
                     diFilters.add(new Filter("instance.group-id").withValues(groupIds));
                 }
             }
         } else {
+            riRequest.setSecurityGroups(securityGroupSet);
             List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
                                             .getSecurityGroups()
                                             .stream().map(SecurityGroup::getGroupId)
@@ -761,7 +771,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         net.setAssociatePublicIpAddress(getAssociatePublicIp());
         net.setDeviceIndex(0);
-        riRequest.withNetworkInterfaces(net);
+
+        if (getAssociatePublicIp()) {
+            riRequest.withNetworkInterfaces(net);
+        }
 
         HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
         for (Tag tag : instTags) {
