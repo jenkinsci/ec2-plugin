@@ -196,6 +196,17 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return model;
         }
 
+        public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
+            StandardListBoxModel result = new StandardListBoxModel();
+
+            return result
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeCurrentValue(sshKeysCredentialsId);
+        }
+
         // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParameter field), or use the default
         // value if not specified.
         @VisibleForTesting
