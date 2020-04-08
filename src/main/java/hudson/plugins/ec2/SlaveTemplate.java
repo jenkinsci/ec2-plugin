@@ -616,10 +616,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return maxTotalUses;
     }
 
-    public List<NodePropertyDescriptor> getNodePropertyDescriptors() {
-        return NodePropertyDescriptor.for_(NodeProperty.all(), EC2AbstractSlave.class);
-    }
-
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
     	return Objects.requireNonNull(nodeProperties);
     }
@@ -1796,6 +1792,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         public String getDefaultConnectionStrategy() {
             return ConnectionStrategy.PRIVATE_IP.toString();
+        }
+
+        public List<NodePropertyDescriptor> getNodePropertyDescriptors() {
+            return NodePropertyDescriptor.for_(NodeProperty.all(), EC2AbstractSlave.class);
         }
 
         public ListBoxModel doFillConnectionStrategyItems(@QueryParameter String connectionStrategy) {
