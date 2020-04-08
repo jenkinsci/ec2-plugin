@@ -34,6 +34,7 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.*;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
@@ -982,6 +983,17 @@ public abstract class EC2Cloud extends Cloud {
             }
 
             return FormValidation.ok();
+        }
+
+        public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
+            StandardListBoxModel result = new StandardListBoxModel();
+
+            return result
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeCurrentValue(sshKeysCredentialsId);
         }
 
         public FormValidation doCheckSshKeysCredentialsId(@QueryParameter String value) throws IOException, ServletException {

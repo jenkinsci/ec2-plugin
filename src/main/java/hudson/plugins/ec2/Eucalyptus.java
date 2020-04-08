@@ -86,17 +86,6 @@ public class Eucalyptus extends EC2Cloud {
             return "Eucalyptus";
         }
 
-        public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-
-            StandardListBoxModel result = new StandardListBoxModel();
-
-            return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeCurrentValue(sshKeysCredentialsId);
-        }
-
         @Override
         @RequirePOST
         public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
