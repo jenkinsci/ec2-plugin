@@ -985,6 +985,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         public FormValidation doCheckSshKeysCredentialsId(@QueryParameter String value) throws IOException, ServletException {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             if (value == null || value.isEmpty()){
                 return FormValidation.error("No ssh credentials selected");

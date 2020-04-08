@@ -87,6 +87,7 @@ public class Eucalyptus extends EC2Cloud {
         }
 
         public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             StandardListBoxModel result = new StandardListBoxModel();
 
