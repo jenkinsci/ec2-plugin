@@ -83,10 +83,12 @@ THE SOFTWARE.
     <properties>
         <revision>1.50</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.150.1</jenkins.version>
+        <jenkins.version>2.190.3</jenkins.version>
         <java.level>8</java.level>
         <jcasc.version>1.35</jcasc.version>
         <aws-java-sdk.version>1.11.700</aws-java-sdk.version>
+        <!-- BOM specific properties -->
+        <slf4jVersion>1.7.26</slf4jVersion>
     </properties>
 
     <dependencies>
@@ -144,7 +146,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>trilead-api</artifactId>
-            <version>1.0.3</version><!-- TODO: BUMP when trilead split is in LTS and is the baseline -->
+            <version>1.0.5</version><!-- TODO: BUMP when trilead split is in LTS and is the baseline -->
         </dependency>
         <dependency>
             <groupId>io.jenkins.temp.jelly</groupId>
@@ -241,7 +243,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>1.17</version>
+            <version>1.20</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -260,6 +262,13 @@ THE SOFTWARE.
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.jenkins-ci.main</groupId>
+                <artifactId>jenkins-bom</artifactId>
+                <version>${jenkins.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-core</artifactId>
