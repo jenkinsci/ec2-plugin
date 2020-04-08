@@ -37,7 +37,7 @@ THE SOFTWARE.
     <f:select/>
   </f:entry>
   <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
-    <c:select includeUser="true"/>
+    <c:select includeUser="false"/>
   </f:entry>
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
