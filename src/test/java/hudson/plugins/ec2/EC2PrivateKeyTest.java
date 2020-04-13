@@ -44,12 +44,6 @@ public class EC2PrivateKeyTest {
     @Rule
     public JenkinsRule r = new JenkinsRule();
 
-    @Before
-    public void init(){
-        // Tests using the BouncyCastleProvider failed without that
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-
     private EC2PrivateKey getPrivateKey() {
         return new EC2PrivateKey("-----BEGIN RSA PRIVATE KEY-----\n"
                 + "MIIEowIBAAKCAQEAlpK/pGxCRoHpbIObxYW53fl4qA+EQNHuSveNyxt+6m/HAdRLhEMGHe7/b7dR\n"
