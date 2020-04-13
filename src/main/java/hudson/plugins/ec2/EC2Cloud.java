@@ -321,6 +321,7 @@ public abstract class EC2Cloud extends Cloud {
         return credentialsId;
     }
 
+    @CheckForNull
     public String getSshKeysCredentialsId() {
         return sshKeysCredentialsId;
     }
@@ -376,9 +377,14 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Gets the {@link KeyPairInfo} used for the launch.
      */
+    @CheckForNull
     public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
-        if (usableKeyPair == null)
-            usableKeyPair = resolvePrivateKey(this).find(connect());
+        if (usableKeyPair == null) {
+            EC2PrivateKey ec2PrivateKey = resolvePrivateKey(this);
+            if (ec2PrivateKey != null) {
+                usableKeyPair = ec2PrivateKey.find(connect());
+            }
+        }
         return usableKeyPair;
     }
 
