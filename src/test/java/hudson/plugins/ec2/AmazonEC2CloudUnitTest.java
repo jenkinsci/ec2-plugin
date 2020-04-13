@@ -40,8 +40,8 @@ import static org.junit.Assert.assertEquals;
 */
 public class AmazonEC2CloudUnitTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    /*@Rule
+    public JenkinsRule r = new JenkinsRule();*/
 
     @Test
     public void testEC2EndpointURLCreation() throws MalformedURLException {

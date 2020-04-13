@@ -963,6 +963,7 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    @CheckForNull
     public static EC2PrivateKey resolvePrivateKey(EC2Cloud cloud){
         if (cloud.sshKeysCredentialsId != null) {
             BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(cloud.sshKeysCredentialsId);
