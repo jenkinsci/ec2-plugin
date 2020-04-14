@@ -18,38 +18,39 @@
  */
 package hudson.plugins.ec2;
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.servlet.ServletException;
-
-import hudson.plugins.ec2.util.*;
-
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.*;
+import hudson.Extension;
+import hudson.Util;
 import hudson.XmlFile;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
+import hudson.model.Descriptor.FormException;
+import hudson.model.Hudson;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Saveable;
+import hudson.model.TaskListener;
+import hudson.model.labels.LabelAtom;
 import hudson.model.listeners.SaveableListener;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.DeviceMappingParser;
+import hudson.plugins.ec2.util.EC2AgentConfig;
+import hudson.plugins.ec2.util.EC2AgentFactory;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.NodePropertyDescriptor;
+import hudson.util.DescribableList;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
-
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -57,22 +58,16 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
-
-import hudson.Extension;
-import hudson.Util;
-import hudson.model.*;
-import hudson.model.Descriptor.FormException;
-import hudson.model.labels.LabelAtom;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.NodePropertyDescriptor;
-import hudson.util.DescribableList;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -673,23 +668,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(this + ". " + message);
     }
 
-    /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
-     */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
-            throws IOException {
-        return provisionOndemand(number, provisionOptions, false, false);
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws IOException {
+        return makeRunInstancesRequestAndFilters(number, ec2, true);
     }
 
-    /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
-     */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
-            throws IOException {
-        AmazonEC2 ec2 = getParent().connect();
-
-        logProvisionInfo("Considering launching");
-
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
         RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
@@ -729,7 +712,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("availability-zone").withValues(getZone()));
         }
 
-        String subnetId = chooseSubnetId();
+        String subnetId;
+        if (rotateSubnet) {
+            subnetId = chooseSubnetId();
+        } else {
+            subnetId = currentSubnetId;
+        }
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
@@ -740,8 +728,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             /*
              * If we have a subnet ID then we can only use VPC security groups
              */
-            if (!securityGroupSet.isEmpty()) {
-                List<String> groupIds = getEc2SecurityGroups(ec2);
+            List<String> groupIds = null;
+            if (!getSecurityGroupSet().isEmpty()) {
+                groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
                     net.setGroups(groupIds);
@@ -749,10 +738,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
-                                            .getSecurityGroups()
-                                            .stream().map(SecurityGroup::getGroupId)
-                                            .collect(Collectors.toList());
+            List<String> groupIds = getSecurityGroupsBy("group-name", getSecurityGroupSet(), ec2)
+                    .getSecurityGroups()
+                    .stream().map(SecurityGroup::getGroupId)
+                    .collect(Collectors.toList());
             net.setGroups(groupIds);
             if (!groupIds.isEmpty()) {
                 diFilters.add(new Filter("instance.group-id").withValues(groupIds));
@@ -767,6 +756,44 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         for (Tag tag : instTags) {
             diFilters.add(new Filter("tag:" + tag.getKey()).withValues(tag.getValue()));
         }
+
+        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+        }
+
+        List<TagSpecification> tagList = new ArrayList<>();
+        TagSpecification tagSpecification = new TagSpecification();
+        tagSpecification.setTags(instTags);
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
+        riRequest.setTagSpecifications(tagList);
+
+        HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
+        ret.put(riRequest, diFilters);
+        return ret;
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        return provisionOndemand(number, provisionOptions, false, false);
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
+            throws IOException {
+        AmazonEC2 ec2 = getParent().connect();
+
+        logProvisionInfo("Considering launching");
+
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(number, ec2);
+        Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
+        RunInstancesRequest riRequest = entry.getKey();
+        List<Filter> diFilters = entry.getValue();
 
         DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);
 
@@ -788,17 +815,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         riRequest.setMaxCount(number - orphansOrStopped.size());
-
-        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-            riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
-        }
-
-        List<TagSpecification> tagList = new ArrayList<>();
-        TagSpecification tagSpecification = new TagSpecification();
-        tagSpecification.setTags(instTags);
-        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
-        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
-        riRequest.setTagSpecifications(tagList);
 
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
@@ -833,7 +849,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return toSlaves(newInstances);
     }
 
-    private void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
+    void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
         List<String> instances = new ArrayList<>();
         for(Instance instance : orphansOrStopped) {
             if (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
@@ -854,7 +870,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     }
 
-    private List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
+    List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
         try {
             List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
             for (Instance instance : newInstances) {
@@ -868,7 +884,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private List<Instance> findOrphansOrStopped(DescribeInstancesResult diResult, int number) {
+    List<Instance> findOrphansOrStopped(DescribeInstancesResult diResult, int number) {
         List<Instance> orphansOrStopped = new ArrayList<>();
         int count = 0;
         for (Reservation reservation : diResult.getReservations()) {
@@ -1396,6 +1412,39 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean isUseHTTPS() {
         return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
+    }
+
+    /**
+     *
+     * @param ec2
+     * @param allSubnets if true, uses all subnets defined for this SlaveTemplate as the filter, else will only use the current subnet
+     * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this SlaveTemplate's configs
+     */
+    DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws IOException {
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(1, ec2, false);
+        Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
+        List<Filter> diFilters = entry.getValue();
+
+        if (allSubnets) {
+            /* remove any existing subnet-id filters */
+            List<Filter> rmvFilters = new ArrayList<>();
+            for (Filter f : diFilters) {
+                if (f.getName().equals("subnet-id")) {
+                    rmvFilters.add(f);
+                }
+            }
+            for (Filter f : rmvFilters) {
+                diFilters.remove(f);
+            }
+
+            /* Add filter using all subnets defined for this SlaveTemplate */
+            Filter subnetFilter = new Filter("subnet-id");
+            subnetFilter.setValues(Arrays.asList(getSubnetId().split(" ")));
+            diFilters.add(subnetFilter);
+        }
+
+        DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);
+        return ec2.describeInstances(diRequest);
     }
 
     @Extension

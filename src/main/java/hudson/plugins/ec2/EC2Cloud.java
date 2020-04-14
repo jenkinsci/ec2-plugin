@@ -18,10 +18,19 @@
  */
 package hudson.plugins.ec2;
 
-import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
-import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
@@ -33,9 +42,33 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import hudson.Extension;
+import hudson.ProxyConfiguration;
+import hudson.model.Computer;
+import hudson.model.Descriptor;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.PeriodicWork;
+import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
+import hudson.util.ListBoxModel;
+import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
+import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 
+import javax.annotation.CheckForNull;
+import javax.servlet.ServletException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -62,59 +95,8 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import javax.annotation.CheckForNull;
-import javax.servlet.ServletException;
-
-import hudson.Extension;
-import hudson.model.PeriodicWork;
-import hudson.model.TaskListener;
-import hudson.security.Permission;
-import hudson.util.ListBoxModel;
-import jenkins.model.Jenkins;
-import jenkins.model.JenkinsLocationConfiguration;
-
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.InstanceProfileCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.KeyPairInfo;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-
-import hudson.ProxyConfiguration;
-import hudson.model.Computer;
-import hudson.model.Descriptor;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.util.FormValidation;
-import hudson.util.HttpResponses;
-import hudson.util.Secret;
-import hudson.util.StreamTaskListener;
+import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
+import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 /**
  * Hudson's view of EC2.
@@ -645,6 +627,21 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    private void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t) throws IOException {
+        for (final EC2AbstractSlave slave : slaves) {
+            if (slave == null) {
+                LOGGER.warning("Can't raise node for " + t);
+                continue;
+            }
+
+            Computer c = slave.toComputer();
+            if (slave.getStopOnTerminate() && c != null) {
+                c.connect(false);
+            }
+            jenkins.addNode(slave);
+        }
+    }
+
     public void provision(SlaveTemplate t, int number) {
 
         Jenkins jenkinsInstance = Jenkins.get();
@@ -665,24 +662,36 @@ public abstract class EC2Cloud extends Cloud {
                 return;
             }
 
-            for (final EC2AbstractSlave slave : slaves) {
-                if (slave == null) {
-                    LOGGER.warning("Can't raise node for " + t);
-                    continue;
-                }
-
-                Computer c = slave.toComputer();
-                if (slave.getStopOnTerminate() && c != null) {
-                    c.connect(false);
-                }
-                jenkinsInstance.addNode(slave);
-            }
+            attachSlavesToJenkins(jenkinsInstance, slaves, t);
 
             LOGGER.log(Level.INFO, "{0}. Attempting provision finished", t);
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
               new Object[]{Jenkins.get().getComputers().length, number});
         } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+        }
+    }
+
+    /**
+     * Helper method to reattach lost EC2 node slaves @Issue("JENKINS-57795")
+     *
+     * @param jenkinsInstance
+     * @param t
+     * @param number
+     */
+    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate t, int number) throws IOException {
+        LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
+        AmazonEC2 ec2 = this.connect();
+        DescribeInstancesResult diResult = t.getDescribeInstanceResult(ec2,true);
+        List<Instance> orphansOrStopped = t.findOrphansOrStopped(diResult, number);
+        t.wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+        /* If the number of possible nodes to re-attach is greater than the number of nodes requested, will only attempt to re-attach up to the number requested */
+        while (orphansOrStopped.size() > number) {
+            orphansOrStopped.remove(0);
+        }
+        attachSlavesToJenkins(jenkinsInstance, t.toSlaves(orphansOrStopped), t);
+        if (orphansOrStopped.size() > 0) {
+            LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
         }
     }
 
