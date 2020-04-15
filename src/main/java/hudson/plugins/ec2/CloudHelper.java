@@ -76,10 +76,9 @@ final class CloudHelper {
 
     @CheckForNull
     static Image getAmiImage(AmazonEC2 ec2, String ami) {
-        List<String> images = new LinkedList<>();
-        images.add(ami);
-        List<String> owners = new LinkedList<>();
-        List<String> users = new LinkedList<>();
+        List<String> images = Collections.singletonList(ami);
+        List<String> owners = Collections.emptyList();
+        List<String> users = Collections.emptyList();
         DescribeImagesRequest request = new DescribeImagesRequest();
         request.setImageIds(images);
         request.setOwners(owners);
