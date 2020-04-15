@@ -27,7 +27,7 @@ import static org.mockito.Mockito.times;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({JenkinsLocationConfiguration.class, AmazonEC2.class, Jenkins.class, SlaveTemplate.class, DescribeInstancesResult.class, Instance.class, EC2AbstractSlave.class})
-@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*"})
+@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*", "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*"})
 public class EC2CloudTest {
 
     @Test
