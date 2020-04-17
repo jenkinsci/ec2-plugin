@@ -788,9 +788,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             /*
              * If we have a subnet ID then we can only use VPC security groups
              */
-            List<String> groupIds = null;
             if (!getSecurityGroupSet().isEmpty()) {
-                groupIds = getEc2SecurityGroups(ec2);
+                List<String> groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
                     net.setGroups(groupIds);
@@ -828,9 +827,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
         riRequest.setTagSpecifications(tagList);
 
-        HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
-        ret.put(riRequest, diFilters);
-        return ret;
+        return (HashMap<RunInstancesRequest, List<Filter>>) Collections.singletonMap(riRequest, diFilters);
     }
 
     /**
