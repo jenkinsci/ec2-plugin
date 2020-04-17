@@ -627,7 +627,7 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
-    private void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t) throws IOException {
+    private static void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t) throws IOException {
         for (final EC2AbstractSlave slave : slaves) {
             if (slave == null) {
                 LOGGER.warning("Can't raise node for " + t);
