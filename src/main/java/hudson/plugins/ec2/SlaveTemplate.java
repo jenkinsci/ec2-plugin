@@ -827,7 +827,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
         riRequest.setTagSpecifications(tagList);
 
-        return (HashMap<RunInstancesRequest, List<Filter>>) Collections.singletonMap(riRequest, diFilters);
+        HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
+        ret.put(riRequest, diFilters);
+        return ret;
     }
 
     /**
