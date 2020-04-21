@@ -23,9 +23,32 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.IamInstanceProfile;
+import com.amazonaws.services.ec2.model.Image;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
+import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.SecurityGroup;
+import com.amazonaws.services.ec2.model.Subnet;
+import com.amazonaws.services.identitymanagement.model.InstanceProfile;
+
 import hudson.model.Node;
+import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import com.amazonaws.services.ec2.model.Reservation;
 import jenkins.model.Jenkins;
 
 import net.sf.json.JSONObject;
@@ -35,14 +58,23 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import org.mockito.ArgumentCaptor;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Matchers.any;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -387,4 +419,126 @@ public class SlaveTemplateTest {
         Assert.assertEquals(false, stored.getMinimumNoInstancesActiveTimeRangeDays().get("monday"));
         Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
     }
+
+  @Test
+  public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
+        boolean associatePublicIp = false;
+        String ami = "ami1";
+        String description = "foo ami";
+        String subnetId = "some-subnet";
+        String securityGroups = "some security group";
+        String iamInstanceProfile = "some instance profile";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(orig);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        orig.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        List<InstanceNetworkInterfaceSpecification> actualNets = actualRequest.getNetworkInterfaces();
+
+        assertEquals(actualNets.size(), 0);
+        assertEquals(actualRequest.getSubnetId(), subnetId);
+        assertEquals(actualRequest.getSecurityGroupIds(), Stream.of("some-group-id").collect(Collectors.toList()));
+  }
+
+  @Test
+  public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
+        boolean associatePublicIp = true;
+        String ami = "ami1";
+        String description = "foo ami";
+        String subnetId = "some-subnet";
+        String securityGroups = "some security group";
+        String iamInstanceProfile = "some instance profile";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(orig);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        orig.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceNetworkInterfaceSpecification actualNet = actualRequest.getNetworkInterfaces().get(0);
+
+        assertEquals(actualNet.getSubnetId(), subnetId);
+        assertEquals(actualNet.getGroups(), Stream.of("some-group-id").collect(Collectors.toList()));
+        assertEquals(actualRequest.getSubnetId(), null);
+        assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
+  }
+
+  private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
+        AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
+        AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
+        EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
+        KeyPair mockedKeyPair = new KeyPair();
+        mockedKeyPair.setKeyName("some-key-name");
+        when(mockedPrivateKey.find(mockedEC2)).thenReturn(mockedKeyPair);
+        when(mockedCloud.connect()).thenReturn(mockedEC2);
+        when(mockedCloud.getPrivateKey()).thenReturn(mockedPrivateKey);
+        template.parent = mockedCloud;
+
+        DescribeImagesResult mockedImagesResult = mock(DescribeImagesResult.class);
+        Image mockedImage = new Image();
+        mockedImage.setImageId(template.getAmi());
+        when(mockedImagesResult.getImages()).thenReturn(Stream.of(mockedImage).collect(Collectors.toList()));
+        when(mockedEC2.describeImages(any(DescribeImagesRequest.class))).thenReturn(mockedImagesResult);
+
+        DescribeSecurityGroupsResult mockedSecurityGroupsResult = mock(DescribeSecurityGroupsResult.class);
+        SecurityGroup mockedSecurityGroup = new SecurityGroup();
+        mockedSecurityGroup.setVpcId("some-vpc-id");
+        mockedSecurityGroup.setGroupId("some-group-id");
+
+        List<SecurityGroup> mockedSecurityGroups = Stream.of(mockedSecurityGroup).collect(Collectors.toList());
+        when(mockedSecurityGroupsResult.getSecurityGroups()).thenReturn(mockedSecurityGroups);
+        when(mockedEC2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class))).thenReturn(mockedSecurityGroupsResult);
+
+        DescribeSubnetsResult mockedDescribeSubnetsResult = mock(DescribeSubnetsResult.class);
+        Subnet mockedSubnet = new Subnet();
+        List<Subnet> mockedSubnets = Stream.of(mockedSubnet).collect(Collectors.toList());
+        when(mockedDescribeSubnetsResult.getSubnets()).thenReturn(mockedSubnets);
+        when(mockedEC2.describeSubnets(any(DescribeSubnetsRequest.class))).thenReturn(mockedDescribeSubnetsResult);
+
+        IamInstanceProfile mockedInstanceProfile = new IamInstanceProfile();
+        mockedInstanceProfile.setArn(template.getIamInstanceProfile());
+        InstanceState mockInstanceState = new InstanceState();
+        mockInstanceState.setName("not terminated");
+        Instance mockedInstance = new Instance();
+        mockedInstance.setState(mockInstanceState);
+        mockedInstance.setIamInstanceProfile(mockedInstanceProfile);
+        Reservation mockedReservation = new Reservation();
+        mockedReservation.setInstances(Stream.of(mockedInstance).collect(Collectors.toList()));
+        List<Reservation> mockedReservations = Stream.of(mockedReservation).collect(Collectors.toList());
+        DescribeInstancesResult mockedDescribedInstancesResult = mock(DescribeInstancesResult.class);
+        when(mockedDescribedInstancesResult.getReservations()).thenReturn(mockedReservations);
+        when(mockedEC2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(mockedDescribedInstancesResult);
+
+        RunInstancesResult mockedResult = mock(RunInstancesResult.class);
+        when(mockedResult.getReservation()).thenReturn(mockedReservation);
+        when(mockedEC2.runInstances(any(RunInstancesRequest.class))).thenReturn(mockedResult);
+
+        return mockedEC2;
+  }
 }
