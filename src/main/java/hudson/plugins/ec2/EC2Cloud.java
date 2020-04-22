@@ -413,8 +413,21 @@ public abstract class EC2Cloud extends Cloud {
             }
         } while(result.getNextToken() != null);
 
+        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, filters, instanceIds);
+        
+        return n;
+    }
+
+    /**
+     * Counts the number of EC2 Spot instances that can be used with the specified image and a template. Also removes any
+     * nodes associated with canceled requests.
+     *
+     * @param template If left null, then all spot instances are counted.
+     */
+    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, List<Filter> filters, Set<String> instanceIds) throws AmazonClientException {
+        int n = 0;
+        String description = template != null ? template.description : null;
         List<SpotInstanceRequest> sirs = null;
-        filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
             filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
         }
@@ -472,9 +485,14 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         } while(sirResp.getNextToken() != null);
+        n += countJenkinsNodeSpotInstancesWithoutRequests(template, sirSet, instanceIds);
+        return n;
+    }
 
-        // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
-        // in the EC2 API)
+    // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
+    // in the EC2 API)
+    private int countJenkinsNodeSpotInstancesWithoutRequests(SlaveTemplate template, Set<SpotInstanceRequest> sirSet, Set<String> instanceIds) throws AmazonClientException {
+        int n = 0;
         for (Node node : Jenkins.get().getNodes()) {
             if (!(node instanceof EC2SpotSlave))
                 continue;
@@ -512,9 +530,9 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         }
-
         return n;
     }
+
 
     private List<Filter> getGenericFilters(String jenkinsServerUrl, SlaveTemplate template) {
         List<Filter> filters = new ArrayList<>();
