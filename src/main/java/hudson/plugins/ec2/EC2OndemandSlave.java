@@ -2,6 +2,7 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Computer;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
@@ -10,6 +11,7 @@ import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -71,22 +73,35 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
      * Terminates the instance in EC2.
      */
     public void terminate() {
-        try {
-            if (!isAlive(true)) {
-                /*
-                 * The node has been killed externally, so we've nothing to do here
-                 */
-                LOGGER.info("EC2 instance already terminated: " + getInstanceId());
-            } else {
-                AmazonEC2 ec2 = getCloud().connect();
-                TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
-                ec2.terminateInstances(request);
-                LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
+        if (terminateScheduled.getCount() == 0) {
+            synchronized(terminateScheduled) {
+                if (terminateScheduled.getCount() == 0) {
+                    Computer.threadPoolForRemoting.submit(() -> {
+                        try {
+                            if (!isAlive(true)) {
+                                /*
+                                * The node has been killed externally, so we've nothing to do here
+                                */
+                                LOGGER.info("EC2 instance already terminated: " + getInstanceId());
+                            } else {
+                                AmazonEC2 ec2 = getCloud().connect();
+                                TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+                                ec2.terminateInstances(request);
+                                LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
+                            }
+                            Jenkins.get().removeNode(this);
+                            LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
+                        } catch (AmazonClientException | IOException e) {
+                            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
+                        } finally {
+                            synchronized(terminateScheduled) {
+                                terminateScheduled.countDown();
+                            }
+                        }
+                    });
+                    terminateScheduled.reset();
+                }
             }
-            Jenkins.get().removeNode(this);
-            LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
-        } catch (AmazonClientException | IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
         }
     }
 

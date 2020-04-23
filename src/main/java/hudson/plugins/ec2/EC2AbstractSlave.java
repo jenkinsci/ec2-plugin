@@ -30,6 +30,7 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.model.Slave;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.ResettableCountDownLatch;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
@@ -44,6 +45,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
 
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
@@ -108,6 +111,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     /* The time at which we fetched the last instance data */
     protected transient long lastFetchTime;
+
+    /** Terminate was scheduled */
+    @Nonnull
+    protected transient ResettableCountDownLatch terminateScheduled = new ResettableCountDownLatch(1, false);
 
     /*
      * The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked
@@ -457,6 +464,11 @@ public abstract class EC2AbstractSlave extends Slave {
             return result;
         }
         return null;
+    }
+
+    @Override
+    public boolean isAcceptingTasks() {
+        return terminateScheduled.getCount() == 0;
     }
 
     void idleTimeout() {

@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -59,7 +60,7 @@ public class EC2RetentionStrategyTest {
             int[] t = upTime.get(i);
             EC2Computer computer = computerWithIdleTime(t[0], t[1]);
             EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
-            rs.check(computer);
+            checkRetentionStrategy(rs, computer);
             assertEquals("Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i), (boolean) expected.get(i), idleTimeoutCalled.get());
             // reset the assumption
             idleTimeoutCalled.set(false);
@@ -195,7 +196,7 @@ public class EC2RetentionStrategyTest {
             } else {
                 rs = new EC2RetentionStrategy("1");
             }
-            rs.check(computer);
+            checkRetentionStrategy(rs, computer);
             String action = expected.get(i) ? "call" : "not call";
             long newNextCheckAfter = rs.getNextCheckAfter();
             assertEquals(String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action), expectCallCheck, nextCheckAfter != newNextCheckAfter);
@@ -226,7 +227,7 @@ public class EC2RetentionStrategyTest {
         Instant now = Instant.now();
         Clock clock = Clock.fixed(now, zoneId);
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
-        rs.check(computers.get(0));
+        checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
           .filter(computer -> computer instanceof EC2Computer)
@@ -250,7 +251,7 @@ public class EC2RetentionStrategyTest {
         assertEquals(3, AmazonEC2FactoryMockImpl.instances.size());
 
         rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
-        rs.check(computers.get(0));
+        checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
           .filter(computer -> computer instanceof EC2Computer)
@@ -305,7 +306,7 @@ public class EC2RetentionStrategyTest {
         Instant now = Instant.now();
         Clock clock = Clock.fixed(now, zoneId);
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
-        rs.check(computers.get(0));
+        checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
             .filter(computer -> computer instanceof EC2Computer)
@@ -402,7 +403,7 @@ public class EC2RetentionStrategyTest {
         Instant now = Instant.now();
         Clock clock = Clock.fixed(now, zoneId);
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
-        rs.check(computers.get(0));
+        checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
             .filter(computer -> computer instanceof EC2Computer)
@@ -460,7 +461,7 @@ public class EC2RetentionStrategyTest {
         Instant now = Instant.now();
         Clock clock = Clock.fixed(now, zoneId);
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2", clock, now.toEpochMilli() - 1);
-        rs.check(computers.get(0));
+        checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
             .filter(computer -> computer instanceof EC2Computer)
@@ -470,5 +471,11 @@ public class EC2RetentionStrategyTest {
         // Should have 1 slaves after check
         assertEquals(1, computers.size());
         assertEquals(1, AmazonEC2FactoryMockImpl.instances.size());
+    }
+
+    private static void checkRetentionStrategy(EC2RetentionStrategy rs, EC2Computer c) throws InterruptedException {
+        rs.check(c);
+        EC2AbstractSlave node = c.getNode();
+        assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
     }
 }

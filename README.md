@@ -8,7 +8,7 @@
 
 Allow Jenkins to start agents on
 [EC2](http://aws.amazon.com/ec2/) or
-[Eucalyptus](https://www.eucalyptus.com/) on demand, and
+[Eucalyptus](https://www.eucalyptus.cloud/) on demand, and
 kill them as they get unused.  
 
 With this plugin, if Jenkins notices that your build cluster is
@@ -51,7 +51,7 @@ AMI you need to fill out the `rootCommandPrefix` and
 `remoteAdmin` fields under `advanced`. Windows is currently somewhat
 supported.
 
-Configuring labels allow Jenkins to pick the right AMI to start. For
+Configuring labels allows Jenkins to pick the right AMI to start. For
 example, if all your existing agents labeled "solaris" are fully busy
 and you have more builds that are tied to the "solaris" label, Jenkins
 will start the AMIs that have the "solaris" label.
@@ -134,7 +134,7 @@ agents via EC2 user-data.  This information includes the name that
 Jenkins has given the agent, and the configured URL for the Jenkins
 master node.  
 
-Sample scripts for assisting in configuring an Ubuntu based AMI to work
+Sample scripts for assisting in configuring an Ubuntu-based AMI to work
 with the Jenkins ec2-plugin and Spot agents are included with the
 installation of the plugin.   
 Config Script:
@@ -150,9 +150,9 @@ Startup Script:
 ```
 
 The config script is run by the user from the EC2 instance with root
-access.  It installs Java onto the instance and fetches the startup
+access.  It installs Java onto the instance, fetches the startup
 script and sets it to run when the machine starts up.  It can be
-retrieved from the above url using a command like wget, or copied over
+retrieved from the above URL using a command like wget, or copied over
 using a tool like `scp`.
 
 ```sh
@@ -167,7 +167,7 @@ need to run it on its own.
 sudo sh ubuntu-ami-setup.sh jenkins_server{:port}
 ```
 
-Note: ‘http://” will be prepended to the jenkins\_server parameter
+Note: "http://" will be prefixed to the jenkins\_server parameter
 
 The config script then fetches the startup script and sets up the AMI to
 register itself with a Jenkins master node when it gets started.
@@ -201,9 +201,9 @@ java -jar agent.jar -jnlpUrl [Jenkins_Url]computer/ [Agent_Name] slave-agent.jnl
 
 ## IAM setup
 
-It's possible to create a separate account for jenkins using the Amazon
-IAM feature. Go to the IAM tab in AWS console and create a user. Then go
-to user's ***Permissions*** tab and use this policy (change username if
+It's possible to create a separate account for Jenkins using the Amazon
+IAM feature. Go to the IAM tab in the AWS console and create a user. Then go
+to the user's ***Permissions*** tab and use this policy (change username if
 your user is not called ***jenkins***):
 
 ```json
@@ -241,7 +241,7 @@ your user is not called ***jenkins***):
 }
 ```
 
-If you want to launch agents with IAM Instance Profile, "iam:PassRole"
+If you want to launch agents with an IAM Instance Profile, "iam:PassRole"
 permission is required.
 
 If you want to launch Windows agents and use the generated Administrator
