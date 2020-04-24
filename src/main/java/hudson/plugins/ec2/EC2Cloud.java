@@ -675,21 +675,21 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Helper method to reattach lost EC2 node slaves @Issue("JENKINS-57795")
      *
-     * @param jenkinsInstance
-     * @param t
-     * @param number
+     * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
+     * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
+     * @param requestedNum The requested number of nodes to re-attach. We don't go above this in the case its value corresponds to an instance cap. 
      */
-    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate t, int number) throws IOException {
+    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum) throws IOException {
         LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
         AmazonEC2 ec2 = this.connect();
-        DescribeInstancesResult diResult = t.getDescribeInstanceResult(ec2,true);
-        List<Instance> orphansOrStopped = t.findOrphansOrStopped(diResult, number);
-        t.wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+        DescribeInstancesResult diResult = template.getDescribeInstanceResult(ec2,true);
+        List<Instance> orphansOrStopped = template.findOrphansOrStopped(diResult, requestedNum);
+        template.wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
         /* If the number of possible nodes to re-attach is greater than the number of nodes requested, will only attempt to re-attach up to the number requested */
-        while (orphansOrStopped.size() > number) {
+        while (orphansOrStopped.size() > requestedNum) {
             orphansOrStopped.remove(0);
         }
-        attachSlavesToJenkins(jenkinsInstance, t.toSlaves(orphansOrStopped), t);
+        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(orphansOrStopped), template);
         if (orphansOrStopped.size() > 0) {
             LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
         }
