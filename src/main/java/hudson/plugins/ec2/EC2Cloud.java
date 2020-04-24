@@ -98,6 +98,7 @@ import java.util.logging.SimpleFormatter;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
+
 /**
  * Hudson's view of EC2.
  *
@@ -394,61 +395,86 @@ public abstract class EC2Cloud extends Cloud {
             }
         } while(result.getNextToken() != null);
 
+        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, filters, instanceIds);
+        
+        return n;
+    }
+
+    /**
+     * Counts the number of EC2 Spot instances that can be used with the specified image and a template. Also removes any
+     * nodes associated with canceled requests.
+     *
+     * @param template If left null, then all spot instances are counted.
+     */
+    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, List<Filter> filters, Set<String> instanceIds) throws AmazonClientException {
+        int n = 0;
+        String description = template != null ? template.description : null;
         List<SpotInstanceRequest> sirs = null;
-        filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
             filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
         }
 
-        DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters);
+        DescribeSpotInstanceRequestsRequest dsir = new DescribeSpotInstanceRequestsRequest().withFilters(filters).withMaxResults(100);
         Set<SpotInstanceRequest> sirSet = new HashSet<>();
-        try {
-            sirs = connect().describeSpotInstanceRequests(dsir).getSpotInstanceRequests();
-        } catch (Exception ex) {
-            // Some ec2 implementations don't implement spot requests (Eucalyptus)
-            LOGGER.log(Level.FINEST, "Describe spot instance requests failed", ex);
-        }
+        DescribeSpotInstanceRequestsResult sirResp = null;
 
-        if (sirs != null) {
-            for (SpotInstanceRequest sir : sirs) {
-                sirSet.add(sir);
-                if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                    if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
-                        continue;
-
-                    if (isEc2ProvisionedAmiSlave(sir.getTags(), description)) {
-                        LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
-                                + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-
-                        n++;
-                        if (sir.getInstanceId() != null)
-                            instanceIds.add(sir.getInstanceId());
-                    }
-                } else {
-                    // Cancelled or otherwise dead
-                    for (Node node : Jenkins.get().getNodes()) {
-                        try {
-                            if (!(node instanceof EC2SpotSlave))
-                                continue;
-                            EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
-                            if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
-                                LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
-                                        + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                                Jenkins.get().removeNode(node);
-                                break;
+        do {
+            try {
+                sirResp = connect().describeSpotInstanceRequests(dsir);
+                sirs = sirResp.getSpotInstanceRequests();
+                dsir.setNextToken(sirResp.getNextToken());
+            } catch (Exception ex) {
+                // Some ec2 implementations don't implement spot requests (Eucalyptus)
+                LOGGER.log(Level.FINEST, "Describe spot instance requests failed", ex);
+                break;
+            }
+    
+            if (sirs != null) {
+                for (SpotInstanceRequest sir : sirs) {
+                    sirSet.add(sir);
+                    if (sir.getState().equals("open") || sir.getState().equals("active")) {
+                        if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
+                            continue;
+    
+                        if (isEc2ProvisionedAmiSlave(sir.getTags(), description)) {
+                            LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
+                                    + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+    
+                            n++;
+                            if (sir.getInstanceId() != null)
+                                instanceIds.add(sir.getInstanceId());
+                        }
+                    } else {
+                        // Cancelled or otherwise dead
+                        for (Node node : Jenkins.get().getNodes()) {
+                            try {
+                                if (!(node instanceof EC2SpotSlave))
+                                    continue;
+                                EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
+                                if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
+                                    LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
+                                            + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
+                                    Jenkins.get().removeNode(node);
+                                    break;
+                                }
+                            } catch (IOException e) {
+                                LOGGER.log(Level.WARNING, "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
+                                                + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus(),
+                                        e);
                             }
-                        } catch (IOException e) {
-                            LOGGER.log(Level.WARNING, "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
-                                            + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus(),
-                                    e);
                         }
                     }
                 }
             }
-        }
+        } while(sirResp.getNextToken() != null);
+        n += countJenkinsNodeSpotInstancesWithoutRequests(template, sirSet, instanceIds);
+        return n;
+    }
 
-        // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
-        // in the EC2 API)
+    // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
+    // in the EC2 API)
+    private int countJenkinsNodeSpotInstancesWithoutRequests(SlaveTemplate template, Set<SpotInstanceRequest> sirSet, Set<String> instanceIds) throws AmazonClientException {
+        int n = 0;
         for (Node node : Jenkins.get().getNodes()) {
             if (!(node instanceof EC2SpotSlave))
                 continue;
@@ -486,9 +512,9 @@ public abstract class EC2Cloud extends Cloud {
                 }
             }
         }
-
         return n;
     }
+
 
     private List<Filter> getGenericFilters(String jenkinsServerUrl, SlaveTemplate template) {
         List<Filter> filters = new ArrayList<>();
