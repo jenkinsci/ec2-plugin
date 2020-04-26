@@ -7,9 +7,9 @@
 # Introduction
 
 Allow Jenkins to start agents on
-[EC2](http://aws.amazon.com/ec2/) or
+[EC2](https://aws.amazon.com/ec2/) or
 [Eucalyptus](https://www.eucalyptus.cloud/) on demand, and
-kill them as they get unused.  
+kill them as they get unused.
 
 With this plugin, if Jenkins notices that your build cluster is
 overloaded, it'll start instances using the EC2 API and automatically
@@ -20,17 +20,17 @@ another EC2 compatible cloud.
 
 # Usage
 
-First, go to [EC2](http://aws.amazon.com/ec2/) and sign
+First, go to [EC2](https://aws.amazon.com/ec2/) and sign
 up for the service. Once you've installed the plugin, you navigate to
 the main "Manage Jenkins" \> "Configure System" page, and scroll down
 near the bottom to the "Cloud" section. There, you click the "Add a new
 cloud" button, and select the "Amazon EC2" option. This will display the
-UI for configuring the EC2 plugin.  Then enter the Access Key and Secret
+UI for configuring the EC2 plugin. Then enter the Access Key and Secret
 Access Key which act like a username/password (see IAM section). Because
 of the way EC2 works, you also need to have an RSA private key that the
 cloud has the other half for, to permit sshing into the instances that
-are started. Please use the AWS console or any other tool of your choice
-to generate the private key to interactively log in to EC2 instances.
+are started. Generate the private key to interactively log in to EC2
+instances, see [SSH key pair](#a__SSH_key_pair).
 
 Once you have put in your Access Key and Secret Access Key, select a
 region for the cloud (not shown in screenshot). You may define only one
@@ -46,9 +46,9 @@ out the endpoint details for your cluster.
 Next, configure AMIs that you want to launch. For this, you need to find
 the AMI IDs for the OS of your choice.
 [Packer](https://packer.io/) is a good tool for doing
-that. Jenkins can work with any Unix AMIs. If using an Ubuntu EC2 or UEC
-AMI you need to fill out the `rootCommandPrefix` and
-`remoteAdmin` fields under `advanced`. Windows is currently somewhat
+that. Jenkins can work with any Unix AMIs. If using an Ubuntu EC2 or UEC
+AMI you need to fill out the `rootCommandPrefix` and
+`remoteAdmin` fields under `advanced`. Windows is currently somewhat
 supported.
 
 Configuring labels allows Jenkins to pick the right AMI to start. For
@@ -60,7 +60,7 @@ Init script is the shell script to be run on the newly launched EC2
 instance, before Jenkins starts launching a agent agent. If the AMI
 doesn't have Java pre-installed, you can do this in the init script.
 This is also a good place to install additional packages that you need
-for your builds and tests.  The init script is located at
+for your builds and tests. The init script is located at
 **/tmp/init.sh** and is owned and run by the user account specified in
 the "Remote User" field (so use of "sudo" may be required for non-root
 accounts).
@@ -86,12 +86,20 @@ instance for long periods of time. This can greatly reduce the startup
 time of the instance since it does not have to build the volume from the
 snapshot.
 
+<a name="a__SSH_key_pair"></a>
+## SSH key pair
+
+You can create keypair:
+* by AWS console, then choose PEM format
+* generate by OpenSSH: `ssh-keygen -m PEM`, then upload your public key to AWS console
+* convert exist SSH key from OpenSSH format (RFC4716) to PEM, for example: `ssh-keygen -m PEM -f ~/.ssh/id_rsa_jenkins`
+
 ## Spot Instances
 
 Spot instances are similar to EC2 instances, except for a few key
 differences. They are generally more affordable, but they have the
 possibility of being terminated if someone has bid more on them than you
-have and can take longer to provision.  To mitigate some of these
+have and can take longer to provision. To mitigate some of these
 issues, your Jenkins and Agent AMIs will need a bit of configuration to
 convert the Spot agents to register with Jenkins when they spawn up. Due
 to these changes, it may appear that a Spot agent will have failed (with
@@ -103,8 +111,8 @@ here: <http://aws.amazon.com/ec2/spot-instances/> .
 ### Enable Spot Request
 
 To enable use of Spot as opposed to EC2 for an instance, the "Use Spot
-Instance" check box must be checked.  Also, a bid price must be
-specified.  If you want to determine what the current price of the
+Instance" check box must be checked. Also, a bid price must be
+specified. If you want to determine what the current price of the
 instance is without going to the AWS website, pick your region and
 instance type (as you already should) and click "Check Current Spot
 Price".
@@ -117,11 +125,11 @@ choose from the drop down menu.
 
 For Jenkins, the major configuration change will be if you have a
 restrictive firewall, since these instances need to connect back to
-Jenkins.  The first configuration change to Jenkins is to change your
+Jenkins. The first configuration change to Jenkins is to change your
 Jenkins URL option in the Configure Jenkins page to be the external URL
-to the server.  One port that needs to be open is the one that you use
+to the server. One port that needs to be open is the one that you use
 to access Jenkins, the other is the JNLP port, which is generally
-randomly assigned.  To set the JNLP port to something predictable,
+randomly assigned. To set the JNLP port to something predictable,
 follow the Connection Mechanism section on this page. [Jenkins
 CLI](https://wiki.jenkins.io/display/JENKINS/Jenkins+CLI)
 
@@ -132,11 +140,12 @@ it must be preconfigured with start up commands so that it can register
 itself with Jenkins.  The Jenkins information is passed to the Spot
 agents via EC2 user-data.  This information includes the name that
 Jenkins has given the agent, and the configured URL for the Jenkins
-master node.  
+master node.
 
 Sample scripts for assisting in configuring an Ubuntu-based AMI to work
 with the Jenkins ec2-plugin and Spot agents are included with the
-installation of the plugin.   
+installation of the plugin.
+
 Config Script:
 
 ```sh
@@ -150,8 +159,8 @@ Startup Script:
 ```
 
 The config script is run by the user from the EC2 instance with root
-access.  It installs Java onto the instance, fetches the startup
-script and sets it to run when the machine starts up.  It can be
+access. It installs Java onto the instance, fetches the startup
+script and sets it to run when the machine starts up. It can be
 retrieved from the above URL using a command like wget, or copied over
 using a tool like `scp`.
 
@@ -160,7 +169,7 @@ wget (jenkins_server)/plugin/ec2/AMI-Scripts/ubuntu-ami-setup.sh
 ```
 
 Once the scripts have been downloaded, the script can be run. Running
-this script will also run the `ubuntu-init.py` script, so there is no
+this script will also run the `ubuntu-init.py` script, so there is no
 need to run it on its own.
 
 ```sh
@@ -178,7 +187,8 @@ and select “Create Image (EBS AMI)”.
 
 In order to set up additional images using other operating systems, you
 can configure your own startup script based on the startup script above.
- This script should perform the following actions when the machine is
+
+This script should perform the following actions when the machine is
 started up:
 
 ```sh
@@ -250,7 +260,7 @@ password, the "ec2:GetPasswordData" permission is also required.
 # Configure plugin via Groovy script
 
 Either automatically upon [Jenkins
-post-initialization](https://wiki.jenkins.io/display/JENKINS/Post-initialization+script) or
+post-initialization](https://wiki.jenkins.io/display/JENKINS/Post-initialization+script) or
 through [Jenkins script
 console](https://wiki.jenkins.io/display/JENKINS/Jenkins+Script+Console),
 example:
@@ -272,7 +282,7 @@ import jenkins.model.Jenkins
 // parameters
 def SlaveTemplateUsEast1Parameters = [
   ami:                      'ami-AAAAAAAA',
-  ami_description:          'Jenkins agent EC2 US East 1',
+  amiDescription:          'Jenkins agent EC2 US East 1',
   associatePublicIp:        false,
   connectBySSHProcess:      true,
   connectUsingPublicIp:     false,
@@ -364,7 +374,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.ebsOptimized,
   SlaveTemplateUsEast1Parameters.labelString,
   Node.Mode.NORMAL,
-  SlaveTemplateUsEast1Parameters.ami_description,
+  SlaveTemplateUsEast1Parameters.amiDescription,
   SlaveTemplateUsEast1Parameters.initScript,
   SlaveTemplateUsEast1Parameters.tmpDir,
   SlaveTemplateUsEast1Parameters.userData,
@@ -421,6 +431,13 @@ jenkins.clouds.add(amazonEC2Cloud)
 jenkins.save()
 ```
 
+## Use Groovy script with exist credentials
+
+If you already have AWS IAM credentials stored into your Jenkins host, then:
+
+* change `credentialsId`,
+* comment `AWSCredentialsImplParameters`, `aWSCredentialsImpl`, `store.addCredentials`.
+
 # Known Issues
 
 ## Authentication Timeout
@@ -462,11 +479,11 @@ This issue can be solved in different ways:
     amazon
     [documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-linux-ami-basics.html#security-updates))
 3.  Force security upgrade through the "init-script" in the Cloud
-    configuration  
-      
+    configuration
+
     ![](docs/images/init-scripts.png)
 
 # Change Log
 
-Newer changelogs are posted [here](https://github.com/jenkinsci/ec2-plugin/releases), 
+Newer changelogs are posted [here](https://github.com/jenkinsci/ec2-plugin/releases),
 1.45 and older releases can be found [here](https://github.com/jenkinsci/ec2-plugin/blob/master/CHANGELOG.md)
