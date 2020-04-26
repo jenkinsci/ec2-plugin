@@ -272,12 +272,12 @@ import jenkins.model.Jenkins
 // parameters
 def SlaveTemplateUsEast1Parameters = [
   ami:                      'ami-AAAAAAAA',
+  ami_description:          'Jenkins agent EC2 US East 1',
   associatePublicIp:        false,
   connectBySSHProcess:      true,
   connectUsingPublicIp:     false,
   customDeviceMapping:      '',
   deleteRootOnTermination:  true,
-  description:              'Jenkins agent EC2 US East 1',
   ebsOptimized:             false,
   iamInstanceProfile:       '',
   idleTerminationMinutes:   '5',
@@ -364,7 +364,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.ebsOptimized,
   SlaveTemplateUsEast1Parameters.labelString,
   Node.Mode.NORMAL,
-  SlaveTemplateUsEast1Parameters.description,
+  SlaveTemplateUsEast1Parameters.ami_description,
   SlaveTemplateUsEast1Parameters.initScript,
   SlaveTemplateUsEast1Parameters.tmpDir,
   SlaveTemplateUsEast1Parameters.userData,
