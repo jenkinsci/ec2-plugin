@@ -370,7 +370,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.userData,
   SlaveTemplateUsEast1Parameters.numExecutors,
   SlaveTemplateUsEast1Parameters.remoteAdmin,
-  new UnixData(null, null, null),
+  new UnixData(null, null, null, null),
   SlaveTemplateUsEast1Parameters.jvmopts,
   SlaveTemplateUsEast1Parameters.stopOnTerminate,
   SlaveTemplateUsEast1Parameters.subnetId,
@@ -389,7 +389,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.connectUsingPublicIp
 )
 
-// https://github.com/jenkinsci/ec2-plugin/blob/ec2-1.38/src/main/java/hudson/plugins/ec2/AmazonEC2Cloud.java
+// https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html
 AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
   AmazonEC2CloudParameters.cloudName,
   AmazonEC2CloudParameters.useInstanceProfileForCredentials,
@@ -397,7 +397,9 @@ AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
   AmazonEC2CloudParameters.region,
   AmazonEC2CloudParameters.privateKey,
   AmazonEC2CloudParameters.instanceCapStr,
-  [slaveTemplateUsEast1]
+  [slaveTemplateUsEast1],
+  '',
+  ''
 )
 
 // get Jenkins instance
