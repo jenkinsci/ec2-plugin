@@ -12,6 +12,11 @@ jenkins:
             type: "T2Micro"
             remoteFS: "/home/ec2-user"
             mode: "NORMAL"
+            spotConfig:
+              fallbackToOndemand: true
+              spotBlockReservationDuration: 3
+              spotMaxBidPrice: "0.15"
+              useBidPrice: true
             amiType:
               unixData:
                 rootCommandPrefix: "sudo"

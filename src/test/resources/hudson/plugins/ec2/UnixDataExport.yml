@@ -22,6 +22,11 @@
       monitoring: false
       numExecutors: 1
       remoteFS: "/home/ec2-user"
+      spotConfig:
+        fallbackToOndemand: true
+        spotBlockReservationDuration: 3
+        spotMaxBidPrice: "0.15"
+        useBidPrice: true
       stopOnTerminate: false
       t2Unlimited: false
       type: T2Micro
