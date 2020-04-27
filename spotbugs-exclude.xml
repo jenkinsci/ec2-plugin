@@ -6,4 +6,9 @@
       <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/>
     </Or>
   </Match>
+  <Match>
+      <!-- Ignore false positive NPE check which occurs in EC2AbstractSlave due to Spotbugs not quite -->
+      <!-- understanding how Java serialization works. -->
+      <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+  </Match>
 </FindBugsFilter>
