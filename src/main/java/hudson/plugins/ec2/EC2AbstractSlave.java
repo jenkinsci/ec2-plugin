@@ -204,6 +204,16 @@ public abstract class EC2AbstractSlave extends Slave {
                 }
             }
         }
+        
+        /*
+         * If this field is null (as it would be if this object is deserialized and not constructed normally) then
+         * we need to explicitly initialize it, otherwise we will cause major blocker issues such as this one which
+         * made Jenkins entirely unusable for some in the 1.50 release:
+         * https://issues.jenkins-ci.org/browse/JENKINS-62043
+         */
+        if (terminateScheduled == null) {
+            terminateScheduled = new ResettableCountDownLatch(1, false);
+        }
 
         return this;
     }
