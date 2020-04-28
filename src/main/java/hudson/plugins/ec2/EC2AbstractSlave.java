@@ -46,8 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nonnull;
-
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
@@ -113,7 +111,6 @@ public abstract class EC2AbstractSlave extends Slave {
     protected transient long lastFetchTime;
 
     /** Terminate was scheduled */
-    @Nonnull
     protected transient ResettableCountDownLatch terminateScheduled = new ResettableCountDownLatch(1, false);
 
     /*
