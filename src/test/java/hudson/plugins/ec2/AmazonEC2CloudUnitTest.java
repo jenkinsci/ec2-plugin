@@ -28,16 +28,41 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import com.amazonaws.services.ec2.model.Tag;
+
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
+import jenkins.model.Jenkins;
+
+import org.powermock.reflect.Whitebox;
+import org.junit.runner.RunWith;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
+import java.util.List;
 
 import static hudson.plugins.ec2.EC2Cloud.DEFAULT_EC2_ENDPOINT;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 
 /**
 * Unit tests related to {@link AmazonEC2Cloud}, but do not require a Jenkins instance.
 */
+@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*", "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*"})
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({EC2Cloud.class, Jenkins.class})
 public class AmazonEC2CloudUnitTest {
 
     @Rule
@@ -67,5 +92,36 @@ public class AmazonEC2CloudUnitTest {
                                     "roleArn", "roleSessionName");
         assertEquals(cloud.getInstanceCap(), cap);
         assertEquals(cloud.getInstanceCapStr(), capStr);
+    }
+
+    @Test
+    public void testSpotInstanceCount() throws Exception {
+        final int numberOfSpotInstanceRequests = 105;
+        AmazonEC2Cloud cloud = PowerMockito.spy(new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
+                                                    "{}", null, Collections.emptyList(),
+                                                    "roleArn", "roleSessionName"));
+        PowerMockito.mockStatic(Jenkins.class);
+        Jenkins jenkinsMock = mock(Jenkins.class);
+        EC2SpotSlave spotSlaveMock = mock(EC2SpotSlave.class);
+
+        PowerMockito.when(Jenkins.get()).thenReturn(jenkinsMock);
+        PowerMockito.when(jenkinsMock.getNodes()).thenReturn(Collections.singletonList(spotSlaveMock));
+        when(spotSlaveMock.getSpotRequest()).thenReturn(null);
+        when(spotSlaveMock.getSpotInstanceRequestId()).thenReturn("sir-id");
+
+        List<Instance> instances = new ArrayList<Instance>();
+        for(int i=0; i<=numberOfSpotInstanceRequests; i++) {
+            instances.add(new Instance().withInstanceId("id"+i).withTags(new Tag().withKey("jenkins_slave_type").withValue("spot")));
+        }
+        
+        AmazonEC2FactoryMockImpl.instances = instances;
+        
+        Mockito.doReturn(AmazonEC2FactoryMockImpl.createAmazonEC2Mock(null)).when(cloud).connect();
+
+        Object[] params = {null, "jenkinsurl", new ArrayList<Filter>(), new HashSet<String>()};
+        int n = Whitebox.invokeMethod(cloud, "countCurrentEC2SpotSlaves", params);
+        
+        // Should equal number of spot instance requests + 1 for spot nodes not having a spot instance request
+        assertEquals(numberOfSpotInstanceRequests+1, n);
     }
 }
