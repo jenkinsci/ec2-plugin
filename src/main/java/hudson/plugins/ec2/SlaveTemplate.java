@@ -39,6 +39,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
 import hudson.plugins.ec2.util.AmazonEC2Factory;
@@ -770,6 +771,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
         KeyPair keyPair = getKeyPair(ec2);
+        if (keyPair == null){
+            logProvisionInfo("Could not retrieve a valid key pair.");
+            return null;
+        }
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
         riRequest.setKeyName(keyPair.getKeyName());
         diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
@@ -1282,8 +1287,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Get a KeyPair from the configured information for the slave template
      */
+    @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
-        KeyPair keyPair = EC2Cloud.resolvePrivateKey(parent).find(ec2);
+        EC2PrivateKey ec2PrivateKey = EC2Cloud.resolvePrivateKey(parent);
+        if (ec2PrivateKey == null) {
+            throw new AmazonClientException("No keypair credential found. Please configure a credential in the Jenkins configuration.");
+        }
+        KeyPair keyPair = ec2PrivateKey.find(ec2);
         if (keyPair == null) {
             throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
         }

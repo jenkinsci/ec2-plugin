@@ -163,7 +163,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
                 KeyPair key = computer.getCloud().getKeyPair();
-                if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+                if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
@@ -289,7 +289,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        String privateKey = EC2Cloud.resolvePrivateKey(computer.getCloud()).getPrivateKey();
+        EC2PrivateKey ec2PrivateKey = EC2Cloud.resolvePrivateKey(computer.getCloud());
+        String privateKey = "";
+        if (ec2PrivateKey != null){
+            privateKey = ec2PrivateKey.getPrivateKey();
+        }
+
         File tempFile = File.createTempFile("ec2_", ".pem");
 
         try {
@@ -322,6 +327,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
             KeyPair key = computer.getCloud().getKeyPair();
+            if (key == null){
+                logWarning(computer, listener, "Could not retrieve a valid key pair.");
+                return false;
+            }
             logInfo(computer, listener,
                 String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
             while (tries-- > 0) {
