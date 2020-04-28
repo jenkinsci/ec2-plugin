@@ -153,7 +153,11 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             Thread.sleep(sleepBetweenAttempts);
                             continue;
                         }
-                        String password = EC2Cloud.resolvePrivateKey(node.getCloud()).decryptWindowsPassword(passwordData);
+                        EC2PrivateKey ec2PrivateKey = EC2Cloud.resolvePrivateKey(node.getCloud());
+                        String password = "";
+                        if (ec2PrivateKey != null){
+                            password = ec2PrivateKey.decryptWindowsPassword(passwordData);
+                        }
                         if (!node.getRemoteAdmin().equals("Administrator")) {
                             logger.println("WARNING: For password retrieval remote admin must be Administrator, ignoring user provided value");
                         }
