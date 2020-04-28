@@ -628,7 +628,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int getSpotBlockReservationDuration() {
         if (spotConfig == null)
             return 0;
-        return spotConfig.spotBlockReservationDuration;
+        return spotConfig.getSpotBlockReservationDuration();
     }
 
     public String getSpotBlockReservationDurationStr() {
@@ -653,7 +653,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getSpotMaxBidPrice() {
         if (spotConfig == null)
             return null;
-        return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
+        return SpotConfiguration.normalizeBid(spotConfig.getSpotMaxBidPrice());
     }
 
     public String getIamInstanceProfile() {
@@ -793,7 +793,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
-            net.setSubnetId(subnetId);
+            if (getAssociatePublicIp()) {
+                net.setSubnetId(subnetId);
+            } else {
+                riRequest.setSubnetId(subnetId);
+            }
 
             diFilters.add(new Filter("subnet-id").withValues(subnetId));
 
@@ -804,11 +808,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 List<String> groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
-                    net.setGroups(groupIds);
+                    if (getAssociatePublicIp()) {
+                        net.setGroups(groupIds);
+                    } else {
+                        riRequest.setSecurityGroupIds(groupIds);
+                    }
+
                     diFilters.add(new Filter("instance.group-id").withValues(groupIds));
                 }
             }
         } else {
+            riRequest.setSecurityGroups(securityGroupSet);
             List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
                                             .getSecurityGroups()
                                             .stream().map(SecurityGroup::getGroupId)
@@ -821,7 +831,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         net.setAssociatePublicIpAddress(getAssociatePublicIp());
         net.setDeviceIndex(0);
-        riRequest.withNetworkInterfaces(net);
+
+        if (getAssociatePublicIp()) {
+            riRequest.withNetworkInterfaces(net);
+        }
 
         HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
         for (Tag tag : instTags) {
@@ -1059,7 +1072,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(1, provisionOptions, true, spotConfig.fallbackToOndemand);
+            return provisionOndemand(1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         AmazonEC2 ec2 = getParent().connect();
@@ -1154,7 +1167,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
                 String slaveName = spotInstReq.getSpotInstanceRequestId();
 
-                if (spotConfig.fallbackToOndemand) {
+                if (spotConfig.getFallbackToOndemand()) {
                     for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
                         LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
                         Thread.sleep(5000);
@@ -1532,25 +1545,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
-        private Image getAmiImage(AmazonEC2 ec2, String ami) {
-            List<String> images = new LinkedList<>();
-            images.add(ami);
-            List<String> owners = new LinkedList<>();
-            List<String> users = new LinkedList<>();
-            DescribeImagesRequest request = new DescribeImagesRequest();
-            request.setImageIds(images);
-            request.setOwners(owners);
-            request.setExecutableUsers(users);
-            List<Image> img = ec2.describeImages(request).getImages();
-            if (img == null || img.isEmpty()) {
-                // de-registered AMI causes an empty list to be
-                // returned. so be defensive
-                // against other possibilities
-                return null;
-            } else {
-                return img.get(0);
-            }
-        }
 
         /***
          * Check that the AMI requested is available in the cloud and can be used.
@@ -1567,7 +1561,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, new URL(ec2endpoint));
             }
             try {
-                Image img = getAmiImage(ec2, ami);
+                Image img = CloudHelper.getAmiImage(ec2, ami);
                 if (img == null) {
                     return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
                 }
@@ -1743,116 +1737,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();
             }
             return FormValidation.error("Not a correct bid price");
-        }
-
-        // Retrieve the availability zones for the region
-        private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {
-            ArrayList<String> availabilityZones = new ArrayList<>();
-
-            DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
-            List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
-
-            for (AvailabilityZone z : zoneList) {
-                availabilityZones.add(z.getZoneName());
-            }
-
-            return availabilityZones;
-        }
-
-        /*
-         * Check the current Spot price of the selected instance type for the selected region
-         */
-        public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region,
-                @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
-
-            String cp = "";
-            String zoneStr = "";
-
-            // Connect to the EC2 cloud with the access id, secret key, and
-            // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
-
-            if (ec2 != null) {
-
-                try {
-                    // Build a new price history request with the currently
-                    // selected type
-                    DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
-                    // If a zone is specified, set the availability zone in the
-                    // request
-                    // Else, proceed with no availability zone which will result
-                    // with the cheapest Spot price
-                    if (getAvailabilityZones(ec2).contains(zone)) {
-                        request.setAvailabilityZone(zone);
-                        zoneStr = zone + " availability zone";
-                    } else {
-                        zoneStr = region + " region";
-                    }
-
-                    /*
-                     * Iterate through the AWS instance types to see if can find a match for the databound String type.
-                     * This is necessary because the AWS API needs the instance type string formatted a particular way
-                     * to retrieve prices and the form gives us the strings in a different format. For example "T1Micro"
-                     * vs "t1.micro".
-                     */
-                    InstanceType ec2Type = null;
-
-                    for (InstanceType it : InstanceType.values()) {
-                        if (it.name().equals(type)) {
-                            ec2Type = it;
-                            break;
-                        }
-                    }
-
-                    /*
-                     * If the type string cannot be matched with an instance type, throw a Form error
-                     */
-                    if (ec2Type == null) {
-                        return FormValidation.error("Could not resolve instance type: " + type);
-                    }
-
-                    if (!ami.isEmpty()) {
-                        Image img = getAmiImage(ec2, ami);
-                        if (img != null) {
-                            Collection<String> productDescriptions = new ArrayList<>();
-                            productDescriptions.add(img.getPlatform() == "Windows" ? "Windows" : "Linux/UNIX");
-                            request.setProductDescriptions(productDescriptions);
-                        }
-                    }
-
-                    Collection<String> instanceType = new ArrayList<>();
-                    instanceType.add(ec2Type.toString());
-                    request.setInstanceTypes(instanceType);
-                    request.setStartTime(new Date());
-
-                    // Retrieve the price history request result and store the
-                    // current price
-                    DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
-
-                    if (!result.getSpotPriceHistory().isEmpty()) {
-                        SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
-
-                        cp = currentPrice.getSpotPrice();
-                    }
-
-                } catch (AmazonServiceException e) {
-                    return FormValidation.error(e.getMessage());
-                }
-            }
-            /*
-             * If we could not return the current price of the instance display an error Else, remove the additional
-             * zeros from the current price and return it to the interface in the form of a message
-             */
-            if (cp.isEmpty()) {
-                return FormValidation.error("Could not retrieve current Spot price");
-            } else {
-                cp = cp.substring(0, cp.length() - 3);
-
-                return FormValidation.ok("The current Spot price for a " + type + " in the " + zoneStr + " is $" + cp);
-            }
         }
 
         public String getDefaultConnectionStrategy() {

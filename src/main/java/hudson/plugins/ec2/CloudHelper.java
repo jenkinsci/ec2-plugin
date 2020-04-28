@@ -2,15 +2,22 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
+import java.util.ArrayList;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.CheckForNull;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 final class CloudHelper {
@@ -65,5 +72,39 @@ final class CloudHelper {
           throw new AmazonClientException(message);
         }
         return instances.get(0);
+    }
+
+    @CheckForNull
+    static Image getAmiImage(AmazonEC2 ec2, String ami) {
+        List<String> images = Collections.singletonList(ami);
+        List<String> owners = Collections.emptyList();
+        List<String> users = Collections.emptyList();
+        DescribeImagesRequest request = new DescribeImagesRequest();
+        request.setImageIds(images);
+        request.setOwners(owners);
+        request.setExecutableUsers(users);
+        List<Image> img = ec2.describeImages(request).getImages();
+        if (img == null || img.isEmpty()) {
+            // de-registered AMI causes an empty list to be
+            // returned. so be defensive
+            // against other possibilities
+            return null;
+        } else {
+            return img.get(0);
+        }
+    }
+
+    // Retrieve the availability zones for the region connected on
+    static ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {
+        ArrayList<String> availabilityZones = new ArrayList<>();
+
+        DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
+        List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
+
+        for (AvailabilityZone z : zoneList) {
+            availabilityZones.add(z.getZoneName());
+        }
+
+        return availabilityZones;
     }
 }

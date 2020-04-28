@@ -66,6 +66,7 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
             mockDescribeSubnets(mock);
             mockRunInstances(mock);
             mockTerminateInstances(mock);
+            mockDescribeSpotInstanceRequests(mock);
         }
         return mock;
     }
@@ -86,6 +87,34 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
             }
             return new DescribeInstancesResult().withReservations(new Reservation().withInstances(instances));
         }).when(mock).describeInstances(Mockito.any(DescribeInstancesRequest.class));
+    }
+
+    private static void mockDescribeSpotInstanceRequests(AmazonEC2Client mock) {
+        DescribeSpotInstanceRequestsResult describeSpotInstanceRequestsResult = new DescribeSpotInstanceRequestsResult();
+        List<SpotInstanceRequest> spotInstanceRequests = new ArrayList<>();
+        for(Instance instance : instances) {
+            SpotInstanceRequest spotInstanceRequest = new SpotInstanceRequest().withInstanceId(instance.getInstanceId()).withTags(instance.getTags()).withState(SpotInstanceState.Active).withType(SpotInstanceType.OneTime);
+            spotInstanceRequests.add(spotInstanceRequest);
+        }
+
+        Mockito.doAnswer(invocationOnMock -> {
+            DescribeSpotInstanceRequestsRequest request = invocationOnMock.getArgument(0);
+            int paginationSize = request.getMaxResults();
+            if(paginationSize == 0) {
+                paginationSize = instances.size();
+            }
+            if(instances.size() > paginationSize && request.getNextToken() == null) {
+                describeSpotInstanceRequestsResult.setNextToken("token");
+                describeSpotInstanceRequestsResult.setSpotInstanceRequests(spotInstanceRequests.subList(0, 100));
+            } else if(instances.size() <= paginationSize){
+                describeSpotInstanceRequestsResult.setSpotInstanceRequests(spotInstanceRequests);
+                describeSpotInstanceRequestsResult.setNextToken(null);
+            } else {
+                describeSpotInstanceRequestsResult.setSpotInstanceRequests(spotInstanceRequests.subList(100, spotInstanceRequests.size()-1));
+                describeSpotInstanceRequestsResult.setNextToken(null);
+            }
+            return describeSpotInstanceRequestsResult;
+        }).when(mock).describeSpotInstanceRequests(Mockito.any(DescribeSpotInstanceRequestsRequest.class));
     }
 
     private static void mockDescribeImages(AmazonEC2Client mock) {
