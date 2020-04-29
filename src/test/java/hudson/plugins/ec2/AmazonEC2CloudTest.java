@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.gargoylesoftware.htmlunit.ElementNotFoundException;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 import org.junit.Assert;
@@ -51,7 +52,7 @@ public class AmazonEC2CloudTest {
 
     @Before
     public void setUp() throws Exception {
-        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
+        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
     }
 
@@ -71,17 +72,19 @@ public class AmazonEC2CloudTest {
     }
 
     @Test
-    public void testPrivateKeyRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
+    public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
         HtmlTextInput input = form.getInputByName("_.cloudName");
+
         input.setText("test-cloud-2");
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         assertEquals("test-cloud-2", actual.getCloudName());
-        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        return r.createWebClient().goTo("configure").getFormByName("config");
+        return r.createWebClient().goTo("configureClouds").getFormByName("config");
     }
+
 }
