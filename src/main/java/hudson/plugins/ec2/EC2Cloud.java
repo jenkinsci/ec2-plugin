@@ -413,7 +413,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         } while(result.getNextToken() != null);
 
-        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, filters, instanceIds);
+        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, instanceIds);
         
         return n;
     }
@@ -424,10 +424,11 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all spot instances are counted.
      */
-    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, List<Filter> filters, Set<String> instanceIds) throws AmazonClientException {
+    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, Set<String> instanceIds) throws AmazonClientException {
         int n = 0;
         String description = template != null ? template.description : null;
         List<SpotInstanceRequest> sirs = null;
+        List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
             filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
         }
