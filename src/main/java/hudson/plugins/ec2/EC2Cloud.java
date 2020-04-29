@@ -209,8 +209,8 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
-        if (getSshKeysCredentialsId() != null) {
-            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(getSshKeysCredentialsId());
+        if (sshKeysCredentialsId != null) {
+            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
