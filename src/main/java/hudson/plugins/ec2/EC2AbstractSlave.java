@@ -46,8 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Nonnull;
-
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
@@ -113,7 +111,6 @@ public abstract class EC2AbstractSlave extends Slave {
     protected transient long lastFetchTime;
 
     /** Terminate was scheduled */
-    @Nonnull
     protected transient ResettableCountDownLatch terminateScheduled = new ResettableCountDownLatch(1, false);
 
     /*
@@ -203,6 +200,16 @@ public abstract class EC2AbstractSlave extends Slave {
                     }
                 }
             }
+        }
+        
+        /*
+         * If this field is null (as it would be if this object is deserialized and not constructed normally) then
+         * we need to explicitly initialize it, otherwise we will cause major blocker issues such as this one which
+         * made Jenkins entirely unusable for some in the 1.50 release:
+         * https://issues.jenkins-ci.org/browse/JENKINS-62043
+         */
+        if (terminateScheduled == null) {
+            terminateScheduled = new ResettableCountDownLatch(1, false);
         }
 
         return this;
