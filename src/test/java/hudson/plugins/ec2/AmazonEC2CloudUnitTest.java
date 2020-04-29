@@ -23,10 +23,7 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.plugins.ec2.util.PrivateKeyHelper;
-import org.junit.Rule;
 import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
 
 import com.amazonaws.services.ec2.model.Tag;
 
@@ -65,9 +62,6 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({EC2Cloud.class, Jenkins.class})
 public class AmazonEC2CloudUnitTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
-
     @Test
     public void testEC2EndpointURLCreation() throws MalformedURLException {
         AmazonEC2Cloud.DescriptorImpl descriptor = new AmazonEC2Cloud.DescriptorImpl();
@@ -80,7 +74,7 @@ public class AmazonEC2CloudUnitTest {
     @Test
     public void testInstaceCap() throws Exception {
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
-                                                    PrivateKeyHelper.generate(), null, Collections.emptyList(),
+                                                    null, "key", null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName");
         assertEquals(cloud.getInstanceCap(), Integer.MAX_VALUE);
         assertEquals(cloud.getInstanceCapStr(), "");
@@ -88,7 +82,7 @@ public class AmazonEC2CloudUnitTest {
         final int cap = 3;
         final String capStr = String.valueOf(cap);
         cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
-                                    PrivateKeyHelper.generate(), capStr, Collections.emptyList(),
+                                    null, "key", capStr, Collections.emptyList(),
                                     "roleArn", "roleSessionName");
         assertEquals(cloud.getInstanceCap(), cap);
         assertEquals(cloud.getInstanceCapStr(), capStr);
@@ -98,7 +92,7 @@ public class AmazonEC2CloudUnitTest {
     public void testSpotInstanceCount() throws Exception {
         final int numberOfSpotInstanceRequests = 105;
         AmazonEC2Cloud cloud = PowerMockito.spy(new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
-                                                    PrivateKeyHelper.generate(), null, Collections.emptyList(),
+                                                    null, "key", null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName"));
         PowerMockito.mockStatic(Jenkins.class);
         Jenkins jenkinsMock = mock(Jenkins.class);
