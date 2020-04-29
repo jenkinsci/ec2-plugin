@@ -98,7 +98,7 @@ public class AmazonEC2CloudUnitTest {
     public void testSpotInstanceCount() throws Exception {
         final int numberOfSpotInstanceRequests = 105;
         AmazonEC2Cloud cloud = PowerMockito.spy(new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
-                                                    "{}", null, Collections.emptyList(),
+                                                    PrivateKeyHelper.generate(), null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName"));
         PowerMockito.mockStatic(Jenkins.class);
         Jenkins jenkinsMock = mock(Jenkins.class);

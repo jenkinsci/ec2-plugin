@@ -27,10 +27,8 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -68,20 +66,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.Filter;
@@ -106,7 +100,6 @@ import com.amazonaws.services.ec2.model.ShutdownBehavior;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotMarketOptions;
 import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
@@ -1302,7 +1295,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
-        EC2PrivateKey ec2PrivateKey = EC2Cloud.resolvePrivateKey(parent);
+        EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
         if (ec2PrivateKey == null) {
             throw new AmazonClientException("No keypair credential found. Please configure a credential in the Jenkins configuration.");
         }

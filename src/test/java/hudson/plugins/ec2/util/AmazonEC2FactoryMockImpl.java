@@ -131,7 +131,7 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
     private static void mockDescribeKeyPairs(AmazonEC2Client mock) {
         Mockito.doAnswer(invocationOnMock -> {
             KeyPairInfo keyPairInfo = new KeyPairInfo();
-            keyPairInfo.setKeyFingerprint(EC2Cloud.resolvePrivateKey(Jenkins.get().clouds.get(AmazonEC2Cloud.class)).getFingerprint());
+            keyPairInfo.setKeyFingerprint(Jenkins.get().clouds.get(AmazonEC2Cloud.class).resolvePrivateKey().getFingerprint());
             return new DescribeKeyPairsResult().withKeyPairs(keyPairInfo);
         }).when(mock).describeKeyPairs();
     }

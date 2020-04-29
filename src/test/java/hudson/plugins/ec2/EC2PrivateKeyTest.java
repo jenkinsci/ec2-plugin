@@ -23,14 +23,12 @@
  */
 package hudson.plugins.ec2;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
-import java.security.Security;
 
 import com.amazonaws.AmazonClientException;
 
@@ -43,12 +41,6 @@ public class EC2PrivateKeyTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
-
-    /*@Before
-    public void init(){
-        // Tests using the BouncyCastleProvider failed without that
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }*/
 
     private EC2PrivateKey getPrivateKey() {
         return new EC2PrivateKey("-----BEGIN RSA PRIVATE KEY-----\n"

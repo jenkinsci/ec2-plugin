@@ -153,7 +153,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             Thread.sleep(sleepBetweenAttempts);
                             continue;
                         }
-                        EC2PrivateKey ec2PrivateKey = EC2Cloud.resolvePrivateKey(node.getCloud());
+                        EC2PrivateKey ec2PrivateKey = node.getCloud().resolvePrivateKey();
                         String password = "";
                         if (ec2PrivateKey != null){
                             password = ec2PrivateKey.decryptWindowsPassword(passwordData);

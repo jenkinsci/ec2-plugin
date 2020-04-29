@@ -78,7 +78,6 @@ import java.util.logging.SimpleFormatter;
 import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
-import hudson.Extension;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -113,7 +112,6 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 
-import hudson.ProxyConfiguration;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
@@ -207,6 +205,17 @@ public abstract class EC2Cloud extends Cloud {
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
             String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         this(id, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
+    }
+
+    @CheckForNull
+    public EC2PrivateKey resolvePrivateKey(){
+        if (getSshKeysCredentialsId() != null) {
+            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(getSshKeysCredentialsId());
+            if (privateKeyCredential != null) {
+                return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
+            }
+        }
+        return null;
     }
 
     public abstract URL getEc2EndpointUrl() throws IOException;
@@ -381,7 +390,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
         if (usableKeyPair == null) {
-            EC2PrivateKey ec2PrivateKey = resolvePrivateKey(this);
+            EC2PrivateKey ec2PrivateKey = this.resolvePrivateKey();
             if (ec2PrivateKey != null) {
                 usableKeyPair = ec2PrivateKey.find(connect());
             }
@@ -987,17 +996,6 @@ public abstract class EC2Cloud extends Cloud {
         } catch (MalformedURLException ex) {
             throw FormValidation.error("Endpoint URL is not a valid URL");
         }
-    }
-
-    @CheckForNull
-    public static EC2PrivateKey resolvePrivateKey(EC2Cloud cloud){
-        if (cloud.sshKeysCredentialsId != null) {
-            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(cloud.sshKeysCredentialsId);
-            if (privateKeyCredential != null) {
-                return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
-            }
-        }
-        return null;
     }
 
     private static BasicSSHUserPrivateKey getSshCredential(String id){

@@ -289,7 +289,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        EC2PrivateKey ec2PrivateKey = EC2Cloud.resolvePrivateKey(computer.getCloud());
+        EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
         if (ec2PrivateKey != null){
             privateKey = ec2PrivateKey.getPrivateKey();
