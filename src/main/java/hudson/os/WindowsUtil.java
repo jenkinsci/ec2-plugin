@@ -88,35 +88,4 @@ public class WindowsUtil {
         return CMD_METACHARS.matcher(quoteArgument(argument)).replaceAll("^$0");
     }
 
-    /**
-     * Executes a command and arguments using {@code cmd.exe /C ...}.
-     */
-    public static @Nonnull Process execCmd(String... argv) throws IOException {
-        String command = Arrays.stream(argv).map(WindowsUtil::quoteArgumentForCmd).collect(Collectors.joining(" "));
-        return Runtime.getRuntime().exec(new String[]{"cmd.exe", "/C", command});
-    }
-
-    /**
-     * Creates an NTFS junction point if supported. Similar to symbolic links, NTFS provides junction points which
-     * provide different features than symbolic links.
-     * @param junction NTFS junction point to create
-     * @param target target directory to junction
-     * @return the newly created junction point
-     * @throws IOException if the call to mklink exits with a non-zero status code
-     * @throws InterruptedException if the call to mklink is interrupted before completing
-     * @throws UnsupportedOperationException if this method is called on a non-Windows platform
-     */
-    public static @Nonnull File createJunction(@Nonnull File junction, @Nonnull File target) throws IOException, InterruptedException {
-        if(Functions.isWindows() == false) {
-            throw new UnsupportedOperationException("Can only be called on windows platform");
-        }
-        Process mklink = execCmd("mklink", "/J", junction.getAbsolutePath(), target.getAbsolutePath());
-        int result = mklink.waitFor();
-        if (result != 0) {
-            String stderr = IOUtils.toString(mklink.getErrorStream());
-            String stdout = IOUtils.toString(mklink.getInputStream());
-            throw new IOException("Process exited with " + result + "\nStandard Output:\n" + stdout + "\nError Output:\n" + stderr);
-        }
-        return junction;
-    }
 }

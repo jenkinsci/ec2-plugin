@@ -26,6 +26,8 @@ package hudson.plugins.ec2.ssh;
 import java.util.logging.Logger;
 
 import com.trilead.ssh2.ServerHostKeyVerifier;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.security.MessageDigest;
 
 public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
@@ -37,6 +39,7 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
         this.console = console;
     }
 
+    @SuppressFBWarnings(value = "WEAK_MESSAGE_DIGEST_MD5", justification = "Used for tracking, not security.")
     private String getFingerprint(byte[] serverHostKey) throws Exception {
         MessageDigest md5 = MessageDigest.getInstance("MD5");
 
