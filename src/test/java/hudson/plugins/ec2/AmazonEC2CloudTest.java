@@ -34,6 +34,9 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
+import hudson.util.VersionNumber;
+import jenkins.model.Jenkins;
+
 import java.io.IOException;
 import java.util.Collections;
 
@@ -92,6 +95,10 @@ public class AmazonEC2CloudTest {
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        return r.createWebClient().goTo("configure").getFormByName("config");
+        if (Jenkins.getVersion().isNewerThanOrEqualTo(new VersionNumber("2.205"))) {
+            return r.createWebClient().goTo("configureClouds").getFormByName("config");
+        } else {
+            return r.createWebClient().goTo("configure").getFormByName("config");
+        }
     }
 }
