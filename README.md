@@ -558,8 +558,9 @@ certificate, 3) configure WinRM properly and 4) set the firewall rules to allow 
 guidance at the `AMI Type` field help, under the template configuration on your Jenkins instance.
 
 Tips:
-* When the `Allow Self Signed Certificate` field is checked, the plugin checks the CA which issued the 
-certificate and verifies the host it is connecting to is present on the certificate. If the field is not checked, both checks are skipped.
+* When the `Allow Self Signed Certificate` field is checked, the plugin allows self-signed certificates. It means that 
+the plugin neither checks the CA which issued the certificate, nor verifies the host it is connecting to is present on 
+the certificate. If the field is not checked, this kind of certificates are not allowed and both verifications are performed.
 * The EC2 plugin connects to the instance using either an IP address. It does not use the DNS name. You must configure WinRM with a certificate which includes 
 the **IP** of the instance. Something like: 
 ```
