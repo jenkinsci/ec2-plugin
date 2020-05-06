@@ -98,6 +98,18 @@ import java.util.logging.SimpleFormatter;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
+import hudson.ProxyConfiguration;
+import hudson.model.Computer;
+import hudson.model.Descriptor;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.slaves.Cloud;
+import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.util.FormValidation;
+import hudson.util.HttpResponses;
+import hudson.util.Secret;
+import hudson.util.StreamTaskListener;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Hudson's view of EC2.
@@ -307,6 +319,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Debug command to attach to a running instance.
      */
+    @RequirePOST
     public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id)
             throws ServletException, IOException, AmazonClientException {
         checkPermission(PROVISION);
@@ -320,6 +333,7 @@ public abstract class EC2Cloud extends Cloud {
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
     }
 
+    @RequirePOST
     public HttpResponse doProvision(@QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if (template == null) {
@@ -395,7 +409,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         } while(result.getNextToken() != null);
 
-        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, filters, instanceIds);
+        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, instanceIds);
         
         return n;
     }
@@ -406,10 +420,11 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all spot instances are counted.
      */
-    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, List<Filter> filters, Set<String> instanceIds) throws AmazonClientException {
+    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, Set<String> instanceIds) throws AmazonClientException {
         int n = 0;
         String description = template != null ? template.description : null;
         List<SpotInstanceRequest> sirs = null;
+        List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
             filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
         }
@@ -967,6 +982,21 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
+        /**
+         * Tests the connection settings.
+         *
+         * Overriding needs to {@code @RequirePOST}
+         * @param ec2endpoint
+         * @param useInstanceProfileForCredentials
+         * @param credentialsId
+         * @param privateKey
+         * @param roleArn
+         * @param roleSessionName
+         * @param region
+         * @return the validation result
+         * @throws IOException
+         * @throws ServletException
+         */
         protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
@@ -994,7 +1024,9 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
 
+        @RequirePOST
         public ListBoxModel doFillCredentialsIdItems() {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel()
                     .withEmptySelection()
                     .withMatching(

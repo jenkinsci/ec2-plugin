@@ -19,6 +19,7 @@ import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 
+import javax.net.ssl.SSLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,17 +35,24 @@ public class WinConnection {
 
     private boolean useHTTPS;
     private static final int TIMEOUT=8000; //8 seconds
+    private boolean allowSelfSignedCertificate;
 
+    @Deprecated
     public WinConnection(String host, String username, String password) {
+        this(host, username, password, true);
+    }
+    
+    public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
         this.host = host;
         this.username = username;
         this.password = password;
         this.smbclient = new SMBClient();
         this.authentication = new AuthenticationContext(username, password.toCharArray(), null);
+        this.allowSelfSignedCertificate = allowSelfSignedCertificate;
     }
 
     public WinRM winrm() {
-        WinRM winrm = new WinRM(host, username, password);
+        WinRM winrm = new WinRM(host, username, password, allowSelfSignedCertificate);
         winrm.setUseHTTPS(useHTTPS);
         return winrm;
     }
@@ -101,7 +109,16 @@ public class WinConnection {
         return path.substring(3);
     }
 
+    // keep this method for compatibility, not used in this plugin anymore
     public boolean ping() {
+        try {
+            return pingFailingIfSSHHandShakeError();
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+    
+    public boolean pingFailingIfSSHHandShakeError() throws IOException {
         log.log(Level.FINE, "checking SMB connection to " + host);
         try {
             Socket socket=new Socket();
@@ -114,6 +131,11 @@ public class WinConnection {
             return true;
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
+            if (e instanceof SSLException) {
+                throw e;
+            } else if (e.getCause() instanceof SSLException) {
+                throw (SSLException) e.getCause();
+            }
             return false;
         }
     }

@@ -110,7 +110,7 @@ public class AmazonEC2CloudUnitTest {
         
         Mockito.doReturn(AmazonEC2FactoryMockImpl.createAmazonEC2Mock(null)).when(cloud).connect();
 
-        Object[] params = {null, "jenkinsurl", new ArrayList<Filter>(), new HashSet<String>()};
+        Object[] params = {null, "jenkinsurl", new HashSet<String>()};
         int n = Whitebox.invokeMethod(cloud, "countCurrentEC2SpotSlaves", params);
         
         // Should equal number of spot instance requests + 1 for spot nodes not having a spot instance request

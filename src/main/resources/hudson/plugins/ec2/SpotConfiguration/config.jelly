@@ -1,8 +1,6 @@
 <!--
 The MIT License
 
-Copyright (c) 2010, InfraDNA, Inc.
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -22,20 +20,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
-         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-    <f:optionalBlock title="${%Specify Password}" field="specifyPassword" inline="true">
-        <f:entry title="${%Windows Admin Password}" field="password">
-            <f:password />
-        </f:entry>
-    </f:optionalBlock>
-    <f:entry title="${%Use HTTPS}" field="useHTTPS">
-        <f:checkbox default="true"/>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
+  <f:entry title="${%Fallback to on-demand instances}" field="fallbackToOndemand">
+    <f:checkbox />
+  </f:entry>
+
+  <f:optionalBlock name="useBidPrice" title="Set bid price" inline="true" checked="${h.defaultToTrue(instance.useBidPrice)}" field="useBidPrice">
+    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone,roleArn,roleSessionName,ami" />
+    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
+      <f:textbox />
     </f:entry>
-    <f:entry title="${%Allow Self Signed Certificate}" field="allowSelfSignedCertificate" >
-        <f:checkbox default="false"/>
-    </f:entry>
-    <f:entry title="${%Boot Delay}" field="bootDelay">
-        <f:textbox />
-    </f:entry>
+  </f:optionalBlock>
+
+  <f:entry title="${%Spot Block Reservation Duration}" field="spotBlockReservationDuration">
+    <f:number />
+  </f:entry>
 </j:jelly>

@@ -120,11 +120,51 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.servlet.ServletException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.plugins.ec2.util.*;
+
+import hudson.XmlFile;
+import hudson.model.listeners.SaveableListener;
+import hudson.security.Permission;
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
+import jenkins.slaves.iterators.api.NodeIterator;
+
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.*;
+
+import hudson.Extension;
+import hudson.Util;
+import hudson.model.*;
+import hudson.model.Descriptor.FormException;
+import hudson.model.labels.LabelAtom;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.NodePropertyDescriptor;
+import hudson.util.DescribableList;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -195,6 +235,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
 
     public ConnectionStrategy connectionStrategy;
+    
+    public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
     public final boolean associatePublicIp;
 
@@ -243,14 +285,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-            List<? extends NodeProperty<?>> nodeProperties) {
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
@@ -313,7 +355,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, null);
     }
 
     @Deprecated
@@ -632,7 +697,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int getSpotBlockReservationDuration() {
         if (spotConfig == null)
             return 0;
-        return spotConfig.spotBlockReservationDuration;
+        return spotConfig.getSpotBlockReservationDuration();
     }
 
     public String getSpotBlockReservationDurationStr() {
@@ -657,13 +722,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getSpotMaxBidPrice() {
         if (spotConfig == null)
             return null;
-        return SpotConfiguration.normalizeBid(spotConfig.spotMaxBidPrice);
+        return SpotConfiguration.normalizeBid(spotConfig.getSpotMaxBidPrice());
     }
 
     public String getIamInstanceProfile() {
         return iamInstanceProfile;
     }
 
+    @DataBoundSetter
+    public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+    }
+    
+    @NonNull
+    public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
+        return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+    }
+    
     @Override
     public String toString() {
         return "SlaveTemplate{" +
@@ -1087,7 +1162,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(1, provisionOptions, true, spotConfig.fallbackToOndemand);
+            return provisionOndemand(1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         AmazonEC2 ec2 = getParent().connect();
@@ -1182,7 +1257,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
                 String slaveName = spotInstReq.getSpotInstanceRequestId();
 
-                if (spotConfig.fallbackToOndemand) {
+                if (spotConfig.getFallbackToOndemand()) {
                     for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
                         LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
                         Thread.sleep(5000);
@@ -1519,6 +1594,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return ec2.describeInstances(diRequest);
     }
 
+    public boolean isAllowSelfSignedCertificate() {
+        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+    }
+
     @Extension
     public static final class OnSaveListener extends SaveableListener {
         @Override
@@ -1588,33 +1667,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
-        private Image getAmiImage(AmazonEC2 ec2, String ami) {
-            List<String> images = new LinkedList<>();
-            images.add(ami);
-            List<String> owners = new LinkedList<>();
-            List<String> users = new LinkedList<>();
-            DescribeImagesRequest request = new DescribeImagesRequest();
-            request.setImageIds(images);
-            request.setOwners(owners);
-            request.setExecutableUsers(users);
-            List<Image> img = ec2.describeImages(request).getImages();
-            if (img == null || img.isEmpty()) {
-                // de-registered AMI causes an empty list to be
-                // returned. so be defensive
-                // against other possibilities
-                return null;
-            } else {
-                return img.get(0);
-            }
-        }
 
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
+        @RequirePOST
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
                 @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName) throws IOException {
+            checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
@@ -1623,7 +1685,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, new URL(ec2endpoint));
             }
             try {
-                Image img = getAmiImage(ec2, ami);
+                Image img = CloudHelper.getAmiImage(ec2, ami);
                 if (img == null) {
                     return FormValidation.error("No such AMI, or not usable with this accessId: " + ami);
                 }
@@ -1631,6 +1693,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
             } catch (AmazonClientException e) {
                 return FormValidation.error(e.getMessage());
+            }
+        }
+
+        private void checkPermission(Permission p) {
+            final EC2Cloud ancestorObject = Stapler.getCurrentRequest().findAncestorObject(EC2Cloud.class);
+            if (ancestorObject != null) {
+                ancestorObject.checkPermission(p);
+            } else {
+                Jenkins.get().checkPermission(p);
             }
         }
 
@@ -1783,10 +1854,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
+        @RequirePOST
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
+            checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
@@ -1799,116 +1872,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok();
             }
             return FormValidation.error("Not a correct bid price");
-        }
-
-        // Retrieve the availability zones for the region
-        private ArrayList<String> getAvailabilityZones(AmazonEC2 ec2) {
-            ArrayList<String> availabilityZones = new ArrayList<>();
-
-            DescribeAvailabilityZonesResult zones = ec2.describeAvailabilityZones();
-            List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
-
-            for (AvailabilityZone z : zoneList) {
-                availabilityZones.add(z.getZoneName());
-            }
-
-            return availabilityZones;
-        }
-
-        /*
-         * Check the current Spot price of the selected instance type for the selected region
-         */
-        public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region,
-                @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
-
-            String cp = "";
-            String zoneStr = "";
-
-            // Connect to the EC2 cloud with the access id, secret key, and
-            // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
-
-            if (ec2 != null) {
-
-                try {
-                    // Build a new price history request with the currently
-                    // selected type
-                    DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
-                    // If a zone is specified, set the availability zone in the
-                    // request
-                    // Else, proceed with no availability zone which will result
-                    // with the cheapest Spot price
-                    if (getAvailabilityZones(ec2).contains(zone)) {
-                        request.setAvailabilityZone(zone);
-                        zoneStr = zone + " availability zone";
-                    } else {
-                        zoneStr = region + " region";
-                    }
-
-                    /*
-                     * Iterate through the AWS instance types to see if can find a match for the databound String type.
-                     * This is necessary because the AWS API needs the instance type string formatted a particular way
-                     * to retrieve prices and the form gives us the strings in a different format. For example "T1Micro"
-                     * vs "t1.micro".
-                     */
-                    InstanceType ec2Type = null;
-
-                    for (InstanceType it : InstanceType.values()) {
-                        if (it.name().equals(type)) {
-                            ec2Type = it;
-                            break;
-                        }
-                    }
-
-                    /*
-                     * If the type string cannot be matched with an instance type, throw a Form error
-                     */
-                    if (ec2Type == null) {
-                        return FormValidation.error("Could not resolve instance type: " + type);
-                    }
-
-                    if (!ami.isEmpty()) {
-                        Image img = getAmiImage(ec2, ami);
-                        if (img != null) {
-                            Collection<String> productDescriptions = new ArrayList<>();
-                            productDescriptions.add(img.getPlatform() == "Windows" ? "Windows" : "Linux/UNIX");
-                            request.setProductDescriptions(productDescriptions);
-                        }
-                    }
-
-                    Collection<String> instanceType = new ArrayList<>();
-                    instanceType.add(ec2Type.toString());
-                    request.setInstanceTypes(instanceType);
-                    request.setStartTime(new Date());
-
-                    // Retrieve the price history request result and store the
-                    // current price
-                    DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
-
-                    if (!result.getSpotPriceHistory().isEmpty()) {
-                        SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
-
-                        cp = currentPrice.getSpotPrice();
-                    }
-
-                } catch (AmazonServiceException e) {
-                    return FormValidation.error(e.getMessage());
-                }
-            }
-            /*
-             * If we could not return the current price of the instance display an error Else, remove the additional
-             * zeros from the current price and return it to the interface in the form of a message
-             */
-            if (cp.isEmpty()) {
-                return FormValidation.error("Could not retrieve current Spot price");
-            } else {
-                cp = cp.substring(0, cp.length() - 3);
-
-                return FormValidation.ok("The current Spot price for a " + type + " in the " + zoneStr + " is $" + cp);
-            }
         }
 
         public String getDefaultConnectionStrategy() {
@@ -1938,6 +1901,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
-    }
+        
+        public String getDefaultHostKeyVerificationStrategy() {
+            // new templates default to the most secure strategy
+            return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
+        }
 
+        public ListBoxModel doFillHostKeyVerificationStrategyItems(@QueryParameter String hostKeyVerificationStrategy) {
+            return Stream.of(HostKeyVerificationStrategyEnum.values())
+                    .map(v -> {
+                        if (v.name().equals(hostKeyVerificationStrategy)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doCheckHostKeyVerificationStrategy(@QueryParameter String hostKeyVerificationStrategy) {
+            Stream<HostKeyVerificationStrategyEnum> stream = Stream.of(HostKeyVerificationStrategyEnum.values());
+            Stream<HostKeyVerificationStrategyEnum> filteredStream = stream.filter(v -> v.name().equals(hostKeyVerificationStrategy));
+            Optional<HostKeyVerificationStrategyEnum> matched = filteredStream.findFirst();
+            Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
+            return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
+        }
+    }
 }
