@@ -286,6 +286,11 @@ THE SOFTWARE.
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.19</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
