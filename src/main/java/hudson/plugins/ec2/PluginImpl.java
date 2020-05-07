@@ -23,18 +23,40 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.plugins.ec2.util.MinimumInstanceChecker;
-import jenkins.model.Jenkins;
 import hudson.Extension;
 import hudson.Plugin;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import jenkins.model.Jenkins;
+
+import java.io.IOException;
+import java.util.logging.Logger;
 
 /**
  * Added to handle backwards compatibility of xstream class name mapping.
  */
 @Extension
 public class PluginImpl extends Plugin implements Describable<PluginImpl> {
+    private static final Logger LOGGER = Logger.getLogger(PluginImpl.class.getName());
+    
+    // Whether the SshHostKeyVerificationAdministrativeMonitor should show messages when we have templates using
+    // accept-new or check-new-soft strategies
+    private long dismissInsecureMessages; 
+
+    public void saveDismissInsecureMessages(long dismissInsecureMessages) {
+        this.dismissInsecureMessages = dismissInsecureMessages;
+        try {
+            save();
+        } catch(IOException io) {
+            LOGGER.warning("There was a problem saving that you want to dismiss all messages related to insecure EC2 templates");
+        }
+    }
+
+    public long getDismissInsecureMessages() {
+        return dismissInsecureMessages;
+    }
+    
     @Override
     public void start() throws Exception {
         // backward compatibility with the legacy class name

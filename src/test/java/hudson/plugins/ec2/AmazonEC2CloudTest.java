@@ -24,8 +24,6 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.gargoylesoftware.htmlunit.ElementNotFoundException;
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
 import org.junit.Assert;
@@ -35,6 +33,9 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
+
+import hudson.util.VersionNumber;
+import jenkins.model.Jenkins;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -85,12 +86,11 @@ public class AmazonEC2CloudTest {
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        try {
+        if (Jenkins.getVersion().isNewerThanOrEqualTo(new VersionNumber("2.205"))) {
             return r.createWebClient().goTo("configureClouds").getFormByName("config");
-        } catch (FailingHttpStatusCodeException ex){    // Fallback for older jenkins versions
+        } else {
             return r.createWebClient().goTo("configure").getFormByName("config");
         }
-
     }
 
 }

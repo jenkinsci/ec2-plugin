@@ -15,9 +15,10 @@ public class WindowsData extends AMITypeData {
     private final boolean useHTTPS;
     private final String bootDelay;
     private final boolean specifyPassword;
+    private final Boolean allowSelfSignedCertificate; //Boolean to allow nulls when the saved template doesn't have the field
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate) {
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
@@ -26,6 +27,12 @@ public class WindowsData extends AMITypeData {
         if (!specifyPassword && !this.password.getPlainText().isEmpty()) {
             specifyPassword = true;
         }
+        this.allowSelfSignedCertificate = allowSelfSignedCertificate;
+    }
+    
+    @Deprecated
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword) {
+        this(password, useHTTPS, bootDelay, specifyPassword, true);
     }
 
     public WindowsData(String password, boolean useHTTPS, String bootDelay) {
@@ -66,6 +73,10 @@ public class WindowsData extends AMITypeData {
         }
     }
 
+    public boolean isAllowSelfSignedCertificate(){
+        return allowSelfSignedCertificate == null || allowSelfSignedCertificate;
+    }
+    
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
@@ -97,6 +108,11 @@ public class WindowsData extends AMITypeData {
             if (other.password != null)
                 return false;
         } else if (!password.equals(other.password))
+            return false;
+        if (allowSelfSignedCertificate == null) {
+            if (other.allowSelfSignedCertificate != null)
+                return false;
+        } else if (!allowSelfSignedCertificate.equals(other.allowSelfSignedCertificate))
             return false;
         return useHTTPS == other.useHTTPS && specifyPassword == other.specifyPassword;
     }

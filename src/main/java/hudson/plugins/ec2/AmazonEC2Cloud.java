@@ -167,12 +167,14 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
+        @RequirePOST
         public ListBoxModel doFillRegionItems(
                 @QueryParameter String altEC2Endpoint,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId)
 
                 throws IOException, ServletException {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             ListBoxModel model = new ListBoxModel();
 

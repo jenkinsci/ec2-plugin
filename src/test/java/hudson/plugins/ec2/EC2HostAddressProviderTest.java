@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.ec2.model.Instance;
-import com.google.common.net.HostAndPort;
 import org.junit.Test;
 
 public class EC2HostAddressProviderTest {
