@@ -34,7 +34,7 @@ public enum HostKeyVerificationStrategyEnum {
     CHECK_NEW_HARD("check-new-hard", "yes", new CheckNewHardStrategy()),
     CHECK_NEW_SOFT("check-new-soft", "accept-new", new CheckNewSoftStrategy()),
     ACCEPT_NEW("accept-new", "accept-new", new AcceptNewStrategy()),
-    OFF("off", "off", new NonVerifyingKeyVerificationStrategy());
+    OFF("off", "no", new NonVerifyingKeyVerificationStrategy());
     
     private final String displayText;
     private final SshHostKeyVerificationStrategy strategy;
