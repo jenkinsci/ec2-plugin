@@ -798,12 +798,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            riRequest.setSecurityGroups(securityGroupSet);
             List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
                                             .getSecurityGroups()
                                             .stream().map(SecurityGroup::getGroupId)
                                             .collect(Collectors.toList());
-            net.setGroups(groupIds);
+            if (getAssociatePublicIp()) {
+                net.setGroups(groupIds);
+            } else {
+                riRequest.setSecurityGroups(securityGroupSet);
+            }
             if (!groupIds.isEmpty()) {
                 diFilters.add(new Filter("instance.group-id").withValues(groupIds));
             }
