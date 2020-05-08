@@ -241,6 +241,13 @@ THE SOFTWARE.
             <artifactId>testcontainers</artifactId>
             <version>1.8.3</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <!-- Use common-compress from core -->
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
