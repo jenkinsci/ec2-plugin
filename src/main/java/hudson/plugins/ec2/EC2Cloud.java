@@ -161,7 +161,8 @@ public abstract class EC2Cloud extends Cloud {
     @Deprecated
     private transient Secret secretKey;
     @CheckForNull
-    private EC2PrivateKey privateKey;
+    @Deprecated
+    private transient EC2PrivateKey privateKey;
     @CheckForNull
     private String sshKeysCredentialsId;
 
@@ -183,14 +184,13 @@ public abstract class EC2Cloud extends Cloud {
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
         this.credentialsId = credentialsId;
-        if (privateKey != null) {
-            this.privateKey = new EC2PrivateKey(privateKey);
-        }
         this.sshKeysCredentialsId = sshKeysCredentialsId;
 
-        if (this.sshKeysCredentialsId == null && privateKey != null){
-            migratePrivateSshKeyToCredential(privateKey);
+        if (this.sshKeysCredentialsId == null && ( this.privateKey != null || privateKey != null)){
+            migratePrivateSshKeyToCredential(this.privateKey != null ? this.privateKey.getPrivateKey() : privateKey);
         }
+        this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
+
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -344,7 +344,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @Deprecated
     public EC2PrivateKey getPrivateKey() {
-        return null; // This enforces that CasC will never output privateKey on export
+        return privateKey;
     }
 
     public String getInstanceCapStr() {
