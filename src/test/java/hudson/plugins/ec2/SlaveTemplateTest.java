@@ -86,11 +86,6 @@ public class SlaveTemplateTest {
 
     @Rule public JenkinsRule r = new JenkinsRule();
 
-    @Before
-    public void prepareCredentialStore(){
-
-    }
-
     @Test
     public void testConfigRoundtrip() throws Exception {
         String ami = "ami1";

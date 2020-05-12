@@ -1002,6 +1002,7 @@ public abstract class EC2Cloud extends Cloud {
         }
     }
 
+    @CheckForNull
     private static BasicSSHUserPrivateKey getSshCredential(String id){
 
         BasicSSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
