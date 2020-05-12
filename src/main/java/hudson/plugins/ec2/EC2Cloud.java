@@ -161,6 +161,8 @@ public abstract class EC2Cloud extends Cloud {
     @Deprecated
     private transient Secret secretKey;
     @CheckForNull
+    private EC2PrivateKey privateKey;
+    @CheckForNull
     private String sshKeysCredentialsId;
 
     /**
@@ -181,6 +183,9 @@ public abstract class EC2Cloud extends Cloud {
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
         this.credentialsId = credentialsId;
+        if (privateKey != null) {
+            this.privateKey = new EC2PrivateKey(privateKey);
+        }
         this.sshKeysCredentialsId = sshKeysCredentialsId;
 
         if (this.sshKeysCredentialsId == null && privateKey != null){
