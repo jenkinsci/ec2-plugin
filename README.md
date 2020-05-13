@@ -615,6 +615,15 @@ This issue can be solved in different ways:
       
     ![](docs/images/init-scripts.png)
 
+## Downgrade from 1.50.2, 1.49.2, 1.46.3 to a previous version
+If you updated to 1.50.2, or 1.49.2 or 1.46.3 and you need to downgrade back to the previous version, be sure to **remove** the
+file `JENKINS_HOME/ec2.xml` before doing that. This file is created if you click on the button *Dismiss these messages* of 
+the monitor that warns you when there are some template with a weak  strategy. If you don't do that, Jenkins will start and 
+will overwrite its config.xml file **losing your cloud configuration**.
+
+At this moment, it seems related with a race-condition between the plugin and the `OldDataMonitor` class of Jenkins Core. 
+See https://issues.jenkins-ci.org/browse/JENKINS-62231
+
 # Change Log
 
 Newer changelogs are posted [here](https://github.com/jenkinsci/ec2-plugin/releases), 
