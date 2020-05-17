@@ -27,6 +27,7 @@
    * [Known Issues](#known-issues)
       * [Authentication Timeout](#authentication-timeout)
       * [Amazon Linux build/connectivity issues](#amazon-linux-buildconnectivity-issues)
+      * [Downgrade from 1.50.2, 1.49.2, 1.46.3 to a previous version](#downgrade-from-1502-1492-1463-to-a-previous-version)
    * [Change Log](#change-log)
    
 # Introduction
