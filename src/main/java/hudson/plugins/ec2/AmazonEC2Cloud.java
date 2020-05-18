@@ -64,6 +64,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
      * Represents the region. Can be null for backward compatibility reasons.
      */
     private String region;
+    private String altEC2Endpoint;
 
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
@@ -73,6 +74,13 @@ public class AmazonEC2Cloud extends EC2Cloud {
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
+        this.altEC2Endpoint = "";
+    }
+
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String, altEC2Endpoint, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
+        this.region = region;
+        this.altEC2Endpoint = altEC2Endpoint;
     }
 
     public String getCloudName() {
@@ -96,6 +104,17 @@ public class AmazonEC2Cloud extends EC2Cloud {
         if (region.indexOf('_') > 0)
             return region.replace('_', '-').toLowerCase(Locale.ENGLISH);
         return region;
+    }
+
+    @DataBoundSetter
+    public void setAltEC2Endpoint(String altEC2Endpoint) {
+
+        this.altEC2Endpoint = altEC2Endpoint;
+    }
+
+    public String getAltEC2Endpoint() {
+
+        return this.altEC2Endpoint;
     }
 
     public static URL getEc2EndpointUrl(String region) {
