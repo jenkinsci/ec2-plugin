@@ -77,7 +77,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
         this.altEC2Endpoint = "";
     }
 
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String, altEC2Endpoint, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String altEC2Endpoint, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
         this.altEC2Endpoint = altEC2Endpoint;
