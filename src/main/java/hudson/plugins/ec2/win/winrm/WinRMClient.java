@@ -32,7 +32,6 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.Lookup;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
@@ -43,7 +42,7 @@ import org.apache.http.impl.auth.BasicSchemeFactory;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
@@ -76,6 +75,36 @@ public class WinRMClient {
     private boolean useHTTPS;
     private BasicCredentialsProvider credsProvider;
     private boolean allowSelfSignedCertificate;
+
+    private static SSLConnectionSocketFactory selfSignedFactory;
+    private static SSLConnectionSocketFactory systemSocketFactory;
+
+    private static PoolingHttpClientConnectionManager selfSignedConnectionManager;
+    private static PoolingHttpClientConnectionManager systemSocketConnectionManager;
+
+    static {
+        try {
+            selfSignedFactory = new SSLConnectionSocketFactory(
+                                new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
+                                NoopHostnameVerifier.INSTANCE);
+
+            selfSignedConnectionManager = new PoolingHttpClientConnectionManager(RegistryBuilder.<ConnectionSocketFactory>create()
+                                                    .register("https", selfSignedFactory)
+                                                    .build());
+            selfSignedConnectionManager.setMaxTotal(200);
+            selfSignedConnectionManager.setDefaultMaxPerRoute(20);
+        } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException e) {
+        }
+
+        systemSocketFactory = SSLConnectionSocketFactory.getSystemSocketFactory();
+        
+        systemSocketConnectionManager = new PoolingHttpClientConnectionManager(RegistryBuilder.<ConnectionSocketFactory>create()
+                                                .register("https", systemSocketFactory)
+                                                .build());
+
+        systemSocketConnectionManager.setMaxTotal(200);
+        systemSocketConnectionManager.setDefaultMaxPerRoute(20);
+    }
     
     @Deprecated
     public WinRMClient(URL url, String username, String password) {
@@ -201,26 +230,19 @@ public class WinRMClient {
             builder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
         }
         if (useHTTPS) {
-            try {
-                SSLConnectionSocketFactory sslConnectionFactory;
-                
-                if (allowSelfSignedCertificate) {
-                    sslConnectionFactory = new SSLConnectionSocketFactory(
-                            new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
-                            NoopHostnameVerifier.INSTANCE);
-                    log.log(Level.FINE, "Allowing self-signed certificates");
+
+            if (allowSelfSignedCertificate) {
+                log.log(Level.FINE, "Allowing self-signed certificates");
+                if (selfSignedConnectionManager == null || selfSignedFactory == null) {
+                    log.log(Level.WARNING, "Self-signed connection manager was not properly intialized");
                 } else {
-                    sslConnectionFactory = SSLConnectionSocketFactory.getSystemSocketFactory();
-                    log.log(Level.FINE, "Using system socket factory");
+                    builder.setSSLSocketFactory(selfSignedFactory);
+                    builder.setConnectionManager(selfSignedConnectionManager);
                 }
-                
-                builder.setSSLSocketFactory(sslConnectionFactory);
-                Lookup<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                                                                .register("https", sslConnectionFactory)
-                                                                .build();
-                HttpClientConnectionManager ccm = new BasicHttpClientConnectionManager(registry);
-                builder.setConnectionManager(ccm);
-            } catch (KeyStoreException | KeyManagementException | NoSuchAlgorithmException e) {
+            } else {
+                log.log(Level.FINE, "Using system socket factory");
+                builder.setSSLSocketFactory(systemSocketFactory);
+                builder.setConnectionManager(systemSocketConnectionManager);
             }
         }
         RequestConfig requestConfig = RequestConfig.custom()
