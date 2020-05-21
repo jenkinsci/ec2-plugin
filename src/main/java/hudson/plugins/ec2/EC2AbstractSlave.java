@@ -740,11 +740,11 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }
 
-    public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
+    public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String altEC2Endpoint, String region) {
         ListBoxModel model = new ListBoxModel();
 
         if (!StringUtils.isEmpty(region)) {
-            AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(altEC2Endpoint, region));
             DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
             List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
             model.add("<not specified>", "");
@@ -772,11 +772,12 @@ public abstract class EC2AbstractSlave extends Slave {
 
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
                                             @QueryParameter String credentialsId,
+                                            @QueryParameter String altEC2Endpoint,
                                             @QueryParameter String region,
                                             @QueryParameter String roleArn,
                                             @QueryParameter String roleSessionName) {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            return fillZoneItems(credentialsProvider, region);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, altEC2Endpoint, region);
+            return fillZoneItems(credentialsProvider, altEC2Endpoint, region);
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {

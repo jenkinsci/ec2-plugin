@@ -46,6 +46,7 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Util;
 import hudson.Extension;
 import hudson.ProxyConfiguration;
 import hudson.model.Computer;
@@ -791,7 +792,7 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
      * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
-     * @param requestedNum The requested number of nodes to re-attach. We don't go above this in the case its value corresponds to an instance cap. 
+     * @param requestedNum The requested number of nodes to re-attach. We don't go above this in the case its value corresponds to an instance cap.
      */
     void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum) throws IOException {
         LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
@@ -904,6 +905,7 @@ public abstract class EC2Cloud extends Cloud {
             final String credentialsId,
             final String roleArn,
             final String roleSessionName,
+            final String altEC2Endpoint,
             final String region) {
 
         AWSCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
@@ -913,7 +915,7 @@ public abstract class EC2Cloud extends Cloud {
                     .withStsClient(AWSSecurityTokenServiceClientBuilder.standard()
                             .withCredentials(provider)
                             .withRegion(region)
-                            .withClientConfiguration(createClientConfiguration(convertHostName(region)))
+                            .withClientConfiguration(createClientConfiguration(convertHostName(altEC2Endpoint, region)))
                             .build())
                     .build();
         }
@@ -978,7 +980,16 @@ public abstract class EC2Cloud extends Cloud {
     /***
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
-    public static String convertHostName(String ec2HostName) {
+    public static String convertHostName(String altEC2Endpoint, String ec2HostName) {
+        if ( Util.fixEmpty(altEC2Endpoint) != null) {
+            try {
+                URL url = new URL(altEC2Endpoint);
+                return url.getHost();
+            } catch ( MalformedURLException e ) {
+                throw new Error(e);
+            }
+        }
+
         if (ec2HostName == null || ec2HostName.length() == 0)
             ec2HostName = DEFAULT_EC2_HOST;
         if (!ec2HostName.contains("."))
@@ -1127,7 +1138,7 @@ public abstract class EC2Cloud extends Cloud {
                     return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
                 }
 
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, ec2endpoint.toString(), region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 

@@ -101,17 +101,21 @@ public class AmazonEC2Cloud extends EC2Cloud {
         return region;
     }
 
-    public static URL getEc2EndpointUrl(String region) {
+    public static URL getEc2EndpointUrl(String altEC2Endpoint, String region) {
         try {
-            return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
+            if (Util.fixEmpty(altEC2Endpoint) == null) {
+                return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
+            } else {
+                return new URL(altEC2Endpoint);
+            }
         } catch (MalformedURLException e) {
-            throw new Error(e); // Impossible
+            throw new Error(e);
         }
     }
 
     @Override
     public URL getEc2EndpointUrl() {
-        return getEc2EndpointUrl(getRegion());
+        return getEc2EndpointUrl( altEC2Endpoint, getRegion() );
     }
 
     @Override
@@ -143,7 +147,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     @Override
     protected AWSCredentialsProvider createCredentialsProvider() {
-        return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getRegion());
+        return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getAltEC2Endpoint(), getRegion());
     }
 
     @Extension
@@ -214,6 +218,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         @RequirePOST
         public FormValidation doTestConnection(
+                @QueryParameter String altEC2Endpoint,
                 @QueryParameter String region,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId,
@@ -227,7 +232,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
+            return super.doTestConnection(getEc2EndpointUrl(altEC2Endpoint, region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

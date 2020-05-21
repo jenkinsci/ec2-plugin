@@ -284,7 +284,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
 
     public ConnectionStrategy connectionStrategy;
-    
+
     public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
     public final boolean associatePublicIp;
@@ -404,8 +404,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
-        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
-        
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+
         readResolve(); // initialize
     }
 
@@ -780,14 +780,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundSetter
     public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
-        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
-    
+
     @NonNull
     public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
         return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
-    
+
     @Override
     public String toString() {
         return "SlaveTemplate{" +
@@ -1738,10 +1738,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName) throws IOException {
             checkPermission(EC2Cloud.PROVISION);
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, ec2endpoint, region);
             AmazonEC2 ec2;
             if (region != null) {
-                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(ec2endpoint, region));
             } else {
                 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, new URL(ec2endpoint));
             }
@@ -1917,12 +1917,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @RequirePOST
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
+                @QueryParameter String credentialsId, @QueryParameter String altEC2Endpoint, @QueryParameter String region, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
             checkPermission(EC2Cloud.PROVISION);
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, altEC2Endpoint, region);
+            return EC2AbstractSlave.fillZoneItems(credentialsProvider, altEC2Endpoint, region);
         }
 
         /*
@@ -1962,7 +1962,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
-        
+
         public String getDefaultHostKeyVerificationStrategy() {
             // new templates default to the most secure strategy
             return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
