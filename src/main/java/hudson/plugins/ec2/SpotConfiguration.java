@@ -134,7 +134,7 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
          */
         @RequirePOST
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region,
+                @QueryParameter String credentialsId, @QueryParameter String altEC2Endpoint, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
 
@@ -145,8 +145,8 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
 
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, altEC2Endpoint, region);
+            AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(altEC2Endpoint, region));
 
             if (ec2 != null) {
 
