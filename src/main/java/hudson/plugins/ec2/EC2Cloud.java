@@ -1054,6 +1054,7 @@ public abstract class EC2Cloud extends Cloud {
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 
+        @RequirePOST
         public FormValidation doCheckSshKeysCredentialsId(@QueryParameter String value) throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
