@@ -40,9 +40,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
     private static final String DEFAULT_MAX_SLEEP = Long.toString(TimeUnit.MINUTES.toMillis(30));
 
-    private static long maxGetPassThreadSleep = Long.parseLong(System.getProperty(EC2WindowsLauncher.class.getName() + ".maxGetPassThreadSleep", DEFAULT_MAX_SLEEP));
+    private static long maxGetPassThreadSleep;
 
-    private static long maxWinRMThreadSleep = Long.parseLong(System.getProperty(EC2WindowsLauncher.class.getName() + ".maxWinRMThreadSleep", DEFAULT_MAX_SLEEP));
+    private static long maxWinRMThreadSleep;
 
     private long sleepBetweenGetPassRange = TimeUnit.SECONDS.toMillis(1);
 
@@ -150,6 +150,17 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         logger.println(node.getDisplayName() + " booted at " + node.getCreatedTime());
         boolean alreadyBooted = (startTime - node.getCreatedTime()) > TimeUnit.MINUTES.toMillis(3);
         WinConnection connection = null;
+        maxGetPassThreadSleep = Long.parseLong(System.getProperty(EC2WindowsLauncher.class.getName() + ".maxGetPassThreadSleep", DEFAULT_MAX_SLEEP));
+        maxWinRMThreadSleep = Long.parseLong(System.getProperty(EC2WindowsLauncher.class.getName() + ".maxWinRMThreadSleep", DEFAULT_MAX_SLEEP));
+
+        if (maxGetPassThreadSleep <= 0) {
+            maxGetPassThreadSleep =  TimeUnit.SECONDS.toMillis(1);;
+        }
+
+        if (maxWinRMThreadSleep <= 0) {
+            maxWinRMThreadSleep = TimeUnit.SECONDS.toMillis(1);;
+        }
+
         while (true) {
             boolean allowSelfSignedCertificate = node.isAllowSelfSignedCertificate();
 
@@ -252,17 +263,13 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     }
 
     private void getPassBackoff() {
-        long previousSleepBetweenGetPassRange = sleepBetweenGetPassRange;
-        sleepBetweenGetPassRange = sleepBetweenGetPassRange * 2;
-        sleepBetweenGetPassAttempts = ThreadLocalRandom.current().nextLong(previousSleepBetweenGetPassRange + 1,
-                Math.min(maxGetPassThreadSleep, sleepBetweenGetPassRange));
+        sleepBetweenGetPassRange = Math.min(maxGetPassThreadSleep, sleepBetweenGetPassRange * 2);
+        sleepBetweenGetPassAttempts = ThreadLocalRandom.current().nextLong(0, sleepBetweenGetPassRange);
     }
 
     private void winRMBackoff() {
-        long previousSleepBetweenWinRMRange = sleepBetweenWinRMRange;
-        sleepBetweenWinRMRange = sleepBetweenWinRMRange * 2;
-        sleepBetweenWinRMAttempts = ThreadLocalRandom.current().nextLong(previousSleepBetweenWinRMRange + 1,
-                Math.min(maxWinRMThreadSleep, sleepBetweenWinRMRange));
+        sleepBetweenWinRMRange = Math.min(maxWinRMThreadSleep, sleepBetweenWinRMRange * 2);
+        sleepBetweenWinRMAttempts = ThreadLocalRandom.current().nextLong(0, sleepBetweenWinRMRange);
     }
 
     private void resetGetPassBackoff() {
