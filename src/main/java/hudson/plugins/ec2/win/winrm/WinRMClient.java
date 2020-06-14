@@ -66,7 +66,7 @@ public class WinRMClient {
     private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
     private boolean useHTTPS;
     private BasicCredentialsProvider credsProvider;
-    private boolean     allowSelfSignedCertificate;
+    private boolean allowSelfSignedCertificate;
     
     @Deprecated
     public WinRMClient(URL url, String username, String password) {
