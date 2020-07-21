@@ -86,7 +86,7 @@ THE SOFTWARE.
         <jenkins.version>2.176.4</jenkins.version>
         <java.level>8</java.level>
         <jcasc.version>1.36</jcasc.version>
-        <aws-java-sdk.version>1.11.723</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.821</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -272,6 +272,11 @@ THE SOFTWARE.
                 <version>9</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.11.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
