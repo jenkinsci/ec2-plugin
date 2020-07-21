@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.1</version>
+        <version>4.4</version>
         <relativePath />
     </parent>
 
@@ -83,7 +83,7 @@ THE SOFTWARE.
     <properties>
         <revision>1.51</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.176.4</jenkins.version>
+        <jenkins.version>2.204.6</jenkins.version>
         <java.level>8</java.level>
         <jcasc.version>1.36</jcasc.version>
         <aws-java-sdk.version>1.11.821</aws-java-sdk.version>
@@ -164,6 +164,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+            <version>3.4.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -268,8 +269,8 @@ THE SOFTWARE.
             </dependency>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.176.x</artifactId>
-                <version>9</version>
+                <artifactId>bom-2.204.x</artifactId>
+                <version>11</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
