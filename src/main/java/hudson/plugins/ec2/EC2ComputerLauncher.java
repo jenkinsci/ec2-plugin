@@ -23,15 +23,29 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import hudson.model.Action;
+import hudson.model.Actionable;
+import hudson.model.Executor;
+import hudson.model.Queue;
+import hudson.model.Result;
+import hudson.model.Slave;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
+import hudson.slaves.OfflineCause;
 import hudson.slaves.SlaveComputer;
+import hudson.model.queue.SubTask;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.amazonaws.AmazonClientException;
+import jenkins.model.CauseOfInterruption;
+
+import javax.annotation.Nonnull;
 
 /**
  * {@link ComputerLauncher} for EC2 that wraps the real user-specified {@link ComputerLauncher}.
@@ -75,4 +89,95 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
             throws AmazonClientException, IOException, InterruptedException;
 
+
+    /**
+     * This method is called after a node disconnects. See {@link ComputerLauncher#afterDisconnect(SlaveComputer, TaskListener)}
+     * This method is overriden to perform a check to see if the node that is disconnected is a spot instance and
+     * whether the disconnection is a spot interruption event. If it is a spot interruption event, the tasks that the
+     * node was processing will be resubmitted if a user selects the option to do so.
+     * @param computer
+     * @param listener
+     */
+    @Override
+    public void afterDisconnect(SlaveComputer computer, TaskListener listener) {
+        if (computer == null) return;  // potential edge case where computer is null
+
+        Slave node = computer.getNode();
+        if (node instanceof EC2SpotSlave) {
+
+            // checking if its an unexpected disconnection
+            final boolean isUnexpectedDisconnection = computer.isOffline() && computer.getOfflineCause()
+                    instanceof OfflineCause.ChannelTermination;
+            boolean shouldRestart = ((EC2SpotSlave) node).getRestartSpotInterruption();
+            if (isUnexpectedDisconnection && shouldRestart) {
+                SpotInstanceRequest spotRequest = ((EC2SpotSlave) node).getSpotRequest();
+                if (spotRequest == null) {
+                    LOGGER.log(Level.WARNING, String.format("Could not get spot request for spot instance node %s",
+                            node.getNodeName()));
+                    return;
+                }
+                String code = spotRequest.getStatus().getCode();
+                // list of status codes - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html#spot-instance-bid-status-understand
+                if (code.equals("instance-stopped-by-price") || code.equals("instance-stopped-no-capacity") ||
+                        code.equals("instance-terminated-by-price") || code.equals("instance-terminated-no-capacity")) {
+                    LOGGER.log(Level.INFO, String.format("Node %s was terminated due to spot interruption. Retriggering " +
+                            "job", node.getNodeName()));
+                    List<Executor> executors = computer.getExecutors();
+                    for (Executor executor : executors) {
+                        Queue.Executable currentExecutable = executor.getCurrentExecutable();
+                        if (currentExecutable !=null) {  // interrupting all executables
+                            executor.interrupt(Result.ABORTED, new EC2SpotInterruptedCause(node.getNodeName()));
+                            SubTask subTask = currentExecutable.getParent();
+                            Queue.Task task = subTask.getOwnerTask();
+                            // Get actions (if any)
+                            List<Action> actions = new ArrayList<>();
+                            if (currentExecutable instanceof Actionable) {
+                                actions = ((Actionable) currentExecutable).getActions(Action.class);
+                            }
+                            LOGGER.log(Level.INFO, String.format("Spot instance for node %s was terminated. " +
+                                    "Resubmitting task %s with actions %s", node.getNodeName(), task, actions));
+                            Queue.getInstance().schedule2(task, 10, actions);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * This {@link CauseOfInterruption} is used when a Node is disconnected due to a Spot Interruption event
+     */
+    static class EC2SpotInterruptedCause extends CauseOfInterruption {
+
+        @Nonnull
+        private final String nodeName;
+
+        public EC2SpotInterruptedCause(@Nonnull String nodeName) {
+            this.nodeName = nodeName;
+        }
+
+        @Override
+        public String getShortDescription() {
+            return "EC2 spot instance for node " + nodeName + " was terminated";
+        }
+
+        @Override
+        public int hashCode() {
+            return nodeName.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return getShortDescription();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof EC2SpotInterruptedCause) {
+                return nodeName.equals(((EC2SpotInterruptedCause) obj).nodeName);
+            } else {
+                return false;
+            }
+        }
+    }
 }

@@ -71,10 +71,12 @@ public abstract class EC2AgentConfig {
     public static class Spot extends EC2AgentConfig {
 
         final String spotInstanceRequestId;
+        boolean restartSpotInterruption;
 
         private Spot(SpotBuilder builder) {
             super(builder);
             this.spotInstanceRequestId = builder.spotInstanceRequestId;
+            this.restartSpotInterruption = builder.restartSpotInterruption;
         }
     }
 
@@ -265,9 +267,15 @@ public abstract class EC2AgentConfig {
     public static class SpotBuilder extends Builder<SpotBuilder, Spot> {
 
         private String spotInstanceRequestId;
+        private boolean restartSpotInterruption;
 
         public SpotBuilder withSpotInstanceRequestId(String spotInstanceRequestId) {
             this.spotInstanceRequestId = spotInstanceRequestId;
+            return this;
+        }
+
+        public SpotBuilder withRestartSpotInterruption(boolean restartSpotInterruption) {
+            this.restartSpotInterruption = restartSpotInterruption;
             return this;
         }
 
