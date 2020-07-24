@@ -167,7 +167,7 @@ public class SlaveTemplateTest {
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
         
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);

@@ -238,6 +238,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     
     public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
+    public final String staticHostKeys;
+
     public final boolean associatePublicIp;
 
     protected transient EC2Cloud parent;
@@ -292,7 +294,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, String staticHostKeys) {
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
@@ -355,7 +357,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
-        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+        this.staticHostKeys = staticHostKeys;
         
         readResolve(); // initialize
     }
@@ -378,7 +381,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp,
                 customDeviceMapping, connectBySSHProcess, monitoring,
                 t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, null);
+                nodeProperties, null, "");
     }
 
     @Deprecated
@@ -738,7 +741,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
         return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
-    
+
+    public String getStaticHostKeys() {
+        return staticHostKeys;
+    }
+
     @Override
     public String toString() {
         return "SlaveTemplate{" +
