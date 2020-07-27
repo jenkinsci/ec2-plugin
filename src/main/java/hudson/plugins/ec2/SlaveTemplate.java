@@ -238,7 +238,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     
     public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
-    public final String staticHostKeys;
+    public String staticHostKeys;
 
     public final boolean associatePublicIp;
 
