@@ -58,7 +58,7 @@ public class CheckStaticStrategy extends SshHostKeyVerificationStrategy {
 
         SlaveTemplate computerSlaveTemplate = computer.getSlaveTemplate();
         if (computerSlaveTemplate == null) {
-            EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), "slave template not exists");
+            EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), "No compute slave template found, return empty hostKeys list");
             return hostKeys;
         }
 
@@ -67,8 +67,8 @@ public class CheckStaticStrategy extends SshHostKeyVerificationStrategy {
         while (scanner.hasNextLine()) {
             String hostKeyString = scanner.nextLine();
             String[] hostKeyParts = hostKeyString.split(" ");
-            if (hostKeyParts.length != 2) {
-                EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), "invalid static SSH key");
+            if (hostKeyParts.length < 2 || hostKeyParts.length > 3) {
+                EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), "The provided static SSH key is invalid");
                 continue;
             }
             HostKey hostKey = new HostKey(hostKeyParts[0], Base64.getDecoder().decode(hostKeyParts[1]));
@@ -84,7 +84,7 @@ public class CheckStaticStrategy extends SshHostKeyVerificationStrategy {
         ArrayList<HostKey> staticHostKeys = getStaticHostKeys(computer);
 
         if (staticHostKeys.size() < 1) {
-            EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), "No static SSH keys found");
+            EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), "No configured static SSH key or none of the statically configured SSH keys are valid");
             // To avoid reconnecting continuously
             computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed()));
             return false;
