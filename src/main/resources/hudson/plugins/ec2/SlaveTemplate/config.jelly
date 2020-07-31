@@ -201,7 +201,7 @@ THE SOFTWARE.
       </f:entry>
 
     <f:entry title="${%Static Host Keys}" field="staticHostKeys">
-        <f:textbox />
+        <f:textarea />
     </f:entry>
       
     <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">

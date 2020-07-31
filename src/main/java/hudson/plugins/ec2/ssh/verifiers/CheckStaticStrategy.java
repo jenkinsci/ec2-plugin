@@ -39,14 +39,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * This strategy checks the key presented by the host with the one printed out in the instance console. The key should
- * be printed with the format "algorithm key". Example: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJbvbEIoY3tqKwkeRW/L1FnbCLLp8a1TwSOyZHKJqFFR
- * If the key is not found because the console is blank, the connection is closed and wait until console prints something.
- * If the key is not found because the instance doesn't print any key, the connection is trusted.
- * If it's found and the key presented by the instance doesn't match the one printed in the console, the connection is closed
- * and a warning is logged.
- * If the key is found, it's stored to check future connections.
- * @author M Ramon Leon
+ * This strategy checks the key presented by the host with the key in the Static Host Keys` field in the slave template.
+ * If the key is not found, the connection is not trusted. If it's found, the key is stored in the ssh-host-key.xml file
+ * of the node directory and checked on every further connection.
+ * @author Christian Groschupp
  * @since TODO
  */
 public class CheckStaticStrategy extends SshHostKeyVerificationStrategy {
