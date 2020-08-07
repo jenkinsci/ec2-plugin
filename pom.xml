@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.1</version>
+        <version>4.4</version>
         <relativePath />
     </parent>
 
@@ -81,14 +81,12 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>1.51</revision>
+        <revision>1.52</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.190.3</jenkins.version>
+        <jenkins.version>2.204.6</jenkins.version>
         <java.level>8</java.level>
         <jcasc.version>1.36</jcasc.version>
-        <aws-java-sdk.version>1.11.723</aws-java-sdk.version>
-        <!-- BOM specific properties -->
-        <slf4jVersion>1.7.26</slf4jVersion>
+        <aws-java-sdk.version>1.11.821</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -100,6 +98,10 @@ THE SOFTWARE.
                 <exclusion>
                     <groupId>org.bouncycastle</groupId>
                     <artifactId>bcprov-jdk15on</artifactId>
+                </exclusion>
+                <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -176,6 +178,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+            <version>3.4.6</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -254,6 +257,13 @@ THE SOFTWARE.
             <artifactId>testcontainers</artifactId>
             <version>1.8.3</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <!-- Use common-compress from core -->
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
@@ -281,15 +291,15 @@ THE SOFTWARE.
             </dependency>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.176.x</artifactId>
-                <version>9</version>
+                <artifactId>bom-2.204.x</artifactId>
+                <version>11</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
             <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-compress</artifactId>
-                <version>1.19</version>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.11.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -27,6 +27,7 @@
    * [Known Issues](#known-issues)
       * [Authentication Timeout](#authentication-timeout)
       * [Amazon Linux build/connectivity issues](#amazon-linux-buildconnectivity-issues)
+      * [Downgrade from 1.50.2, 1.49.2, 1.46.3 to a previous version](#downgrade-from-1502-1492-1463-to-a-previous-version)
    * [Change Log](#change-log)
    
 # Introduction
@@ -395,7 +396,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.userData,
   SlaveTemplateUsEast1Parameters.numExecutors,
   SlaveTemplateUsEast1Parameters.remoteAdmin,
-  new UnixData(null, null, null),
+  new UnixData(null, null, null, null),
   SlaveTemplateUsEast1Parameters.jvmopts,
   SlaveTemplateUsEast1Parameters.stopOnTerminate,
   SlaveTemplateUsEast1Parameters.subnetId,
@@ -414,7 +415,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.connectUsingPublicIp
 )
 
-// https://github.com/jenkinsci/ec2-plugin/blob/ec2-1.38/src/main/java/hudson/plugins/ec2/AmazonEC2Cloud.java
+// https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html
 AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
   AmazonEC2CloudParameters.cloudName,
   AmazonEC2CloudParameters.useInstanceProfileForCredentials,
@@ -422,7 +423,9 @@ AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
   AmazonEC2CloudParameters.region,
   AmazonEC2CloudParameters.privateKey,
   AmazonEC2CloudParameters.instanceCapStr,
-  [slaveTemplateUsEast1]
+  [slaveTemplateUsEast1],
+  '',
+  ''
 )
 
 // get Jenkins instance
@@ -614,6 +617,15 @@ This issue can be solved in different ways:
     configuration  
       
     ![](docs/images/init-scripts.png)
+
+## Downgrade from 1.50.2, 1.49.2, 1.46.3 to a previous version
+If you updated to 1.50.2, or 1.49.2 or 1.46.3 and you need to downgrade back to the previous version, be sure to **remove** the
+file `JENKINS_HOME/ec2.xml` before doing that. This file is created if you click on the button *Dismiss these messages* of 
+the monitor that warns you when there are some template with a weak  strategy. If you don't do that, Jenkins will start and 
+will overwrite its config.xml file **losing your cloud configuration**.
+
+At this moment, it seems related with a race-condition between the plugin and the `OldDataMonitor` class of Jenkins Core. 
+See https://issues.jenkins-ci.org/browse/JENKINS-62231
 
 # Change Log
 

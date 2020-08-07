@@ -44,6 +44,7 @@ import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SecurityGroup;
 import com.amazonaws.services.ec2.model.Subnet;
 
+import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
@@ -499,22 +500,31 @@ public class SlaveTemplateTest {
         tags.add(tag2);
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
-        AmazonEC2 mockedEC2 = setupTestForProvisioning(orig);
+        templates.add(noSubnet);
+        for (SlaveTemplate template : templates) {
+            AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
-        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+            ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
-        orig.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+            template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+            verify(mockedEC2).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        List<InstanceNetworkInterfaceSpecification> actualNets = actualRequest.getNetworkInterfaces();
+            RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+            List<InstanceNetworkInterfaceSpecification> actualNets = actualRequest.getNetworkInterfaces();
 
-        assertEquals(actualNets.size(), 0);
-        assertEquals(actualRequest.getSubnetId(), subnetId);
-        assertEquals(actualRequest.getSecurityGroupIds(), Stream.of("some-group-id").collect(Collectors.toList()));
+            assertEquals(actualNets.size(), 0);
+            String templateSubnet = Util.fixEmpty(template.getSubnetId());
+            assertEquals(actualRequest.getSubnetId(), templateSubnet);
+            if (templateSubnet != null) {
+                assertEquals(actualRequest.getSecurityGroupIds(), Stream.of("some-group-id").collect(Collectors.toList()));
+            } else {
+                assertEquals(actualRequest.getSecurityGroups(), Stream.of(securityGroups).collect(Collectors.toList()));
+            }
+        }
   }
 
   @Test
@@ -533,23 +543,28 @@ public class SlaveTemplateTest {
         tags.add(tag2);
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
-        AmazonEC2 mockedEC2 = setupTestForProvisioning(orig);
+        templates.add(noSubnet);
+        for (SlaveTemplate template : templates) {
+            AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
-        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+            ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
-        orig.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+            template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+            verify(mockedEC2).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        InstanceNetworkInterfaceSpecification actualNet = actualRequest.getNetworkInterfaces().get(0);
+            RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+            InstanceNetworkInterfaceSpecification actualNet = actualRequest.getNetworkInterfaces().get(0);
 
-        assertEquals(actualNet.getSubnetId(), subnetId);
-        assertEquals(actualNet.getGroups(), Stream.of("some-group-id").collect(Collectors.toList()));
-        assertEquals(actualRequest.getSubnetId(), null);
-        assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
+            assertEquals(actualNet.getSubnetId(), Util.fixEmpty(template.getSubnetId()));
+            assertEquals(actualNet.getGroups(), Stream.of("some-group-id").collect(Collectors.toList()));
+            assertEquals(actualRequest.getSubnetId(), null);
+            assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
+            assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
+        }
   }
 
   private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {

@@ -12,16 +12,15 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import java.util.ArrayList;
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.CheckForNull;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Logger;
 
 final class CloudHelper {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CloudHelper.class);
+    private static final Logger LOGGER = Logger.getLogger(CloudHelper.class.getName());
 
     static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud) throws AmazonClientException, InterruptedException {
         // Sometimes even after a successful RunInstances, DescribeInstances

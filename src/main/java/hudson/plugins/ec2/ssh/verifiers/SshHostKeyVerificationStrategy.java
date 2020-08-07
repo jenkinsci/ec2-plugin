@@ -137,7 +137,7 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
     @CheckForNull
     HostKey getKeyFromLine(@NonNull final Logger logger, @NonNull final String line, @Nullable final TaskListener listener) {
         String[] parts = line.split(" ");
-        if (parts.length > 2) {
+        if (parts.length >= 2) {
             // The public SSH key in the console is Base64 encoded
             return new HostKey(parts[0], Base64.getDecoder().decode(parts[1]));
         } else {
