@@ -401,7 +401,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     conn.setProxyData(proxyData);
                     logInfo(computer, listener, "Using HTTP Proxy Configuration");
                 }
-
                 conn.connect(new ServerHostKeyVerifierImpl(computer, listener), slaveConnectTimeout, slaveConnectTimeout);
                 logInfo(computer, listener, "Connected via SSH.");
                 return conn; // successfully connected

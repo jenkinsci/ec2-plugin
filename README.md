@@ -18,6 +18,7 @@
          * [Strategies](#strategies)
             * [Check New Hard](#check-new-hard)
             * [Check New Soft](#check-new-soft)
+            * [Check Static](#check-static)
             * [Accept New](#accept-new)
             * [Off](#off)
          * [New AMIs](#new-amis)
@@ -514,6 +515,18 @@ because the plugin connects to the instance even when the key is not found on th
 when upgrading from a previous version of the plugin. _Check New Hard_ is the safest strategy, so you should
 consider migrating to it. We recommend, whenever possible, configuring each AMI with _Stop/Disconnect on Idle Timeout_
  to take advantage of the ssh host key cache allowing next connections to be done faster.
+
+#### Check Static
+
+This strategy checks the SSH host key provided by the `Static Host Keys` field in the slave template.
+If the key is not found, the plugin **doesn't allow** the connection to the instance to 
+guarantee the instance is the right one. If the key is found and it is the same as the one presented by the instance,
+then it's saved to be used on future connections, so the console is only checked once.
+
+The expected format of the `Static Host Keys` field is `algorithm base64-public-key`. For example:
+```
+ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHm0sVqkjSuaPg8e7zfaKXt3b1hE1tBwFsB18NOWv5ow 
+```
 
 #### Accept New
 This strategy doesn't check any key on the console. It accepts the key provided by the instance on the first

@@ -27,12 +27,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.plugins.ec2.ssh.verifiers.AcceptNewStrategy;
 import hudson.plugins.ec2.ssh.verifiers.CheckNewHardStrategy;
 import hudson.plugins.ec2.ssh.verifiers.CheckNewSoftStrategy;
+import hudson.plugins.ec2.ssh.verifiers.CheckStaticStrategy;
 import hudson.plugins.ec2.ssh.verifiers.NonVerifyingKeyVerificationStrategy;
 import hudson.plugins.ec2.ssh.verifiers.SshHostKeyVerificationStrategy;
 
 public enum HostKeyVerificationStrategyEnum {
     CHECK_NEW_HARD("check-new-hard", "yes", new CheckNewHardStrategy()),
     CHECK_NEW_SOFT("check-new-soft", "accept-new", new CheckNewSoftStrategy()),
+    CHECK_STATIC("check-static", "yes", new CheckStaticStrategy()),
     ACCEPT_NEW("accept-new", "accept-new", new AcceptNewStrategy()),
     OFF("off", "no", new NonVerifyingKeyVerificationStrategy());
     

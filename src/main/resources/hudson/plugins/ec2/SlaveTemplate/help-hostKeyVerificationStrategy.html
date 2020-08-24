@@ -26,6 +26,7 @@ THE SOFTWARE.
     <ul>
         <li><b><i>check-new-hard</i></b>: Check the key presented by the instance against the instance console and stores it to check subsequent connections. If the key is not printed on the console, the connection is not trusted. This is the default behavior for new AMIs.</li>
         <li><b><i>check-new-soft</i></b>: Check the key against the instance console and stores it to check subsequent connections. If the key is not printed on the console, the connection is trusted anyway. This is the default behavior for existing AMIs (upgrading from a previous plugin version). This avoids future attacks but cannot guarantee the instance is the right one if a man-in-the-middle attack has already been committed.</i></b></li>
+        <li><b><i>check-static</i></b>: Check the key against the static configured SSH keys in the cloud template.</i></b></li>
         <li><b><i>accept-new</i></b>: Accept the key on first connection and stores it to check subsequent connections. This doesn't try to check the key against the console as the <i>check-new-soft</i> strategy does.</li>
         <li><b><i>off</i></b>: Don't check the host key on any connection.</li>
     </ul>
@@ -34,6 +35,7 @@ THE SOFTWARE.
     <ul>
         <li><b><i>check-new-hard = yes</i></b></li>
         <li><b><i>check-new-soft = accept-new</i></b></li>
+        <li><b><i>check-static = yes</i></b></li>
         <li><b><i>accept-new = accept-new</i></b></li>
         <li><b><i>off = no</i></b></li>
     </ul>

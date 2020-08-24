@@ -199,6 +199,10 @@ THE SOFTWARE.
       <f:entry title="${%Host Key Verification Strategy}" field="hostKeyVerificationStrategy">
           <f:select default="${descriptor.defaultHostKeyVerificationStrategy}"/>
       </f:entry>
+
+    <f:entry title="${%Static Host Keys}" field="staticHostKeys">
+        <f:textarea />
+    </f:entry>
       
     <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">
       <f:textbox default="-1"/>

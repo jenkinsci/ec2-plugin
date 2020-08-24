@@ -26,6 +26,7 @@ import java.util.logging.Level;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.emptyString;
 
 public class SshHostKeyVerificationStrategyTest {
@@ -61,6 +62,9 @@ public class SshHostKeyVerificationStrategyTest {
         strategiesToCheck.add(forHardStrategyNotPrinted());
         strategiesToCheck.add(forHardStrategyPrinted());
         strategiesToCheck.add(forHardStrategyPrintedAndChanged());
+        strategiesToCheck.add(forStaticStrategy());
+        strategiesToCheck.add(forStaticStrategyWithoutStaticHostKeys());
+        strategiesToCheck.add(forStaticStrategyInvalidStaticHostKeys());
         strategiesToCheck.add(forSoftStrategy());
         strategiesToCheck.add(forAceptNewStrategy());
         strategiesToCheck.add(forOffStrategy());
@@ -70,7 +74,7 @@ public class SshHostKeyVerificationStrategyTest {
 
     // Check the hard strategy with a key not printed
     private StrategyTest forHardStrategyNotPrinted() throws Exception {
-        return new StrategyTest("-hardStrategyNotPrinted", new CheckNewHardStrategy())
+        return new StrategyTest("-hardStrategyNotPrinted", new CheckNewHardStrategy(), "")
 
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[]{
@@ -92,7 +96,7 @@ public class SshHostKeyVerificationStrategyTest {
 
     // Check the hard strategy with the key printed
     private StrategyTest forHardStrategyPrinted() throws Exception {
-        return new StrategyTest("-hardStrategyPrinted", new CheckNewHardStrategy())
+        return new StrategyTest("-hardStrategyPrinted", new CheckNewHardStrategy(), "")
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[]{
                                 "is not running, waiting to validate the key against the console",
@@ -109,7 +113,7 @@ public class SshHostKeyVerificationStrategyTest {
 
     // Check the hard strategy with the key printed and the host key is changed afterward
     private StrategyTest forHardStrategyPrintedAndChanged() throws Exception {
-        return new StrategyTest("-hardStrategyPrintedAndChanged", new CheckNewHardStrategy())
+        return new StrategyTest("-hardStrategyPrintedAndChanged", new CheckNewHardStrategy(), "")
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[]{
                                 "is not running, waiting to validate the key against the console",
@@ -131,9 +135,37 @@ public class SshHostKeyVerificationStrategyTest {
                 );
     }
 
+    // Check the static strategy
+    private StrategyTest forStaticStrategy() throws Exception {
+        return new StrategyTest("-staticStrategy", new CheckStaticStrategy(), conRule.ED255219_PUB_KEY)
+                .addConnectionAttempt(builder().setState(InstanceState.PENDING)
+                        .setMessagesInLog(new String[]{
+                                "has been successfully checked against the instance console"}))
+
+                .addConnectionAttempt(builder().setState(InstanceState.PENDING).isChangeHostKey(true)
+                    .setMessagesInLog(new String[]{
+                            "presented by the instance has changed since first saved"}));
+    }
+
+    // Check the static strategy without static hostkeys
+    private StrategyTest forStaticStrategyWithoutStaticHostKeys() throws Exception {
+        return new StrategyTest("-staticStrategyWithoutStaticHostKeys", new CheckStaticStrategy(), "")
+                .addConnectionAttempt(builder().setState(InstanceState.PENDING)
+                        .setMessagesInLog(new String[]{
+                                "No configured static SSH key or none of the statically configured SSH keys are valid"}));
+    }
+
+    // Check the static strategy with invalid static hostkeys
+    private StrategyTest forStaticStrategyInvalidStaticHostKeys() throws Exception {
+        return new StrategyTest("-staticStrategyInvalidStaticHostKeys", new CheckStaticStrategy(), "TEST")
+                .addConnectionAttempt(builder().setState(InstanceState.PENDING)
+                        .setMessagesInLog(new String[]{
+                                "The provided static SSH key is invalid"}));
+    }
+
     // Check the soft strategy
     private StrategyTest forSoftStrategy() throws Exception {
-        return new StrategyTest("-softStrategy", new CheckNewSoftStrategy())
+        return new StrategyTest("-softStrategy", new CheckNewSoftStrategy(), "")
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[]{
                                 "is not running, waiting to validate the key against the console",
@@ -159,7 +191,7 @@ public class SshHostKeyVerificationStrategyTest {
 
     // Check the accept-new strategy
     private StrategyTest forAceptNewStrategy() throws Exception {
-        return new StrategyTest("-acceptNewStrategy", new AcceptNewStrategy())
+        return new StrategyTest("-acceptNewStrategy", new AcceptNewStrategy(), "")
                 // We don't even check the console
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[]{
@@ -172,7 +204,7 @@ public class SshHostKeyVerificationStrategyTest {
 
     // Check the off strategy
     private StrategyTest forOffStrategy() throws Exception {
-        return new StrategyTest("-offStrategy", new NonVerifyingKeyVerificationStrategy())
+        return new StrategyTest("-offStrategy", new NonVerifyingKeyVerificationStrategy(), "")
 
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[]{
@@ -199,8 +231,8 @@ public class SshHostKeyVerificationStrategyTest {
             }
         }
         
-        private StrategyTest(String computerSuffix, SshHostKeyVerificationStrategy strategy) throws Exception {
-            computer = MockEC2Computer.createComputer(computerSuffix);
+        private StrategyTest(String computerSuffix, SshHostKeyVerificationStrategy strategy, String staticHostKeys) throws Exception {
+            computer = MockEC2Computer.createComputer(computerSuffix, staticHostKeys);
             verifier = new ServerHostKeyVerifierImpl(computer, strategy);
         }
         
@@ -329,14 +361,16 @@ public class SshHostKeyVerificationStrategyTest {
         InstanceState state = InstanceState.PENDING;
         String console = null;
         EC2AbstractSlave slave;
+        String staticHostKeys;
         
-        public MockEC2Computer(EC2AbstractSlave slave) {
+        public MockEC2Computer(EC2AbstractSlave slave, String staticHostKeys) {
             super(slave);
             this.slave = slave;
+            this.staticHostKeys = staticHostKeys;
         }
 
         // Create a computer
-        private static MockEC2Computer createComputer(String suffix) throws Exception {
+        private static MockEC2Computer createComputer(String suffix, String staticHostKey) throws Exception {
             final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
                 @Override
                 public void terminate() {
@@ -348,7 +382,7 @@ public class SshHostKeyVerificationStrategyTest {
                 }
             };
 
-            return new MockEC2Computer(slave);
+            return new MockEC2Computer(slave, staticHostKey);
         }
 
         @Override
@@ -368,7 +402,7 @@ public class SshHostKeyVerificationStrategyTest {
 
         @Override
         public SlaveTemplate getSlaveTemplate() {
-            return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+            return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "", this.staticHostKeys);
         }
     } 
     
