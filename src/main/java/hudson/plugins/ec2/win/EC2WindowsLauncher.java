@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import hudson.slaves.OfflineCause;
@@ -37,7 +38,19 @@ import javax.net.ssl.SSLException;
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
     private static final String AGENT_JAR = "remoting.jar";
 
-    final long sleepBetweenAttempts = TimeUnit.SECONDS.toMillis(10);
+    private static final String DEFAULT_MAX_SLEEP = Long.toString(TimeUnit.MINUTES.toMillis(30));
+
+    private static long maxGetPassThreadSleep;
+
+    private static long maxWinRMThreadSleep;
+
+    private long sleepBetweenGetPassRange = TimeUnit.SECONDS.toMillis(1);
+
+    private long sleepBetweenGetPassAttempts = TimeUnit.SECONDS.toMillis(1);
+
+    private long sleepBetweenWinRMRange = TimeUnit.SECONDS.toMillis(1);
+
+    private long sleepBetweenWinRMAttempts = TimeUnit.SECONDS.toMillis(1);
 
     @Override
     protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
@@ -54,7 +67,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         }
 
         final WinConnection connection = connectToWinRM(computer, node, template, logger);
-        
+
         try {
             String initScript = node.initScript;
             String tmpDir = (node.tmpDir != null && !node.tmpDir.equals("") ? WindowsUtil.quoteArgument(Util.ensureEndsWith(node.tmpDir,"\\"))
@@ -131,11 +144,23 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         if (timeout < minTimeout) {
             timeout = minTimeout;
         }
+        logger.println(String.format("Launch Timeout set to %ds", TimeUnit.MILLISECONDS.toSeconds(timeout)));
         final long startTime = System.currentTimeMillis();
 
         logger.println(node.getDisplayName() + " booted at " + node.getCreatedTime());
         boolean alreadyBooted = (startTime - node.getCreatedTime()) > TimeUnit.MINUTES.toMillis(3);
         WinConnection connection = null;
+        maxGetPassThreadSleep = Long.parseLong(System.getProperty(EC2WindowsLauncher.class.getName() + ".maxGetPassThreadSleep", DEFAULT_MAX_SLEEP));
+        maxWinRMThreadSleep = Long.parseLong(System.getProperty(EC2WindowsLauncher.class.getName() + ".maxWinRMThreadSleep", DEFAULT_MAX_SLEEP));
+
+        if (maxGetPassThreadSleep <= 0) {
+            maxGetPassThreadSleep =  TimeUnit.SECONDS.toMillis(1);;
+        }
+
+        if (maxWinRMThreadSleep <= 0) {
+            maxWinRMThreadSleep = TimeUnit.SECONDS.toMillis(1);;
+        }
+
         while (true) {
             boolean allowSelfSignedCertificate = node.isAllowSelfSignedCertificate();
 
@@ -158,35 +183,46 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
                     if (!node.isSpecifyPassword()) {
                         GetPasswordDataResult result;
+                        logger.print(String.format("GetPass sleep range: %ds. ", TimeUnit.MILLISECONDS.toSeconds(sleepBetweenGetPassRange)));
+                        logger.print(String.format("GetPass max sleep: %ds. ", TimeUnit.MILLISECONDS.toSeconds(maxGetPassThreadSleep)));
                         try {
                             result = node.getCloud().connect().getPasswordData(new GetPasswordDataRequest(instance.getInstanceId()));
                         } catch (Exception e) {
-                            logger.println("Unexpected Exception: " + e.toString());
-                            Thread.sleep(sleepBetweenAttempts);
+                            logger.println(String.format("Unexpected Exception: %s. Sleeping %ds.", e.toString(), TimeUnit.MILLISECONDS.toSeconds(sleepBetweenGetPassAttempts)));
+                            Thread.sleep(sleepBetweenGetPassAttempts);
+                            getPassBackoff();
                             continue;
                         }
                         String passwordData = result.getPasswordData();
                         if (passwordData == null || passwordData.isEmpty()) {
-                            logger.println("Waiting for password to be available. Sleeping 10s.");
-                            Thread.sleep(sleepBetweenAttempts);
+                            logger.println(String.format("Waiting for password to be available. Sleeping %ds.", TimeUnit.MILLISECONDS.toSeconds(sleepBetweenGetPassAttempts)));
+                            Thread.sleep(sleepBetweenGetPassAttempts);
+                            getPassBackoff();
                             continue;
                         }
                         String password = node.getCloud().getPrivateKey().decryptWindowsPassword(passwordData);
-                        if (!node.getRemoteAdmin().equals("Administrator")) {
-                            logger.println("WARNING: For password retrieval remote admin must be Administrator, ignoring user provided value");
+                        String username = System.getProperty(EC2WindowsLauncher.class.getName() + ".amiTemplateUsername", "david_webb6");
+
+                        if (!node.getRemoteAdmin().equals(username)) {
+                            logger.println("WARNING: For password retrieval remote admin must be " + username + ", ignoring user provided value");
                         }
-                        logger.println("Connecting to " + "(" + host + ") with WinRM as Administrator");
-                        connection = new WinConnection(host, "Administrator", password, allowSelfSignedCertificate);
+                        logger.println("Connecting to " + "(" + host + ") with WinRM as " + username);
+                        connection = new WinConnection(host, username, password, allowSelfSignedCertificate);
+
                     } else { //password Specified
                         logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
                         connection = new WinConnection(host, node.getRemoteAdmin(), node.getAdminPassword().getPlainText(), allowSelfSignedCertificate);
                     }
+                    resetGetPassBackoff();
                     connection.setUseHTTPS(node.isUseHTTPS());
                 }
-
+                logger.print(String.format("WinRM sleep range: %ds. ", TimeUnit.MILLISECONDS.toSeconds(sleepBetweenWinRMRange)));
+                logger.print(String.format("WinRM max sleep: %ds. ", TimeUnit.MILLISECONDS.toSeconds(maxWinRMThreadSleep)));
                 if (!connection.pingFailingIfSSHHandShakeError()) {
-                    logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                    Thread.sleep(sleepBetweenAttempts);
+                    logger.println(String.format("Waiting for WinRM to come up. Sleeping %ds.", TimeUnit.MILLISECONDS.toSeconds(sleepBetweenWinRMAttempts)));
+                    Thread.sleep(sleepBetweenWinRMAttempts);
+                    winRMBackoff();
+
                     continue;
                 }
 
@@ -197,13 +233,15 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     alreadyBooted = true;
                     logger.println("WinRM should now be ok on " + node.getDisplayName());
                     if (!connection.pingFailingIfSSHHandShakeError()) {
-                        logger.println("WinRM not yet up. Sleeping 10s.");
-                        Thread.sleep(sleepBetweenAttempts);
+                        logger.println(String.format("WinRM not yet up. Sleeping %ds.", TimeUnit.MILLISECONDS.toSeconds(sleepBetweenWinRMAttempts)));
+                        Thread.sleep(sleepBetweenWinRMAttempts);
+                        winRMBackoff();
                         continue;
                     }
                 }
 
                 logger.println("Connected with WinRM.");
+                resetWinRMBackoff();
                 return connection; // successfully connected
             } catch (IOException e) {
                 if (e instanceof SSLException) {
@@ -212,8 +250,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     // avoid waiting and trying again, this connection needs human intervention to change the certificate
                     throw new AmazonClientException("The SSL connection failed while negotiating SSL", e);
                 }
-                logger.println("Waiting for WinRM to come up. Sleeping 10s.");
-                Thread.sleep(sleepBetweenAttempts);
+                logger.println(String.format("Waiting for WinRM to come up. Sleeping %ds.", TimeUnit.MILLISECONDS.toSeconds(sleepBetweenWinRMAttempts)));
+                Thread.sleep(sleepBetweenWinRMAttempts);
+                winRMBackoff();
             }
         }
     }
@@ -222,4 +261,25 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     public Descriptor<ComputerLauncher> getDescriptor() {
         throw new UnsupportedOperationException();
     }
+
+    private void getPassBackoff() {
+        sleepBetweenGetPassRange = Math.min(maxGetPassThreadSleep, sleepBetweenGetPassRange * 2);
+        sleepBetweenGetPassAttempts = ThreadLocalRandom.current().nextLong(0, sleepBetweenGetPassRange);
+    }
+
+    private void winRMBackoff() {
+        sleepBetweenWinRMRange = Math.min(maxWinRMThreadSleep, sleepBetweenWinRMRange * 2);
+        sleepBetweenWinRMAttempts = ThreadLocalRandom.current().nextLong(0, sleepBetweenWinRMRange);
+    }
+
+    private void resetGetPassBackoff() {
+        sleepBetweenGetPassRange = TimeUnit.SECONDS.toMillis(1);
+        sleepBetweenGetPassAttempts = TimeUnit.SECONDS.toMillis(1);
+    }
+
+    private void resetWinRMBackoff() {
+        sleepBetweenWinRMRange = TimeUnit.SECONDS.toMillis(1);
+        sleepBetweenWinRMAttempts = TimeUnit.SECONDS.toMillis(1);
+    }
+
 }
