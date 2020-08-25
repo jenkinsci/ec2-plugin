@@ -112,11 +112,9 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -127,10 +125,16 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
+import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.DeviceMappingParser;
+import hudson.plugins.ec2.util.EC2AgentConfig;
+import hudson.plugins.ec2.util.EC2AgentFactory;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.plugins.ec2.util.*;
 
 import hudson.XmlFile;
 import hudson.model.listeners.SaveableListener;
@@ -151,12 +155,57 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
+import com.amazonaws.services.ec2.model.BlockDeviceMapping;
+import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
+import com.amazonaws.services.ec2.model.Image;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
+import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.LaunchSpecification;
+import com.amazonaws.services.ec2.model.MarketType;
+import com.amazonaws.services.ec2.model.Placement;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.ResourceType;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.SecurityGroup;
+import com.amazonaws.services.ec2.model.ShutdownBehavior;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.SpotMarketOptions;
+import com.amazonaws.services.ec2.model.SpotPlacement;
+import com.amazonaws.services.ec2.model.StartInstancesRequest;
+import com.amazonaws.services.ec2.model.StartInstancesResult;
+import com.amazonaws.services.ec2.model.Subnet;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TagSpecification;
 
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.*;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Hudson;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Saveable;
+import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodePropertyDescriptor;
@@ -838,6 +887,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
         KeyPair keyPair = getKeyPair(ec2);
+        if (keyPair == null){
+            logProvisionInfo("Could not retrieve a valid key pair.");
+            return null;
+        }
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
         riRequest.setKeyName(keyPair.getKeyName());
         diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
@@ -1393,8 +1446,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Get a KeyPair from the configured information for the slave template
      */
+    @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
-        KeyPair keyPair = parent.getPrivateKey().find(ec2);
+        EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
+        if (ec2PrivateKey == null) {
+            throw new AmazonClientException("No keypair credential found. Please configure a credential in the Jenkins configuration.");
+        }
+        KeyPair keyPair = ec2PrivateKey.find(ec2);
         if (keyPair == null) {
             throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
         }

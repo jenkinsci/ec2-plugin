@@ -1,6 +1,7 @@
 - amazonEC2:
     cloudName: "production"
     region: "us-east-1"
+    sshKeysCredentialsId: "random credentials id"
     templates:
     - ami: "ami-12345"
       amiType:

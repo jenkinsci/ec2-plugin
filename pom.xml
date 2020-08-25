@@ -107,8 +107,18 @@ THE SOFTWARE.
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials</artifactId>
+            <version>2.3.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
             <version>1.11</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>ssh-credentials</artifactId>
+            <version>1.18.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -138,7 +148,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>trilead-api</artifactId>
-            <version>1.0.3</version><!-- TODO: BUMP when trilead split is in LTS and is the baseline -->
+            <version>1.0.5</version>
         </dependency>
         <dependency>
             <groupId>io.jenkins.temp.jelly</groupId>
@@ -227,6 +237,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
+            <version>1.20</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -258,6 +269,13 @@ THE SOFTWARE.
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.jenkins-ci.main</groupId>
+                <artifactId>jenkins-bom</artifactId>
+                <version>${jenkins.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-core</artifactId>
