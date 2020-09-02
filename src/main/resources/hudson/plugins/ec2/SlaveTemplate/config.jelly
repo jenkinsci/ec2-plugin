@@ -118,6 +118,10 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
+    <f:entry title="${%Use host tenancy}" field="useHostTenancy">
+      <f:checkbox />
+    </f:entry>
+
     <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
        <f:repeatable field="tags">
           <st:include page="config.jelly" class="${descriptor.clazz}" />

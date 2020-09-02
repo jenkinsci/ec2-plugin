@@ -57,6 +57,7 @@ public abstract class EC2AgentConfig {
         final String publicDNS;
         final String privateDNS;
         final boolean useDedicatedTenancy;
+        final boolean useHostTenancy;
 
         private OnDemand(OnDemandBuilder builder) {
             super(builder);
@@ -65,6 +66,7 @@ public abstract class EC2AgentConfig {
             this.publicDNS = builder.getPublicDNS();
             this.privateDNS = builder.getPrivateDNS();
             this.useDedicatedTenancy = builder.isUseDedicatedTenancy();
+            this.useHostTenancy = builder.isUseHostTenancy();
         }
     }
 
@@ -205,6 +207,7 @@ public abstract class EC2AgentConfig {
         private String publicDNS;
         private String privateDNS;
         private boolean useDedicatedTenancy;
+        private boolean useHostTenancy;
 
         public OnDemandBuilder withInstanceId(String instanceId) {
             this.instanceId = instanceId;
@@ -249,6 +252,15 @@ public abstract class EC2AgentConfig {
 
         public boolean isUseDedicatedTenancy() {
             return useDedicatedTenancy;
+        }
+
+        public OnDemandBuilder withUseHostTenancy(boolean useHostTenancy) {
+            this.useHostTenancy = useHostTenancy;
+            return this;
+        }
+
+        public boolean isUseHostTenancy() {
+            return useHostTenancy;
         }
 
         @Override

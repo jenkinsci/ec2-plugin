@@ -120,6 +120,10 @@ THE SOFTWARE.
     	  <f:checkbox />
     	</f:entry>
 
+    	<f:entry title="${%Use host tenancy}" field="useHostTenancy">
+          <f:checkbox />
+        </f:entry>
+
         <f:dropdownList name="amiType" title="${%AMI Type}">
             <f:dropdownListBlock value="0" title="${instance.amiType.descriptor.displayName}" selected="true">
 		        <j:set var="instance" value="${instance.amiType}" />
