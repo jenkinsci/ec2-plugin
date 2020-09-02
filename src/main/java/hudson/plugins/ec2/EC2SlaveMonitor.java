@@ -1,19 +1,18 @@
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
 import hudson.Extension;
 import hudson.model.AsyncPeriodicWork;
-import hudson.model.TaskListener;
+import hudson.model.Computer;
 import hudson.model.Node;
+import hudson.model.TaskListener;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import jenkins.model.Jenkins;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import hudson.plugins.ec2.util.MinimumInstanceChecker;
-import jenkins.model.Jenkins;
-
-import com.amazonaws.AmazonClientException;
 
 /**
  * @author Bruno Meneguello
@@ -43,7 +42,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     private void removeDeadNodes() {
         for (Node node : Jenkins.get().getNodes()) {
-            if (node instanceof EC2AbstractSlave) {
+            if (node instanceof EC2AbstractSlave && isCheckable(node)) {
                 final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;
                 try {
                     if (!ec2Slave.isAlive(true)) {
@@ -56,6 +55,21 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                 }
             }
         }
+    }
+
+    /**
+     * A node is considered checkable if all executors are idle or if we are unable to determine if the executors are idle.
+     *
+     * @param node The node to evaluate
+     * @return true if the node is checkable, false if the node has at least one non-idle executor
+     */
+    private boolean isCheckable(Node node) {
+        boolean result = false;
+        Computer computer = node.toComputer();
+        if (computer == null || computer.isIdle()) {
+            result = true;
+        }
+        return result;
     }
 
     private void removeNode(EC2AbstractSlave ec2Slave) {
