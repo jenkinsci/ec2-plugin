@@ -322,7 +322,7 @@ def SlaveTemplateUsEast1Parameters = [
   tmpDir:                   '',
   type:                     't2.medium',
   useDedicatedTenancy:      false,
-  useHostTenancy:      false,
+  useHostTenancy:           false,
   useEphemeralDevices:      true,
   usePrivateDnsName:        true,
   userData:                 '',
