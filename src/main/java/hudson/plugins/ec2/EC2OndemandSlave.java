@@ -63,12 +63,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
         this.useHostTenancy = useHostTenancy;
     }
 
-
     /**
      * Constructor for debugging.
      */
     public EC2OndemandSlave(String instanceId) throws FormException, IOException {
-        this(instanceId, instanceId, "debug", "/tmp/hudson", 1, "debug", Mode.NORMAL, "", "/tmp", Collections.emptyList(), null, null, false, null, "Fake public", "Fake private", null, null, false,false, 0, new UnixData(null, null, null, null), ConnectionStrategy.PRIVATE_IP, -1);
+        this(instanceId, instanceId, "debug", "/tmp/hudson", 1, "debug", Mode.NORMAL, "", "/tmp", Collections.emptyList(), null, null, false, null, "Fake public", "Fake private", null, null, false, false, 0, new UnixData(null, null, null, null), ConnectionStrategy.PRIVATE_IP, -1);
     }
 
     /**
@@ -82,8 +81,8 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                         try {
                             if (!isAlive(true)) {
                                 /*
-                                 * The node has been killed externally, so we've nothing to do here
-                                 */
+                                * The node has been killed externally, so we've nothing to do here
+                                */
                                 LOGGER.info("EC2 instance already terminated: " + getInstanceId());
                             } else {
                                 AmazonEC2 ec2 = getCloud().connect();
