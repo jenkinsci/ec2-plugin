@@ -14,6 +14,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static java.util.logging.Level.INFO;
+
 /**
  * @author Bruno Meneguello
  */
@@ -66,8 +68,14 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
     private boolean isCheckable(Node node) {
         boolean result = false;
         Computer computer = node.toComputer();
-        if (computer == null || computer.isIdle()) {
+        if (computer == null) {
             result = true;
+            LOGGER.log(INFO, "Unable to determine executor status for node {0}", node.getNodeName());
+        } else if (computer.isIdle()) {
+            result = true;
+            LOGGER.log(INFO, "All executors for node {0} are idle", node.getNodeName());
+        } else {
+            LOGGER.log(INFO, "Node {0} is currently busy", node.getNodeName());
         }
         return result;
     }
