@@ -31,7 +31,7 @@ public class EC2AbstractSlaveTest {
             @Override
             public String getEc2Type() {
                 return null; // To change body of implemented methods use File |
-                // Settings | File Templates.
+                             // Settings | File Templates.
             }
         };
 

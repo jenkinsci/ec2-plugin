@@ -49,16 +49,22 @@ import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import com.amazonaws.services.ec2.model.Reservation;
+import hudson.plugins.ec2.util.PrivateKeyHelper;
 import jenkins.model.Jenkins;
 
 import net.sf.json.JSONObject;
+import org.apache.commons.math3.analysis.function.Power;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import org.mockito.ArgumentCaptor;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,7 +112,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testConfigRoundtripWithHostTenancy() throws Exception {
+    public void testConfigRoundtripHostTenancy() throws Exception {
         String ami = "ami1";
         String description = "foo ami";
 
@@ -116,7 +122,7 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false,true, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, true,"", false, "");
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
         templates.add(orig);
@@ -188,7 +194,7 @@ public class SlaveTemplateTest {
 
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
-
+        
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
@@ -502,8 +508,8 @@ public class SlaveTemplateTest {
         Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
     }
 
-    @Test
-    public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
+  @Test
+  public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
         boolean associatePublicIp = false;
         String ami = "ami1";
         String description = "foo ami";
@@ -543,10 +549,10 @@ public class SlaveTemplateTest {
                 assertEquals(actualRequest.getSecurityGroups(), Stream.of(securityGroups).collect(Collectors.toList()));
             }
         }
-    }
+  }
 
-    @Test
-    public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
+  @Test
+  public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
         boolean associatePublicIp = true;
         String ami = "ami1";
         String description = "foo ami";
@@ -583,9 +589,9 @@ public class SlaveTemplateTest {
             assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
         }
-    }
+  }
 
-    private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
+  private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
         AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
@@ -637,5 +643,5 @@ public class SlaveTemplateTest {
         when(mockedEC2.runInstances(any(RunInstancesRequest.class))).thenReturn(mockedResult);
 
         return mockedEC2;
-    }
+  }
 }
