@@ -23,20 +23,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.Filter;
@@ -61,7 +57,6 @@ import com.amazonaws.services.ec2.model.ShutdownBehavior;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotMarketOptions;
 import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
@@ -126,92 +121,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.CheckForNull;
-import javax.servlet.ServletException;
 
-import hudson.plugins.ec2.util.AmazonEC2Factory;
-import hudson.plugins.ec2.util.DeviceMappingParser;
-import hudson.plugins.ec2.util.EC2AgentConfig;
-import hudson.plugins.ec2.util.EC2AgentFactory;
-import hudson.plugins.ec2.util.MinimumInstanceChecker;
-import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import hudson.XmlFile;
-import hudson.model.listeners.SaveableListener;
 import hudson.security.Permission;
-import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.model.JenkinsLocationConfiguration;
-import jenkins.slaves.iterators.api.NodeIterator;
 
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.LaunchSpecification;
-import com.amazonaws.services.ec2.model.MarketType;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.ResourceType;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.ShutdownBehavior;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.SpotMarketOptions;
-import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StartInstancesResult;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TagSpecification;
-
-import hudson.Extension;
-import hudson.Util;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
-import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.model.Saveable;
-import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.NodePropertyDescriptor;
-import hudson.util.DescribableList;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
@@ -293,7 +207,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final boolean useDedicatedTenancy;
 
-    public final boolean useHostTenancy;
+    private boolean useHostTenancy;
 
     public AMITypeData amiType;
 
@@ -340,7 +254,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
                          int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
                          List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
@@ -376,7 +290,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.associatePublicIp = associatePublicIp;
         this.connectionStrategy = connectionStrategy == null ? ConnectionStrategy.PRIVATE_IP : connectionStrategy;
         this.useDedicatedTenancy = useDedicatedTenancy;
-        this.useHostTenancy = useHostTenancy;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
         this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
@@ -418,7 +331,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
             int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
             boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
             List<? extends NodeProperty<?>> nodeProperties) {
@@ -427,7 +340,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
                 stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
                 minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp,
                 customDeviceMapping, connectBySSHProcess, monitoring,
                 t2Unlimited, connectionStrategy, maxTotalUses,
                 nodeProperties, null);
@@ -439,13 +352,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
             boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,List<? extends NodeProperty<?>> nodeProperties ) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, minimumNumberOfInstances, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
                 connectBySSHProcess, monitoring, t2Unlimited, connectionStrategy, maxTotalUses, nodeProperties);
     }
 
@@ -455,13 +368,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
             String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
             boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, minimumNumberOfInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
                 connectBySSHProcess, monitoring, t2Unlimited, connectionStrategy, maxTotalUses, Collections.emptyList());
     }
 
@@ -471,13 +384,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
                          String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
           tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
           idleTerminationMinutes, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-          useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+          useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
           monitoring, t2Unlimited, connectionStrategy, maxTotalUses);
     }
 
@@ -487,13 +400,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
             boolean t2Unlimited) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-                useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
                 monitoring, t2Unlimited, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp), -1);
     }
 
@@ -502,12 +415,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
             String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-                useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
                 connectUsingPublicIp, false, false);
     }
 
@@ -516,12 +429,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
+            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
             boolean connectBySSHProcess) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
-                useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
     }
 
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
@@ -529,22 +442,35 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
+            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
                 idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
-                useDedicatedTenancy, useHostTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+    }
+
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+                         boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+                         boolean useDedicatedTenancy, boolean useHostTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
+                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
+                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+        this.useHostTenancy = useHostTenancy;
     }
 
     /**
      * Backward compatible constructor for reloading previous version data
      */
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
-            String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-            String slaveCommandPrefix, String slaveCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            String launchTimeoutStr) {
+                         String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
+                         String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
+                         String slaveCommandPrefix, String slaveCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+                         boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+                         String launchTimeoutStr) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
                 tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort),
                 jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,

@@ -34,5 +34,4 @@
       type: T2Micro
       useDedicatedTenancy: false
       useEphemeralDevices: false
-      useHostTenancy: false
     useInstanceProfileForCredentials: true
