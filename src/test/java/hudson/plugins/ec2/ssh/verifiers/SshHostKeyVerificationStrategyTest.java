@@ -298,7 +298,7 @@ public class SshHostKeyVerificationStrategyTest {
                 connectionAttempt.state = state;
                 return this;
             }
-            Builder setMessagesInLog(String[] messagesInLog) {
+             Builder setMessagesInLog(String[] messagesInLog) {
                 connectionAttempt.messagesInLog = messagesInLog;
                 return this;
             }

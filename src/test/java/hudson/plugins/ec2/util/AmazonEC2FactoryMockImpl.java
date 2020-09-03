@@ -41,7 +41,7 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
      */
     public static AmazonEC2Client createAmazonEC2Mock() {
         instances = new ArrayList<>(); // Reset for each new mock. In the real world, the client is stateless, but this
-        // is convenient for testing.
+                                       // is convenient for testing.
         return createAmazonEC2Mock(null);
     }
 
@@ -79,7 +79,7 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
 
     private static void mockDescribeInstances(AmazonEC2Client mock) {
         Mockito.doCallRealMethod().when(mock).describeInstances(); // This will just pass on to
-        // describeInstances(describeInstancesRequest)
+                                                                   // describeInstances(describeInstancesRequest)
         Mockito.doAnswer(invocationOnMock -> {
             DescribeInstancesRequest request = invocationOnMock.getArgument(0);
             if (request.getInstanceIds() != null && !request.getInstanceIds().isEmpty()) {

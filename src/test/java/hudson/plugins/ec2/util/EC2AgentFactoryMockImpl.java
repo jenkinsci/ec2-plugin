@@ -30,12 +30,12 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         private static final long serialVersionUID = 1L;
 
         private MockEC2OndemandSlave(String name, String instanceId, String description, String remoteFS,
-                                     int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
-                                     List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
-                                     boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
-                                     List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout,
-                                     AMITypeData amiType, ConnectionStrategy connectionStrategy,
-                                     int maxTotalUses)
+                int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
+                List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
+                boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
+                List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout,
+                AMITypeData amiType, ConnectionStrategy connectionStrategy,
+                int maxTotalUses)
                 throws Descriptor.FormException, IOException {
             super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, false, launchTimeout, amiType, connectionStrategy, maxTotalUses);
         }
