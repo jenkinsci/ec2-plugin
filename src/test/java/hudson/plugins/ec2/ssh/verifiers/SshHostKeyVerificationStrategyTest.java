@@ -30,14 +30,14 @@ import static org.hamcrest.Matchers.emptyString;
 
 public class SshHostKeyVerificationStrategyTest {
     private static final String COMPUTER_NAME = "MockInstanceForTest";
-
+    
     @ClassRule
     public static ConnectionRule conRule = new ConnectionRule();
-
+    
     @ClassRule
     public static LoggerRule loggerRule;
-
-    @ClassRule
+    
+    @ClassRule 
     public static JenkinsRule jenkins = new JenkinsRule();
 
     /**
@@ -54,7 +54,7 @@ public class SshHostKeyVerificationStrategyTest {
     }
 
     // Return a list with all the strategies to check. Each element represents the strategy to check with the connection
-    // to the host and the assertion of the expected result on the console and the offline status of the instance.
+    // to the host and the assertion of the expected result on the console and the offline status of the instance. 
     private List<StrategyTest> getStrategiesToTest() throws Exception {
         List<StrategyTest> strategiesToCheck = new ArrayList<>();
 
@@ -122,7 +122,7 @@ public class SshHostKeyVerificationStrategyTest {
                 .addConnectionAttempt(builder().setConsole("A text before the key\n" + conRule.ED255219_PUB_KEY + "\n a bit more text")
                         .setMessagesInLog(new String[]{
                                 "has been successfully checked against the instance console"}))
-
+                
                 .addConnectionAttempt(builder().setConsole("The console doesn't matter, the key is already stored. We check against this one")
                         .isOfflineByKey(true)
                         .isChangeHostKey(true)
@@ -183,7 +183,7 @@ public class SshHostKeyVerificationStrategyTest {
     private ConnectionAttempt.Builder builder() {
         return new ConnectionAttempt.Builder();
     }
-
+    
     /**
      * A class to test a strategy. It stores the computer to connect to, the different configurations the computer is
      * passing through and the verifier used to connect to that computer.
@@ -192,18 +192,18 @@ public class SshHostKeyVerificationStrategyTest {
         List<ConnectionAttempt> connectionAttempts = new ArrayList<>();
         MockEC2Computer computer;
         ServerHostKeyVerifierImpl verifier;
-
+        
         public void check() throws Exception {
             for (ConnectionAttempt connectionAttempt : connectionAttempts) {
                 connectionAttempt.attempt();
             }
         }
-
+        
         private StrategyTest(String computerSuffix, SshHostKeyVerificationStrategy strategy) throws Exception {
             computer = MockEC2Computer.createComputer(computerSuffix);
             verifier = new ServerHostKeyVerifierImpl(computer, strategy);
         }
-
+        
         private StrategyTest addConnectionAttempt(ConnectionAttempt.Builder computerStateBuilder) {
             // The computer and verifier are the same for every computerState of the strategy. We set them here
             connectionAttempts.add(computerStateBuilder.build(computer, verifier, connectionAttempts.size() + 1));
@@ -222,12 +222,12 @@ public class SshHostKeyVerificationStrategyTest {
         private InstanceState state = InstanceState.RUNNING;
         // Whether the real host key of the computer is changed before this step
         private boolean changeHostKey = false;
-
-        // The expected messages the computer has printed out on the logs
+        
+        // The expected messages the computer has printed out on the logs 
         private String[] messagesInLog = new String[]{};
         // Whether the computer is set offline because a problem with the host key (it could be offline at the beginning)
         private boolean isOfflineByKey = false;
-
+      
         // The computer and verifier used during the try of connection
         private MockEC2Computer computer;
         private ServerHostKeyVerifierImpl verifier;
@@ -283,13 +283,13 @@ public class SshHostKeyVerificationStrategyTest {
                 assertThat(String.format("Stage %d. Log message not found on %s using %s strategy", stage, computer.getName(), verifier.strategy.getClass().getSimpleName()), loggerRule, LoggerRule.recorded(StringContains.containsString(messageInLog)));
             }
         }
-
+        
         /**
          * A builder to build the attempt easily
          */
         static class Builder {
             ConnectionAttempt connectionAttempt;
-
+            
             Builder setConsole(String console) {
                 connectionAttempt.console = console;
                 return this;
@@ -314,7 +314,7 @@ public class SshHostKeyVerificationStrategyTest {
             Builder() {
                 connectionAttempt = new ConnectionAttempt();
             }
-
+            
             private ConnectionAttempt build(MockEC2Computer computer, ServerHostKeyVerifierImpl verifier, int stage) {
                 connectionAttempt.stage = stage;
                 connectionAttempt.computer = computer;
@@ -329,7 +329,7 @@ public class SshHostKeyVerificationStrategyTest {
         InstanceState state = InstanceState.PENDING;
         String console = null;
         EC2AbstractSlave slave;
-
+        
         public MockEC2Computer(EC2AbstractSlave slave) {
             super(slave);
             this.slave = slave;
@@ -370,8 +370,8 @@ public class SshHostKeyVerificationStrategyTest {
         public SlaveTemplate getSlaveTemplate() {
             return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
         }
-    }
-
+    } 
+    
     // A verifier using the set strategy
     private static class ServerHostKeyVerifierImpl implements ServerHostKeyVerifier {
         private final EC2Computer computer;
