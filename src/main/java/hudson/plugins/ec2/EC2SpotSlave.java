@@ -90,8 +90,8 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             if (instanceId != null && !instanceId.equals("")) {
                                 if (!super.isAlive(true)) {
                                     /*
-                                     * The node has been killed externally, so we've nothing to do here
-                                     */
+                                    * The node has been killed externally, so we've nothing to do here
+                                    */
                                     LOGGER.info("EC2 instance already terminated: " + instanceId);
                                 } else {
                                     TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
