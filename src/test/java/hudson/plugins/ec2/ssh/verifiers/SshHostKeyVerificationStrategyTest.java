@@ -337,7 +337,7 @@ public class SshHostKeyVerificationStrategyTest {
 
         // Create a computer
         private static MockEC2Computer createComputer(String suffix) throws Exception {
-            final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+            final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false,false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
                 @Override
                 public void terminate() {
                 }

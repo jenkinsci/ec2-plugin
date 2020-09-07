@@ -93,7 +93,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
     public final boolean useDedicatedTenancy;
-    public boolean useHostTenancy;
+    public final boolean useHostTenancy;
     public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
@@ -141,7 +141,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, boolean useHostTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
         super(name, remoteFS, launcher);
@@ -162,6 +162,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.tags = tags;
         this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
         this.useDedicatedTenancy = useDedicatedTenancy;
+        this.useHostTenancy = useHostTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
@@ -171,9 +172,9 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     @Deprecated
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, boolean useHostTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, useHostTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @Override

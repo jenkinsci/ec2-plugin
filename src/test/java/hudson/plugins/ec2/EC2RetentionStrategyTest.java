@@ -68,7 +68,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false,false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             public void terminate() {
             }
@@ -147,7 +147,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false,false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
             @Override
             public void terminate() {
                 terminateCalled.set(true);
