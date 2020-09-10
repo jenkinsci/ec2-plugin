@@ -5,7 +5,6 @@ update_configs:
   update_schedule: "weekly"
   default_reviewers:
     - "thoulen"
-    - "jvz"
     - "res0nance"
   ignored_updates:
     - match:
