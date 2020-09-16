@@ -104,7 +104,7 @@ public class AmazonEC2CloudUnitTest {
 
         List<Instance> instances = new ArrayList<Instance>();
         for(int i=0; i<=numberOfSpotInstanceRequests; i++) {
-            instances.add(new Instance().withInstanceId("id"+i).withTags(new Tag().withKey("jenkins_slave_type").withValue("spot")));
+            instances.add(new Instance().withInstanceId("id"+i).withTags(new Tag().withKey("jenkins_node_type").withValue("spot")));
         }
         
         AmazonEC2FactoryMockImpl.instances = instances;
