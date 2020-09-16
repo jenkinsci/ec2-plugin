@@ -42,7 +42,7 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
     /**
      * Tag name for the specific jenkins slave type tag, used to identify the EC2 instances provisioned by this plugin.
      */
-    public static final String TAG_NAME_JENKINS_SLAVE_TYPE = "jenkins_slave_type";
+    public static final String TAG_NAME_JENKINS_SLAVE_TYPE = "jenkins_node_type";
     public static final String TAG_NAME_JENKINS_SERVER_URL = "jenkins_server_url";
 
     @DataBoundConstructor
