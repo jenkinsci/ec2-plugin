@@ -171,12 +171,6 @@ public abstract class EC2Cloud extends Cloud {
         this.credentialsId = credentialsId;
         this.sshKeysCredentialsId = sshKeysCredentialsId;
 
-        if (this.sshKeysCredentialsId == null && ( this.privateKey != null || privateKey != null)){
-            migratePrivateSshKeyToCredential(this.privateKey != null ? this.privateKey.getPrivateKey() : privateKey);
-        }
-        this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
-
-
         if (templates == null) {
             this.templates = Collections.emptyList();
         } else {
@@ -249,6 +243,11 @@ public abstract class EC2Cloud extends Cloud {
 
         for (SlaveTemplate t : templates)
             t.parent = this;
+
+        if (this.sshKeysCredentialsId == null && this.privateKey != null ){
+            migratePrivateSshKeyToCredential(this.privateKey.getPrivateKey());
+        }
+        this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
 
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
             String secretKeyEncryptedValue = this.secretKey.getEncryptedValue();
