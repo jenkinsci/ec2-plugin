@@ -18,7 +18,7 @@ public class EC2CloudMigrationTest {
     public JenkinsRule r = new JenkinsRule();
 
     @Test
-    @LocalData
+    @LocalData // config.xml file contains an ec2-cloud configuration from a version previous to ec2-1.52
     public void testPrivateKeyMigrationToSshCredentials() {
         assertEquals(1, r.jenkins.clouds.size());
         EC2Cloud cloud = (EC2Cloud) Jenkins.get().getCloud("ec2-myEc2Cloud");
