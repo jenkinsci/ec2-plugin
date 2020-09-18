@@ -20,7 +20,6 @@ public class EC2CloudMigrationTest {
     @Test
     @LocalData
     public void testPrivateKeyMigrationToSshCredentials() {
-        assertEquals(4, r.jenkins.getNumExecutors());
         assertEquals(1, r.jenkins.clouds.size());
         EC2Cloud cloud = (EC2Cloud) Jenkins.get().getCloud("ec2-myEc2Cloud");
 
