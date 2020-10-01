@@ -50,7 +50,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     @Deprecated
     public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
-        this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, nodeProperties, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses)
+        this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, nodeProperties, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, false);
     }
 
     @DataBoundConstructor
