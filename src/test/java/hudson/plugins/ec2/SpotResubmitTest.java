@@ -23,7 +23,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import hudson.model.queue.SubTask;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.ConsoleHandler;
@@ -31,8 +30,8 @@ import java.util.logging.Logger;
 
 import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*", "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Jenkins.class, Queue.class})
 public class SpotResubmitTest {
@@ -110,7 +109,6 @@ public class SpotResubmitTest {
 
     @Test
     public void testInterruptExecutors() {
-
 
         EC2SpotSlave ec2SpotSlave = mock(EC2SpotSlave.class);
         when(computer.getNode()).thenReturn(ec2SpotSlave);
