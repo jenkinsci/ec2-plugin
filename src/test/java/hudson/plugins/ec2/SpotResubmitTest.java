@@ -36,7 +36,6 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 @PrepareForTest({Jenkins.class, Queue.class})
 public class SpotResubmitTest {
 
-//    EC2SpotSlave computer = mock(EC2SpotSlave.class, withSettings().extraInterfaces(SlaveComputer.class));
     @Mock
     private SlaveComputer computer;
     @Mock
@@ -126,7 +125,6 @@ public class SpotResubmitTest {
     @Test
     public void testSpotInterruptionResubmitQueue() throws IOException, Descriptor.FormException {
 
-//        EC2SpotSlave ec2SpotSlave = mock(EC2SpotSlave.class);
         when(computer.getNode()).thenReturn(ec2SpotSlave);
         when(ec2SpotSlave.getNodeName()).thenReturn("mocked_node");
         // Mocking the spot interruption settings and events
