@@ -39,6 +39,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
@@ -120,10 +121,9 @@ public class AmazonEC2CloudTest {
 
     /**
      * Ensure that EC2 plugin can use any implementation of SSHUserPrivateKey (not just the default implementation, BasicSSHUserPrivateKey).
-     *
-     * See <a href="https://issues.jenkins-ci.org/browse/JENKINS-63986">JENKINS-63986</a>.
      */
     @Test
+    @Issue("JENKINS-63986")
     public void testCustomSshCredentialTypes() throws IOException {
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
