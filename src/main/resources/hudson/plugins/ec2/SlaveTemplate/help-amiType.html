@@ -21,7 +21,7 @@ to the slave afterward.
 	      <li>winrm quickconfig</li>
 	      <li>winrm set winrm/config/service/Auth '@{Basic="true"}'</li>
 	      <li>winrm set winrm/config/service '@{AllowUnencrypted="true"}'</li>
-	      <li>winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="1024"}'</li>
+	      <li>winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="10240"}'</li>
 		  <li>For https:
 		     <ul>
 		         <li><a href="http://www.hansolav.net/blog/SelfsignedSSLCertificatesOnIIS7AndCommonNames.aspx">Generate a windows certificate</a></li>
