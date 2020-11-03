@@ -1193,7 +1193,10 @@ public abstract class EC2Cloud extends Cloud {
                         LOGGER.finer(() -> "Checking EC2 Connection on: " + ec2_cloud.getDisplayName());
                         try {
                             if(ec2_cloud.connection != null) {
-                                ec2_cloud.connection.describeInstances();
+                                List<Filter> filters = new ArrayList<>();
+                                filters.add(new Filter("tag-key").withValues("bogus-EC2ConnectionKeepalive"));
+                                DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
+                                ec2_cloud.connection.describeInstances(dir);
                             }
                         } catch (AmazonClientException e) {
                             LOGGER.finer(() -> "Reconnecting to EC2 on: " + ec2_cloud.getDisplayName());
