@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
-  <table width="100%">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:ec="/lib/ec2">
+  <ec:blockWrapper>
 
   <f:entry title="${%Description}" field="description">
     <f:textbox />
@@ -214,5 +214,5 @@ THE SOFTWARE.
     </div>
   </f:entry>
 
-</table>
+</ec:blockWrapper>
 </j:jelly>
