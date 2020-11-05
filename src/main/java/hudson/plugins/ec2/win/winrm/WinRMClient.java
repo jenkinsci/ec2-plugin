@@ -9,9 +9,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -32,21 +29,15 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.Lookup;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.HttpHostConnectException;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicSchemeFactory;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HttpContext;
-import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -201,27 +192,13 @@ public class WinRMClient {
             builder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
         }
         if (useHTTPS) {
-            try {
-                SSLConnectionSocketFactory sslConnectionFactory;
-                
-                if (allowSelfSignedCertificate) {
-                    sslConnectionFactory = new SSLConnectionSocketFactory(
-                            new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
-                            NoopHostnameVerifier.INSTANCE);
-                    LOGGER.log(Level.FINE, "Allowing self-signed certificates");
-                } else {
-                    sslConnectionFactory = SSLConnectionSocketFactory.getSystemSocketFactory();
-                    LOGGER.log(Level.FINE, "Using system socket factory");
-                }
-                
-                builder.setSSLSocketFactory(sslConnectionFactory);
-                Lookup<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                                                                .register("https", sslConnectionFactory)
-                                                                .build();
-                HttpClientConnectionManager ccm = new BasicHttpClientConnectionManager(registry);
-                builder.setConnectionManager(ccm);
-            } catch (KeyStoreException | KeyManagementException | NoSuchAlgorithmException e) {
-            }
+            WinRMConnectionManagerFactory.WinRMHttpConnectionManager connectionManager =
+                    allowSelfSignedCertificate ? WinRMConnectionManagerFactory.SSL_ALLOW_SELF_SIGNED
+                            : WinRMConnectionManagerFactory.SSL;
+            builder.setSSLSocketFactory(connectionManager.getSocketFactory());
+            builder.setConnectionManager(connectionManager.getConnectionManager());
+        } else {
+            builder.setConnectionManager(WinRMConnectionManagerFactory.DEFAULT.getConnectionManager());
         }
         RequestConfig requestConfig = RequestConfig.custom()
                                       .setConnectTimeout(5000)
@@ -232,6 +209,27 @@ public class WinRMClient {
                                     .setTcpNoDelay(true)
                                     .build();
         builder.setDefaultSocketConfig(socketConfig);
+        // Add sleep between re-tries, by-default the call gets retried immediately.
+        builder.setRetryHandler(new DefaultHttpRequestRetryHandler() {
+            @Override
+            public boolean retryRequest(
+                    final IOException exception,
+                    final int executionCount,
+                    final HttpContext context) {
+                boolean retryRequest = super.retryRequest(exception, executionCount, context);
+                if ( retryRequest ) {
+                    // sleep before retrying, increase the sleep time on each re-try
+                    int sleepTime = executionCount * 5;
+                    try {
+                        Thread.sleep(sleepTime * 1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Exception while executing command", e);
+                    }
+                }
+                return retryRequest;
+            }
+        });
         return builder.build();
     }
 
