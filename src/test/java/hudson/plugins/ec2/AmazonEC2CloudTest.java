@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
@@ -32,11 +33,13 @@ import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
+import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
 import hudson.util.ListBoxModel;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
@@ -107,6 +110,31 @@ public class AmazonEC2CloudTest {
         for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(r.jenkins)) {
             if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
                     credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
+            }
+        }
+        //Ensure added credential is displayed
+        m = descriptor.doFillSshKeysCredentialsIdItems("");
+        assertThat(m.size(), is(2));
+        //Ensure that the cloud can resolve the new key
+        assertThat(actual.resolvePrivateKey(), notNullValue());
+    }
+
+    /**
+     * Ensure that EC2 plugin can use any implementation of SSHUserPrivateKey (not just the default implementation, BasicSSHUserPrivateKey).
+     */
+    @Test
+    @Issue("JENKINS-63986")
+    public void testCustomSshCredentialTypes() throws IOException {
+        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertNotNull(descriptor);
+        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems("");
+        assertThat(m.size(), is(1));
+        SSHUserPrivateKey sshKeyCredentials = new TestSSHUserPrivateKey(CredentialsScope.SYSTEM, "ghi", "key",
+                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"), "", "");
+        for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(r.jenkins)) {
+            if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+                credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
             }
         }
         //Ensure added credential is displayed

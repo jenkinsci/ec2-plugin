@@ -34,6 +34,7 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
@@ -195,7 +196,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
         if (sshKeysCredentialsId != null) {
-            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
+            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
@@ -209,11 +210,11 @@ public abstract class EC2Cloud extends Cloud {
 
     private void migratePrivateSshKeyToCredential(String privateKey){
         // GET matching private key credential from Credential API if exists
-        Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
+        Optional<SSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
                 .stream()
-                .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
-                .filter((cred) -> ((BasicSSHUserPrivateKey)cred).getPrivateKey().trim().equals(privateKey.trim()))
-                .map(cred -> (BasicSSHUserPrivateKey)cred)
+                .filter((cred) -> cred instanceof SSHUserPrivateKey)
+                .filter((cred) -> ((SSHUserPrivateKey)cred).getPrivateKey().trim().equals(privateKey.trim()))
+                .map(cred -> (SSHUserPrivateKey)cred)
                 .findFirst();
 
         if (keyCredential.isPresent()){
@@ -223,7 +224,7 @@ public abstract class EC2Cloud extends Cloud {
             // CREATE new credential
             String credsId = UUID.randomUUID().toString();
 
-            BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
+            SSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
                     new BasicSSHUserPrivateKey.PrivateKeySource() {
                         @NonNull
                         @Override
@@ -1019,11 +1020,11 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @CheckForNull
-    private static BasicSSHUserPrivateKey getSshCredential(String id){
+    private static SSHUserPrivateKey getSshCredential(String id){
 
-        BasicSSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
+        SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(
-                        BasicSSHUserPrivateKey.class, // (1)
+                        SSHUserPrivateKey.class, // (1)
                         (ItemGroup) null,
                         null,
                         Collections.emptyList()),
@@ -1060,8 +1061,8 @@ public abstract class EC2Cloud extends Cloud {
             StandardListBoxModel result = new StandardListBoxModel();
 
             return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 
@@ -1073,7 +1074,7 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.error("No ssh credentials selected");
             }
 
-            BasicSSHUserPrivateKey sshCredential = getSshCredential(value);
+            SSHUserPrivateKey sshCredential = getSshCredential(value);
             String privateKey = "";
             if (sshCredential != null) {
                 privateKey = sshCredential.getPrivateKey();
@@ -1118,7 +1119,7 @@ public abstract class EC2Cloud extends Cloud {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
 
-                BasicSSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId);
+                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId);
                 String privateKey = "";
                 if (sshCredential != null) {
                     privateKey = sshCredential.getPrivateKey();
