@@ -24,7 +24,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WinConnection {
-    private static final Logger log = Logger.getLogger(WinConnection.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(WinConnection.class.getName());
 
     private final String host;
     private final String username;
@@ -119,18 +119,16 @@ public class WinConnection {
     }
     
     public boolean pingFailingIfSSHHandShakeError() throws IOException {
-        log.log(Level.FINE, "checking SMB connection to " + host);
-        try {
-            Socket socket=new Socket();
+        LOGGER.log(Level.FINE, () -> "checking SMB connection to " + host);
+        try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
-            socket.close();
             winrm().ping();
             Connection connection = smbclient.connect(host);
             Session session = connection.authenticate(authentication);
             session.connectShare("IPC$");
             return true;
         } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
+            LOGGER.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
             if (e instanceof SSLException) {
                 throw e;
             } else if (e.getCause() instanceof SSLException) {

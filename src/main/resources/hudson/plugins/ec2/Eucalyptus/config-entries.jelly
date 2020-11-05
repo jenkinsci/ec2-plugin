@@ -18,7 +18,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials" xmlns:s="/io/jenkins/temp/jelly">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
   <f:entry title="${%Eucalyptus EC2 URL}" field="ec2endpoint">
     <f:textbox />
   </f:entry>
@@ -31,8 +31,8 @@ THE SOFTWARE.
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
     <f:checkbox />
   </f:entry>
-  <f:entry title="${%EC2 Key Pair's Private Key}" field="privateKey">
-    <s:secretTextarea value="${instance.privateKey.privateKeySecret}"/>
+  <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
+    <c:select includeUser="false" checkMethod="post"/>
   </f:entry>
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">

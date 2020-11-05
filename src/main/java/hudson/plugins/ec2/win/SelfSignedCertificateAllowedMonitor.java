@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.stream.Collectors;
 
 @Extension
 public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {

@@ -22,11 +22,12 @@ public class WindowsData extends AMITypeData {
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
-        this.specifyPassword = specifyPassword;
         //Backwards compatibility
         if (!specifyPassword && !this.password.getPlainText().isEmpty()) {
             specifyPassword = true;
         }
+        this.specifyPassword = specifyPassword;
+
         this.allowSelfSignedCertificate = allowSelfSignedCertificate;
     }
     

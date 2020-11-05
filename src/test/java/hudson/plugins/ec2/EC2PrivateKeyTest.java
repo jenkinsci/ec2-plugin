@@ -29,6 +29,7 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.IOException;
+
 import com.amazonaws.AmazonClientException;
 
 import static org.junit.Assert.assertEquals;

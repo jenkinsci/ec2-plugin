@@ -49,16 +49,22 @@ import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import com.amazonaws.services.ec2.model.Reservation;
+import hudson.plugins.ec2.util.PrivateKeyHelper;
 import jenkins.model.Jenkins;
 
 import net.sf.json.JSONObject;
+import org.apache.commons.math3.analysis.function.Power;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import org.mockito.ArgumentCaptor;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -71,10 +77,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -571,7 +575,8 @@ public class SlaveTemplateTest {
         mockedKeyPair.setKeyName("some-key-name");
         when(mockedPrivateKey.find(mockedEC2)).thenReturn(mockedKeyPair);
         when(mockedCloud.connect()).thenReturn(mockedEC2);
-        when(mockedCloud.getPrivateKey()).thenReturn(mockedPrivateKey);
+        when(mockedCloud.resolvePrivateKey()).thenReturn(mockedPrivateKey);
+
         template.parent = mockedCloud;
 
         DescribeImagesResult mockedImagesResult = mock(DescribeImagesResult.class);
