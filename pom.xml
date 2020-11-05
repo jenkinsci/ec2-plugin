@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.10</version>
+        <version>4.12</version>
         <relativePath />
     </parent>
 
@@ -234,7 +234,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.8.3</version>
+            <version>1.14.3</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -246,12 +246,12 @@ THE SOFTWARE.
         </dependency>
         <!-- Upper bound deps -->
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>jackson2-api</artifactId>
-            <version>2.11.1</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.30</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -280,12 +280,6 @@ THE SOFTWARE.
                 <version>17</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <!-- Upper bound deps -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.11.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
