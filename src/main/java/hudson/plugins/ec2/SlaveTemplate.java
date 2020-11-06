@@ -1124,7 +1124,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 LOGGER.warning("AMI missing block devices");
                 return;
             }
-            BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
+            BlockDeviceMapping rootMapping = getRootDeviceMapping(rootDeviceMappings);
+            if (rootMapping==null) {
+                LOGGER.warning("AMI missing root device");
+                return;
+            }
             LOGGER.info("AMI had " + rootMapping.getDeviceName());
             LOGGER.info(rootMapping.getEbs().toString());
 
@@ -1145,6 +1149,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             newMapping.getEbs().setEncrypted(null);
             deviceMappings.add(0, newMapping);
         }
+    }
+
+    private BlockDeviceMapping getRootDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
+        return deviceMappings.stream().filter(mapping -> mapping.getDeviceName().equals(getImage().getRootDeviceName()))
+                .findFirst()
+                .orElse(null);
     }
 
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
