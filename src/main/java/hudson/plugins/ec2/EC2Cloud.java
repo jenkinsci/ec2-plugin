@@ -121,6 +121,8 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String AWS_URL_HOST = "amazonaws.com";
 
+    public static final String AWS_CN_URL_HOST = "amazonaws.com.cn";
+
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
 
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
@@ -976,13 +978,27 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /***
+     * Returns the DNS endpoint for a AWS service based on region provided
+     */
+    public static String getAwsPartitionHostForService(String region, String service) {
+        String host;
+        if (region != null && region.startsWith("cn-")) {
+            host = service + "." + region + "." + AWS_CN_URL_HOST;
+        } else {
+            host = service + "." + region + "." + AWS_URL_HOST;
+        }
+        return host;
+    }
+
+    /***
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
     public static String convertHostName(String ec2HostName) {
         if (ec2HostName == null || ec2HostName.length() == 0)
             ec2HostName = DEFAULT_EC2_HOST;
-        if (!ec2HostName.contains("."))
-            ec2HostName = "ec2." + ec2HostName + "." + AWS_URL_HOST;
+        if (!ec2HostName.contains(".")) {
+            ec2HostName = getAwsPartitionHostForService(ec2HostName, "ec2");
+        }
         return ec2HostName;
     }
 
