@@ -791,7 +791,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Override
     public String toString() {
         return "SlaveTemplate{" +
-                "ami='" + ami + '\'' +
+                "description='" + description + '\'' +
                 ", labels='" + labels + '\'' +
                 '}';
     }
