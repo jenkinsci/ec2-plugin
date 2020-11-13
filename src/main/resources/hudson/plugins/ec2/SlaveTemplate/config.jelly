@@ -33,7 +33,29 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
+  <!-- FIXME: Ideally this would include owners and filters, but
+       validateButton only marshals simple types and can't handle the
+       filters repeatableProperty.
+  -->
   <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami,roleArn,roleSessionName" />
+
+  <f:entry title="${%AMI Owners}" field="amiOwners">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI Users}" field="amiUsers">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI Filters}" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/amiFilters">
+    <f:repeatableProperty field="amiFilters">
+      <f:block>
+        <div align="right">
+          <f:repeatableDeleteButton />
+        </div>
+      </f:block>
+    </f:repeatableProperty>
+  </f:entry>
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>

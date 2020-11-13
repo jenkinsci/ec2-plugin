@@ -112,6 +112,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -311,6 +312,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private transient/* almost final */Set<String> securityGroupSet;
 
+    /* FIXME: Ideally these would be List<String>, but Jenkins currently
+     * doesn't offer a usable way to represent those in forms. Instead
+     * the values are interpreted as a comma separated list.
+     *
+     * https://issues.jenkins.io/browse/JENKINS-27901
+     */
+    @CheckForNull
+    private String amiOwners;
+
+    @CheckForNull
+    private String amiUsers;
+
+    @CheckForNull
+    private List<EC2Filter> amiFilters;
+
     /*
      * Necessary to handle reading from old configurations. The UnixData object is created in readResolve()
      */
@@ -405,7 +421,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.t2Unlimited = t2Unlimited;
 
         this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
-        
+
         readResolve(); // initialize
     }
 
@@ -786,6 +802,36 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @NonNull
     public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
         return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+    }
+
+    @CheckForNull
+    public String getAmiOwners() {
+        return amiOwners;
+    }
+
+    @DataBoundSetter
+    public void setAmiOwners(String amiOwners) {
+        this.amiOwners = amiOwners;
+    }
+
+    @CheckForNull
+    public String getAmiUsers() {
+        return amiUsers;
+    }
+
+    @DataBoundSetter
+    public void setAmiUsers(String amiUsers) {
+        this.amiUsers = amiUsers;
+    }
+
+    @CheckForNull
+    public List<EC2Filter> getAmiFilters() {
+        return amiFilters;
+    }
+
+    @DataBoundSetter
+    public void setAmiFilters(List<EC2Filter> amiFilters) {
+        this.amiFilters = amiFilters;
     }
     
     @Override
@@ -1195,17 +1241,50 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         deviceMappings.addAll(getNewEphemeralDeviceMapping(image));
     }
 
-    private Image getImage() {
-        DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
-        for (final Image image : getParent().connect().describeImages(request).getImages()) {
+    @NonNull
+    private static List<String> makeImageAttributeList(@CheckForNull String attr) {
+        return Stream.of(Util.tokenize(Util.fixNull(attr)))
+            .collect(Collectors.toList());
+    }
 
-            if (ami.equals(image.getImageId())) {
+    @NonNull
+    private DescribeImagesRequest makeDescribeImagesRequest() {
+        List<String> imageIds = Util.fixEmptyAndTrim(ami) == null ?
+            Collections.emptyList() :
+            Collections.singletonList(ami);
+        List<String> owners = makeImageAttributeList(amiOwners);
+        List<String> users = makeImageAttributeList(amiUsers);
+        List<Filter> filters = EC2Filter.toFilterList(amiFilters);
 
-                return image;
-            }
+        // Log a warning if there were no search attributes. This is
+        // legal but probably not what anyone wants. Might be better
+        // as an exception.
+        int numAttrs = Stream.of(imageIds, owners, users, filters)
+            .collect(Collectors.summingInt(List::size));
+        if (numAttrs == 0) {
+            LOGGER.warning("Neither AMI ID nor AMI search attributes provided");
         }
 
-        throw new AmazonClientException("Unable to find AMI " + ami);
+        return new DescribeImagesRequest()
+            .withImageIds(imageIds)
+            .withOwners(owners)
+            .withExecutableUsers(users)
+            .withFilters(filters);
+    }
+
+    @NonNull
+    private Image getImage() throws AmazonClientException {
+        DescribeImagesRequest request = makeDescribeImagesRequest();
+
+        LOGGER.info("Getting image for request " + request);
+        List<Image> images = getParent().connect().describeImages(request).getImages();
+        if (images.isEmpty()) {
+            throw new AmazonClientException("Unable to find image for request " + request);
+         }
+
+        // Sort in reverse by creation date to get latest image
+        images.sort(Comparator.comparing(Image::getCreationDate).reversed());
+        return images.get(0);
     }
 
 
