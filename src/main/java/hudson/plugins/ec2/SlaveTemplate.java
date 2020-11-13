@@ -812,12 +812,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+        final Image image = getImage();
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
-                return provisionSpot(number, provisionOptions);
+                return provisionSpot(image, number, provisionOptions);
             return null;
         }
-        return provisionOndemand(number, provisionOptions);
+        return provisionOndemand(image, number, provisionOptions);
     }
 
     /**
@@ -857,12 +858,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(this + ". " + message);
     }
 
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws IOException {
-        return makeRunInstancesRequestAndFilters(number, ec2, true);
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2) throws IOException {
+        return makeRunInstancesRequestAndFilters(image, number, ec2, true);
     }
 
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
-        RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, number).withInstanceType(type);
+    @Deprecated
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws IOException {
+        return makeRunInstancesRequestAndFilters(getImage(), number, ec2);
+    }
+
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+        String imageId = image.getImageId();
+        RunInstancesRequest riRequest = new RunInstancesRequest(imageId, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
 
@@ -872,7 +879,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setCreditSpecification(creditRequest);
         }
 
-        setupBlockDeviceMappings(riRequest.getBlockDeviceMappings());
+        setupBlockDeviceMappings(image, riRequest.getBlockDeviceMappings());
 
         if(stopOnTerminate){
             riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Stop);
@@ -883,7 +890,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         List<Filter> diFilters = new ArrayList<>();
-        diFilters.add(new Filter("image-id").withValues(ami));
+        diFilters.add(new Filter("image-id").withValues(imageId));
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
         KeyPair keyPair = getKeyPair(ec2);
@@ -976,24 +983,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return ret;
     }
 
-    /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
-     */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
-            throws IOException {
-        return provisionOndemand(number, provisionOptions, false, false);
+    @Deprecated
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+        return makeRunInstancesRequestAndFilters(getImage(), number, ec2, rotateSubnet);
     }
 
     /**
      * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
+    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        return provisionOndemand(image, number, provisionOptions, false, false);
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
             throws IOException {
         AmazonEC2 ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
 
-        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(number, ec2);
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(image, number, ec2);
         Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
         RunInstancesRequest riRequest = entry.getKey();
         List<Filter> diFilters = entry.getValue();
@@ -1116,10 +1128,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return orphansOrStopped;
     }
 
-    private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
-        if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
+    private void setupRootDevice(Image image, List<BlockDeviceMapping> deviceMappings) {
+        if (deleteRootOnTermination && image.getRootDeviceType().equals("ebs")) {
             // get the root device (only one expected in the blockmappings)
-            final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
+            final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
             if (rootDeviceMappings.size() == 0) {
                 LOGGER.warning("AMI missing block devices");
                 return;
@@ -1147,9 +1159,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
+    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping(Image image) {
 
-        final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
+        final List<BlockDeviceMapping> oldDeviceMapping = image.getBlockDeviceMappings();
 
         final Set<String> occupiedDevices = new HashSet<>();
         for (final BlockDeviceMapping mapping : oldDeviceMapping) {
@@ -1178,18 +1190,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return newDeviceMapping;
     }
 
-    private void setupEphemeralDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
+    private void setupEphemeralDeviceMapping(Image image, List<BlockDeviceMapping> deviceMappings) {
         // Don't wipe out pre-existing mappings
-        deviceMappings.addAll(getNewEphemeralDeviceMapping());
-    }
-
-    private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
-
-        /*
-         * AmazonEC2#describeImageAttribute does not work due to a bug
-         * https://forums.aws.amazon.com/message.jspa?messageID=231972
-         */
-        return getImage().getBlockDeviceMappings();
+        deviceMappings.addAll(getNewEphemeralDeviceMapping(image));
     }
 
     private Image getImage() {
@@ -1215,16 +1218,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provision a new slave for an EC2 spot instance to call back to Jenkins
      */
-    private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
+    private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(1, provisionOptions, true, spotConfig.getFallbackToOndemand());
+            return provisionOndemand(image, 1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         AmazonEC2 ec2 = getParent().connect();
+        String imageId = image.getImageId();
 
         try {
-            LOGGER.info("Launching " + ami + " for template " + description);
+            LOGGER.info("Launching " + imageId + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -1240,7 +1244,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
 
-            launchSpecification.setImageId(ami);
+            launchSpecification.setImageId(imageId);
             launchSpecification.setInstanceType(type);
             launchSpecification.setEbsOptimized(ebsOptimized);
             launchSpecification.setMonitoringEnabled(monitoring);
@@ -1290,7 +1294,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
-            setupBlockDeviceMappings(launchSpecification.getBlockDeviceMappings());
+            setupBlockDeviceMappings(image, launchSpecification.getBlockDeviceMappings());
 
             spotRequest.setLaunchSpecification(launchSpecification);
 
@@ -1328,7 +1332,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
                         CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
                         ec2.cancelSpotInstanceRequests(cancelRequest);
-                        return provisionOndemand(number, provisionOptions);
+                        return provisionOndemand(image, number, provisionOptions);
                     }
                 }
 
@@ -1354,10 +1358,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private void setupBlockDeviceMappings(List<BlockDeviceMapping> blockDeviceMappings) {
-        setupRootDevice(blockDeviceMappings);
+    private void setupBlockDeviceMappings(Image image, List<BlockDeviceMapping> blockDeviceMappings) {
+        setupRootDevice(image, blockDeviceMappings);
         if (useEphemeralDevices) {
-            setupEphemeralDeviceMapping(blockDeviceMappings);
+            setupEphemeralDeviceMapping(image, blockDeviceMappings);
         } else {
             setupCustomDeviceMapping(blockDeviceMappings);
         }
@@ -1629,7 +1633,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this SlaveTemplate's configs
      */
     DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws IOException {
-        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(1, ec2, false);
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(getImage(), 1, ec2, false);
         Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
         List<Filter> diFilters = entry.getValue();
 
