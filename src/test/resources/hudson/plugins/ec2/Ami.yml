@@ -1,0 +1,18 @@
+---
+configuration-as-code:
+  deprecated: warn
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: "test"
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+          - ami: ami-0123456789abcdefg
+          - amiOwners: self
+            amiUsers: self
+            amiFilters:
+              - name: name
+                values: "foo-*"
+              - name: architecture
+                values: x86_64
+          - amiFilters: []
