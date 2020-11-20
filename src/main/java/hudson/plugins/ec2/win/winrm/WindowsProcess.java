@@ -10,9 +10,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WindowsProcess {
-    private static final Logger log = Logger.getLogger(WindowsProcess.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(WindowsProcess.class.getName());
 
-    private final static int INPUT_BUFFER = 16 * 1024;
+    private static final int INPUT_BUFFER = 16 * 1024;
     private final WinRMClient client;
 
     private final FastPipedInputStream toCallersStdin;
@@ -104,12 +104,12 @@ public class WindowsProcess {
                 try {
                     for (;;) {
                         if (!client.slurpOutput(toCallersStdout, toCallersStderr)) {
-                            log.log(Level.FINE, "no more output for " + command);
+                            LOGGER.log(Level.FINE, () -> "no more output for " + command);
                             break;
                         }
                     }
                 } catch (Exception exc) {
-                    log.log(Level.WARNING, "ouch, stdout exception for " + command, exc);
+                    LOGGER.log(Level.WARNING, "ouch, stdout exception for " + command, exc);
                     exc.printStackTrace();
                 } finally {
                     Closeables.closeQuietly(toCallersStdout);
@@ -137,11 +137,11 @@ public class WindowsProcess {
 
                         byte[] bufToSend = new byte[n];
                         System.arraycopy(buf, 0, bufToSend, 0, n);
-                        log.log(Level.FINE, "piping " + bufToSend.length + " to input of " + command);
+                        LOGGER.log(Level.FINE, () -> "piping " + bufToSend.length + " to input of " + command);
                         client.sendInput(bufToSend);
                     }
                 } catch (Exception exc) {
-                    log.log(Level.WARNING, "ouch, STDIN exception for " + command, exc);
+                    LOGGER.log(Level.WARNING, "ouch, STDIN exception for " + command, exc);
                 } finally {
                     Closeables.closeQuietly(callersStdin);
                 }

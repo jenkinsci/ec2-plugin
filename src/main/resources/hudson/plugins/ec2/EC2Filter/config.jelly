@@ -1,7 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 The MIT License
 
-Copyright (c) 2011, CloudBees, Inc.
+Copyright © 2020 Endless OS Foundation LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +23,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:ec="/lib/ec2">
-   <ec:blockWrapper>
-      <f:entry title="${%Name}" field="name">
-         <f:textbox />
-      </f:entry>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <f:entry title="${%Name}" field="name">
+    <f:textbox />
+  </f:entry>
 
-      <f:entry title="${%Value}" field="value">
-         <f:textbox />
-      </f:entry>
-
-      <f:entry title="">
-         <div align="right">
-            <f:repeatableDeleteButton />
-         </div>
-      </f:entry>
-   </ec:blockWrapper>
+  <f:entry title="${%Values}" field="values">
+    <f:textbox />
+  </f:entry>
 </j:jelly>

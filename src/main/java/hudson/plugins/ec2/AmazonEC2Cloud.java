@@ -46,13 +46,12 @@ import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.amazonaws.services.ec2.model.Region;
-import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * The original implementation of {@link EC2Cloud}.
@@ -70,6 +69,12 @@ public class AmazonEC2Cloud extends EC2Cloud {
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.region = region;
+    }
+
+    @Deprecated
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
@@ -205,7 +210,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String region,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId,
-                @QueryParameter String privateKey,
+                @QueryParameter String sshKeysCredentialsId,
                 @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
 
@@ -215,7 +220,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }
