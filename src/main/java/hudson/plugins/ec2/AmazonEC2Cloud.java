@@ -183,10 +183,12 @@ public class AmazonEC2Cloud extends EC2Cloud {
         }
 
         public FormValidation doCheckAltEC2Endpoint(@QueryParameter String value) {
-            try {
-                new URL(value);
-            } catch (MalformedURLException ignored) {
-                return FormValidation.error(Messages.AmazonEC2Cloud_MalformedUrl());
+            if (Util.fixEmpty(value) != null) {
+                try {
+                    new URL(value);
+                } catch (MalformedURLException ignored) {
+                    return FormValidation.error(Messages.AmazonEC2Cloud_MalformedUrl());
+                }
             }
             return FormValidation.ok();
         }
@@ -222,6 +224,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
         // value if not specified.
         @VisibleForTesting
         URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {
+            if (Util.fixEmpty(altEC2Endpoint) == null) {
+                return new URL(DEFAULT_EC2_ENDPOINT);
+            }
             try {
                 return new URL(altEC2Endpoint);    
             } catch (MalformedURLException e) {
