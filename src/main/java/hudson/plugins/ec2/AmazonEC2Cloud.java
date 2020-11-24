@@ -64,6 +64,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
      */
     private String region;
 
+    private String altEC2Endpoint;
+
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
     private boolean noDelayProvisioning;
@@ -132,6 +134,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @DataBoundSetter
     public void setNoDelayProvisioning(boolean noDelayProvisioning) {
         this.noDelayProvisioning = noDelayProvisioning;
+    }
+
+    public String getAltEC2Endpoint() {
+        return altEC2Endpoint;
+    }
+
+    @DataBoundSetter
+    public void setAltEC2Endpoint(String altEC2Endpoint) {
+        this.altEC2Endpoint = altEC2Endpoint;
     }
 
     @Override

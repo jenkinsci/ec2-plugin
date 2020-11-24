@@ -150,6 +150,17 @@ public class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("UnixData-withAltEndpoint.yml")
+    public void testConfigAsCodeWithAltEncpointExport() throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = getJenkinsRoot(context).get("clouds");
+        String exported = toYamlString(clouds);
+        String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpoint.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
     @ConfiguredWithCode("Ami.yml")
     public void testAmi() throws Exception {
         final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-test");
