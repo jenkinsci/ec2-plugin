@@ -38,6 +38,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
@@ -59,6 +61,8 @@ import com.amazonaws.services.ec2.model.Region;
  * @author Kohsuke Kawaguchi
  */
 public class AmazonEC2Cloud extends EC2Cloud {
+    private final static Logger LOGGER = Logger.getLogger(AmazonEC2Cloud.class.getName());
+    
     /**
      * Represents the region. Can be null for backward compatibility reasons.
      */
@@ -178,6 +182,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
+        public FormValidation doCheckAltEC2Endpoint(@QueryParameter String value) {
+            try {
+                new URL(value);
+            } catch (MalformedURLException ignored) {
+                return FormValidation.error(Messages.AmazonEC2Cloud_MalformedUrl());
+            }
+            return FormValidation.ok();
+        }
+        
         @RequirePOST
         public ListBoxModel doFillRegionItems(
                 @QueryParameter String altEC2Endpoint,
@@ -209,11 +222,12 @@ public class AmazonEC2Cloud extends EC2Cloud {
         // value if not specified.
         @VisibleForTesting
         URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {
-            if (Util.fixEmpty(altEC2Endpoint) == null) {
+            try {
+                return new URL(altEC2Endpoint);    
+            } catch (MalformedURLException e) {
+                LOGGER.log(Level.WARNING, "The alternate EC2 endpoint is malformed ({0}). Using the default endpoint ({1})", new Object[]{altEC2Endpoint, DEFAULT_EC2_ENDPOINT});
                 return new URL(DEFAULT_EC2_ENDPOINT);
             }
-
-            return new URL(altEC2Endpoint);
         }
 
         @RequirePOST
