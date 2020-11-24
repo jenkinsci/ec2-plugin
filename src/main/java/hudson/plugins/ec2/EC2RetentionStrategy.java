@@ -169,19 +169,25 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             // An instance may also fail running user data scripts and
             // need to be cleaned up.
             if (computer.isOffline()){
-                EC2AbstractSlave node = computer.getNode();
-                if (Objects.isNull(node)){
+                if (computer.isConnecting()) {
+                    LOGGER.log(Level.FINE, "Computer {0} connecting and still offline, will check if the launch timeout has expired", computer.getInstanceId());
+
+                    EC2AbstractSlave node = computer.getNode();
+                    if (Objects.isNull(node)) {
+                        return 1;
+                    }
+                    long launchTimeout = node.getLaunchTimeoutInMillis();
+                    if (launchTimeout > 0 && uptime > launchTimeout) {
+                        // Computer is offline and startup time has expired
+                        LOGGER.info("Startup timeout of " + computer.getName() + " after "
+                                + uptime +
+                                " milliseconds (timeout: " + launchTimeout + " milliseconds), instance status: " + state.toString());
+                        node.launchTimeout();
+                    }
                     return 1;
+                } else {
+                    LOGGER.log(Level.FINE, "Computer {0} offline but not connecting, will check if it should be terminated because of the idle time configured", computer.getInstanceId());
                 }
-                long launchTimeout = node.getLaunchTimeoutInMillis();
-                if (launchTimeout > 0 && uptime > launchTimeout){
-                    // Computer is offline and startup time has expired
-                    LOGGER.info("Startup timeout of " + computer.getName() + " after "
-                    + uptime +
-                    " milliseconds (timeout: "+launchTimeout+" milliseconds), instance status: "+state.toString());
-                    node.launchTimeout();
-                }
-                return 1;
             }
 
             final long idleMilliseconds = this.clock.millis() - computer.getIdleStartMilliseconds();
