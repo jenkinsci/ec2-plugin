@@ -119,7 +119,7 @@ public class MinimumInstanceChecker {
 
     public static boolean minimumInstancesActive(
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig) {
-        if (minimumNumberOfInstancesTimeRangeConfig == null) {
+        if (minimumNumberOfInstancesTimeRangeConfig == null || inimumNumberOfInstancesTimeRangeConfig.getMinimumNoInstancesActiveTimeRangeDays() == null) {
             return true;
         }
         LocalTime fromTime = minimumNumberOfInstancesTimeRangeConfig.getMinimumNoInstancesActiveTimeRangeFromAsTime();
