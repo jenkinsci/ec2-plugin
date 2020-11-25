@@ -2040,7 +2040,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         public FormValidation doCheckConnectionStrategy(@QueryParameter String connectionStrategy) {
             return Stream.of(ConnectionStrategy.values())
-                    .filter(v -> v.equalsName(connectionStrategy))
+                    .filter(v -> v.name().equals(connectionStrategy))
                     .findFirst()
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
