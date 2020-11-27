@@ -43,9 +43,9 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 
 /**
- * @author Felipe Grazziotin
+ * @author Felipe Grazziotin (@els-grazziotinf)
  */
-public class AmazonChinaEC2CloudTest {
+public class AmazonPartitionEC2CloudTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
@@ -83,7 +83,7 @@ public class AmazonChinaEC2CloudTest {
     }
 
     @Test
-    public void testAmazonChinaEC2Endpoint() throws Exception {
+    public void testAmazonPartitionEC2Endpoint() throws Exception {
         r.configRoundtrip();
         AmazonEC2Cloud cloud = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2 connection = cloud.connect();
