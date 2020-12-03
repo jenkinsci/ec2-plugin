@@ -1,8 +1,5 @@
 ## Changelog
 
-### Next version
-- Support AWS China partition under amazonaws.com.cn for EC2 and S3 endpoints.
-
 ### Version 1.46 (September 25, 2019)
 - Configure release drafter and Dependabot
 - JENKINS-25106 - Support for minimum number of instances
