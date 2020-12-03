@@ -1,5 +1,8 @@
 ## Changelog
 
+### DEPRECATED
+The changelog for new versions is at https://github.com/jenkinsci/ec2-plugin/releases
+
 ### Version 1.46 (September 25, 2019)
 - Configure release drafter and Dependabot
 - JENKINS-25106 - Support for minimum number of instances
