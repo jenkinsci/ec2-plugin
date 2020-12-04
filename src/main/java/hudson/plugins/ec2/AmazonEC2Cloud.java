@@ -111,7 +111,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-            return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
+            return new URL("https://" + getAwsPartitionHostForService(region, "ec2"));
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
@@ -125,7 +125,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @Override
     public URL getS3EndpointUrl() {
         try {
-            return new URL("https://" + getRegion() + ".s3.amazonaws.com/");
+            return new URL("https://" + getAwsPartitionHostForService(getRegion(), "s3") + "/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
