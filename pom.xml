@@ -35,7 +35,7 @@ THE SOFTWARE.
     </parent>
 
     <artifactId>ec2</artifactId>
-    <version>1.56</version>
+    <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
 
     <name>Amazon EC2 plugin</name>
@@ -72,11 +72,11 @@ THE SOFTWARE.
         <connection>scm:git:git://github.com/jenkinsci/ec2-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/ec2-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/ec2-plugin</url>
-        <tag>ec2-1.56</tag>
+        <tag>${scmTag}</tag>
     </scm>
 
     <properties>
-        <revision>1.56</revision>
+        <revision>1.57</revision>
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.204.6</jenkins.version>
         <java.level>8</java.level>
