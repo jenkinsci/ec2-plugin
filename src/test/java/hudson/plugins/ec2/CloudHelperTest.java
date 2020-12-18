@@ -26,7 +26,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.Collections;
 import java.util.List;
 
-import static org.mockito.Matchers.anyLong;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(PowerMockRunner.class)
@@ -44,7 +43,6 @@ public class CloudHelperTest {
                 "3", Collections.emptyList(), "roleArn", "roleSessionName");
 
         PowerMockito.mockStatic(Thread.class);
-        //PowerMockito.doNothing().when(Thread.class, "sleep", anyLong());
     }
 
     @Test
