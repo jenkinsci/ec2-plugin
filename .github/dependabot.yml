@@ -1,13 +1,8 @@
 version: 2
 updates:
-  - package-ecosystem: "maven"
-    directory: "/"
-    schedule: 
-      interval: "weekly"
-    reviewers:
-      - "thoulen"
-      - "res0nance"
-    ignore:
-      - dependency-name: "org.jenkins-ci.main:jenkins-core"
-      - dependency-name: "org.jenkins-ci.plugins*"
-      - dependency-name: "io.jenkins.plugins*"
+- package-ecosystem: maven
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  
