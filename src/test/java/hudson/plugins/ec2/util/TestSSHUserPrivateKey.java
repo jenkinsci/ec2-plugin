@@ -5,7 +5,7 @@ import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import hudson.util.Secret;
-import org.jetbrains.annotations.NotNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ public class TestSSHUserPrivateKey extends BaseStandardCredentials implements SS
         this.passphrase = Secret.fromString(passphrase);
     }
 
-    @NotNull
+    @NonNull
     @Override
     public String getPrivateKey() {
         List<String> privateKeys = getPrivateKeys();
@@ -43,13 +43,13 @@ public class TestSSHUserPrivateKey extends BaseStandardCredentials implements SS
         return passphrase;
     }
 
-    @NotNull
+    @NonNull
     @Override
     public List<String> getPrivateKeys() {
         return privateKeySource.getPrivateKeys();
     }
 
-    @NotNull
+    @NonNull
     @Override
     public String getUsername() {
         return username;
