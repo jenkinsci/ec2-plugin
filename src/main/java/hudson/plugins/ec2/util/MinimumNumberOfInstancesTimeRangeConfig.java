@@ -4,6 +4,7 @@ import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
+import javax.annotation.CheckForNull;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -79,6 +80,7 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
         return getLocalTime(minimumNoInstancesActiveTimeRangeTo);
     }
 
+    @CheckForNull
     public Map<String, Boolean> getMinimumNoInstancesActiveTimeRangeDays() {
         return minimumNoInstancesActiveTimeRangeDays;
     }
