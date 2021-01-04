@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.4</version>
+        <version>4.15</version>
         <relativePath />
     </parent>
 
@@ -62,11 +62,6 @@ THE SOFTWARE.
             <email>julienduchesne@live.com</email>
         </developer>
         <developer>
-            <id>jvz</id>
-            <name>Matt Sicker</name>
-            <email>msicker@cloudbees.com</email>
-        </developer>
-        <developer>
             <id>raihaan</id>
             <name>Raihaan Shouhell</name>
             <email>raihaanhimself@gmail.com</email>
@@ -81,12 +76,11 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>1.52</revision>
+        <revision>1.57</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.204.6</jenkins.version>
+        <jenkins.version>2.222.4</jenkins.version>
         <java.level>8</java.level>
-        <jcasc.version>1.36</jcasc.version>
-        <aws-java-sdk.version>1.11.821</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.854</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -108,17 +102,15 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>2.3.5</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>1.11</version>
+            <version>1.28</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ssh-credentials</artifactId>
-            <version>1.18.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -138,22 +130,14 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>apache-httpcomponents-client-4-api</artifactId>
-            <version>4.5.10-2.0</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>command-launcher</artifactId>
-            <version>1.2</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>trilead-api</artifactId>
-            <version>1.0.5</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jenkins.temp.jelly</groupId>
-            <artifactId>multiline-secrets-ui</artifactId>
-            <version>1.0</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -178,13 +162,11 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.5.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -237,25 +219,33 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>1.20</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.jenkins</groupId>
             <artifactId>configuration-as-code</artifactId>
-            <version>${jcasc.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.jenkins.configuration-as-code</groupId>
             <artifactId>test-harness</artifactId>
-            <version>${jcasc.version}</version>
             <scope>test</scope>
+            <!--
+            PCT fails on maven-enforcer-plugin:enforce
+            test-harness:1.46 puts joda-time:2.10.2
+            aws-java-sdk:1.11.821 puts 2.8.1
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.8.3</version>
+            <version>1.15.1</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -265,8 +255,14 @@ THE SOFTWARE.
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Upper bound deps -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.30</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -291,15 +287,10 @@ THE SOFTWARE.
             </dependency>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.204.x</artifactId>
-                <version>11</version>
+                <artifactId>bom-2.222.x</artifactId>
+                <version>20</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>2.11.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

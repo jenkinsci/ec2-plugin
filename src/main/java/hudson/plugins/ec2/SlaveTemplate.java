@@ -1249,6 +1249,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AmazonClientException("Unable to find image for request " + request);
         }
 
+
         // Sort in reverse by creation date to get latest image
         images.sort(Comparator.comparing(Image::getCreationDate).reversed());
         return images.get(0);

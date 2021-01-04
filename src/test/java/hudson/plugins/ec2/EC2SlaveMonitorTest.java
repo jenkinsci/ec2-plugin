@@ -44,9 +44,9 @@ public class EC2SlaveMonitorTest {
                                                    InstanceType.M1Large, false, "label", Node.Mode.NORMAL, "description", "init script",
                                                    "tmpdir", "userdata", "10", "remoteadmin", null, "-Xmx1g",
                                                    false, "subnet 456", null, "0", 0,
-                                                   2, null, null, true,
-                                                   true, "", false,
-                                                   "", false, false,
+                                                   null, null, false, true,
+                                                   "", false, "",
+                                                   false, false,
                                                    true, ConnectionStrategy.PRIVATE_IP, 0,
                                                    null);
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3", Collections.singletonList(template), "roleArn", "roleSessionName");

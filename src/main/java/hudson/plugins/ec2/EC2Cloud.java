@@ -34,6 +34,7 @@ import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
@@ -120,6 +121,8 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String AWS_URL_HOST = "amazonaws.com";
 
+    public static final String AWS_CN_URL_HOST = "amazonaws.com.cn";
+
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
 
     public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
@@ -171,12 +174,6 @@ public abstract class EC2Cloud extends Cloud {
         this.credentialsId = credentialsId;
         this.sshKeysCredentialsId = sshKeysCredentialsId;
 
-        if (this.sshKeysCredentialsId == null && ( this.privateKey != null || privateKey != null)){
-            migratePrivateSshKeyToCredential(this.privateKey != null ? this.privateKey.getPrivateKey() : privateKey);
-        }
-        this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
-
-
         if (templates == null) {
             this.templates = Collections.emptyList();
         } else {
@@ -201,7 +198,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
         if (sshKeysCredentialsId != null) {
-            BasicSSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
+            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
@@ -215,11 +212,11 @@ public abstract class EC2Cloud extends Cloud {
 
     private void migratePrivateSshKeyToCredential(String privateKey){
         // GET matching private key credential from Credential API if exists
-        Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
+        Optional<SSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
                 .stream()
-                .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
-                .filter((cred) -> ((BasicSSHUserPrivateKey)cred).getPrivateKey().trim().equals(privateKey.trim()))
-                .map(cred -> (BasicSSHUserPrivateKey)cred)
+                .filter((cred) -> cred instanceof SSHUserPrivateKey)
+                .filter((cred) -> ((SSHUserPrivateKey)cred).getPrivateKey().trim().equals(privateKey.trim()))
+                .map(cred -> (SSHUserPrivateKey)cred)
                 .findFirst();
 
         if (keyCredential.isPresent()){
@@ -229,7 +226,7 @@ public abstract class EC2Cloud extends Cloud {
             // CREATE new credential
             String credsId = UUID.randomUUID().toString();
 
-            BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
+            SSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, credsId, "key",
                     new BasicSSHUserPrivateKey.PrivateKeySource() {
                         @NonNull
                         @Override
@@ -249,6 +246,11 @@ public abstract class EC2Cloud extends Cloud {
 
         for (SlaveTemplate t : templates)
             t.parent = this;
+
+        if (this.sshKeysCredentialsId == null && this.privateKey != null ){
+            migratePrivateSshKeyToCredential(this.privateKey.getPrivateKey());
+        }
+        this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
 
         if (this.accessId != null && this.secretKey != null && credentialsId == null) {
             String secretKeyEncryptedValue = this.secretKey.getEncryptedValue();
@@ -976,13 +978,27 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /***
+     * Returns the DNS endpoint for a AWS service based on region provided
+     */
+    public static String getAwsPartitionHostForService(String region, String service) {
+        String host;
+        if (region != null && region.startsWith("cn-")) {
+            host = service + "." + region + "." + AWS_CN_URL_HOST;
+        } else {
+            host = service + "." + region + "." + AWS_URL_HOST;
+        }
+        return host;
+    }
+
+    /***
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
     public static String convertHostName(String ec2HostName) {
         if (ec2HostName == null || ec2HostName.length() == 0)
             ec2HostName = DEFAULT_EC2_HOST;
-        if (!ec2HostName.contains("."))
-            ec2HostName = "ec2." + ec2HostName + "." + AWS_URL_HOST;
+        if (!ec2HostName.contains(".")) {
+            ec2HostName = getAwsPartitionHostForService(ec2HostName, "ec2");
+        }
         return ec2HostName;
     }
 
@@ -1020,11 +1036,11 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @CheckForNull
-    private static BasicSSHUserPrivateKey getSshCredential(String id){
+    private static SSHUserPrivateKey getSshCredential(String id){
 
-        BasicSSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
+        SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(
-                        BasicSSHUserPrivateKey.class, // (1)
+                        SSHUserPrivateKey.class, // (1)
                         (ItemGroup) null,
                         null,
                         Collections.emptyList()),
@@ -1061,8 +1077,8 @@ public abstract class EC2Cloud extends Cloud {
             StandardListBoxModel result = new StandardListBoxModel();
 
             return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), BasicSSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 
@@ -1074,7 +1090,7 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.error("No ssh credentials selected");
             }
 
-            BasicSSHUserPrivateKey sshCredential = getSshCredential(value);
+            SSHUserPrivateKey sshCredential = getSshCredential(value);
             String privateKey = "";
             if (sshCredential != null) {
                 privateKey = sshCredential.getPrivateKey();
@@ -1119,7 +1135,7 @@ public abstract class EC2Cloud extends Cloud {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
 
-                BasicSSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId);
+                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId);
                 String privateKey = "";
                 if (sshCredential != null) {
                     privateKey = sshCredential.getPrivateKey();
@@ -1194,7 +1210,10 @@ public abstract class EC2Cloud extends Cloud {
                         LOGGER.finer(() -> "Checking EC2 Connection on: " + ec2_cloud.getDisplayName());
                         try {
                             if(ec2_cloud.connection != null) {
-                                ec2_cloud.connection.describeInstances();
+                                List<Filter> filters = new ArrayList<>();
+                                filters.add(new Filter("tag-key").withValues("bogus-EC2ConnectionKeepalive"));
+                                DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
+                                ec2_cloud.connection.describeInstances(dir);
                             }
                         } catch (AmazonClientException e) {
                             LOGGER.finer(() -> "Reconnecting to EC2 on: " + ec2_cloud.getDisplayName());
