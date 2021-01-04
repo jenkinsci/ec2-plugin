@@ -68,7 +68,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false,false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1,null) {
             @Override
             public void terminate() {
             }
@@ -107,7 +107,7 @@ public class EC2RetentionStrategyTest {
 
             @Override
             public SlaveTemplate getSlaveTemplate() {
-                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null,false, null, "", false, "", false, "",null);
             }
         };
         assertTrue(computer.isIdle());
@@ -147,7 +147,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false,false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit,null) {
             @Override
             public void terminate() {
                 terminateCalled.set(true);
@@ -208,8 +208,8 @@ public class EC2RetentionStrategyTest {
 
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
           InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-          "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
-          true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
+          "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
+          true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
           Collections
             .singletonList(template), "roleArn", "roleSessionName");
@@ -267,8 +267,8 @@ public class EC2RetentionStrategyTest {
     public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
             InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
-            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
@@ -323,8 +323,8 @@ public class EC2RetentionStrategyTest {
     public void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
             InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
-            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
@@ -364,8 +364,8 @@ public class EC2RetentionStrategyTest {
     public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
             InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
-            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("15:00");
@@ -419,8 +419,8 @@ public class EC2RetentionStrategyTest {
     public void testRetentionStopsAfterActiveRangeEnds() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
             InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
-            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");

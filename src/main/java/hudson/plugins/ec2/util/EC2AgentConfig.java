@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.util;
 
+import com.amazonaws.services.ec2.model.Tenancy;
 import hudson.model.Node;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.ConnectionStrategy;
@@ -56,8 +57,7 @@ public abstract class EC2AgentConfig {
         final boolean stopOnTerminate;
         final String publicDNS;
         final String privateDNS;
-        final boolean useDedicatedTenancy;
-        final boolean useHostTenancy;
+        final Tenancy tenancy;
 
         private OnDemand(OnDemandBuilder builder) {
             super(builder);
@@ -65,8 +65,7 @@ public abstract class EC2AgentConfig {
             this.stopOnTerminate = builder.isStopOnTerminate();
             this.publicDNS = builder.getPublicDNS();
             this.privateDNS = builder.getPrivateDNS();
-            this.useDedicatedTenancy = builder.isUseDedicatedTenancy();
-            this.useHostTenancy = builder.isUseHostTenancy();
+            this.tenancy = builder.getTenancyAttribute();
         }
     }
 
@@ -206,8 +205,7 @@ public abstract class EC2AgentConfig {
         private boolean stopOnTerminate;
         private String publicDNS;
         private String privateDNS;
-        private boolean useDedicatedTenancy;
-        private boolean useHostTenancy;
+        private Tenancy tenancy;
 
         public OnDemandBuilder withInstanceId(String instanceId) {
             this.instanceId = instanceId;
@@ -245,23 +243,12 @@ public abstract class EC2AgentConfig {
             return privateDNS;
         }
 
-        public OnDemandBuilder withUseDedicatedTenancy(boolean useDedicatedTenancy) {
-            this.useDedicatedTenancy = useDedicatedTenancy;
+        public OnDemandBuilder withTenancyAttribute( Tenancy tenancy){
+            this.tenancy = tenancy;
             return this;
         }
 
-        public boolean isUseDedicatedTenancy() {
-            return useDedicatedTenancy;
-        }
-
-        public OnDemandBuilder withUseHostTenancy(boolean useHostTenancy) {
-            this.useHostTenancy = useHostTenancy;
-            return this;
-        }
-
-        public boolean isUseHostTenancy() {
-            return useHostTenancy;
-        }
+        public Tenancy getTenancyAttribute(){ return tenancy;}
 
         @Override
         protected OnDemandBuilder self() {

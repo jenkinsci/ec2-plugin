@@ -21,7 +21,7 @@ public class EC2AbstractSlaveTest {
     @Test
     public void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {
 
-        EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "cloud", false,false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), ConnectionStrategy.PRIVATE_IP, -1) {
+        EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), ConnectionStrategy.PRIVATE_IP, -1,null) {
             @Override
             public void terminate() {
                 // To change body of implemented methods use File | Settings |
@@ -41,12 +41,12 @@ public class EC2AbstractSlaveTest {
     @Test
     public void testMaxUsesBackwardCompat() throws Exception {
         final String description = "description";
-        SlaveTemplate orig = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1);
+        SlaveTemplate orig = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1,null);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
-        EC2AbstractSlave slave = new EC2AbstractSlave("name", "", description, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "ec2-us-east-1", false,false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), ConnectionStrategy.PRIVATE_IP, 0)  {
+        EC2AbstractSlave slave = new EC2AbstractSlave("name", "", description, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "ec2-us-east-1", Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), ConnectionStrategy.PRIVATE_IP, 0,null)  {
             @Override
             public void terminate() {
             }

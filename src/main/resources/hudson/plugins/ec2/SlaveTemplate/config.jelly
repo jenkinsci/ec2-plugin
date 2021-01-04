@@ -114,14 +114,6 @@ THE SOFTWARE.
        <f:textbox />
     </f:entry>
 
-    <f:entry title="${%Use dedicated tenancy}" field="useDedicatedTenancy">
-      <f:checkbox />
-    </f:entry>
-
-    <f:entry title="${%Use host tenancy}" field="useHostTenancy">
-      <f:checkbox />
-    </f:entry>
-
     <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
        <f:repeatable field="tags">
           <st:include page="config.jelly" class="${descriptor.clazz}" />
@@ -190,6 +182,10 @@ THE SOFTWARE.
 
     <f:entry title="${%Associate Public IP}" field="associatePublicIp">
       <f:checkbox />
+    </f:entry>
+
+    <f:entry title="${%Tenancy}" field="tenancy">
+        <f:enum>${it.name()}</f:enum>
     </f:entry>
 
     <f:entry title="${%Connection Strategy}" field="connectionStrategy">

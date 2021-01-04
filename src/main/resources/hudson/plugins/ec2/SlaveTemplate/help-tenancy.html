@@ -22,9 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    Create instance using dedicated hardware instead of shared.  Additional charges will apply, please see
+    Create instance using tenancy.  Additional charges will apply, please see
     here: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/dedicated-instance.html.
     <p>
-    This only applies for dedicated hosts which support host tenancy and this is an On-Demand
+    Dedicated Tenancy only applies if you have specified a VPC, Availability-Zone and this is an On-Demand
     Instance (not Spot Instance).
+    <p>
+    Host Tenancy only applies if Your instance runs on a Dedicated Host, which is an isolated server with configurations that you can control.
 </div>

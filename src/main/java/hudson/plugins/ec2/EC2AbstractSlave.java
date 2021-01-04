@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.*;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -57,17 +58,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.DeleteTagsRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.StopInstancesRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 /**
  * Slave running on EC2.
@@ -92,8 +82,6 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
-    public final boolean useDedicatedTenancy;
-    public final boolean useHostTenancy;
     public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
@@ -141,7 +129,9 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, boolean useHostTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+    public final Tenancy tenancy;
+
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
             throws FormException, IOException {
 
         super(name, remoteFS, launcher);
@@ -161,20 +151,19 @@ public abstract class EC2AbstractSlave extends Slave {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
         this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
-        this.useDedicatedTenancy = useDedicatedTenancy;
-        this.useHostTenancy = useHostTenancy;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
+        this.tenancy = tenancy == null ? Tenancy.Default : tenancy;
         readResolve();
         fetchLiveInstanceData(true);
     }
 
     @Deprecated
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, boolean useHostTenancy, int launchTimeout, AMITypeData amiType)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType, Tenancy tenancy)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, useHostTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1, tenancy);
     }
 
     @Override
@@ -203,7 +192,7 @@ public abstract class EC2AbstractSlave extends Slave {
                 }
             }
         }
-        
+
         /*
          * If this field is null (as it would be if this object is deserialized and not constructed normally) then
          * we need to explicitly initialize it, otherwise we will cause major blocker issues such as this one which
@@ -226,168 +215,168 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     /* package */static int toNumExecutors(InstanceType it) {
         switch (it) {
-        case T1Micro:
-            return 1;
-        case M1Small:
-            return 1;
-        case M1Medium:
-            return 2;
-        case M3Medium:
-            return 2;
-        case T3Nano:
-            return 2;
-        case T3aNano:
-            return 2;
-        case T3Micro:
-            return 2;
-        case T3aMicro:
-            return 2;
-        case T3Small:
-            return 2;
-        case T3aSmall:
-            return 2;
-        case T3Medium:
-            return 2;
-        case T3aMedium:
-            return 2;
-        case A1Large:
-            return 2;
-        case T3Large:
-            return 3;
-        case T3aLarge:
-            return 3;
-        case M1Large:
-            return 4;
-        case M3Large:
-            return 4;
-        case M4Large:
-            return 4;
-        case M5Large:
-            return 4;
-        case M5aLarge:
-            return 4;
-        case T3Xlarge:
-            return 5;
-        case T3aXlarge:
-            return 5;
-        case A1Xlarge:
-            return 5;
-        case C1Medium:
-            return 5;
-        case M2Xlarge:
-            return 6;
-        case C3Large:
-            return 7;
-        case C4Large:
-            return 7;
-        case C5Large:
-            return 7;
-        case C5dLarge:
-            return 7;
-        case M1Xlarge:
-            return 8;
-        case T32xlarge:
-            return 10;
-        case T3a2xlarge:
-            return 10;
-        case A12xlarge:
-            return 10;
-        case M22xlarge:
-            return 13;
-        case M3Xlarge:
-            return 13;
-        case M4Xlarge:
-            return 13;
-        case M5Xlarge:
-            return 13;
-        case M5aXlarge:
-            return 13;
-        case A14xlarge:
-            return 14;
-        case C3Xlarge:
-            return 14;
-        case C4Xlarge:
-            return 14;
-        case C5Xlarge:
-            return 14;
-        case C5dXlarge:
-            return 14;
-        case C1Xlarge:
-            return 20;
-        case M24xlarge:
-            return 26;
-        case M32xlarge:
-            return 26;
-        case M42xlarge:
-            return 26;
-        case M52xlarge:
-            return 26;
-        case M5a2xlarge:
-            return 26;
-        case G22xlarge:
-            return 26;
-        case C32xlarge:
-            return 28;
-        case C42xlarge:
-            return 28;
-        case C52xlarge:
-            return 28;
-        case C5d2xlarge:
-            return 28;
-        case Cc14xlarge:
-            return 33;
-        case Cg14xlarge:
-            return 33;
-        case Hi14xlarge:
-            return 35;
-        case Hs18xlarge:
-            return 35;
-        case C34xlarge:
-            return 55;
-        case C44xlarge:
-            return 55;
-        case C54xlarge:
-            return 55;
-        case C5d4xlarge:
-            return 55;
-        case M44xlarge:
-            return 55;
-        case M54xlarge:
-            return 55;
-        case M5a4xlarge:
-            return 55;
-        case Cc28xlarge:
-            return 88;
-        case Cr18xlarge:
-            return 88;
-        case C38xlarge:
-            return 108;
-        case C48xlarge:
-            return 108;
-        case C59xlarge:
-            return 108;
-        case C5d9xlarge:
-            return 108;
-        case M410xlarge:
-            return 120;
-        case M512xlarge:
-            return 120;
-        case M5a12xlarge:
-            return 120;
-        case M416xlarge:
-            return 160;
-        case C518xlarge:
-            return 216;
-        case C5d18xlarge:
-            return 216;
-        case M524xlarge:
-            return 240;
-        case M5a24xlarge:
-            return 240;
+            case T1Micro:
+                return 1;
+            case M1Small:
+                return 1;
+            case M1Medium:
+                return 2;
+            case M3Medium:
+                return 2;
+            case T3Nano:
+                return 2;
+            case T3aNano:
+                return 2;
+            case T3Micro:
+                return 2;
+            case T3aMicro:
+                return 2;
+            case T3Small:
+                return 2;
+            case T3aSmall:
+                return 2;
+            case T3Medium:
+                return 2;
+            case T3aMedium:
+                return 2;
+            case A1Large:
+                return 2;
+            case T3Large:
+                return 3;
+            case T3aLarge:
+                return 3;
+            case M1Large:
+                return 4;
+            case M3Large:
+                return 4;
+            case M4Large:
+                return 4;
+            case M5Large:
+                return 4;
+            case M5aLarge:
+                return 4;
+            case T3Xlarge:
+                return 5;
+            case T3aXlarge:
+                return 5;
+            case A1Xlarge:
+                return 5;
+            case C1Medium:
+                return 5;
+            case M2Xlarge:
+                return 6;
+            case C3Large:
+                return 7;
+            case C4Large:
+                return 7;
+            case C5Large:
+                return 7;
+            case C5dLarge:
+                return 7;
+            case M1Xlarge:
+                return 8;
+            case T32xlarge:
+                return 10;
+            case T3a2xlarge:
+                return 10;
+            case A12xlarge:
+                return 10;
+            case M22xlarge:
+                return 13;
+            case M3Xlarge:
+                return 13;
+            case M4Xlarge:
+                return 13;
+            case M5Xlarge:
+                return 13;
+            case M5aXlarge:
+                return 13;
+            case A14xlarge:
+                return 14;
+            case C3Xlarge:
+                return 14;
+            case C4Xlarge:
+                return 14;
+            case C5Xlarge:
+                return 14;
+            case C5dXlarge:
+                return 14;
+            case C1Xlarge:
+                return 20;
+            case M24xlarge:
+                return 26;
+            case M32xlarge:
+                return 26;
+            case M42xlarge:
+                return 26;
+            case M52xlarge:
+                return 26;
+            case M5a2xlarge:
+                return 26;
+            case G22xlarge:
+                return 26;
+            case C32xlarge:
+                return 28;
+            case C42xlarge:
+                return 28;
+            case C52xlarge:
+                return 28;
+            case C5d2xlarge:
+                return 28;
+            case Cc14xlarge:
+                return 33;
+            case Cg14xlarge:
+                return 33;
+            case Hi14xlarge:
+                return 35;
+            case Hs18xlarge:
+                return 35;
+            case C34xlarge:
+                return 55;
+            case C44xlarge:
+                return 55;
+            case C54xlarge:
+                return 55;
+            case C5d4xlarge:
+                return 55;
+            case M44xlarge:
+                return 55;
+            case M54xlarge:
+                return 55;
+            case M5a4xlarge:
+                return 55;
+            case Cc28xlarge:
+                return 88;
+            case Cr18xlarge:
+                return 88;
+            case C38xlarge:
+                return 108;
+            case C48xlarge:
+                return 108;
+            case C59xlarge:
+                return 108;
+            case C5d9xlarge:
+                return 108;
+            case M410xlarge:
+                return 120;
+            case M512xlarge:
+                return 120;
+            case M5a12xlarge:
+                return 120;
+            case M416xlarge:
+                return 160;
+            case C518xlarge:
+                return 216;
+            case C5d18xlarge:
+                return 216;
+            case M524xlarge:
+                return 240;
+            case M5a24xlarge:
+                return 240;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
-        default:
-            return 1;
+            default:
+                return 1;
         }
     }
 
@@ -737,7 +726,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean isSpecifyPassword() {
         return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
-    
+
     public boolean isAllowSelfSignedCertificate() {
         return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.amazonaws.AmazonClientException;
 
+import com.amazonaws.services.ec2.model.Tenancy;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -17,7 +18,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     @Override
     public EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config)
             throws Descriptor.FormException, IOException {
-        return new MockEC2OndemandSlave(config.name, config.instanceId, config.description, config.remoteFS, config.numExecutors, config.labelString, config.mode, config.initScript, config.tmpDir, config.nodeProperties, config.remoteAdmin, config.jvmopts, config.stopOnTerminate, config.idleTerminationMinutes, config.publicDNS, config.privateDNS, config.tags, config.cloudName, config.useDedicatedTenancy, config.launchTimeout, config.amiType, config.connectionStrategy, config.maxTotalUses);
+        return new MockEC2OndemandSlave(config.name, config.instanceId, config.description, config.remoteFS, config.numExecutors, config.labelString, config.mode, config.initScript, config.tmpDir, config.nodeProperties, config.remoteAdmin, config.jvmopts, config.stopOnTerminate, config.idleTerminationMinutes, config.publicDNS, config.privateDNS, config.tags, config.cloudName, config.launchTimeout, config.amiType, config.connectionStrategy, config.maxTotalUses, config.tenancy);
     }
 
     @Override
@@ -33,11 +34,11 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
                 int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
                 List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
                 boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
-                List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout,
+                List<EC2Tag> tags, String cloudName, int launchTimeout,
                 AMITypeData amiType, ConnectionStrategy connectionStrategy,
-                int maxTotalUses)
+                int maxTotalUses, Tenancy tenancy)
                 throws Descriptor.FormException, IOException {
-            super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, false, launchTimeout, amiType, connectionStrategy, maxTotalUses);
+            super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy);
         }
 
         @Override
