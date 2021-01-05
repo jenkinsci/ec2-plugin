@@ -167,7 +167,7 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testMakeDescribeImagesRequest() throws Exception {
-        SlaveTemplate template = new SlaveTemplate(null, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
+        SlaveTemplate template = new SlaveTemplate(null, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, "", false, "",null) {
             @Override
             protected Object readResolve() {
                 return null;
