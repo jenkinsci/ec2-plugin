@@ -2,11 +2,7 @@ package hudson.plugins.ec2.win;
 
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
-import hudson.plugins.ec2.EC2AbstractSlave;
-import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.EC2ComputerLauncher;
-import hudson.plugins.ec2.EC2HostAddressProvider;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -14,12 +10,14 @@ import hudson.slaves.ComputerLauncher;
 import hudson.Util;
 import hudson.os.WindowsUtil;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
+import hudson.slaves.OfflineCause;
 import javax.annotation.Nonnull;
 
 import jenkins.model.Jenkins;
@@ -29,6 +27,8 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.GetPasswordDataRequest;
 import com.amazonaws.services.ec2.model.GetPasswordDataResult;
+
+import javax.net.ssl.SSLException;
 
 public class EC2WindowsLauncher extends EC2ComputerLauncher {
     private static final String AGENT_JAR = "remoting.jar";
@@ -50,7 +50,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         }
 
         final WinConnection connection = connectToWinRM(computer, node, template, logger);
-
+        
         try {
             String initScript = node.initScript;
             String tmpDir = (node.tmpDir != null && !node.tmpDir.equals("") ? WindowsUtil.quoteArgument(Util.ensureEndsWith(node.tmpDir,"\\"))
@@ -104,6 +104,13 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     connection.close();
                 }
             });
+        } catch (EOFException eof) {
+            // When we launch java with connection.execute(launchString... it keeps running, but if java is not installed
+            //the computer.setChannel fails with EOFException because the stream is already closed. It fails on
+            // setChannel - build - negotiate - is.read() == -1. Let's print a clear message to help diagnose the problem
+            // In other case you see a EOFException which gives you few clues about the problem.
+            logger.println("The stream with the java process on the instance was closed. Maybe java is not installed there.");
+            eof.printStackTrace(logger);
         } catch (Throwable ioe) {
             logger.println("Ouch:");
             ioe.printStackTrace(logger);
@@ -126,6 +133,8 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         boolean alreadyBooted = (startTime - node.getCreatedTime()) > TimeUnit.MINUTES.toMillis(3);
         WinConnection connection = null;
         while (true) {
+            boolean allowSelfSignedCertificate = node.isAllowSelfSignedCertificate();
+
             try {
                 long waitTime = System.currentTimeMillis() - startTime;
                 if (waitTime > timeout) {
@@ -137,8 +146,9 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     Instance instance = computer.updateInstanceDescription();
                     String host = EC2HostAddressProvider.windows(instance, template.connectionStrategy);
 
-                    if ("0.0.0.0".equals(host)) {
-                        logger.println("Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
+                    // Check when host is null or we will keep trying and receiving a hostname cannot be null forever.
+                    if (host == null || "0.0.0.0".equals(host)) {
+                        logger.println("Invalid host (null or 0.0.0.0). Your host is most likely waiting for an IP address.");
                         throw new IOException("goto sleep");
                     }
 
@@ -157,20 +167,26 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                             Thread.sleep(sleepBetweenAttempts);
                             continue;
                         }
-                        String password = node.getCloud().getPrivateKey().decryptWindowsPassword(passwordData);
+                        EC2PrivateKey ec2PrivateKey = node.getCloud().resolvePrivateKey();
+                        if (ec2PrivateKey == null){
+                            logger.println("Waiting for privateKey to be available. Consider checking the credentials in the cloud configuration. Sleeping 10s.");
+                            Thread.sleep(sleepBetweenAttempts);
+                            continue;
+                        }
+                        String password = ec2PrivateKey.decryptWindowsPassword(passwordData);
                         if (!node.getRemoteAdmin().equals("Administrator")) {
                             logger.println("WARNING: For password retrieval remote admin must be Administrator, ignoring user provided value");
                         }
                         logger.println("Connecting to " + "(" + host + ") with WinRM as Administrator");
-                        connection = new WinConnection(host, "Administrator", password);
+                        connection = new WinConnection(host, "Administrator", password, allowSelfSignedCertificate);
                     } else { //password Specified
                         logger.println("Connecting to " + "(" + host + ") with WinRM as " + node.getRemoteAdmin());
-                        connection = new WinConnection(host, node.getRemoteAdmin(), node.getAdminPassword().getPlainText());
+                        connection = new WinConnection(host, node.getRemoteAdmin(), node.getAdminPassword().getPlainText(), allowSelfSignedCertificate);
                     }
                     connection.setUseHTTPS(node.isUseHTTPS());
                 }
 
-                if (!connection.ping()) {
+                if (!connection.pingFailingIfSSHHandShakeError()) {
                     logger.println("Waiting for WinRM to come up. Sleeping 10s.");
                     Thread.sleep(sleepBetweenAttempts);
                     continue;
@@ -182,7 +198,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     Thread.sleep(node.getBootDelay());
                     alreadyBooted = true;
                     logger.println("WinRM should now be ok on " + node.getDisplayName());
-                    if (!connection.ping()) {
+                    if (!connection.pingFailingIfSSHHandShakeError()) {
                         logger.println("WinRM not yet up. Sleeping 10s.");
                         Thread.sleep(sleepBetweenAttempts);
                         continue;
@@ -192,6 +208,12 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 logger.println("Connected with WinRM.");
                 return connection; // successfully connected
             } catch (IOException e) {
+                if (e instanceof SSLException) {
+                    // To avoid reconnecting continuously
+                    computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSLException()));
+                    // avoid waiting and trying again, this connection needs human intervention to change the certificate
+                    throw new AmazonClientException("The SSL connection failed while negotiating SSL", e);
+                }
                 logger.println("Waiting for WinRM to come up. Sleeping 10s.");
                 Thread.sleep(sleepBetweenAttempts);
             }

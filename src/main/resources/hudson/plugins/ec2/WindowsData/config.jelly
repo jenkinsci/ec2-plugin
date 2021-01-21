@@ -30,7 +30,10 @@ THE SOFTWARE.
         </f:entry>
     </f:optionalBlock>
     <f:entry title="${%Use HTTPS}" field="useHTTPS">
-        <f:checkbox />
+        <f:checkbox default="true"/>
+    </f:entry>
+    <f:entry title="${%Allow Self Signed Certificate}" field="allowSelfSignedCertificate" >
+        <f:checkbox default="false"/>
     </f:entry>
     <f:entry title="${%Boot Delay}" field="bootDelay">
         <f:textbox />

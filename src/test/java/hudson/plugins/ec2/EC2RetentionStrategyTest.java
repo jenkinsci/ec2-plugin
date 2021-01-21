@@ -2,21 +2,26 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.InstanceType;
-
+import hudson.model.Executor;
+import hudson.model.Node;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import hudson.plugins.ec2.util.PrivateKeyHelper;
+import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.slaves.NodeProperty;
-import hudson.model.Executor;
-import hudson.model.Node;
-
+import hudson.slaves.OfflineCause;
+import jenkins.util.NonLocalizable;
 import net.sf.json.JSONObject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.testcontainers.shaded.org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.jvnet.hudson.test.LoggerRule;
 
+import java.security.Security;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.Month;
@@ -27,8 +32,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -36,7 +46,10 @@ public class EC2RetentionStrategyTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
-
+    
+    @Rule
+    public LoggerRule logging = new LoggerRule();
+    
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
     final AtomicBoolean terminateCalled = new AtomicBoolean(false);
     private static ZoneId zoneId = ZoneId.systemDefault();
@@ -68,6 +81,14 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
+        return computerWithIdleTime(minutes, seconds, false, null);
+    }
+
+    /*
+     * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise, 
+     * the computer returns the value established.
+     */
+    private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             public void terminate() {
@@ -97,7 +118,7 @@ public class EC2RetentionStrategyTest {
 
             @Override
             public boolean isOffline() {
-                return false;
+                return isOffline == null ? super.isOffline() : isOffline;
             }
 
             @Override
@@ -109,9 +130,14 @@ public class EC2RetentionStrategyTest {
             public SlaveTemplate getSlaveTemplate() {
                 return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
             }
+
+            @Override
+            public boolean isConnecting() {
+                return isConnecting == null ? super.isConnecting() : isConnecting;
+            }
         };
         assertTrue(computer.isIdle());
-        assertTrue(computer.isOnline());
+        assertTrue(isOffline == null || computer.isOffline() == isOffline);
         return computer;
     }
 
@@ -167,6 +193,41 @@ public class EC2RetentionStrategyTest {
         return computer;
     }
 
+    /**
+     * Even though the computer is offline, we terminate it if it's not connecting now and the idle timeout expired.
+     */
+    @Test
+    public void testTerminateOfflineComputerIfNotConnecting() throws Exception {
+        logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
+        logging.capture(5);
+
+        // The clock of the retention is set to 5 minutes in the future to pretend the computer is idle. The idle
+        // timeout is in minutes and the minimum is 1.
+        Instant twoMinutesAgo = Instant.now().plus(Duration.ofMinutes(5));
+        long nextCheckAfter = twoMinutesAgo.toEpochMilli();
+        Clock clock = Clock.fixed(twoMinutesAgo.plusSeconds(1), zoneId);
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
+        
+        OfflineCause cause = OfflineCause.create(new NonLocalizable("Testing terminate on offline computer"));
+        
+        // A computer returning the real isOffline value and still connecting 
+        EC2Computer computer = computerWithIdleTime(0, 0, null, true); 
+        computer.setTemporarilyOffline(true, cause);
+        // We don't terminate this one
+        rs.check(computer);
+        assertThat("The computer is not terminated, it should still accept tasks", idleTimeoutCalled.get(), equalTo(false));
+        assertThat(logging.getMessages(), hasItem(containsString("connecting and still offline, will check if the launch timeout has expired")));
+                
+        // A computer returning the real isOffline value and not connecting
+        rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
+        EC2Computer computer2 = computerWithIdleTime(0, 0, null, false);
+        computer.setTemporarilyOffline(true, cause);
+        // We terminate this one
+        rs.check(computer2);
+        assertThat("The computer is terminated, it should not accept more tasks", idleTimeoutCalled.get(), equalTo(true));
+        assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
+    }
+    
     @Test
     public void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<Boolean>();
@@ -210,7 +271,8 @@ public class EC2RetentionStrategyTest {
           InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
           "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
           true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+        SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
           Collections
             .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
@@ -288,8 +350,8 @@ public class EC2RetentionStrategyTest {
 
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
-
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+        SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
@@ -385,8 +447,8 @@ public class EC2RetentionStrategyTest {
 
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
-
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+        SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
@@ -440,7 +502,8 @@ public class EC2RetentionStrategyTest {
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 14, 0); //Tuesday
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
+        SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);

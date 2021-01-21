@@ -38,6 +38,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 
@@ -46,13 +48,12 @@ import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.amazonaws.services.ec2.model.Region;
-import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * The original implementation of {@link EC2Cloud}.
@@ -60,16 +61,26 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
  * @author Kohsuke Kawaguchi
  */
 public class AmazonEC2Cloud extends EC2Cloud {
+    private final static Logger LOGGER = Logger.getLogger(AmazonEC2Cloud.class.getName());
+    
     /**
      * Represents the region. Can be null for backward compatibility reasons.
      */
     private String region;
+
+    private String altEC2Endpoint;
 
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.region = region;
+    }
+
+    @Deprecated
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
@@ -100,7 +111,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-            return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
+            return new URL("https://" + getAwsPartitionHostForService(region, "ec2"));
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
@@ -114,7 +125,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @Override
     public URL getS3EndpointUrl() {
         try {
-            return new URL("https://" + getRegion() + ".s3.amazonaws.com/");
+            return new URL("https://" + getAwsPartitionHostForService(getRegion(), "s3") + "/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
@@ -127,6 +138,15 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @DataBoundSetter
     public void setNoDelayProvisioning(boolean noDelayProvisioning) {
         this.noDelayProvisioning = noDelayProvisioning;
+    }
+
+    public String getAltEC2Endpoint() {
+        return altEC2Endpoint;
+    }
+
+    @DataBoundSetter
+    public void setAltEC2Endpoint(String altEC2Endpoint) {
+        this.altEC2Endpoint = altEC2Endpoint;
     }
 
     @Override
@@ -162,12 +182,25 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
+        public FormValidation doCheckAltEC2Endpoint(@QueryParameter String value) {
+            if (Util.fixEmpty(value) != null) {
+                try {
+                    new URL(value);
+                } catch (MalformedURLException ignored) {
+                    return FormValidation.error(Messages.AmazonEC2Cloud_MalformedUrl());
+                }
+            }
+            return FormValidation.ok();
+        }
+        
+        @RequirePOST
         public ListBoxModel doFillRegionItems(
                 @QueryParameter String altEC2Endpoint,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId)
 
                 throws IOException, ServletException {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             ListBoxModel model = new ListBoxModel();
 
@@ -194,8 +227,12 @@ public class AmazonEC2Cloud extends EC2Cloud {
             if (Util.fixEmpty(altEC2Endpoint) == null) {
                 return new URL(DEFAULT_EC2_ENDPOINT);
             }
-
-            return new URL(altEC2Endpoint);
+            try {
+                return new URL(altEC2Endpoint);    
+            } catch (MalformedURLException e) {
+                LOGGER.log(Level.WARNING, "The alternate EC2 endpoint is malformed ({0}). Using the default endpoint ({1})", new Object[]{altEC2Endpoint, DEFAULT_EC2_ENDPOINT});
+                return new URL(DEFAULT_EC2_ENDPOINT);
+            }
         }
 
         @RequirePOST
@@ -203,7 +240,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String region,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId,
-                @QueryParameter String privateKey,
+                @QueryParameter String sshKeysCredentialsId,
                 @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
 
@@ -213,7 +250,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey, roleArn, roleSessionName, region);
+            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

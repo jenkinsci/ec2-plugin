@@ -19,14 +19,14 @@ to the slave afterward.
 	  <li>WinRM should be enabled with the following commands (for more information see: <a href="http://support.microsoft.com/kb/555966">Microsoft article 555966</a>):
 	    <ul>
 	      <li>winrm quickconfig</li>
-	      <li>winrm set winrm/config/service/Auth @{Basic="true"}</li>
-	      <li>winrm set winrm/config/service @{AllowUnencrypted="true"}</li>
-	      <li>winrm set winrm/config/winrs @{MaxMemoryPerShellMB="1024"}</li>
+	      <li>winrm set winrm/config/service/Auth '@{Basic="true"}'</li>
+	      <li>winrm set winrm/config/service '@{AllowUnencrypted="true"}'</li>
+	      <li>winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="10240"}'</li>
 		  <li>For https:
 		     <ul>
 		         <li><a href="http://www.hansolav.net/blog/SelfsignedSSLCertificatesOnIIS7AndCommonNames.aspx">Generate a windows certificate</a></li>
 		         <li><a href="http://support.microsoft.com/kb/2019527">Install the certificate</a></li>
-		         <li>winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="HOSTNAME"; CertificateThumbprint="THUMBPRINT"}</li>
+		         <li>winrm create winrm/config/Listener?Address=*+Transport=HTTPS '@{Hostname="HOSTNAME"; CertificateThumbprint="THUMBPRINT"}'</li>
 		     </ul>
 		   </li>
 	    </ul>

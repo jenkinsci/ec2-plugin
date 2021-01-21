@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>3.57</version>
+        <version>4.15</version>
         <relativePath />
     </parent>
 
@@ -62,11 +62,6 @@ THE SOFTWARE.
             <email>julienduchesne@live.com</email>
         </developer>
         <developer>
-            <id>jvz</id>
-            <name>Matt Sicker</name>
-            <email>msicker@cloudbees.com</email>
-        </developer>
-        <developer>
             <id>raihaan</id>
             <name>Raihaan Shouhell</name>
             <email>raihaanhimself@gmail.com</email>
@@ -81,12 +76,11 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>1.51</revision>
+        <revision>1.57</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.150.1</jenkins.version>
+        <jenkins.version>2.222.4</jenkins.version>
         <java.level>8</java.level>
-        <jcasc.version>1.36</jcasc.version>
-        <aws-java-sdk.version>1.11.723</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.854</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -99,12 +93,24 @@ THE SOFTWARE.
                     <groupId>org.bouncycastle</groupId>
                     <artifactId>bcprov-jdk15on</artifactId>
                 </exclusion>
+                <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-api</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>1.11</version>
+            <version>1.28</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>ssh-credentials</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -124,22 +130,18 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>apache-httpcomponents-client-4-api</artifactId>
-            <version>4.5.10-2.0</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>command-launcher</artifactId>
-            <version>1.2</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>trilead-api</artifactId>
-            <version>1.0.3</version><!-- TODO: BUMP when trilead split is in LTS and is the baseline -->
         </dependency>
         <dependency>
-            <groupId>io.jenkins.temp.jelly</groupId>
-            <artifactId>multiline-secrets-ui</artifactId>
-            <version>1.0</version>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
+            <artifactId>workflow-step-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.modules</groupId>
@@ -165,7 +167,6 @@ THE SOFTWARE.
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -177,79 +178,100 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-cps</artifactId>
-            <version>2.30</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-durable-task-step</artifactId>
-            <version>2.11</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-step-api</artifactId>
-            <version>2.19</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-support</artifactId>
-            <version>3.2</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
-            <version>2.11</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-basic-steps</artifactId>
-            <version>2.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <version>2.30</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <version>1.39</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>scm-api</artifactId>
-            <version>2.2.6</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>structs</artifactId>
-            <version>1.17</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.jenkins</groupId>
             <artifactId>configuration-as-code</artifactId>
-            <version>${jcasc.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.jenkins.configuration-as-code</groupId>
             <artifactId>test-harness</artifactId>
-            <version>${jcasc.version}</version>
+            <scope>test</scope>
+            <!--
+            PCT fails on maven-enforcer-plugin:enforce
+            test-harness:1.46 puts joda-time:2.10.2
+            aws-java-sdk:1.11.821 puts 2.8.1
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.15.1</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <!-- Use common-compress from core -->
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Upper bound deps -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.30</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
-
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.jenkins-ci.main</groupId>
+                <artifactId>jenkins-bom</artifactId>
+                <version>${jenkins.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-core</artifactId>
@@ -262,6 +284,13 @@ THE SOFTWARE.
                 <version>${aws-java-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-2.222.x</artifactId>
+                <version>20</version>
+                <scope>import</scope>
+                <type>pom</type>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -280,138 +309,6 @@ THE SOFTWARE.
     </pluginRepositories>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-                <plugin>
-                    <groupId>org.eclipse.m2e</groupId>
-                    <artifactId>lifecycle-mapping</artifactId>
-                    <version>1.0.0</version>
-                    <configuration>
-                        <lifecycleMappingMetadata>
-                            <pluginExecutions>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>com.cloudbees</groupId>
-                                        <artifactId>
-                                            maven-license-plugin
-                                        </artifactId>
-                                        <versionRange>
-                                            [1.7,)
-                                        </versionRange>
-                                        <goals>
-                                            <goal>process</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>
-                                            org.apache.maven.plugins
-                                        </groupId>
-                                        <artifactId>
-                                            maven-enforcer-plugin
-                                        </artifactId>
-                                        <versionRange>
-                                            [1.0,)
-                                        </versionRange>
-                                        <goals>
-                                            <goal>display-info</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>
-                                            org.codehaus.gmaven
-                                        </groupId>
-                                        <artifactId>
-                                            gmaven-plugin
-                                        </artifactId>
-                                        <versionRange>
-                                            [1.3,)
-                                        </versionRange>
-                                        <goals>
-                                            <goal>generateTestStubs</goal>
-                                            <goal>testCompile</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>
-                                            org.jenkins-ci.tools
-                                        </groupId>
-                                        <artifactId>
-                                            maven-hpi-plugin
-                                        </artifactId>
-                                        <versionRange>
-                                            [1.74,)
-                                        </versionRange>
-                                        <goals>
-                                            <goal>insert-test</goal>
-                                            <goal>
-                                                resolve-test-dependencies
-                                            </goal>
-                                            <goal>validate</goal>
-                                            <goal>test-hpl</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>
-                                            org.jvnet.localizer
-                                        </groupId>
-                                        <artifactId>
-                                            maven-localizer-plugin
-                                        </artifactId>
-                                        <versionRange>
-                                            [1.12,)
-                                        </versionRange>
-                                        <goals>
-                                            <goal>generate</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
-                                <pluginExecution>
-                                    <pluginExecutionFilter>
-                                        <groupId>org.kohsuke</groupId>
-                                        <artifactId>
-                                            access-modifier-checker
-                                        </artifactId>
-                                        <versionRange>
-                                            [1.3,)
-                                        </versionRange>
-                                        <goals>
-                                            <goal>enforce</goal>
-                                        </goals>
-                                    </pluginExecutionFilter>
-                                    <action>
-                                        <ignore />
-                                    </action>
-                                </pluginExecution>
-                            </pluginExecutions>
-                        </lifecycleMappingMetadata>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>
@@ -420,6 +317,7 @@ THE SOFTWARE.
                 <configuration>
                     <compatibleSinceVersion>1.45</compatibleSinceVersion>
                     <pluginFirstClassLoader>true</pluginFirstClassLoader>
+                    <minimumJavaVersion>8</minimumJavaVersion>
                 </configuration>
             </plugin>
             <plugin>

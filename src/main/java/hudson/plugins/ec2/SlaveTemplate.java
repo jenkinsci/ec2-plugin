@@ -18,6 +18,91 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.BlockDeviceMapping;
+import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
+import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
+import com.amazonaws.services.ec2.model.Image;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
+import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.LaunchSpecification;
+import com.amazonaws.services.ec2.model.MarketType;
+import com.amazonaws.services.ec2.model.Placement;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.ResourceType;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.SecurityGroup;
+import com.amazonaws.services.ec2.model.ShutdownBehavior;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.SpotMarketOptions;
+import com.amazonaws.services.ec2.model.SpotPlacement;
+import com.amazonaws.services.ec2.model.SpotPrice;
+import com.amazonaws.services.ec2.model.StartInstancesRequest;
+import com.amazonaws.services.ec2.model.StartInstancesResult;
+import com.amazonaws.services.ec2.model.Subnet;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TagSpecification;
+import hudson.Extension;
+import hudson.Util;
+import hudson.XmlFile;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
+import hudson.model.Descriptor.FormException;
+import hudson.model.Hudson;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Saveable;
+import hudson.model.TaskListener;
+import hudson.model.labels.LabelAtom;
+import hudson.model.listeners.SaveableListener;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.DeviceMappingParser;
+import hudson.plugins.ec2.util.EC2AgentConfig;
+import hudson.plugins.ec2.util.EC2AgentFactory;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.NodePropertyDescriptor;
+import hudson.util.DescribableList;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
+import jenkins.slaves.iterators.api.NodeIterator;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+
+import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
@@ -27,24 +112,34 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 
-import hudson.plugins.ec2.util.*;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.DeviceMappingParser;
+import hudson.plugins.ec2.util.EC2AgentConfig;
+import hudson.plugins.ec2.util.EC2AgentFactory;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import hudson.XmlFile;
 import hudson.model.listeners.SaveableListener;
+import hudson.security.Permission;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
@@ -61,18 +156,65 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
+import com.amazonaws.services.ec2.model.BlockDeviceMapping;
+import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
+import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
+import com.amazonaws.services.ec2.model.Image;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
+import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.LaunchSpecification;
+import com.amazonaws.services.ec2.model.MarketType;
+import com.amazonaws.services.ec2.model.Placement;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.ResourceType;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.SecurityGroup;
+import com.amazonaws.services.ec2.model.ShutdownBehavior;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.SpotMarketOptions;
+import com.amazonaws.services.ec2.model.SpotPlacement;
+import com.amazonaws.services.ec2.model.StartInstancesRequest;
+import com.amazonaws.services.ec2.model.StartInstancesResult;
+import com.amazonaws.services.ec2.model.Subnet;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TagSpecification;
 
 import hudson.Extension;
 import hudson.Util;
-import hudson.model.*;
+import hudson.model.Describable;
+import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Hudson;
+import hudson.model.Label;
+import hudson.model.Node;
+import hudson.model.Saveable;
+import hudson.model.TaskListener;
 import hudson.model.labels.LabelAtom;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodePropertyDescriptor;
 import hudson.util.DescribableList;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -143,6 +285,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
 
     public ConnectionStrategy connectionStrategy;
+    
+    public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
     public final boolean associatePublicIp;
 
@@ -164,9 +308,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String currentSubnetId;
 
-    private transient/* almost final */Set<LabelAtom> labelSet;
+    private transient/* almost final */ Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
+
+    /* FIXME: Ideally these would be List<String>, but Jenkins currently
+     * doesn't offer a usable way to represent those in forms. Instead
+     * the values are interpreted as a comma separated list.
+     *
+     * https://issues.jenkins.io/browse/JENKINS-27901
+     */
+    @CheckForNull
+    private String amiOwners;
+
+    @CheckForNull
+    private String amiUsers;
+
+    @CheckForNull
+    private List<EC2Filter> amiFilters;
 
     /*
      * Necessary to handle reading from old configurations. The UnixData object is created in readResolve()
@@ -191,14 +350,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-            List<? extends NodeProperty<?>> nodeProperties) {
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
@@ -261,7 +420,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, null);
     }
 
     @Deprecated
@@ -478,6 +660,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    public String chooseSubnetId(boolean rotateSubnet) {
+        if (rotateSubnet) {
+            return chooseSubnetId();
+        } else {
+            return this.currentSubnetId;
+        }
+    }
+
     public String getSubnetId() {
         return subnetId;
     }
@@ -604,10 +794,50 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return iamInstanceProfile;
     }
 
+    @DataBoundSetter
+    public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+    }
+    
+    @NonNull
+    public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
+        return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+    }
+
+    @CheckForNull
+    public String getAmiOwners() {
+        return amiOwners;
+    }
+
+    @DataBoundSetter
+    public void setAmiOwners(String amiOwners) {
+        this.amiOwners = amiOwners;
+    }
+
+    @CheckForNull
+    public String getAmiUsers() {
+        return amiUsers;
+    }
+
+    @DataBoundSetter
+    public void setAmiUsers(String amiUsers) {
+        this.amiUsers = amiUsers;
+    }
+
+    @CheckForNull
+    public List<EC2Filter> getAmiFilters() {
+        return amiFilters;
+    }
+
+    @DataBoundSetter
+    public void setAmiFilters(List<EC2Filter> amiFilters) {
+        this.amiFilters = amiFilters;
+    }
+    
     @Override
     public String toString() {
         return "SlaveTemplate{" +
-                "ami='" + ami + '\'' +
+                "description='" + description + '\'' +
                 ", labels='" + labels + '\'' +
                 '}';
     }
@@ -628,12 +858,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+        final Image image = getImage();
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
-                return provisionSpot(number, provisionOptions);
+                return provisionSpot(image, number, provisionOptions);
             return null;
         }
-        return provisionOndemand(number, provisionOptions);
+        return provisionOndemand(image, number, provisionOptions);
     }
 
     /**
@@ -673,24 +904,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(this + ". " + message);
     }
 
-    /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
-     */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions)
-            throws IOException {
-        return provisionOndemand(number, provisionOptions, false, false);
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2) throws IOException {
+        return makeRunInstancesRequestAndFilters(image, number, ec2, true);
     }
 
-    /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
-     */
-    private List<EC2AbstractSlave> provisionOndemand(int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
-            throws IOException {
-        AmazonEC2 ec2 = getParent().connect();
+    @Deprecated
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws IOException {
+        return makeRunInstancesRequestAndFilters(getImage(), number, ec2);
+    }
 
-        logProvisionInfo("Considering launching");
-
-        RunInstancesRequest riRequest = new RunInstancesRequest(ami, 1, number).withInstanceType(type);
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+        String imageId = image.getImageId();
+        RunInstancesRequest riRequest = new RunInstancesRequest(imageId, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
 
@@ -700,7 +925,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setCreditSpecification(creditRequest);
         }
 
-        setupBlockDeviceMappings(riRequest.getBlockDeviceMappings());
+        setupBlockDeviceMappings(image, riRequest.getBlockDeviceMappings());
 
         if(stopOnTerminate){
             riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Stop);
@@ -711,10 +936,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         List<Filter> diFilters = new ArrayList<>();
-        diFilters.add(new Filter("image-id").withValues(ami));
+        diFilters.add(new Filter("image-id").withValues(imageId));
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
         KeyPair keyPair = getKeyPair(ec2);
+        if (keyPair == null){
+            logProvisionInfo("Could not retrieve a valid key pair.");
+            return null;
+        }
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
         riRequest.setKeyName(keyPair.getKeyName());
         diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
@@ -729,7 +958,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("availability-zone").withValues(getZone()));
         }
 
-        String subnetId = chooseSubnetId();
+        String subnetId = chooseSubnetId(rotateSubnet);
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
@@ -744,7 +973,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             /*
              * If we have a subnet ID then we can only use VPC security groups
              */
-            if (!securityGroupSet.isEmpty()) {
+            if (!getSecurityGroupSet().isEmpty()) {
                 List<String> groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
@@ -758,12 +987,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            riRequest.setSecurityGroups(securityGroupSet);
             List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
                                             .getSecurityGroups()
                                             .stream().map(SecurityGroup::getGroupId)
                                             .collect(Collectors.toList());
-            net.setGroups(groupIds);
+            if (getAssociatePublicIp()) {
+                net.setGroups(groupIds);
+            } else {
+                riRequest.setSecurityGroups(securityGroupSet);
+            }
             if (!groupIds.isEmpty()) {
                 diFilters.add(new Filter("instance.group-id").withValues(groupIds));
             }
@@ -780,6 +1012,49 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         for (Tag tag : instTags) {
             diFilters.add(new Filter("tag:" + tag.getKey()).withValues(tag.getValue()));
         }
+
+        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+        }
+
+        List<TagSpecification> tagList = new ArrayList<>();
+        TagSpecification tagSpecification = new TagSpecification();
+        tagSpecification.setTags(instTags);
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
+        riRequest.setTagSpecifications(tagList);
+
+        HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
+        ret.put(riRequest, diFilters);
+        return ret;
+    }
+
+    @Deprecated
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+        return makeRunInstancesRequestAndFilters(getImage(), number, ec2, rotateSubnet);
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws IOException {
+        return provisionOndemand(image, number, provisionOptions, false, false);
+    }
+
+    /**
+     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     */
+    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
+            throws IOException {
+        AmazonEC2 ec2 = getParent().connect();
+
+        logProvisionInfo("Considering launching");
+
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(image, number, ec2);
+        Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
+        RunInstancesRequest riRequest = entry.getKey();
+        List<Filter> diFilters = entry.getValue();
 
         DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);
 
@@ -801,17 +1076,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         riRequest.setMaxCount(number - orphansOrStopped.size());
-
-        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-            riRequest.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
-        }
-
-        List<TagSpecification> tagList = new ArrayList<>();
-        TagSpecification tagSpecification = new TagSpecification();
-        tagSpecification.setTags(instTags);
-        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
-        tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
-        riRequest.setTagSpecifications(tagList);
 
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
@@ -846,7 +1110,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return toSlaves(newInstances);
     }
 
-    private void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
+    void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
         List<String> instances = new ArrayList<>();
         for(Instance instance : orphansOrStopped) {
             if (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
@@ -867,7 +1131,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     }
 
-    private List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
+    List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
         try {
             List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
             for (Instance instance : newInstances) {
@@ -881,7 +1145,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private List<Instance> findOrphansOrStopped(DescribeInstancesResult diResult, int number) {
+    List<Instance> findOrphansOrStopped(DescribeInstancesResult diResult, int number) {
         List<Instance> orphansOrStopped = new ArrayList<>();
         int count = 0;
         for (Reservation reservation : diResult.getReservations()) {
@@ -910,10 +1174,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return orphansOrStopped;
     }
 
-    private void setupRootDevice(List<BlockDeviceMapping> deviceMappings) {
-        if (deleteRootOnTermination && getImage().getRootDeviceType().equals("ebs")) {
+    private void setupRootDevice(Image image, List<BlockDeviceMapping> deviceMappings) {
+        if (deleteRootOnTermination && image.getRootDeviceType().equals("ebs")) {
             // get the root device (only one expected in the blockmappings)
-            final List<BlockDeviceMapping> rootDeviceMappings = getAmiBlockDeviceMappings();
+            final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
             if (rootDeviceMappings.size() == 0) {
                 LOGGER.warning("AMI missing block devices");
                 return;
@@ -941,9 +1205,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping() {
+    private List<BlockDeviceMapping> getNewEphemeralDeviceMapping(Image image) {
 
-        final List<BlockDeviceMapping> oldDeviceMapping = getAmiBlockDeviceMappings();
+        final List<BlockDeviceMapping> oldDeviceMapping = image.getBlockDeviceMappings();
 
         final Set<String> occupiedDevices = new HashSet<>();
         for (final BlockDeviceMapping mapping : oldDeviceMapping) {
@@ -972,31 +1236,55 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return newDeviceMapping;
     }
 
-    private void setupEphemeralDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
+    private void setupEphemeralDeviceMapping(Image image, List<BlockDeviceMapping> deviceMappings) {
         // Don't wipe out pre-existing mappings
-        deviceMappings.addAll(getNewEphemeralDeviceMapping());
+        deviceMappings.addAll(getNewEphemeralDeviceMapping(image));
     }
 
-    private List<BlockDeviceMapping> getAmiBlockDeviceMappings() {
-
-        /*
-         * AmazonEC2#describeImageAttribute does not work due to a bug
-         * https://forums.aws.amazon.com/message.jspa?messageID=231972
-         */
-        return getImage().getBlockDeviceMappings();
+    @NonNull
+    private static List<String> makeImageAttributeList(@CheckForNull String attr) {
+        return Stream.of(Util.tokenize(Util.fixNull(attr)))
+            .collect(Collectors.toList());
     }
 
-    private Image getImage() {
-        DescribeImagesRequest request = new DescribeImagesRequest().withImageIds(ami);
-        for (final Image image : getParent().connect().describeImages(request).getImages()) {
+    @NonNull
+    private DescribeImagesRequest makeDescribeImagesRequest() {
+        List<String> imageIds = Util.fixEmptyAndTrim(ami) == null ?
+            Collections.emptyList() :
+            Collections.singletonList(ami);
+        List<String> owners = makeImageAttributeList(amiOwners);
+        List<String> users = makeImageAttributeList(amiUsers);
+        List<Filter> filters = EC2Filter.toFilterList(amiFilters);
 
-            if (ami.equals(image.getImageId())) {
-
-                return image;
-            }
+        // Log a warning if there were no search attributes. This is
+        // legal but probably not what anyone wants. Might be better
+        // as an exception.
+        int numAttrs = Stream.of(imageIds, owners, users, filters)
+            .collect(Collectors.summingInt(List::size));
+        if (numAttrs == 0) {
+            LOGGER.warning("Neither AMI ID nor AMI search attributes provided");
         }
 
-        throw new AmazonClientException("Unable to find AMI " + ami);
+        return new DescribeImagesRequest()
+            .withImageIds(imageIds)
+            .withOwners(owners)
+            .withExecutableUsers(users)
+            .withFilters(filters);
+    }
+
+    @NonNull
+    private Image getImage() throws AmazonClientException {
+        DescribeImagesRequest request = makeDescribeImagesRequest();
+
+        LOGGER.info("Getting image for request " + request);
+        List<Image> images = getParent().connect().describeImages(request).getImages();
+        if (images.isEmpty()) {
+            throw new AmazonClientException("Unable to find image for request " + request);
+         }
+
+        // Sort in reverse by creation date to get latest image
+        images.sort(Comparator.comparing(Image::getCreationDate).reversed());
+        return images.get(0);
     }
 
 
@@ -1009,16 +1297,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provision a new slave for an EC2 spot instance to call back to Jenkins
      */
-    private List<EC2AbstractSlave> provisionSpot(int number, EnumSet<ProvisionOptions> provisionOptions)
+    private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(1, provisionOptions, true, spotConfig.getFallbackToOndemand());
+            return provisionOndemand(image, 1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         AmazonEC2 ec2 = getParent().connect();
+        String imageId = image.getImageId();
 
         try {
-            LOGGER.info("Launching " + ami + " for template " + description);
+            LOGGER.info("Launching " + imageId + " for template " + description);
 
             KeyPair keyPair = getKeyPair(ec2);
 
@@ -1034,7 +1323,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             LaunchSpecification launchSpecification = new LaunchSpecification();
 
-            launchSpecification.setImageId(ami);
+            launchSpecification.setImageId(imageId);
             launchSpecification.setInstanceType(type);
             launchSpecification.setEbsOptimized(ebsOptimized);
             launchSpecification.setMonitoringEnabled(monitoring);
@@ -1084,7 +1373,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
-            setupBlockDeviceMappings(launchSpecification.getBlockDeviceMappings());
+            setupBlockDeviceMappings(image, launchSpecification.getBlockDeviceMappings());
 
             spotRequest.setLaunchSpecification(launchSpecification);
 
@@ -1122,7 +1411,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
                         CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
                         ec2.cancelSpotInstanceRequests(cancelRequest);
-                        return provisionOndemand(number, provisionOptions);
+                        return provisionOndemand(image, number, provisionOptions);
                     }
                 }
 
@@ -1148,10 +1437,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private void setupBlockDeviceMappings(List<BlockDeviceMapping> blockDeviceMappings) {
-        setupRootDevice(blockDeviceMappings);
+    private void setupBlockDeviceMappings(Image image, List<BlockDeviceMapping> blockDeviceMappings) {
+        setupRootDevice(image, blockDeviceMappings);
         if (useEphemeralDevices) {
-            setupEphemeralDeviceMapping(blockDeviceMappings);
+            setupEphemeralDeviceMapping(image, blockDeviceMappings);
         } else {
             setupCustomDeviceMapping(blockDeviceMappings);
         }
@@ -1240,8 +1529,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Get a KeyPair from the configured information for the slave template
      */
+    @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
-        KeyPair keyPair = parent.getPrivateKey().find(ec2);
+        EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
+        if (ec2PrivateKey == null) {
+            throw new AmazonClientException("No keypair credential found. Please configure a credential in the Jenkins configuration.");
+        }
+        KeyPair keyPair = ec2PrivateKey.find(ec2);
         if (keyPair == null) {
             throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
         }
@@ -1411,6 +1705,43 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
     }
 
+    /**
+     *
+     * @param ec2
+     * @param allSubnets if true, uses all subnets defined for this SlaveTemplate as the filter, else will only use the current subnet
+     * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this SlaveTemplate's configs
+     */
+    DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws IOException {
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(getImage(), 1, ec2, false);
+        Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
+        List<Filter> diFilters = entry.getValue();
+
+        if (allSubnets) {
+            /* remove any existing subnet-id filters */
+            List<Filter> rmvFilters = new ArrayList<>();
+            for (Filter f : diFilters) {
+                if (f.getName().equals("subnet-id")) {
+                    rmvFilters.add(f);
+                }
+            }
+            for (Filter f : rmvFilters) {
+                diFilters.remove(f);
+            }
+
+            /* Add filter using all subnets defined for this SlaveTemplate */
+            Filter subnetFilter = new Filter("subnet-id");
+            subnetFilter.setValues(Arrays.asList(getSubnetId().split(" ")));
+            diFilters.add(subnetFilter);
+        }
+
+        DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);
+        return ec2.describeInstances(diRequest);
+    }
+
+    public boolean isAllowSelfSignedCertificate() {
+        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+    }
+
     @Extension
     public static final class OnSaveListener extends SaveableListener {
         @Override
@@ -1484,10 +1815,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /***
          * Check that the AMI requested is available in the cloud and can be used.
          */
+        @RequirePOST
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
                 @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName) throws IOException {
+            checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
@@ -1504,6 +1837,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.ok(img.getImageLocation() + (ownerAlias != null ? " by " + ownerAlias : ""));
             } catch (AmazonClientException e) {
                 return FormValidation.error(e.getMessage());
+            }
+        }
+
+        private void checkPermission(Permission p) {
+            final EC2Cloud ancestorObject = Stapler.getCurrentRequest().findAncestorObject(EC2Cloud.class);
+            if (ancestorObject != null) {
+                ancestorObject.checkPermission(p);
+            } else {
+                Jenkins.get().checkPermission(p);
             }
         }
 
@@ -1656,10 +1998,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
+        @RequirePOST
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
+            checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
@@ -1696,11 +2040,35 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         public FormValidation doCheckConnectionStrategy(@QueryParameter String connectionStrategy) {
             return Stream.of(ConnectionStrategy.values())
-                    .filter(v -> v.equalsName(connectionStrategy))
+                    .filter(v -> v.name().equals(connectionStrategy))
                     .findFirst()
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
-    }
+        
+        public String getDefaultHostKeyVerificationStrategy() {
+            // new templates default to the most secure strategy
+            return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
+        }
 
+        public ListBoxModel doFillHostKeyVerificationStrategyItems(@QueryParameter String hostKeyVerificationStrategy) {
+            return Stream.of(HostKeyVerificationStrategyEnum.values())
+                    .map(v -> {
+                        if (v.name().equals(hostKeyVerificationStrategy)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doCheckHostKeyVerificationStrategy(@QueryParameter String hostKeyVerificationStrategy) {
+            Stream<HostKeyVerificationStrategyEnum> stream = Stream.of(HostKeyVerificationStrategyEnum.values());
+            Stream<HostKeyVerificationStrategyEnum> filteredStream = stream.filter(v -> v.name().equals(hostKeyVerificationStrategy));
+            Optional<HostKeyVerificationStrategyEnum> matched = filteredStream.findFirst();
+            Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
+            return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
+        }
+    }
 }

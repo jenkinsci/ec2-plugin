@@ -1,5 +1,7 @@
 package hudson.plugins.ec2;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import jenkins.model.Jenkins;
@@ -20,6 +22,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class ConfigurationAsCodeTest {
@@ -144,5 +147,50 @@ public class ConfigurationAsCodeTest {
         String exported = toYamlString(clouds);
         String expected = toStringFromYamlFile(this, "UnixDataExport.yml");
         assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("UnixData-withAltEndpoint.yml")
+    public void testConfigAsCodeWithAltEncpointExport() throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = getJenkinsRoot(context).get("clouds");
+        String exported = toYamlString(clouds);
+        String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpoint.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("Ami.yml")
+    public void testAmi() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-test");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(3, templates.size());
+
+        SlaveTemplate slaveTemplate;
+        List<EC2Filter> expectedFilters;
+
+        slaveTemplate = templates.get(0);
+        assertEquals("ami-0123456789abcdefg", slaveTemplate.ami);
+        assertNull(slaveTemplate.getAmiOwners());
+        assertNull(slaveTemplate.getAmiUsers());
+        assertNull(slaveTemplate.getAmiFilters());
+
+        slaveTemplate = templates.get(1);
+        assertNull(slaveTemplate.ami);
+        assertEquals("self", slaveTemplate.getAmiOwners());
+        assertEquals("self", slaveTemplate.getAmiUsers());
+        expectedFilters = Arrays.asList(new EC2Filter("name", "foo-*"),
+                                        new EC2Filter("architecture", "x86_64"));
+        assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
+
+        slaveTemplate = templates.get(2);
+        assertNull(slaveTemplate.ami);
+        assertNull(slaveTemplate.getAmiOwners());
+        assertNull(slaveTemplate.getAmiUsers());
+        expectedFilters = Collections.emptyList();
+        assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
     }
 }

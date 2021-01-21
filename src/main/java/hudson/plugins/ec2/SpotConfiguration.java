@@ -22,6 +22,9 @@ import javax.servlet.ServletException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+
+import static hudson.Functions.checkPermission;
 
 public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfiguration>  {
     public final boolean useBidPrice;
@@ -129,10 +132,13 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
         /*
          * Check the current Spot price of the selected instance type for the selected region
          */
+        @RequirePOST
         public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId, @QueryParameter String region,
                 @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
+
+            checkPermission(EC2Cloud.PROVISION);
 
             String cp = "";
             String zoneStr = "";

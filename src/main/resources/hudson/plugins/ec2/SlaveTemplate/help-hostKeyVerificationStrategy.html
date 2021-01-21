@@ -1,0 +1,43 @@
+<!--
+The MIT License
+
+Copyright (c) 2015, CloudBees, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+<div>
+    How the SSH instance key is going to be verified when connecting to <i>Unix (AMI Type)</i> instances.
+    <ul>
+        <li><b><i>check-new-hard</i></b>: Check the key presented by the instance against the instance console and stores it to check subsequent connections. If the key is not printed on the console, the connection is not trusted. This is the default behavior for new AMIs.</li>
+        <li><b><i>check-new-soft</i></b>: Check the key against the instance console and stores it to check subsequent connections. If the key is not printed on the console, the connection is trusted anyway. This is the default behavior for existing AMIs (upgrading from a previous plugin version). This avoids future attacks but cannot guarantee the instance is the right one if a man-in-the-middle attack has already been committed.</i></b></li>
+        <li><b><i>accept-new</i></b>: Accept the key on first connection and stores it to check subsequent connections. This doesn't try to check the key against the console as the <i>check-new-soft</i> strategy does.</li>
+        <li><b><i>off</i></b>: Don't check the host key on any connection.</li>
+    </ul>
+
+    If the <i>Connect by SSH Process</i> field is checked, the equivalences with the <i>StrictHostKeyChecking</i> flag are:
+    <ul>
+        <li><b><i>check-new-hard = yes</i></b></li>
+        <li><b><i>check-new-soft = accept-new</i></b></li>
+        <li><b><i>accept-new = accept-new</i></b></li>
+        <li><b><i>off = no</i></b></li>
+    </ul>
+    
+    <i><strong>Note: </strong></i>With the <i>check-new-hard</i> and <i>check-new-soft</i> strategies you may need to increase the <i>Launch Timeout in seconds</i> because it will now
+    take until the instance console is ready, which could be several minutes. If the field is blank, it means there is no time-out which will wait indefinitely for the console.
+</div>

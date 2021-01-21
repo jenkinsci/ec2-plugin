@@ -29,6 +29,8 @@ import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.*;
+import hudson.plugins.ec2.ssh.verifiers.HostKey;
+import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
@@ -57,6 +59,7 @@ import com.trilead.ssh2.HTTPProxyData;
 import com.trilead.ssh2.SCPClient;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import com.trilead.ssh2.Session;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
@@ -163,7 +166,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
                 KeyPair key = computer.getCloud().getKeyPair();
-                if (!cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+                if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
@@ -245,7 +248,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 try {
                     // Obviously the master must have an installed ssh client.
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=no -i %s %s@%s -p %d %s", identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
+                    // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -289,7 +293,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        String privateKey = computer.getCloud().getPrivateKey().getPrivateKey();
+        EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
+        String privateKey = "";
+        if (ec2PrivateKey != null){
+            privateKey = ec2PrivateKey.getPrivateKey();
+        }
+
         File tempFile = File.createTempFile("ec2_", ".pem");
 
         try {
@@ -322,6 +331,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
             KeyPair key = computer.getCloud().getKeyPair();
+            if (key == null){
+                logWarning(computer, listener, "Could not retrieve a valid key pair.");
+                return false;
+            }
             logInfo(computer, listener,
                 String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
             while (tries-- > 0) {
@@ -396,26 +409,46 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     conn.setProxyData(proxyData);
                     logInfo(computer, listener, "Using HTTP Proxy Configuration");
                 }
-                // currently OpenSolaris offers no way of verifying the host
-                // certificate, so just accept it blindly,
-                // hoping that no man-in-the-middle attack is going on.
-                conn.connect(new ServerHostKeyVerifier() {
-                    public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey)
-                            throws Exception {
-                        return true;
-                    }
-                }, slaveConnectTimeout, slaveConnectTimeout);
+
+                conn.connect(new ServerHostKeyVerifierImpl(computer, listener), slaveConnectTimeout, slaveConnectTimeout);
                 logInfo(computer, listener, "Connected via SSH.");
                 return conn; // successfully connected
             } catch (IOException e) {
                 // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
-                logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
-                Thread.sleep(5000);
+                
+                // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it. 
+                // The computer is offline for a long period 
+                if (computer.isOffline() && StringUtils.isNotBlank(computer.getOfflineCauseReason()) && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
+                    throw new AmazonClientException("The connection couldn't be established and the computer is now offline", e);
+                } else {
+                    logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
+                    Thread.sleep(5000);
+                }
             }
         }
     }
 
+    /**
+     * Our host key verifier just pick up the right strategy and call its verify method.
+     */
+    private static class ServerHostKeyVerifierImpl implements ServerHostKeyVerifier {
+
+        private final EC2Computer computer;
+        private final TaskListener listener;
+
+        public ServerHostKeyVerifierImpl(final EC2Computer computer, final TaskListener listener) {
+            this.computer = computer;
+            this.listener = listener;
+        }
+
+        @Override
+        public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+            SlaveTemplate template = computer.getSlaveTemplate();
+            return template != null && template.getHostKeyVerificationStrategy().getStrategy().verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
+        }
+    }
+    
     private static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
