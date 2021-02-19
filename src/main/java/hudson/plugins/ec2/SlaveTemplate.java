@@ -23,20 +23,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.Filter;
@@ -61,7 +57,6 @@ import com.amazonaws.services.ec2.model.ShutdownBehavior;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotMarketOptions;
 import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
@@ -127,92 +122,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.CheckForNull;
-import javax.servlet.ServletException;
 
-import hudson.plugins.ec2.util.AmazonEC2Factory;
-import hudson.plugins.ec2.util.DeviceMappingParser;
-import hudson.plugins.ec2.util.EC2AgentConfig;
-import hudson.plugins.ec2.util.EC2AgentFactory;
-import hudson.plugins.ec2.util.MinimumInstanceChecker;
-import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import hudson.XmlFile;
-import hudson.model.listeners.SaveableListener;
 import hudson.security.Permission;
-import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.model.JenkinsLocationConfiguration;
-import jenkins.slaves.iterators.api.NodeIterator;
 
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.LaunchSpecification;
-import com.amazonaws.services.ec2.model.MarketType;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.ResourceType;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.ShutdownBehavior;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.SpotMarketOptions;
-import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StartInstancesResult;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TagSpecification;
-
-import hudson.Extension;
-import hudson.Util;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
-import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.model.Saveable;
-import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.NodePropertyDescriptor;
-import hudson.util.DescribableList;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
@@ -308,6 +222,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public Tenancy tenancy;
 
+    public EbsEncryptRootVolume ebsEncryptRootVolume;
+
     private transient/* almost final */ Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -360,7 +276,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy) {
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume) {
+
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
@@ -425,8 +342,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
-
+        this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null);
     }
 
     @Deprecated
@@ -1212,17 +1150,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private void setupRootDevice(Image image, List<BlockDeviceMapping> deviceMappings) {
-        if (deleteRootOnTermination && image.getRootDeviceType().equals("ebs")) {
-            // get the root device (only one expected in the blockmappings)
-            final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
-            if (rootDeviceMappings.size() == 0) {
-                LOGGER.warning("AMI missing block devices");
-                return;
-            }
-            BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
-            LOGGER.info("AMI had " + rootMapping.getDeviceName());
-            LOGGER.info(rootMapping.getEbs().toString());
+        if (!"ebs".equals(image.getRootDeviceType())) {
+            return;
+        }
 
+        // get the root device (only one expected in the blockmappings)
+        final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
+        if (rootDeviceMappings.size() == 0) {
+            LOGGER.warning("AMI missing block devices");
+            return;
+        }
+        BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
+        LOGGER.info("AMI had " + rootMapping.getDeviceName());
+        LOGGER.info(rootMapping.getEbs().toString());
+
+        // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
+        BlockDeviceMapping newMapping = rootMapping.clone();
+
+        if (deleteRootOnTermination) {
             // Check if the root device is already in the mapping and update it
             for (final BlockDeviceMapping mapping : deviceMappings) {
                 LOGGER.info("Request had " + mapping.getDeviceName());
@@ -1232,14 +1177,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
-            BlockDeviceMapping newMapping = rootMapping.clone();
+            // pass deleteRootOnTermination to shadow of the AMI mapping
             newMapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
-            //Per the documentation, "If you are creating a volume from a snapshot, you can't specify an encryption value. This is because only blank volumes can be encrypted on creation. "
-            //The root volume will always have a snapshot, so this value needs to be set to null to work correctly
-            newMapping.getEbs().setEncrypted(null);
-            deviceMappings.add(0, newMapping);
         }
+
+        newMapping.getEbs().setEncrypted(ebsEncryptRootVolume.getValue());
+        String message = String.format("EBS default encryption value set to: %s (%s)", ebsEncryptRootVolume.getDisplayText(), ebsEncryptRootVolume.getValue());
+        logProvisionInfo(message);
+        deviceMappings.add(0, newMapping);
+
     }
 
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping(Image image) {
@@ -2127,6 +2073,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         }
                     })
                     .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+        public String getDefaultEbsEncryptRootVolume() {
+            return EbsEncryptRootVolume.DEFAULT.getDisplayText();
+        }
+
+        public ListBoxModel doFillEbsEncryptRootVolumeItems(@QueryParameter String ebsEncryptRootVolume ) {
+            return Stream.of(EbsEncryptRootVolume.values())
+                    .map(v -> {
+                        if (v.name().equals(ebsEncryptRootVolume)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doEbsEncryptRootVolume(@QueryParameter String ebsEncryptRootVolume) {
+            Stream<EbsEncryptRootVolume> stream = Stream.of(EbsEncryptRootVolume.values());
+            Stream<EbsEncryptRootVolume> filteredStream = stream.filter(v -> v.name().equals(ebsEncryptRootVolume));
+            Optional<EbsEncryptRootVolume> matched = filteredStream.findFirst();
+            Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
+            return okResult.orElse(FormValidation.error(String.format("Could not find selected option (%s)", ebsEncryptRootVolume)));
         }
     }
 }
