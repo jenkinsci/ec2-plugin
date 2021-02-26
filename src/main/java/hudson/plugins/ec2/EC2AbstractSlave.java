@@ -166,7 +166,6 @@ public abstract class EC2AbstractSlave extends Slave {
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
         readResolve();
-        fetchLiveInstanceData(true);
     }
 
     @Deprecated
