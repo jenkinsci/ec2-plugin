@@ -89,7 +89,7 @@ public class EC2RetentionStrategyTest {
      * the computer returns the value established.
      */
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1,null) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             public void terminate() {
             }
@@ -128,7 +128,7 @@ public class EC2RetentionStrategyTest {
 
             @Override
             public SlaveTemplate getSlaveTemplate() {
-                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, "", false, "",null);
+                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
             }
 
             @Override
@@ -173,7 +173,7 @@ public class EC2RetentionStrategyTest {
     }
 
     private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
-        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit,null) {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
             @Override
             public void terminate() {
                 terminateCalled.set(true);
@@ -268,20 +268,20 @@ public class EC2RetentionStrategyTest {
     public void testRetentionDespiteIdleWithMinimumInstances() throws Exception {
 
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
-                InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-                "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
-                true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
+          InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+          "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
+          true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
-                Collections
-                        .singletonList(template), "roleArn", "roleSessionName");
+          Collections
+            .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
 
         // Should have two slaves before any checking
         assertEquals(2, computers.size());
@@ -292,9 +292,9 @@ public class EC2RetentionStrategyTest {
         checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
 
         // Should have two slaves after check too
         assertEquals(2, computers.size());
@@ -304,9 +304,9 @@ public class EC2RetentionStrategyTest {
         cloud.provision(template, 1);
 
         computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
 
         // Should have three slaves before any checking
         assertEquals(3, computers.size());
@@ -316,9 +316,9 @@ public class EC2RetentionStrategyTest {
         checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+          .filter(computer -> computer instanceof EC2Computer)
+          .map(computer -> (EC2Computer) computer)
+          .collect(Collectors.toList());
 
         // Should have two slaves after check
         assertEquals(2, computers.size());
@@ -328,9 +328,9 @@ public class EC2RetentionStrategyTest {
     @Test
     public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
-                InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-                "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
-                true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
@@ -352,15 +352,15 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
-                Collections
-                        .singletonList(template), "roleArn", "roleSessionName");
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have two slaves before any checking
         assertEquals(2, computers.size());
@@ -371,9 +371,9 @@ public class EC2RetentionStrategyTest {
         checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have two slaves after check too
         assertEquals(2, computers.size());
@@ -384,9 +384,9 @@ public class EC2RetentionStrategyTest {
     @Test
     public void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
-                InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-                "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
-                true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
@@ -408,15 +408,15 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", PrivateKeyHelper.generate(), "3",
-                Collections
-                        .singletonList(template), "roleArn", "roleSessionName");
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have zero slaves
         assertEquals(0, computers.size());
@@ -425,9 +425,9 @@ public class EC2RetentionStrategyTest {
     @Test
     public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
-                InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-                "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
-                true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("15:00");
@@ -449,15 +449,15 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
-                Collections
-                        .singletonList(template), "roleArn", "roleSessionName");
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have two slaves before any checking
         assertEquals(2, computers.size());
@@ -468,9 +468,9 @@ public class EC2RetentionStrategyTest {
         checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have two slaves after check too
         assertEquals(2, computers.size());
@@ -480,9 +480,9 @@ public class EC2RetentionStrategyTest {
     @Test
     public void testRetentionStopsAfterActiveRangeEnds() throws Exception {
         SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo",
-                InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
-                "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, "", false, "", false, false,
-                true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList(),null);
+            InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null,
+            "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
+            true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
@@ -504,15 +504,15 @@ public class EC2RetentionStrategyTest {
 
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
-                Collections
-                        .singletonList(template), "roleArn", "roleSessionName");
+            Collections
+                .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have two slaves before any checking
         assertEquals(2, computers.size());
@@ -527,9 +527,9 @@ public class EC2RetentionStrategyTest {
         checkRetentionStrategy(rs, computers.get(0));
 
         computers = Arrays.stream(r.jenkins.getComputers())
-                .filter(computer -> computer instanceof EC2Computer)
-                .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+            .filter(computer -> computer instanceof EC2Computer)
+            .map(computer -> (EC2Computer) computer)
+            .collect(Collectors.toList());
 
         // Should have 1 slaves after check
         assertEquals(1, computers.size());

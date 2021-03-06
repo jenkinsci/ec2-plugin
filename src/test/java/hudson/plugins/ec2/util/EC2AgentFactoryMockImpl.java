@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.util.List;
 
 import com.amazonaws.AmazonClientException;
-
 import com.amazonaws.services.ec2.model.Tenancy;
+
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -14,6 +14,7 @@ import hudson.slaves.NodeProperty;
 
 @Extension
 public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
+
 
     @Override
     public EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config)
@@ -34,9 +35,20 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
                 int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
                 List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
                 boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
-                List<EC2Tag> tags, String cloudName, int launchTimeout,
+                List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout,
                 AMITypeData amiType, ConnectionStrategy connectionStrategy,
-                int maxTotalUses, Tenancy tenancy)
+                int maxTotalUses)
+                throws Descriptor.FormException, IOException {
+            this(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses,Tenancy.Default);
+        }
+
+        private MockEC2OndemandSlave(String name, String instanceId, String description, String remoteFS,
+                                     int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
+                                     List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
+                                     boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
+                                     List<EC2Tag> tags, String cloudName, int launchTimeout,
+                                     AMITypeData amiType, ConnectionStrategy connectionStrategy,
+                                     int maxTotalUses, Tenancy tenancy)
                 throws Descriptor.FormException, IOException {
             super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy);
         }

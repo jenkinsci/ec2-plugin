@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.*;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -58,6 +57,18 @@ import org.kohsuke.stapler.StaplerRequest;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DeleteTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.ec2.model.Tenancy;
 
 /**
  * Slave running on EC2.
@@ -82,11 +93,16 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
+
+    @Deprecated
+    public transient boolean useDedicatedTenancy;
+
     public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
     public int maxTotalUses;
+    public final Tenancy tenancy;
     private String instanceType;
 
     // Temporary stuff that is obtained live from EC2
@@ -129,8 +145,6 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public final Tenancy tenancy;
-
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
             throws FormException, IOException {
 
@@ -151,19 +165,27 @@ public abstract class EC2AbstractSlave extends Slave {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
         this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
+        this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
-        this.tenancy = tenancy == null ? Tenancy.Default : tenancy;
+        this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         readResolve();
         fetchLiveInstanceData(true);
     }
 
     @Deprecated
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType, Tenancy tenancy)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1, tenancy);
+
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.Default);
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+            throws FormException, IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @Override
