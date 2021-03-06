@@ -15,7 +15,6 @@ import hudson.slaves.NodeProperty;
 @Extension
 public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
 
-
     @Override
     public EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config)
             throws Descriptor.FormException, IOException {

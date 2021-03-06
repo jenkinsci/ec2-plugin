@@ -900,8 +900,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
             if ( (node.getInstanceId().equals(instance.getInstanceId())) &&
                     (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
-                    ))
-            ){
+                ))
+               ){
                 logInstanceCheck(instance, ". false - found existing corresponding Jenkins slave: " + node.getInstanceId());
                 return false;
             }
@@ -1026,9 +1026,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         } else {
             List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
-                    .getSecurityGroups()
-                    .stream().map(SecurityGroup::getGroupId)
-                    .collect(Collectors.toList());
+                                            .getSecurityGroups()
+                                            .stream().map(SecurityGroup::getGroupId)
+                                            .collect(Collectors.toList());
             if (getAssociatePublicIp()) {
                 net.setGroups(groupIds);
             } else {
@@ -1282,14 +1282,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @NonNull
     private static List<String> makeImageAttributeList(@CheckForNull String attr) {
         return Stream.of(Util.tokenize(Util.fixNull(attr)))
-                .collect(Collectors.toList());
+            .collect(Collectors.toList());
     }
 
     @NonNull
     private DescribeImagesRequest makeDescribeImagesRequest() {
         List<String> imageIds = Util.fixEmptyAndTrim(ami) == null ?
-                Collections.emptyList() :
-                Collections.singletonList(ami);
+            Collections.emptyList() :
+            Collections.singletonList(ami);
         List<String> owners = makeImageAttributeList(amiOwners);
         List<String> users = makeImageAttributeList(amiUsers);
         List<Filter> filters = EC2Filter.toFilterList(amiFilters);
@@ -1298,16 +1298,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         // legal but probably not what anyone wants. Might be better
         // as an exception.
         int numAttrs = Stream.of(imageIds, owners, users, filters)
-                .collect(Collectors.summingInt(List::size));
+            .collect(Collectors.summingInt(List::size));
         if (numAttrs == 0) {
             LOGGER.warning("Neither AMI ID nor AMI search attributes provided");
         }
 
         return new DescribeImagesRequest()
-                .withImageIds(imageIds)
-                .withOwners(owners)
-                .withExecutableUsers(users)
-                .withFilters(filters);
+            .withImageIds(imageIds)
+            .withOwners(owners)
+            .withExecutableUsers(users)
+            .withFilters(filters);
     }
 
     @NonNull
@@ -1318,8 +1318,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<Image> images = getParent().connect().describeImages(request).getImages();
         if (images.isEmpty()) {
             throw new AmazonClientException("Unable to find image for request " + request);
-        }
-
+         }
 
         // Sort in reverse by creation date to get latest image
         images.sort(Comparator.comparing(Image::getCreationDate).reversed());
@@ -1389,9 +1388,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } else {
                 if (!securityGroupSet.isEmpty()) {
                     List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
-                            .getSecurityGroups()
-                            .stream().map(SecurityGroup::getGroupId)
-                            .collect(Collectors.toList());
+                                                    .getSecurityGroups()
+                                                    .stream().map(SecurityGroup::getGroupId)
+                                                    .collect(Collectors.toList());
                     net.setGroups(groupIds);
                 }
             }
@@ -1469,7 +1468,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
-            // configuration issues upfront
+                                        // configuration issues upfront
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
@@ -1513,55 +1512,55 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
         EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
-                .withName(getSlaveName(inst.getInstanceId()))
-                .withInstanceId(inst.getInstanceId())
-                .withDescription(description)
-                .withRemoteFS(remoteFS)
-                .withNumExecutors(getNumExecutors())
-                .withLabelString(labels)
-                .withMode(mode)
-                .withInitScript(initScript)
-                .withTmpDir(tmpDir)
-                .withNodeProperties(nodeProperties.toList())
-                .withRemoteAdmin(remoteAdmin)
-                .withJvmopts(jvmopts)
-                .withStopOnTerminate(stopOnTerminate)
-                .withIdleTerminationMinutes(idleTerminationMinutes)
-                .withPublicDNS(inst.getPublicDnsName())
-                .withPrivateDNS(inst.getPrivateDnsName())
-                .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
-                .withCloudName(parent.name)
-                .withLaunchTimeout(getLaunchTimeout())
-                .withAmiType(amiType)
-                .withConnectionStrategy(connectionStrategy)
-                .withMaxTotalUses(maxTotalUses)
-                .withTenancyAttribute(tenancy)
-                .build();
+            .withName(getSlaveName(inst.getInstanceId()))
+            .withInstanceId(inst.getInstanceId())
+            .withDescription(description)
+            .withRemoteFS(remoteFS)
+            .withNumExecutors(getNumExecutors())
+            .withLabelString(labels)
+            .withMode(mode)
+            .withInitScript(initScript)
+            .withTmpDir(tmpDir)
+            .withNodeProperties(nodeProperties.toList())
+            .withRemoteAdmin(remoteAdmin)
+            .withJvmopts(jvmopts)
+            .withStopOnTerminate(stopOnTerminate)
+            .withIdleTerminationMinutes(idleTerminationMinutes)
+            .withPublicDNS(inst.getPublicDnsName())
+            .withPrivateDNS(inst.getPrivateDnsName())
+            .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
+            .withCloudName(parent.name)
+            .withLaunchTimeout(getLaunchTimeout())
+            .withAmiType(amiType)
+            .withConnectionStrategy(connectionStrategy)
+            .withMaxTotalUses(maxTotalUses)
+            .withTenancyAttribute(tenancy)
+            .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
-                .withName(getSlaveName(sir.getSpotInstanceRequestId()))
-                .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
-                .withDescription(description)
-                .withRemoteFS(remoteFS)
-                .withNumExecutors(getNumExecutors())
-                .withMode(mode)
-                .withInitScript(initScript)
-                .withTmpDir(tmpDir)
-                .withLabelString(labels)
-                .withNodeProperties(nodeProperties.toList())
-                .withRemoteAdmin(remoteAdmin)
-                .withJvmopts(jvmopts)
-                .withIdleTerminationMinutes(idleTerminationMinutes)
-                .withTags(EC2Tag.fromAmazonTags(sir.getTags()))
-                .withCloudName(parent.name)
-                .withLaunchTimeout(getLaunchTimeout())
-                .withAmiType(amiType)
-                .withConnectionStrategy(connectionStrategy)
-                .withMaxTotalUses(maxTotalUses)
-                .build();
+            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
+            .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
+            .withDescription(description)
+            .withRemoteFS(remoteFS)
+            .withNumExecutors(getNumExecutors())
+            .withMode(mode)
+            .withInitScript(initScript)
+            .withTmpDir(tmpDir)
+            .withLabelString(labels)
+            .withNodeProperties(nodeProperties.toList())
+            .withRemoteAdmin(remoteAdmin)
+            .withJvmopts(jvmopts)
+            .withIdleTerminationMinutes(idleTerminationMinutes)
+            .withTags(EC2Tag.fromAmazonTags(sir.getTags()))
+            .withCloudName(parent.name)
+            .withLaunchTimeout(getLaunchTimeout())
+            .withAmiType(amiType)
+            .withConnectionStrategy(connectionStrategy)
+            .withMaxTotalUses(maxTotalUses)
+            .build();
         return EC2AgentFactory.getInstance().createSpotAgent(config);
     }
 
@@ -1667,7 +1666,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return newOndemandSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
-            // configuration issues upfront
+                                        // configuration issues upfront
         }
     }
 
@@ -1696,7 +1695,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort);
         }
 
-        // 1.43 new parameters
+         // 1.43 new parameters
         if (connectionStrategy == null )  {
             connectionStrategy = ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
         }
@@ -1856,9 +1855,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         @RequirePOST
         public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
-                                            @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
-                                            @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
-                                            @QueryParameter String roleSessionName) throws IOException {
+                @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
+                @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName) throws IOException {
             checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
@@ -1933,8 +1932,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     }
                     if (val > instanceCap) {
                         return FormValidation
-                                .error("Minimum number of instances must not be larger than AMI Instance Cap %d",
-                                        instanceCap);
+                          .error("Minimum number of instances must not be larger than AMI Instance Cap %d",
+                            instanceCap);
                     }
                     return FormValidation.ok();
                 }
@@ -1988,8 +1987,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     }
                     if (val > instanceCap) {
                         return FormValidation
-                                .error("Minimum number of spare instances must not be larger than AMI Instance Cap %d",
-                                        instanceCap);
+                          .error("Minimum number of spare instances must not be larger than AMI Instance Cap %d",
+                            instanceCap);
                     }
                     return FormValidation.ok();
                 }
@@ -2039,8 +2038,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @RequirePOST
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                                            @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
-                                            @QueryParameter String roleSessionName)
+                @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
             checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
