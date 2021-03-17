@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.16</version>
+        <version>4.17</version>
         <relativePath />
     </parent>
 
@@ -80,7 +80,7 @@ THE SOFTWARE.
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.222.4</jenkins.version>
         <java.level>8</java.level>
-        <aws-java-sdk.version>1.11.909</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.973</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -115,7 +115,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>bouncycastle-api</artifactId>
-            <version>2.18</version>
+            <version>2.20</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
