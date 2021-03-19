@@ -307,7 +307,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String currentSubnetId;
 
-    public final Tenancy tenancy;
+    public Tenancy tenancy;
 
     private transient/* almost final */ Set<LabelAtom> labelSet;
 
@@ -1708,6 +1708,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
 
+        // migration of old value to new variable.
+        if(useDedicatedTenancy){
+            tenancy =  Tenancy.Dedicated;
+        }
         return this;
     }
 
