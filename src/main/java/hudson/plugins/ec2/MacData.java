@@ -2,7 +2,6 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
-
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
@@ -11,14 +10,14 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
-public class UnixData extends AMITypeData {
+public class MacData extends AMITypeData {
     private final String rootCommandPrefix;
     private final String slaveCommandPrefix;
     private final String slaveCommandSuffix;
     private final String sshPort;
 
     @DataBoundConstructor
-    public UnixData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort) {
+    public MacData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
         this.slaveCommandSuffix = slaveCommandSuffix;
@@ -39,19 +38,19 @@ public class UnixData extends AMITypeData {
 
     @Override
     public boolean isUnix() {
-        return true;
+        return false;
     }
 
     @Override
     public boolean isMac() {
-        return false;
+        return true;
     }
 
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
         public String getDisplayName() {
-            return "unix";
+            return "mac";
         }
 
         @Restricted(NoExternalUse.class)
@@ -117,7 +116,7 @@ public class UnixData extends AMITypeData {
             return false;
         if (this.getClass() != obj.getClass())
             return false;
-        final UnixData other = (UnixData) obj;
+        final MacData other = (MacData) obj;
         if (StringUtils.isEmpty(rootCommandPrefix)) {
             if (!StringUtils.isEmpty(other.rootCommandPrefix))
                 return false;

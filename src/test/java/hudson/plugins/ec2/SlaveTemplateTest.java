@@ -645,4 +645,28 @@ public class SlaveTemplateTest {
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,tenancy");
     }
+
+    @Test
+    public void testMacConfig() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,tenancy");
+    }
 }

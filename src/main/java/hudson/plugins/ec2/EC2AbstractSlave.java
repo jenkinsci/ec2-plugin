@@ -517,21 +517,21 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     String getRootCommandPrefix() {
-        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        String commandPrefix = (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
     }
 
     String getSlaveCommandPrefix() {
-        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+        String commandPrefix = (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() :(amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
     }
 
     String getSlaveCommandSuffix() {
-        String commandSuffix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+        String commandSuffix = (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() :(amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
         if (commandSuffix == null || commandSuffix.length() == 0)
             return "";
         return " " + commandSuffix;
@@ -542,7 +542,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getSshPort() {
-        String sshPort = amiType.isUnix() ? ((UnixData) amiType).getSshPort() : "22";
+        String sshPort = (amiType.isUnix() ? ((UnixData) amiType).getSshPort() :(amiType.isMac() ? ((MacData) amiType).getSshPort() : "22"));
         if (sshPort == null || sshPort.length() == 0)
             return 22;
 

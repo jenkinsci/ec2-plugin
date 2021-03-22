@@ -1,0 +1,14 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: "staging"
+        useInstanceProfileForCredentials: true
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+          - description:
+            ami: "ami-5678"
+            labelString: "mac clear"
+            type: "Mac1Metal"
+            remoteFS: "/Users/jenkins"
+            mode: "NORMAL"
