@@ -55,7 +55,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
     public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.Default);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @DataBoundConstructor

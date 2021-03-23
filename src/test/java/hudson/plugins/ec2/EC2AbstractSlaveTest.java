@@ -1,6 +1,5 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Tenancy;
 import hudson.slaves.NodeProperty;
 import hudson.model.Node;
 import java.util.ArrayList;

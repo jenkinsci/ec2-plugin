@@ -1,6 +1,6 @@
 package hudson.plugins.ec2.util;
 
-import com.amazonaws.services.ec2.model.Tenancy;
+import hudson.plugins.ec2.Tenancy;
 import hudson.model.Node;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.ConnectionStrategy;

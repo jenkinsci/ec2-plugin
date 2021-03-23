@@ -196,7 +196,6 @@ import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
-import com.amazonaws.services.ec2.model.Tenancy;
 
 import hudson.Extension;
 import hudson.Util;
@@ -448,7 +447,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 useEphemeralDevices, launchTimeoutStr, associatePublicIp,
                 customDeviceMapping, connectBySSHProcess, monitoring,
                 t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, hostKeyVerificationStrategy, Tenancy.Default);
+                nodeProperties, hostKeyVerificationStrategy, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
