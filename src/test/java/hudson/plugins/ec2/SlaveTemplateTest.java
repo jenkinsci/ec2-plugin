@@ -49,7 +49,7 @@ import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.Tenancy;
+import hudson.plugins.ec2.Tenancy;
 import hudson.plugins.ec2.util.PrivateKeyHelper;
 import jenkins.model.Jenkins;
 

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.Tenancy;
+import hudson.plugins.ec2.Tenancy;
 
 import hudson.Extension;
 import hudson.model.Computer;
