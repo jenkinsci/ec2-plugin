@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -31,6 +32,7 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
     private String spotMaxBidPrice;
     private boolean fallbackToOndemand;
     private int spotBlockReservationDuration;
+    private boolean restartSpotInterruption;
 
     @Deprecated
     public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {
@@ -122,8 +124,18 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
 
     }
 
+    public boolean getRestartSpotInterruption() {
+        return restartSpotInterruption;
+    }
+
+    @DataBoundSetter
+    public void setRestartSpotInterruption(boolean restartSpotInterruption) {
+        this.restartSpotInterruption = restartSpotInterruption;
+    }
+
     @Extension
     public static class DescriptorImpl extends Descriptor<SpotConfiguration> {
+        @Nonnull
         @Override
         public String getDisplayName() {
             return "spotConfig";

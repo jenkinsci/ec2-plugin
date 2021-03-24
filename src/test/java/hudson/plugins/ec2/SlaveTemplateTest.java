@@ -39,6 +39,7 @@ import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SecurityGroup;
@@ -66,6 +67,7 @@ import org.mockito.ArgumentCaptor;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -286,6 +288,39 @@ public class SlaveTemplateTest {
     }
 
     /**
+     * Test to make sure the slave created has been configured properly with the restart spot interruption configuration
+     * correctly set
+     * @throws Exception - Exception that can be thrown by the Jenkins test harness
+     */
+    @Test
+    public void testRestartSpotInterruption() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SpotConfiguration spotConfig = new SpotConfiguration(true);
+        spotConfig.setSpotMaxBidPrice("0.1");
+        spotConfig.setFallbackToOndemand(true);
+        spotConfig.setSpotBlockReservationDuration(0);
+        spotConfig.setRestartSpotInterruption(true);
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(slaveTemplate);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(slaveTemplate, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,connectionStrategy,hostKeyVerificationStrategy");
+    }
+
+    /**
      * Test to make sure the IAM Role is set properly.
      *
      * @throws Exception
@@ -484,8 +519,8 @@ public class SlaveTemplateTest {
         Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
     }
 
-  @Test
-  public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
+    @Test
+    public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
         boolean associatePublicIp = false;
         String ami = "ami1";
         String description = "foo ami";
@@ -525,10 +560,10 @@ public class SlaveTemplateTest {
                 assertEquals(actualRequest.getSecurityGroups(), Stream.of(securityGroups).collect(Collectors.toList()));
             }
         }
-  }
+    }
 
-  @Test
-  public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
+    @Test
+    public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
         boolean associatePublicIp = true;
         String ami = "ami1";
         String description = "foo ami";
@@ -565,9 +600,9 @@ public class SlaveTemplateTest {
             assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
         }
-  }
+    }
 
-  private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
+    private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
         AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
@@ -619,5 +654,6 @@ public class SlaveTemplateTest {
         when(mockedEC2.runInstances(any(RunInstancesRequest.class))).thenReturn(mockedResult);
 
         return mockedEC2;
-  }
+    }
+
 }

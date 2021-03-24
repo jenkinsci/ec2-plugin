@@ -35,4 +35,8 @@ THE SOFTWARE.
   <f:entry title="${%Spot Block Reservation Duration}" field="spotBlockReservationDuration">
     <f:number />
   </f:entry>
+
+  <f:entry title="Restart tasks if spot interruted" field="restartSpotInterruption">
+    <f:checkbox />
+  </f:entry>
 </j:jelly>
