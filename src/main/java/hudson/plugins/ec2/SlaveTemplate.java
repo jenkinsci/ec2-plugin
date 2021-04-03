@@ -285,14 +285,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private final List<EC2Tag> tags;
 
     public ConnectionStrategy connectionStrategy;
-    
+
     public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
     public final boolean associatePublicIp;
 
     protected transient EC2Cloud parent;
-
-    public final boolean useDedicatedTenancy;
 
     public AMITypeData amiType;
 
@@ -307,6 +305,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int nextSubnet;
 
     public String currentSubnetId;
+
+    public Tenancy tenancy;
 
     private transient/* almost final */ Set<LabelAtom> labelSet;
 
@@ -348,16 +348,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public boolean connectUsingPublicIp;
 
+    @Deprecated
+    public transient boolean useDedicatedTenancy;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
                          int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy) {
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
@@ -389,7 +392,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.associatePublicIp = associatePublicIp;
         this.connectionStrategy = connectionStrategy == null ? ConnectionStrategy.PRIVATE_IP : connectionStrategy;
-        this.useDedicatedTenancy = useDedicatedTenancy;
+        this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
         this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
@@ -420,9 +423,31 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
-        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+        this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
 
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
@@ -714,10 +739,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return idleTerminationMinutes;
     }
 
-    public boolean getUseDedicatedTenancy() {
-        return useDedicatedTenancy;
-    }
-
     public Set<LabelAtom> getLabelSet() {
         return labelSet;
     }
@@ -796,9 +817,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundSetter
     public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
-        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
-    
+
     @NonNull
     public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
         return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
@@ -833,7 +854,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public void setAmiFilters(List<EC2Filter> amiFilters) {
         this.amiFilters = amiFilters;
     }
-    
+
     @Override
     public String toString() {
         return "SlaveTemplate{" +
@@ -846,8 +867,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return maxTotalUses;
     }
 
+    public Tenancy getTenancyAttribute() {
+        return tenancy;
+    }
+
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
-    	return Objects.requireNonNull(nodeProperties);
+        return Objects.requireNonNull(nodeProperties);
     }
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
@@ -951,11 +976,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (StringUtils.isNotBlank(getZone())) {
             Placement placement = new Placement(getZone());
-            if (getUseDedicatedTenancy()) {
+            if (getTenancyAttribute().equals(Tenancy.Dedicated)) {
                 placement.setTenancy("dedicated");
             }
             riRequest.setPlacement(placement);
             diFilters.add(new Filter("availability-zone").withValues(getZone()));
+        }
+
+        if(getTenancyAttribute().equals(Tenancy.Host)){
+            Placement placement = new Placement();
+            placement.setTenancy("host");
+            riRequest.setPlacement(placement);
+            diFilters.add(new Filter("tenancy").withValues(placement.getTenancy()));
+        }else if(getTenancyAttribute().equals(Tenancy.Default)){
+            Placement placement = new Placement();
+            placement.setTenancy("default");
+            riRequest.setPlacement(placement);
+            diFilters.add(new Filter("tenancy").withValues(placement.getTenancy()));
         }
 
         String subnetId = chooseSubnetId(rotateSubnet);
@@ -1492,11 +1529,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withPrivateDNS(inst.getPrivateDnsName())
             .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
             .withCloudName(parent.name)
-            .withUseDedicatedTenancy(useDedicatedTenancy)
             .withLaunchTimeout(getLaunchTimeout())
             .withAmiType(amiType)
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
+            .withTenancyAttribute(tenancy)
             .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
@@ -1670,6 +1707,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
 
+        // migration of old value to new variable.
+        if(useDedicatedTenancy){
+            tenancy =  Tenancy.Dedicated;
+        }
         return this;
     }
 
@@ -2008,6 +2049,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
+        public String getDefaultTenancy() {
+            // new templates default to the most secure strategy
+            return Tenancy.Default.name();
+        }
+
         /*
          * Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001
          */
@@ -2045,7 +2091,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
-        
+
         public String getDefaultHostKeyVerificationStrategy() {
             // new templates default to the most secure strategy
             return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
@@ -2069,6 +2115,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Optional<HostKeyVerificationStrategyEnum> matched = filteredStream.findFirst();
             Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
             return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
+        }
+
+        public ListBoxModel doFillTenancyItems(@QueryParameter String tenancy) {
+            return Stream.of(Tenancy.values())
+                    .map(v -> {
+                        if (v.name().equals(tenancy)) {
+                            return new ListBoxModel.Option(v.name(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.name(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
         }
     }
 }

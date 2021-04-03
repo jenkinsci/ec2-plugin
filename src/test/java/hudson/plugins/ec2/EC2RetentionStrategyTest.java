@@ -46,10 +46,10 @@ public class EC2RetentionStrategyTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
-    
+
     @Rule
     public LoggerRule logging = new LoggerRule();
-    
+
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
     final AtomicBoolean terminateCalled = new AtomicBoolean(false);
     private static ZoneId zoneId = ZoneId.systemDefault();
@@ -85,7 +85,7 @@ public class EC2RetentionStrategyTest {
     }
 
     /*
-     * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise, 
+     * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise,
      * the computer returns the value established.
      */
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
@@ -207,17 +207,17 @@ public class EC2RetentionStrategyTest {
         long nextCheckAfter = twoMinutesAgo.toEpochMilli();
         Clock clock = Clock.fixed(twoMinutesAgo.plusSeconds(1), zoneId);
         EC2RetentionStrategy rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
-        
+
         OfflineCause cause = OfflineCause.create(new NonLocalizable("Testing terminate on offline computer"));
-        
-        // A computer returning the real isOffline value and still connecting 
-        EC2Computer computer = computerWithIdleTime(0, 0, null, true); 
+
+        // A computer returning the real isOffline value and still connecting
+        EC2Computer computer = computerWithIdleTime(0, 0, null, true);
         computer.setTemporarilyOffline(true, cause);
         // We don't terminate this one
         rs.check(computer);
         assertThat("The computer is not terminated, it should still accept tasks", idleTimeoutCalled.get(), equalTo(false));
         assertThat(logging.getMessages(), hasItem(containsString("connecting and still offline, will check if the launch timeout has expired")));
-                
+
         // A computer returning the real isOffline value and not connecting
         rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
         EC2Computer computer2 = computerWithIdleTime(0, 0, null, false);
@@ -227,7 +227,7 @@ public class EC2RetentionStrategyTest {
         assertThat("The computer is terminated, it should not accept more tasks", idleTimeoutCalled.get(), equalTo(true));
         assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
-    
+
     @Test
     public void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<Boolean>();

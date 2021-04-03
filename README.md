@@ -321,7 +321,7 @@ def SlaveTemplateUsEast1Parameters = [
   tags:                     new EC2Tag('Name', 'jenkins-slave'),
   tmpDir:                   '',
   type:                     't2.medium',
-  useDedicatedTenancy:      false,
+  tenancy:                  'Default',
   useEphemeralDevices:      true,
   usePrivateDnsName:        true,
   userData:                 '',
@@ -407,12 +407,12 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.iamInstanceProfile,
   SlaveTemplateUsEast1Parameters.deleteRootOnTermination,
   SlaveTemplateUsEast1Parameters.useEphemeralDevices,
-  SlaveTemplateUsEast1Parameters.useDedicatedTenancy,
   SlaveTemplateUsEast1Parameters.launchTimeoutStr,
   SlaveTemplateUsEast1Parameters.associatePublicIp,
   SlaveTemplateUsEast1Parameters.customDeviceMapping,
   SlaveTemplateUsEast1Parameters.connectBySSHProcess,
-  SlaveTemplateUsEast1Parameters.connectUsingPublicIp
+  SlaveTemplateUsEast1Parameters.connectUsingPublicIp,
+  SlaveTemplateUsEast1Parameters.tenancy,
 )
 
 // https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html

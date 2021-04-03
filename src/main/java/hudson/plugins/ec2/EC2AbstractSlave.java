@@ -92,12 +92,16 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
-    public final boolean useDedicatedTenancy;
+
+    @Deprecated
+    public transient boolean useDedicatedTenancy;
+
     public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
     public int maxTotalUses;
+    public final Tenancy tenancy;
     private String instanceType;
 
     // Temporary stuff that is obtained live from EC2
@@ -140,7 +144,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
             throws FormException, IOException {
 
         super(name, remoteFS, launcher);
@@ -160,13 +164,21 @@ public abstract class EC2AbstractSlave extends Slave {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
         this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
-        this.useDedicatedTenancy = useDedicatedTenancy;
+        this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
+        this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         readResolve();
         fetchLiveInstanceData(true);
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+            throws FormException, IOException {
+
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
@@ -201,7 +213,7 @@ public abstract class EC2AbstractSlave extends Slave {
                 }
             }
         }
-        
+
         /*
          * If this field is null (as it would be if this object is deserialized and not constructed normally) then
          * we need to explicitly initialize it, otherwise we will cause major blocker issues such as this one which
@@ -735,7 +747,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean isSpecifyPassword() {
         return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
-    
+
     public boolean isAllowSelfSignedCertificate() {
         return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }

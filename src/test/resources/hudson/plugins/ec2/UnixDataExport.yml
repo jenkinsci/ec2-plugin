@@ -31,7 +31,7 @@
         useBidPrice: true
       stopOnTerminate: false
       t2Unlimited: false
+      tenancy: Default
       type: T2Micro
-      useDedicatedTenancy: false
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true

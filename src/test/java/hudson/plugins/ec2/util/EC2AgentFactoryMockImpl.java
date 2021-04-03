@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import com.amazonaws.AmazonClientException;
+import hudson.plugins.ec2.Tenancy;
 
 import hudson.Extension;
 import hudson.model.Computer;
@@ -17,7 +18,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     @Override
     public EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config)
             throws Descriptor.FormException, IOException {
-        return new MockEC2OndemandSlave(config.name, config.instanceId, config.description, config.remoteFS, config.numExecutors, config.labelString, config.mode, config.initScript, config.tmpDir, config.nodeProperties, config.remoteAdmin, config.jvmopts, config.stopOnTerminate, config.idleTerminationMinutes, config.publicDNS, config.privateDNS, config.tags, config.cloudName, config.useDedicatedTenancy, config.launchTimeout, config.amiType, config.connectionStrategy, config.maxTotalUses);
+        return new MockEC2OndemandSlave(config.name, config.instanceId, config.description, config.remoteFS, config.numExecutors, config.labelString, config.mode, config.initScript, config.tmpDir, config.nodeProperties, config.remoteAdmin, config.jvmopts, config.stopOnTerminate, config.idleTerminationMinutes, config.publicDNS, config.privateDNS, config.tags, config.cloudName, config.launchTimeout, config.amiType, config.connectionStrategy, config.maxTotalUses, config.tenancy);
     }
 
     @Override
@@ -37,7 +38,18 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
                 AMITypeData amiType, ConnectionStrategy connectionStrategy,
                 int maxTotalUses)
                 throws Descriptor.FormException, IOException {
-            super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, connectionStrategy, maxTotalUses);
+            this(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses,Tenancy.Default);
+        }
+
+        private MockEC2OndemandSlave(String name, String instanceId, String description, String remoteFS,
+                                     int numExecutors, String labelString, Mode mode, String initScript, String tmpDir,
+                                     List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts,
+                                     boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS,
+                                     List<EC2Tag> tags, String cloudName, int launchTimeout,
+                                     AMITypeData amiType, ConnectionStrategy connectionStrategy,
+                                     int maxTotalUses, Tenancy tenancy)
+                throws Descriptor.FormException, IOException {
+            super(name, instanceId, description, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy);
         }
 
         @Override
