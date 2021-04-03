@@ -416,9 +416,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             } catch (IOException e) {
                 // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
-                
-                // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it. 
-                // The computer is offline for a long period 
+
+                // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it.
+                // The computer is offline for a long period
                 if (computer.isOffline() && StringUtils.isNotBlank(computer.getOfflineCauseReason()) && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
                     throw new AmazonClientException("The connection couldn't be established and the computer is now offline", e);
                 } else {
@@ -448,7 +448,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             return template != null && template.getHostKeyVerificationStrategy().getStrategy().verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
         }
     }
-    
+
     private static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;

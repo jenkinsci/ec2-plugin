@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -17,6 +18,8 @@ import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
 import static io.jenkins.plugins.casc.misc.Util.toYamlString;
 import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
 
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+
 import org.junit.Rule;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -24,6 +27,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class ConfigurationAsCodeTest {
 
@@ -158,6 +162,35 @@ public class ConfigurationAsCodeTest {
         String exported = toYamlString(clouds);
         String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpoint.yml");
         assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("Unix-withMinimumInstancesTimeRange.yml")
+    public void testConfigAsCodeWithMinimumInstancesTimeRange() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-timed");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-123456", slaveTemplate.getAmi());
+        assertEquals("/home/ec2-user", slaveTemplate.remoteFS);
+
+        assertEquals("linux ubuntu", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig = slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
+        assertNotNull(timeRangeConfig);
+        assertEquals(LocalTime.parse("01:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeFromAsTime());
+        assertEquals(LocalTime.parse("13:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeToAsTime());
+        assertFalse(timeRangeConfig.getDay("monday"));
+        assertTrue(timeRangeConfig.getDay("tuesday"));
+        assertFalse(timeRangeConfig.getDay("wednesday"));
+
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
     }
 
     @Test

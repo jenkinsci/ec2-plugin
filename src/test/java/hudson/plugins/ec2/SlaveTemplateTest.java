@@ -170,7 +170,7 @@ public class SlaveTemplateTest {
 
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
-        
+
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
@@ -452,15 +452,8 @@ public class SlaveTemplateTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         SpotConfiguration spotConfig = new SpotConfiguration(true);
         spotConfig.setSpotMaxBidPrice("22");
         spotConfig.setFallbackToOndemand(true);
@@ -480,8 +473,8 @@ public class SlaveTemplateTest {
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
-        Assert.assertEquals(false, stored.getMinimumNoInstancesActiveTimeRangeDays().get("monday"));
-        Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
+        Assert.assertEquals(false, stored.getDay("monday"));
+        Assert.assertEquals(true, stored.getDay("tuesday"));
     }
 
   @Test
