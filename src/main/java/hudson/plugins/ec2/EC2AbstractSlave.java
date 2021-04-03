@@ -171,7 +171,6 @@ public abstract class EC2AbstractSlave extends Slave {
         this.maxTotalUses = maxTotalUses;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         readResolve();
-        fetchLiveInstanceData(true);
     }
 
     @Deprecated
