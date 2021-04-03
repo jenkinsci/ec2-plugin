@@ -30,7 +30,7 @@ final class CloudHelper {
             try {
                 return getInstance(instanceId, cloud);
             } catch (AmazonServiceException e) {
-                if (e.getErrorCode().equals("InvalidInstanceID.NotFound")) {
+                if (e.getErrorCode().equals("InvalidInstanceID.NotFound") || e.getErrorCode().equals("RequestExpired")) {
                     // retry in 5 seconds.
                     Thread.sleep(5000);
                     continue;
