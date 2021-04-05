@@ -1714,7 +1714,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if(useDedicatedTenancy){
             tenancy =  Tenancy.Dedicated;
         }
-
         return this;
     }
 
