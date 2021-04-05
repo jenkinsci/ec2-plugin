@@ -181,13 +181,6 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     @Deprecated
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
-            throws FormException, IOException {
-
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
-    }
-
-    @Deprecated
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
         this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
@@ -400,6 +393,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 240;
         case M5a24xlarge:
             return 240;
+         case Mac1Metal:
+            return 1;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
         default:
