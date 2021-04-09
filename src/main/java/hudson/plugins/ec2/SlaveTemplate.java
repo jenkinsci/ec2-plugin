@@ -1741,7 +1741,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isUnix();
     }
 
-    public boolean isMacSlave() {
+    public boolean isMacAgent() {
         return amiType.isMac();
     }
 
