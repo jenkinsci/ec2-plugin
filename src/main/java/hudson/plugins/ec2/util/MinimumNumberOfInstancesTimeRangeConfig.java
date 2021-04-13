@@ -15,22 +15,35 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
 
     private String minimumNoInstancesActiveTimeRangeFrom;
     private String minimumNoInstancesActiveTimeRangeTo;
-    private Map<String, Boolean> minimumNoInstancesActiveTimeRangeDays;
+
+    /* From old configs */
+    @Deprecated
+    private transient Map<String, Boolean> minimumNoInstancesActiveTimeRangeDays;
+
+    private Boolean monday;
+    private Boolean tuesday;
+    private Boolean wednesday;
+    private Boolean thursday;
+    private Boolean friday;
+    private Boolean saturday;
+    private Boolean sunday;
+
 
     @DataBoundConstructor
     public MinimumNumberOfInstancesTimeRangeConfig() {
     }
 
-    private static Map<String, Boolean> parseDays(JSONObject days) {
-        Map<String, Boolean> map = new HashMap<>();
-        map.put("monday", days.getBoolean("monday"));
-        map.put("tuesday", days.getBoolean("tuesday"));
-        map.put("wednesday", days.getBoolean("wednesday"));
-        map.put("thursday", days.getBoolean("thursday"));
-        map.put("friday", days.getBoolean("friday"));
-        map.put("saturday", days.getBoolean("saturday"));
-        map.put("sunday", days.getBoolean("sunday"));
-        return map;
+    protected Object readResolve() {
+        if (minimumNoInstancesActiveTimeRangeDays != null && !minimumNoInstancesActiveTimeRangeDays.isEmpty()) {
+            this.monday = minimumNoInstancesActiveTimeRangeDays.get("monday");
+            this.tuesday = minimumNoInstancesActiveTimeRangeDays.get("tuesday");
+            this.wednesday = minimumNoInstancesActiveTimeRangeDays.get("wednesday");
+            this.thursday = minimumNoInstancesActiveTimeRangeDays.get("thursday");
+            this.friday = minimumNoInstancesActiveTimeRangeDays.get("friday");
+            this.saturday = minimumNoInstancesActiveTimeRangeDays.get("saturday");
+            this.sunday = minimumNoInstancesActiveTimeRangeDays.get("sunday");
+        }
+        return this;
     }
 
     private static LocalTime getLocalTime(String value) {
@@ -47,7 +60,7 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
 
     public static void validateLocalTimeString(String value) {
         if (getLocalTime(value) == null) {
-            throw new IllegalArgumentException("Value " + value + " is not valid time format, ([h:mm a] or [HH:mm])");
+            throw new IllegalArgumentException("Value " + value + " is not valid time format, ([12:34 AM] or [23:45])");
         }
     }
 
@@ -79,12 +92,79 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
         return getLocalTime(minimumNoInstancesActiveTimeRangeTo);
     }
 
-    public Map<String, Boolean> getMinimumNoInstancesActiveTimeRangeDays() {
-        return minimumNoInstancesActiveTimeRangeDays;
+    public Boolean getMonday() {
+        return monday;
     }
 
     @DataBoundSetter
-    public void setMinimumNoInstancesActiveTimeRangeDays(JSONObject minimumNoInstancesActiveTimeRangeDays) {
-        this.minimumNoInstancesActiveTimeRangeDays = parseDays(minimumNoInstancesActiveTimeRangeDays);
+    public void setMonday(Boolean monday) {
+        this.monday = monday;
+    }
+
+    public Boolean getTuesday() {
+        return tuesday;
+    }
+
+    @DataBoundSetter
+    public void setTuesday(Boolean tuesday) {
+        this.tuesday = tuesday;
+    }
+
+    public Boolean getWednesday() {
+        return wednesday;
+    }
+
+    @DataBoundSetter
+    public void setWednesday(Boolean wednesday) {
+        this.wednesday = wednesday;
+    }
+
+    public Boolean getThursday() {
+        return thursday;
+    }
+
+    @DataBoundSetter
+    public void setThursday(Boolean thursday) {
+        this.thursday = thursday;
+    }
+
+    public Boolean getFriday() {
+        return friday;
+    }
+
+    @DataBoundSetter
+    public void setFriday(Boolean friday) {
+        this.friday = friday;
+    }
+
+    public Boolean getSaturday() {
+        return saturday;
+    }
+
+    @DataBoundSetter
+    public void setSaturday(Boolean saturday) {
+        this.saturday = saturday;
+    }
+
+    public Boolean getSunday() {
+        return sunday;
+    }
+
+    @DataBoundSetter
+    public void setSunday(Boolean sunday) {
+        this.sunday = sunday;
+    }
+
+    public boolean getDay(String day) {
+        switch (day.toLowerCase()) {
+        case "monday": return Boolean.TRUE.equals(this.monday);
+        case "tuesday": return Boolean.TRUE.equals(this.tuesday);
+        case "wednesday": return Boolean.TRUE.equals(this.wednesday);
+        case "thursday": return Boolean.TRUE.equals(this.thursday);
+        case "friday": return Boolean.TRUE.equals(this.friday);
+        case "saturday": return Boolean.TRUE.equals(this.saturday);
+        case "sunday": return Boolean.TRUE.equals(this.sunday);
+        default: throw new IllegalArgumentException("Can only get days");
+        }
     }
 }

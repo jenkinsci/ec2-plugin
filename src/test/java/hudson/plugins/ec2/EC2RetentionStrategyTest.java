@@ -335,15 +335,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 12, 0); //Tuesday
@@ -391,15 +384,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 10, 0); //Tuesday before range
@@ -432,15 +418,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("15:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("03:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 25, 1, 0); //Wednesday
@@ -487,15 +466,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         //Set fixed clock to be able to test properly
