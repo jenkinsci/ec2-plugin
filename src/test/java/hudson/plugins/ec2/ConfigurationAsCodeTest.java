@@ -63,7 +63,7 @@ public class ConfigurationAsCodeTest {
 
         final SpotConfiguration spotConfig = slaveTemplate.spotConfig;
         assertNotEquals(null, spotConfig);
-        assertEquals(true, spotConfig.getFallbackToOndemand());
+        assertTrue(spotConfig.getFallbackToOndemand());
         assertEquals(3, spotConfig.getSpotBlockReservationDuration());
         assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
         assertTrue(spotConfig.useBidPrice);
@@ -98,7 +98,7 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
 
-        assertEquals(null, slaveTemplate.spotConfig);
+        assertNull(slaveTemplate.spotConfig);
     }
 
     @Test
@@ -121,7 +121,7 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.canProvision(new LabelAtom("vs2019")));
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
-        assertTrue(!amiType.isUnix());
+        assertFalse(amiType.isUnix());
         assertTrue(amiType.isWindows());
         assertTrue(amiType instanceof WindowsData);
         final WindowsData windowsData = (WindowsData) amiType;
@@ -275,7 +275,7 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
 
-        assertEquals(null, slaveTemplate.spotConfig);
+        assertNull(slaveTemplate.spotConfig);
     }
 
     @Test
