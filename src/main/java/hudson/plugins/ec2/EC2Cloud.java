@@ -1102,9 +1102,11 @@ public abstract class EC2Cloud extends Cloud {
             BufferedReader br = new BufferedReader(new StringReader(privateKey));
             String line;
             while ((line = br.readLine()) != null) {
-                if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
+                if (line.equals("-----BEGIN RSA PRIVATE KEY-----") ||
+                        line.equals("-----BEGIN OPENSSH PRIVATE KEY-----"))
                     hasStart = true;
-                if (line.equals("-----END RSA PRIVATE KEY-----"))
+                if (line.equals("-----END RSA PRIVATE KEY-----") ||
+                        line.equals("-----END OPENSSH PRIVATE KEY-----"))
                     hasEnd = true;
             }
             if (!hasStart)
