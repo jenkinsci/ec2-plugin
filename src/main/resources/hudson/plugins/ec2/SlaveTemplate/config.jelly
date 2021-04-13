@@ -185,6 +185,10 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
+    <f:entry title="${%Encrypt EBS root volume}" field="ebsEncryptRootVolume">
+      <f:select default="${descriptor.getDefaultEbsEncryptRootVolume()}"/>
+    </f:entry>
+
     <f:entry title="${%Block device mapping}" field="customDeviceMapping">
       <f:textbox />
     </f:entry>
