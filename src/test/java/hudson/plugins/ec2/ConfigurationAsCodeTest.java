@@ -193,4 +193,66 @@ public class ConfigurationAsCodeTest {
         expectedFilters = Collections.emptyList();
         assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
     }
+
+    @Test
+    @ConfiguredWithCode("MacData.yml")
+    public void testMacData() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-production");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("/Users/ec2-user", slaveTemplate.remoteFS);
+
+        assertEquals("mac metal", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("metal")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
+
+        final AMITypeData amiType = slaveTemplate.getAmiType();
+        assertTrue(amiType.isMac());
+        assertTrue(amiType instanceof MacData);
+        final MacData macData = (MacData) amiType;
+        assertEquals("sudo", macData.getRootCommandPrefix());
+        assertEquals("sudo -u jenkins", macData.getSlaveCommandPrefix());
+        assertEquals("-fakeFlag", macData.getSlaveCommandSuffix());
+        assertEquals("22", macData.getSshPort());
+    }
+
+    @Test
+    @ConfiguredWithCode("Mac.yml")
+    public void testMac() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-staging");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-5678", slaveTemplate.getAmi());
+        assertEquals("/Users/jenkins", slaveTemplate.remoteFS);
+
+        assertEquals("mac clear", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
+
+        assertEquals(null, slaveTemplate.spotConfig);
+    }
+
+    @Test
+    @ConfiguredWithCode("MacData.yml")
+    public void testMacCloudConfigAsCodeExport() throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = getJenkinsRoot(context).get("clouds");
+        String exported = toYamlString(clouds);
+        String expected = toStringFromYamlFile(this, "MacDataExport.yml");
+        assertEquals(expected, exported);
+    }
 }

@@ -649,6 +649,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (amiType.isUnix()) {
                 sshPort = ((UnixData) amiType).getSshPort();
             }
+            if (amiType.isMac()) {
+                sshPort = ((MacData) amiType).getSshPort();
+            }
             return Integer.parseInt(sshPort);
         } catch (NumberFormatException e) {
             return 22;
@@ -660,15 +663,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getRootCommandPrefix() {
-        return amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        return (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix():""));
     }
 
     public String getSlaveCommandPrefix() {
-        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
     }
 
     public String getSlaveCommandSuffix() {
-        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
     }
 
     public String chooseSubnetId() {
@@ -1736,6 +1739,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean isUnixSlave() {
         return amiType.isUnix();
+    }
+
+    public boolean isMacAgent() {
+        return amiType.isMac();
     }
 
     public Secret getAdminPassword() {
