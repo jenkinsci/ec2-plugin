@@ -342,16 +342,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         String knownHost = "";
         knownHost = String.format("%s %s %s", ec2HostAddress, ec2HostKey.getAlgorithm(), Base64.getEncoder().encodeToString(ec2HostKey.getKey()));
 
-        try {
-            FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
-            OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
-            try {
-                writer.write(knownHost);
-                writer.flush();
-            } finally {
-                writer.close();
-                fileOutputStream.close();
-            }
+        try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+             OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8)) {
+            writer.write(knownHost);
+            writer.flush();
             FilePath filePath = new FilePath(tempFile);
             filePath.chmod(0400); // octal file mask - readonly by owner
             return tempFile;
