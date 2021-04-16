@@ -1657,7 +1657,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
         
         if (tenancy == null) {
-            tenancy = Tenancy.Default
+            tenancy = Tenancy.Default;
         }
 
         // migration of old value to new variable.
