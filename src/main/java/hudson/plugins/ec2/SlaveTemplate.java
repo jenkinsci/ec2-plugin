@@ -1655,11 +1655,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (nodeProperties == null) {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
+        
+        if (tenancy == null) {
+            tenancy = Tenancy.Default
+        }
 
         // migration of old value to new variable.
-        if(useDedicatedTenancy){
-            tenancy =  Tenancy.Dedicated;
+        if (useDedicatedTenancy) {
+            tenancy = Tenancy.Dedicated;
         }
+        
+        if (ebsEncryptRootVolume == null) {
+            ebsEncryptRootVolume = EbsEncryptRootVolume.DEFAULT;
+        }
+        
         return this;
     }
 
