@@ -754,6 +754,7 @@ public abstract class EC2Cloud extends Cloud {
                 }
 
                 LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
+                if (excessWorkload == 0) break;
             } catch (AmazonClientException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
             }
