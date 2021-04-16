@@ -740,7 +740,7 @@ public abstract class EC2Cloud extends Cloud {
 
                 if (slaves == null || slaves.isEmpty()) {
                     LOGGER.warning("Can't raise nodes for " + t);
-                    return Collections.emptyList();
+                    continue;
                 }
 
                 for (final EC2AbstractSlave slave : slaves) {
