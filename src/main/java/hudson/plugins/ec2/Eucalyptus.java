@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
+import hudson.model.ItemGroup;
 import hudson.util.FormValidation;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.List;
 
 import javax.servlet.ServletException;
 
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
@@ -80,9 +82,9 @@ public class Eucalyptus extends EC2Cloud {
 
         @Override
         @RequirePOST
-        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
+        public FormValidation doTestConnection(@AncestorInPath ItemGroup context, @QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
                 throws IOException, ServletException {
-            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
+            return super.doTestConnection(context, ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }
