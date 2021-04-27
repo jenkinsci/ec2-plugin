@@ -1,7 +1,5 @@
 package hudson.plugins.ec2.win.winrm;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import hudson.plugins.ec2.win.winrm.request.RequestFactory;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
 import hudson.remoting.FastPipedOutputStream;
@@ -10,10 +8,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
@@ -129,7 +131,7 @@ public class WinRMClient {
 
     public boolean slurpOutput(FastPipedOutputStream stdout, FastPipedOutputStream stderr) throws IOException {
         LOGGER.log(Level.FINE, () -> "--> SlurpOutput");
-        ImmutableMap<String, FastPipedOutputStream> streams = ImmutableMap.of("stdout", stdout, "stderr", stderr);
+        Map<String, FastPipedOutputStream> streams = new HashMap<>(); streams.put("stdout", stdout); streams.put("stderr", stderr);
 
         Document request = factory.newGetOutputRequest(shellId, commandId).build();
         Document response = sendRequest(request);
@@ -153,7 +155,8 @@ public class WinRMClient {
 
         XPath done = DocumentHelper.createXPath("//*[@State='http://schemas.microsoft.com/wbem/wsman/1/windows/shell/CommandState/Done']");
         done.setNamespaceContext(namespaceContext);
-        if (Iterables.isEmpty(done.selectNodes(response))) {
+        final List<Node> nodes = done.selectNodes(response);
+        if (nodes != null && nodes.isEmpty()) {
             LOGGER.log(Level.FINE, "keep going baby!");
             return true;
         } else {
