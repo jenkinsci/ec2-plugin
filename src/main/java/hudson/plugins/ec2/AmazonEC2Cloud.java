@@ -27,6 +27,7 @@ import com.amazonaws.SdkClientException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
+import hudson.model.ItemGroup;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
@@ -44,6 +45,7 @@ import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -236,6 +238,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         @RequirePOST
         public FormValidation doTestConnection(
+                @AncestorInPath ItemGroup context,
                 @QueryParameter String region,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId,
@@ -249,7 +252,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
+            return super.doTestConnection(context, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }
