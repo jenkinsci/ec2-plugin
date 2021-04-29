@@ -24,7 +24,6 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.SdkClientException;
-import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
@@ -222,7 +221,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParameter field), or use the default
         // value if not specified.
-        @VisibleForTesting
+        //VisibleForTesting
         URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {
             if (Util.fixEmpty(altEC2Endpoint) == null) {
                 return new URL(DEFAULT_EC2_ENDPOINT);
