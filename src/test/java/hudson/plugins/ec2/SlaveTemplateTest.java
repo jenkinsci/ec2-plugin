@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -39,33 +40,23 @@ import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SecurityGroup;
 import com.amazonaws.services.ec2.model.Subnet;
-
 import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-import com.amazonaws.services.ec2.model.Reservation;
-import hudson.plugins.ec2.Tenancy;
-import hudson.plugins.ec2.util.PrivateKeyHelper;
 import jenkins.model.Jenkins;
-
-import net.sf.json.JSONObject;
-import org.apache.commons.math3.analysis.function.Power;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
 import org.mockito.ArgumentCaptor;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -559,6 +550,43 @@ public class SlaveTemplateTest {
             assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
         }
+  }
+
+  @Issue("JENKINS-64571")
+  @Test
+  public void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
+        boolean associatePublicIp = true;
+        String ami = "ami1";
+        String description = "foo ami";
+        String subnetId = "some-subnet";
+        String securityGroups = "some security group";
+        String iamInstanceProfile = "some instance profile";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SpotConfiguration spotConfig = new SpotConfiguration(true);
+        spotConfig.setSpotMaxBidPrice(".05");
+        spotConfig.setFallbackToOndemand(true);
+        spotConfig.setSpotBlockReservationDuration(0);
+
+        SlaveTemplate template = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        AmazonEC2Exception quotaExceededException = new AmazonEC2Exception("Request has expired");
+        quotaExceededException.setServiceName("AmazonEC2");
+        quotaExceededException.setStatusCode(400);
+        quotaExceededException.setErrorCode("MaxSpotInstanceCountExceeded");
+        quotaExceededException.setRequestId("00000000-0000-0000-0000-000000000000");
+        when(mockedEC2.requestSpotInstances(any(RequestSpotInstancesRequest.class))).thenThrow(quotaExceededException);
+
+        template.provision(2, EnumSet.of(ProvisionOptions.ALLOW_CREATE));
+
+        verify(mockedEC2).runInstances(any(RunInstancesRequest.class));
   }
 
   private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {

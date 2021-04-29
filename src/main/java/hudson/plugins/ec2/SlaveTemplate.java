@@ -1367,8 +1367,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotRequest.setBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
             }
 
-            // Make the request for a new Spot instance
-            RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
+            RequestSpotInstancesResult reqResult;
+            try {
+                // Make the request for a new Spot instance
+                reqResult = ec2.requestSpotInstances(spotRequest);
+            } catch (AmazonEC2Exception e) {
+                if (spotConfig.getFallbackToOndemand() && e.getErrorCode().equals("MaxSpotInstanceCountExceeded")) {
+                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                    return provisionOndemand(image, number, provisionOptions);
+                } else {
+                    throw e;
+                }
+            }
 
             List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
             if (reqInstances.isEmpty()) {
