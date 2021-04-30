@@ -283,7 +283,7 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         Instant now = Instant.now();
@@ -296,11 +296,11 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have two slaves after check too
+        // Should have two agents after check too
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
 
-        // Add a new slave
+        // Add a new agent
         cloud.provision(template, 1);
 
         computers = Arrays.stream(r.jenkins.getComputers())
@@ -308,7 +308,7 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have three slaves before any checking
+        // Should have three agents before any checking
         assertEquals(3, computers.size());
         assertEquals(3, AmazonEC2FactoryMockImpl.instances.size());
 
@@ -320,7 +320,7 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have two slaves after check
+        // Should have two agents after check
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
     }
@@ -355,7 +355,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         Instant now = Instant.now();
@@ -368,7 +368,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves after check too
+        // Should have two agents after check too
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
 
@@ -404,7 +404,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have zero slaves
+        // Should have zero agents
         assertEquals(0, computers.size());
     }
 
@@ -438,7 +438,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         Instant now = Instant.now();
@@ -451,7 +451,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves after check too
+        // Should have two agents after check too
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
     }
@@ -486,7 +486,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         //Set fixed clock to after active period
@@ -503,7 +503,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have 1 slaves after check
+        // Should have 1 agents after check
         assertEquals(1, computers.size());
         assertEquals(1, AmazonEC2FactoryMockImpl.instances.size());
     }

@@ -178,7 +178,7 @@ public class SlaveTemplateTest {
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception
@@ -213,7 +213,7 @@ public class SlaveTemplateTest {
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
@@ -244,7 +244,7 @@ public class SlaveTemplateTest {
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness

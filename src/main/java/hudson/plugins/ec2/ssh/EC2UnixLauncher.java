@@ -64,7 +64,7 @@ import com.trilead.ssh2.Session;
 import org.apache.commons.lang.StringUtils;
 
 /**
- * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
+ * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -138,7 +138,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
 
         if (template == null) {
-            throw new IOException("Could not find corresponding slave template for " + computer.getDisplayName());
+            throw new IOException("Could not find corresponding agent template for " + computer.getDisplayName());
         }
 
         if (node instanceof EC2Readiness) {
@@ -231,7 +231,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
             executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
-            // Always copy so we get the most recent slave.jar
+            // Always copy so we get the most recent remoting.jar
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
             scp.put(Jenkins.get().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
@@ -255,7 +255,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 }
 
                 try {
-                    // Obviously the master must have an installed ssh client.
+                    // Obviously the controller must have an installed ssh client.
                     // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
                     String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), userKnownHostsFileFlag, getEC2HostKeyAlgorithmFlag(computer), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
 

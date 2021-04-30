@@ -22,13 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    Connect to the Jenkins Slave Agent through an external SSH client process.
+    Connect to the Jenkins Agent through an external SSH client process.
     <p/>
-    <strong>NOTE</strong>: The Jenkins Master must have an installed SSH Client.
+    <strong>NOTE</strong>: The Jenkins Controller must have an installed SSH Client.
     <p/>
-    By default, the plugin connects to the slave agent using an in-process Java SSH client.
+    By default, the plugin connects to the Jenkins agent using an in-process Java SSH client.
     By checking this configuration option, you are telling the plugin to launch an external
-    local SSH client process and to use that instead to connect to the Jenkins Slave Agent
+    local SSH client process and to use that instead to connect to the Jenkins Agent
     running on the EC2 instance. This option has proven to produce a more stable connection
     in some environments.
 </div>

@@ -70,7 +70,7 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 /**
- * Slave running on EC2.
+ * Agent running on EC2.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -108,7 +108,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public transient String publicDNS;
     public transient String privateDNS;
 
-    /* The last instance data to be fetched for the slave */
+    /* The last instance data to be fetched for the agent */
     protected transient Instance lastFetchInstance = null;
 
     /* The time at which we fetched the last instance data */
@@ -559,7 +559,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     /**
-     * Called when the slave is connected to Jenkins
+     * Called when the agent is connected to Jenkins
      */
     public void onConnected() {
         isConnected = true;
@@ -769,7 +769,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     /*
-     * Used to determine if the slave is On Demand or Spot
+     * Used to determine if the agent is On Demand or Spot
      */
     abstract public String getEc2Type();
 

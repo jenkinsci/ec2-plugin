@@ -819,7 +819,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
     /**
-     * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
+     * Provisions a new EC2 agent or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
@@ -842,7 +842,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
                 ))
                ){
-                logInstanceCheck(instance, ". false - found existing corresponding Jenkins slave: " + node.getInstanceId());
+                logInstanceCheck(instance, ". false - found existing corresponding Jenkins agent: " + node.getInstanceId());
                 return false;
             }
         }
@@ -1013,7 +1013,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
@@ -1021,7 +1021,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
             throws IOException {
@@ -1281,7 +1281,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provision a new slave for an EC2 spot instance to call back to Jenkins
+     * Provision a new agent for an EC2 spot instance to call back to Jenkins
      */
     private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
@@ -1523,7 +1523,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Get a KeyPair from the configured information for the slave template
+     * Get a KeyPair from the configured information for the agent template
      */
     @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
@@ -1567,7 +1567,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Get a list of security group ids for the slave
+     * Get a list of security group ids for the agent
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
         List<String> groupIds = new ArrayList<>();
@@ -1609,7 +1609,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions a new EC2 slave based on the currently running instance on EC2, instead of starting a new one.
+     * Provisions a new EC2 agent based on the currently running instance on EC2, instead of starting a new one.
      */
     public EC2AbstractSlave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();

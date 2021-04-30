@@ -27,7 +27,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 
 /**
- * Slave running on EC2.
+ * Agent running on EC2.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -98,7 +98,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
                             }
                             Jenkins.get().removeNode(this);
-                            LOGGER.info("Removed EC2 instance from jenkins master: " + getInstanceId());
+                            LOGGER.info("Removed EC2 instance from jenkins controller: " + getInstanceId());
                         } catch (AmazonClientException | IOException e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
                         } finally {

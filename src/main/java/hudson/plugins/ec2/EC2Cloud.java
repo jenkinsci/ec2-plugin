@@ -476,10 +476,10 @@ public abstract class EC2Cloud extends Cloud {
 
         if (jenkinsServerUrl == null) {
             LOGGER.log(Level.WARNING, "No Jenkins server URL specified, it is strongly recommended to open /configure and set the server URL. " +
-                    "Not having has disabled the per-master instance cap counting (cf. https://github.com/jenkinsci/ec2-plugin/pull/310)");
+                    "Not having has disabled the per-controller instance cap counting (cf. https://github.com/jenkinsci/ec2-plugin/pull/310)");
         }
 
-        LOGGER.log(Level.FINE, "Counting current slaves: "
+        LOGGER.log(Level.FINE, "Counting current agents: "
             + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
             + " Jenkins Server: " + jenkinsServerUrl);
         int n = 0;
@@ -657,7 +657,7 @@ public abstract class EC2Cloud extends Cloud {
                     return true;
                 } else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
                         || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
-                    // To handle cases where description is null and also upgrade cases for existing slave nodes.
+                    // To handle cases where description is null and also upgrade cases for existing agent nodes.
                     return true;
                 } else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description))
                         || StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description))) {
@@ -671,7 +671,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Returns the maximum number of possible slaves that can be created.
+     * Returns the maximum number of possible agents that can be created.
      */
     private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null);
@@ -679,15 +679,15 @@ public abstract class EC2Cloud extends Cloud {
 
         int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
         int availableAmiSlaves = template.getInstanceCap() - estimatedAmiSlaves;
-        LOGGER.log(Level.FINE, "Available Total Slaves: " + availableTotalSlaves + " Available AMI slaves: " + availableAmiSlaves
+        LOGGER.log(Level.FINE, "Available Total Agents: " + availableTotalSlaves + " Available AMI agents: " + availableAmiSlaves
                 + " AMI: " + template.getAmi() + " TemplateDesc: " + template.description);
 
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
     /**
-     * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
-     * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
+     * Obtains a agent whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
+     * forceCreateNew specifies that the creation of a new agent is required. Otherwise, an existing matching agent may be re-used
      */
     private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
         try {
@@ -735,7 +735,7 @@ public abstract class EC2Cloud extends Cloud {
 
         for (SlaveTemplate t : matchingTemplates) {
             try {
-                LOGGER.log(Level.INFO, "{0}. Attempting to provision slave needed by excess workload of " + excessWorkload + " units", t);
+                LOGGER.log(Level.INFO, "{0}. Attempting to provision agent needed by excess workload of " + excessWorkload + " units", t);
                 int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
                 final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
 
@@ -792,7 +792,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            LOGGER.log(Level.INFO, "{0}. Attempting to provision {1} slave(s)", new Object[]{t, number});
+            LOGGER.log(Level.INFO, "{0}. Attempting to provision {1} agent(s)", new Object[]{t, number});
             final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
 
             if (slaves == null || slaves.isEmpty()) {
@@ -811,7 +811,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Helper method to reattach lost EC2 node slaves @Issue("JENKINS-57795")
+     * Helper method to reattach lost EC2 node agents @Issue("JENKINS-57795")
      *
      * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
      * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
