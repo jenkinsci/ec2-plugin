@@ -125,7 +125,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         }
 
         /*
-        * If we have equal or less number of slaves than the template's minimum instance count, don't perform check.
+        * If we have equal or less number of agents than the template's minimum instance count, don't perform check.
         */
         SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
         if (slaveTemplate != null) {

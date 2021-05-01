@@ -155,7 +155,7 @@ public class EC2Computer extends SlaveComputer {
     }
 
     /**
-     * When the slave is deleted, terminate the instance.
+     * When the agent is deleted, terminate the instance.
      */
     @Override
     public HttpResponse doDoDelete() throws IOException {

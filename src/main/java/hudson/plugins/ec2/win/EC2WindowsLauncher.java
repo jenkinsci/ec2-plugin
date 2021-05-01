@@ -46,7 +46,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         }
         final SlaveTemplate template = computer.getSlaveTemplate();
         if (template == null) {
-            throw new IOException("Could not find corresponding slave template for " + computer.getDisplayName());
+            throw new IOException("Could not find corresponding agent template for " + computer.getDisplayName());
         }
 
         final WinConnection connection = connectToWinRM(computer, node, template, logger);

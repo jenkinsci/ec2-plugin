@@ -128,7 +128,7 @@ public class WinConnection {
             session.connectShare("IPC$");
             return true;
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to verify connectivity to Windows slave", e);
+            LOGGER.log(Level.WARNING, "Failed to verify connectivity to Windows agent", e);
             if (e instanceof SSLException) {
                 throw e;
             } else if (e.getCause() instanceof SSLException) {

@@ -1,8 +1,8 @@
 <div>
 Indicate here the time in seconds to wait for the machine to be ready once the plugin detects WinRM is available.
 Unfortunately, on Windows during the boot, the WinRM service might be started, and then several minutes after will be restarted.
-If this restart happens during the slave provisioning that Jenkins does, Windows will prevent the WinRM client to connect again and the
-slave will not be correctly provisioned.
+If this restart happens during the agent provisioning that Jenkins does, Windows will prevent the WinRM client to connect again and the
+agent will not be correctly provisioned.
 <br>
 A safe value has been found to be 3 minutes.
 </div>
