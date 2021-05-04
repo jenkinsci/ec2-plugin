@@ -33,9 +33,12 @@ import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.HttpTokensState;
 import com.amazonaws.services.ec2.model.IamInstanceProfile;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceMetadataEndpointState;
+import com.amazonaws.services.ec2.model.InstanceMetadataOptionsRequest;
 import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -690,4 +693,56 @@ public class SlaveTemplateTest {
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,tenancy");
     }
+
+    @Test
+    public void testMetadataV2Config() throws Exception {
+        final String slaveDescription = "foobar";
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+
+        List<SlaveTemplate> templates = Collections.singletonList(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(slaveDescription);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,metadataEndpointEnabled,metadataTokensRequired,metadataHopsLimit");
+    }
+
+    @Test
+    public void provisionOnDemandSetsMetadataV2Options() throws Exception {
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
+        assertEquals(metadataOptionsRequest.getHttpEndpoint(), InstanceMetadataEndpointState.Enabled.toString());
+        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Required.toString());
+        assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(2));
+    }
+
+    @Test
+    public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, null, null);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
+        assertEquals(metadataOptionsRequest.getHttpEndpoint(), InstanceMetadataEndpointState.Enabled.toString());
+        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Optional.toString());
+        assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
+    }
+
 }

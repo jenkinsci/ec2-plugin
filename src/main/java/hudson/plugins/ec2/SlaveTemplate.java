@@ -17,6 +17,9 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -36,10 +39,13 @@ import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.HttpTokensState;
 import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
+import com.amazonaws.services.ec2.model.InstanceMetadataEndpointState;
+import com.amazonaws.services.ec2.model.InstanceMetadataOptionsRequest;
 import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -224,6 +230,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public EbsEncryptRootVolume ebsEncryptRootVolume;
 
+    public Boolean metadataEndpointEnabled;
+
+    public Boolean metadataTokensRequired;
+
+    public Integer metadataHopsLimit;
+
     private transient/* almost final */ Set<LabelAtom> labelSet;
 
     private transient/* almost final */Set<String> securityGroupSet;
@@ -276,7 +288,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume) {
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
+                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
@@ -343,7 +356,32 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
+        this.metadataEndpointEnabled = metadataEndpointEnabled != null ? metadataEndpointEnabled : DEFAULT_METADATA_ENDPOINT_ENABLED;
+        this.metadataTokensRequired = metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
+        this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_ENDPOINT_ENABLED,
+                DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
     }
 
     @Deprecated
@@ -1002,6 +1040,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
         riRequest.setTagSpecifications(tagList);
 
+        InstanceMetadataOptionsRequest instanceMetadataOptionsRequest = new InstanceMetadataOptionsRequest();
+        instanceMetadataOptionsRequest.setHttpEndpoint(metadataEndpointEnabled ? InstanceMetadataEndpointState.Enabled.toString() : InstanceMetadataEndpointState.Disabled.toString());
+        instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
+        instanceMetadataOptionsRequest.setHttpTokens(
+                    metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
+        riRequest.setMetadataOptions(instanceMetadataOptionsRequest);
+
         HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
         ret.put(riRequest, diFilters);
         return ret;
@@ -1493,6 +1538,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .withTenancyAttribute(tenancy)
+            .withMetadataEndpointEnabled(metadataEndpointEnabled)
+            .withMetadataTokensRequired(metadataTokensRequired)
+            .withMetadataHopsLimit(metadataHopsLimit)
             .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
@@ -1678,7 +1726,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (ebsEncryptRootVolume == null) {
             ebsEncryptRootVolume = EbsEncryptRootVolume.DEFAULT;
         }
-        
+
+        if (metadataEndpointEnabled == null) {
+            metadataEndpointEnabled = EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+        }
+        if (metadataTokensRequired == null) {
+            metadataTokensRequired = EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+        }
+        if (metadataHopsLimit == null) {
+            metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+        }
+
         return this;
     }
 
