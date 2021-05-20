@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -17,6 +18,8 @@ import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
 import static io.jenkins.plugins.casc.misc.Util.toYamlString;
 import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
 
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+
 import org.junit.Rule;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
@@ -24,6 +27,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class ConfigurationAsCodeTest {
 
@@ -59,7 +63,7 @@ public class ConfigurationAsCodeTest {
 
         final SpotConfiguration spotConfig = slaveTemplate.spotConfig;
         assertNotEquals(null, spotConfig);
-        assertEquals(true, spotConfig.getFallbackToOndemand());
+        assertTrue(spotConfig.getFallbackToOndemand());
         assertEquals(3, spotConfig.getSpotBlockReservationDuration());
         assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
         assertTrue(spotConfig.useBidPrice);
@@ -94,7 +98,7 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
 
-        assertEquals(null, slaveTemplate.spotConfig);
+        assertNull(slaveTemplate.spotConfig);
     }
 
     @Test
@@ -117,7 +121,7 @@ public class ConfigurationAsCodeTest {
         assertTrue(ec2Cloud.canProvision(new LabelAtom("vs2019")));
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
-        assertTrue(!amiType.isUnix());
+        assertFalse(amiType.isUnix());
         assertTrue(amiType.isWindows());
         assertTrue(amiType instanceof WindowsData);
         final WindowsData windowsData = (WindowsData) amiType;
@@ -161,6 +165,35 @@ public class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("Unix-withMinimumInstancesTimeRange.yml")
+    public void testConfigAsCodeWithMinimumInstancesTimeRange() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-timed");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-123456", slaveTemplate.getAmi());
+        assertEquals("/home/ec2-user", slaveTemplate.remoteFS);
+
+        assertEquals("linux ubuntu", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig = slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
+        assertNotNull(timeRangeConfig);
+        assertEquals(LocalTime.parse("01:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeFromAsTime());
+        assertEquals(LocalTime.parse("13:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeToAsTime());
+        assertFalse(timeRangeConfig.getDay("monday"));
+        assertTrue(timeRangeConfig.getDay("tuesday"));
+        assertFalse(timeRangeConfig.getDay("wednesday"));
+
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
+    }
+
+    @Test
     @ConfiguredWithCode("Ami.yml")
     public void testAmi() throws Exception {
         final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-test");
@@ -192,5 +225,67 @@ public class ConfigurationAsCodeTest {
         assertNull(slaveTemplate.getAmiUsers());
         expectedFilters = Collections.emptyList();
         assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
+    }
+
+    @Test
+    @ConfiguredWithCode("MacData.yml")
+    public void testMacData() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-production");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("/Users/ec2-user", slaveTemplate.remoteFS);
+
+        assertEquals("mac metal", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("metal")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
+
+        final AMITypeData amiType = slaveTemplate.getAmiType();
+        assertTrue(amiType.isMac());
+        assertTrue(amiType instanceof MacData);
+        final MacData macData = (MacData) amiType;
+        assertEquals("sudo", macData.getRootCommandPrefix());
+        assertEquals("sudo -u jenkins", macData.getSlaveCommandPrefix());
+        assertEquals("-fakeFlag", macData.getSlaveCommandSuffix());
+        assertEquals("22", macData.getSshPort());
+    }
+
+    @Test
+    @ConfiguredWithCode("Mac.yml")
+    public void testMac() throws Exception {
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("ec2-staging");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-5678", slaveTemplate.getAmi());
+        assertEquals("/Users/jenkins", slaveTemplate.remoteFS);
+
+        assertEquals("mac clear", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
+
+        assertNull(slaveTemplate.spotConfig);
+    }
+
+    @Test
+    @ConfiguredWithCode("MacData.yml")
+    public void testMacCloudConfigAsCodeExport() throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = getJenkinsRoot(context).get("clouds");
+        String exported = toYamlString(clouds);
+        String expected = toStringFromYamlFile(this, "MacDataExport.yml");
+        assertEquals(expected, exported);
     }
 }

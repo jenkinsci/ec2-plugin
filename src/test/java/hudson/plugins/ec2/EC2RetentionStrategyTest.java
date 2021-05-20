@@ -46,10 +46,10 @@ public class EC2RetentionStrategyTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
-    
+
     @Rule
     public LoggerRule logging = new LoggerRule();
-    
+
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
     final AtomicBoolean terminateCalled = new AtomicBoolean(false);
     private static ZoneId zoneId = ZoneId.systemDefault();
@@ -85,7 +85,7 @@ public class EC2RetentionStrategyTest {
     }
 
     /*
-     * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise, 
+     * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise,
      * the computer returns the value established.
      */
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
@@ -207,17 +207,17 @@ public class EC2RetentionStrategyTest {
         long nextCheckAfter = twoMinutesAgo.toEpochMilli();
         Clock clock = Clock.fixed(twoMinutesAgo.plusSeconds(1), zoneId);
         EC2RetentionStrategy rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
-        
+
         OfflineCause cause = OfflineCause.create(new NonLocalizable("Testing terminate on offline computer"));
-        
-        // A computer returning the real isOffline value and still connecting 
-        EC2Computer computer = computerWithIdleTime(0, 0, null, true); 
+
+        // A computer returning the real isOffline value and still connecting
+        EC2Computer computer = computerWithIdleTime(0, 0, null, true);
         computer.setTemporarilyOffline(true, cause);
         // We don't terminate this one
         rs.check(computer);
         assertThat("The computer is not terminated, it should still accept tasks", idleTimeoutCalled.get(), equalTo(false));
         assertThat(logging.getMessages(), hasItem(containsString("connecting and still offline, will check if the launch timeout has expired")));
-                
+
         // A computer returning the real isOffline value and not connecting
         rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
         EC2Computer computer2 = computerWithIdleTime(0, 0, null, false);
@@ -227,7 +227,7 @@ public class EC2RetentionStrategyTest {
         assertThat("The computer is terminated, it should not accept more tasks", idleTimeoutCalled.get(), equalTo(true));
         assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
-    
+
     @Test
     public void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<Boolean>();
@@ -283,7 +283,7 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         Instant now = Instant.now();
@@ -296,11 +296,11 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have two slaves after check too
+        // Should have two agents after check too
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
 
-        // Add a new slave
+        // Add a new agent
         cloud.provision(template, 1);
 
         computers = Arrays.stream(r.jenkins.getComputers())
@@ -308,7 +308,7 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have three slaves before any checking
+        // Should have three agents before any checking
         assertEquals(3, computers.size());
         assertEquals(3, AmazonEC2FactoryMockImpl.instances.size());
 
@@ -320,7 +320,7 @@ public class EC2RetentionStrategyTest {
           .map(computer -> (EC2Computer) computer)
           .collect(Collectors.toList());
 
-        // Should have two slaves after check
+        // Should have two agents after check
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
     }
@@ -335,15 +335,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 12, 0); //Tuesday
@@ -362,7 +355,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         Instant now = Instant.now();
@@ -375,7 +368,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves after check too
+        // Should have two agents after check too
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
 
@@ -391,15 +384,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 10, 0); //Tuesday before range
@@ -418,7 +404,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have zero slaves
+        // Should have zero agents
         assertEquals(0, computers.size());
     }
 
@@ -432,15 +418,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("15:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("03:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         LocalDateTime localDateTime = LocalDateTime.of(2019, Month.SEPTEMBER, 25, 1, 0); //Wednesday
@@ -459,7 +438,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         Instant now = Instant.now();
@@ -472,7 +451,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves after check too
+        // Should have two agents after check too
         assertEquals(2, computers.size());
         assertEquals(2, AmazonEC2FactoryMockImpl.instances.size());
     }
@@ -487,15 +466,8 @@ public class EC2RetentionStrategyTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         template.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         //Set fixed clock to be able to test properly
@@ -514,7 +486,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have two slaves before any checking
+        // Should have two agents before any checking
         assertEquals(2, computers.size());
 
         //Set fixed clock to after active period
@@ -531,7 +503,7 @@ public class EC2RetentionStrategyTest {
             .map(computer -> (EC2Computer) computer)
             .collect(Collectors.toList());
 
-        // Should have 1 slaves after check
+        // Should have 1 agents after check
         assertEquals(1, computers.size());
         assertEquals(1, AmazonEC2FactoryMockImpl.instances.size());
     }

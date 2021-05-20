@@ -1,12 +1,11 @@
 - amazonEC2:
-    altEC2Endpoint: "https.//ec2.us-east-1.amazonaws.com"
     cloudName: "production"
-    region: "eu-central-1"
+    region: "us-east-1"
     sshKeysCredentialsId: "random credentials id"
     templates:
     - ami: "ami-12345"
       amiType:
-        unixData:
+        macData:
           rootCommandPrefix: "sudo"
           slaveCommandPrefix: "sudo -u jenkins"
           slaveCommandSuffix: "-fakeFlag"
@@ -18,22 +17,17 @@
       ebsEncryptRootVolume: DEFAULT
       ebsOptimized: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
-      labelString: "linux ubuntu"
+      labelString: "mac metal"
       maxTotalUses: -1
       minimumNumberOfInstances: 0
       minimumNumberOfSpareInstances: 0
       mode: NORMAL
       monitoring: false
       numExecutors: 1
-      remoteFS: "/home/ec2-user"
-      spotConfig:
-        fallbackToOndemand: true
-        spotBlockReservationDuration: 3
-        spotMaxBidPrice: "0.15"
-        useBidPrice: true
+      remoteFS: "/Users/ec2-user"
       stopOnTerminate: false
       t2Unlimited: false
-      tenancy: Default
-      type: T2Micro
+      tenancy: Host
+      type: Mac1Metal
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true

@@ -76,11 +76,11 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>1.56</revision>
+        <revision>1.59</revision>
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.277.4</jenkins.version>
         <java.level>8</java.level>
-        <aws-java-sdk.version>1.11.821</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.995</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -106,7 +106,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>1.11</version>
+            <version>1.29</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -115,7 +115,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>bouncycastle-api</artifactId>
-            <version>2.18</version>
+            <version>2.20</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -231,11 +231,22 @@ THE SOFTWARE.
             <groupId>io.jenkins.configuration-as-code</groupId>
             <artifactId>test-harness</artifactId>
             <scope>test</scope>
+            <!--
+            PCT fails on maven-enforcer-plugin:enforce
+            test-harness:1.46 puts joda-time:2.10.2
+            aws-java-sdk:1.11.821 puts 2.8.1
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.14.3</version>
+            <version>1.15.3</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>

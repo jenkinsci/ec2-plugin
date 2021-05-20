@@ -50,6 +50,11 @@ public class WindowsData extends AMITypeData {
         return false;
     }
 
+    @Override
+    public boolean isMac() {
+        return false;
+    }
+
     public Secret getPassword() {
         return password;
     }

@@ -51,7 +51,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
             throws FormException, IOException {
 
         super(name, "", templateDescription, remoteFS, numExecutors, mode, labelString, amiType.isWindows() ? new EC2WindowsLauncher() :
-                new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, false, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType, connectionStrategy, maxTotalUses);
+                new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, false, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses,null);
 
         this.name = name;
         this.spotInstanceRequestId = spotInstanceRequestId;
@@ -63,7 +63,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     }
 
     /**
-     * Cancel the spot request for the instance. Terminate the instance if it is up. Remove the slave from Jenkins.
+     * Cancel the spot request for the instance. Terminate the instance if it is up. Remove the agent from Jenkins.
      */
     @Override
     public void terminate() {
@@ -86,7 +86,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                 LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
                             }
 
-                            // Terminate the slave if it is running
+                            // Terminate the agent if it is running
                             if (instanceId != null && !instanceId.equals("")) {
                                 if (!super.isAlive(true)) {
                                     /*
@@ -105,7 +105,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                 }
                             }
                         } catch (Exception e) {
-                            LOGGER.log(Level.WARNING,"Failed to remove slave: ", e);
+                            LOGGER.log(Level.WARNING,"Failed to remove agent: ", e);
                         } finally {
                             // Remove the instance even if deletion failed, otherwise it will hang around forever in
                             // the nodes page. One way for this to occur is that an instance was terminated
@@ -114,7 +114,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             try {
                                 Jenkins.get().removeNode(this);
                             } catch (IOException e) {
-                                LOGGER.log(Level.WARNING, "Failed to remove slave: " + name, e);
+                                LOGGER.log(Level.WARNING, "Failed to remove agent: " + name, e);
                             }
                             synchronized(terminateScheduled) {
                                 terminateScheduled.countDown();
@@ -130,7 +130,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     /**
      * Retrieve the SpotRequest for a requestId
      *
-     * @return SpotInstanceRequest object for this slave, or null if request is not valid anymore
+     * @return SpotInstanceRequest object for this agent, or null if request is not valid anymore
      */
     @CheckForNull
     SpotInstanceRequest getSpotRequest() {

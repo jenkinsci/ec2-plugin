@@ -1,10 +1,10 @@
 package hudson.plugins.ec2.win.winrm.soap;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.dom4j.Namespace;
-
-import com.google.common.collect.ImmutableList;
 
 public class Namespaces {
     public static final Namespace NS_SOAP_ENV = Namespace.get("env", "http://www.w3.org/2003/05/soap-envelope");
@@ -22,6 +22,6 @@ public class Namespaces {
     }
 
     public static final List<Namespace> mostUsed() {
-        return ImmutableList.of(NS_SOAP_ENV, NS_ADDRESSING, NS_WIN_SHELL, NS_WSMAN_DMTF, NS_WSMAN_MSFT);
+        return Collections.unmodifiableList(Arrays.asList(NS_SOAP_ENV, NS_ADDRESSING, NS_WIN_SHELL, NS_WSMAN_DMTF, NS_WSMAN_MSFT));
     }
 }

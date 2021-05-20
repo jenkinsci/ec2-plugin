@@ -3,15 +3,13 @@ package hudson.plugins.ec2;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.CreateTagsResult;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.*;
 import hudson.model.Node;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
+import org.powermock.reflect.internal.WhiteboxImpl;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -319,6 +317,52 @@ public class SlaveTemplateUnitTest {
                                             expectedFilters,
                                             false);
         }
+    }
+
+    private Boolean checkEncryptedForSetupRootDevice(EbsEncryptRootVolume rootVolumeEnum) throws Exception {
+        SlaveTemplate template = new SlaveTemplate(null, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
+            @Override
+            protected Object readResolve() {
+                return null;
+            }
+        };
+        List deviceMappings = new ArrayList();
+        deviceMappings.add(deviceMappings);
+
+        Image image = new Image();
+        image.setRootDeviceType("ebs");
+        BlockDeviceMapping blockDeviceMapping = new BlockDeviceMapping();
+        blockDeviceMapping.setEbs(new EbsBlockDevice());
+        image.getBlockDeviceMappings().add(blockDeviceMapping);
+        if (rootVolumeEnum instanceof EbsEncryptRootVolume) {
+            template.ebsEncryptRootVolume = rootVolumeEnum;
+        };
+        WhiteboxImpl.invokeMethod(template, "setupRootDevice", image, deviceMappings);
+        return image.getBlockDeviceMappings().get(0).getEbs().getEncrypted();
+    }
+
+    @Test
+    public void testSetupRootDeviceNull() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(null);
+        Assert.assertNull(test);
+    }
+
+    @Test
+    public void testSetupRootDeviceDefault() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.DEFAULT);
+        Assert.assertNull(test);
+    }
+
+    @Test
+    public void testSetupRootDeviceNotEncrypted() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.UNENCRYPTED);
+        Assert.assertFalse(test);
+    }
+
+    @Test
+    public void testSetupRootDeviceEncrypted() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.ENCRYPTED);
+        Assert.assertTrue(test);
     }
 }
 

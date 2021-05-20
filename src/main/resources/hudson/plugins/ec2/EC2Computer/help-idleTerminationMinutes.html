@@ -22,11 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div>
-    Determines how long slaves can remain idle before being stopped or terminated (see the Stop/Disconnect on Idle Timeout setting).
+    Determines how long agents can remain idle before being stopped or terminated (see the Stop/Disconnect on Idle Timeout setting).
     <p>
     Times are expressed in minutes.
-    A value of 0 (or an empty string) indicates that idle slaves should never be stopped/terminated.
+    A value of 0 (or an empty string) indicates that idle agents should never be stopped/terminated.
     A negative value indicates that the instance should idle up to the billing hour, minus the idle minute time. For example, a value of
     -2 means that an instance will be retained if checked less than 58 minutes into the billing hour and found active, but stopped or
-    terminated if found idle. This strategy keeps slaves alive and available for additional work during already paid for period.
+    terminated if found idle. This strategy keeps agents alive and available for additional work during already paid for period.
 </div>

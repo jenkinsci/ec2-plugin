@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.util;
 
+import hudson.plugins.ec2.Tenancy;
 import hudson.model.Node;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.ConnectionStrategy;
@@ -56,6 +57,8 @@ public abstract class EC2AgentConfig {
         final boolean stopOnTerminate;
         final String publicDNS;
         final String privateDNS;
+        final Tenancy tenancy;
+        @Deprecated
         final boolean useDedicatedTenancy;
 
         private OnDemand(OnDemandBuilder builder) {
@@ -64,6 +67,7 @@ public abstract class EC2AgentConfig {
             this.stopOnTerminate = builder.isStopOnTerminate();
             this.publicDNS = builder.getPublicDNS();
             this.privateDNS = builder.getPrivateDNS();
+            this.tenancy = builder.getTenancyAttribute();
             this.useDedicatedTenancy = builder.isUseDedicatedTenancy();
         }
     }
@@ -204,6 +208,8 @@ public abstract class EC2AgentConfig {
         private boolean stopOnTerminate;
         private String publicDNS;
         private String privateDNS;
+        private Tenancy tenancy;
+        @Deprecated
         private boolean useDedicatedTenancy;
 
         public OnDemandBuilder withInstanceId(String instanceId) {
@@ -242,14 +248,23 @@ public abstract class EC2AgentConfig {
             return privateDNS;
         }
 
+        @Deprecated
         public OnDemandBuilder withUseDedicatedTenancy(boolean useDedicatedTenancy) {
             this.useDedicatedTenancy = useDedicatedTenancy;
             return this;
         }
 
+        @Deprecated
         public boolean isUseDedicatedTenancy() {
             return useDedicatedTenancy;
         }
+
+        public OnDemandBuilder withTenancyAttribute( Tenancy tenancy){
+            this.tenancy = tenancy;
+            return this;
+        }
+
+        public Tenancy getTenancyAttribute(){ return tenancy;}
 
         @Override
         protected OnDemandBuilder self() {

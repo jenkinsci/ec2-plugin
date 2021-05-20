@@ -158,7 +158,7 @@ it must be preconfigured with start up commands so that it can register
 itself with Jenkins.  The Jenkins information is passed to the Spot
 agents via EC2 user-data.  This information includes the name that
 Jenkins has given the agent, and the configured URL for the Jenkins
-master node.  
+controller node.  
 
 Sample scripts for assisting in configuring an Ubuntu-based AMI to work
 with the Jenkins ec2-plugin and Spot agents are included with the
@@ -196,7 +196,7 @@ sudo sh ubuntu-ami-setup.sh jenkins_server{:port}
 Note: "http://" will be prefixed to the jenkins\_server parameter
 
 The config script then fetches the startup script and sets up the AMI to
-register itself with a Jenkins master node when it gets started.
+register itself with a Jenkins controller node when it gets started.
 
 After setting up the image, you can save the image using Amazon’s EC2
 web console. To do this, right click on your instance from the console
@@ -217,10 +217,10 @@ started up:
 # Values are passed in with the format of JENKINS_URL=[Jenkins_Url]&SLAVE_NAME=[Agent_Name]&USER_DATA=[other_user_data]
 
 # Parse the values to retrieve the Jenkins_Url and Agent_Name
-# Fetch the agent.jar from the Jenkins master using wget (or something similar)
+# Fetch the agent.jar from the Jenkins controller using wget (or something similar)
 
 wget [Jenkins_Url]jnlpJars/agent.jar -O agent.jar
-# Register the agent to the Jenkins master node
+# Register the agent to the Jenkins controller node
 
 java -jar agent.jar -jnlpUrl [Jenkins_Url]computer/ [Agent_Name] slave-agent.jnlp
 ```
@@ -321,7 +321,7 @@ def SlaveTemplateUsEast1Parameters = [
   tags:                     new EC2Tag('Name', 'jenkins-slave'),
   tmpDir:                   '',
   type:                     't2.medium',
-  useDedicatedTenancy:      false,
+  tenancy:                  'Default',
   useEphemeralDevices:      true,
   usePrivateDnsName:        true,
   userData:                 '',
@@ -407,12 +407,12 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.iamInstanceProfile,
   SlaveTemplateUsEast1Parameters.deleteRootOnTermination,
   SlaveTemplateUsEast1Parameters.useEphemeralDevices,
-  SlaveTemplateUsEast1Parameters.useDedicatedTenancy,
   SlaveTemplateUsEast1Parameters.launchTimeoutStr,
   SlaveTemplateUsEast1Parameters.associatePublicIp,
   SlaveTemplateUsEast1Parameters.customDeviceMapping,
   SlaveTemplateUsEast1Parameters.connectBySSHProcess,
-  SlaveTemplateUsEast1Parameters.connectUsingPublicIp
+  SlaveTemplateUsEast1Parameters.connectUsingPublicIp,
+  SlaveTemplateUsEast1Parameters.tenancy,
 )
 
 // https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html

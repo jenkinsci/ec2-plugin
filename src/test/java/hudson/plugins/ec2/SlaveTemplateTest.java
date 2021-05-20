@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -39,32 +40,23 @@ import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SecurityGroup;
 import com.amazonaws.services.ec2.model.Subnet;
-
 import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-import com.amazonaws.services.ec2.model.Reservation;
-import hudson.plugins.ec2.util.PrivateKeyHelper;
 import jenkins.model.Jenkins;
-
-import net.sf.json.JSONObject;
-import org.apache.commons.math3.analysis.function.Power;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
 import org.mockito.ArgumentCaptor;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -170,7 +162,7 @@ public class SlaveTemplateTest {
 
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
-        
+
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
 
         List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
@@ -186,7 +178,7 @@ public class SlaveTemplateTest {
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception
@@ -221,7 +213,7 @@ public class SlaveTemplateTest {
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
@@ -252,7 +244,7 @@ public class SlaveTemplateTest {
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
@@ -452,15 +444,8 @@ public class SlaveTemplateTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         SpotConfiguration spotConfig = new SpotConfiguration(true);
         spotConfig.setSpotMaxBidPrice("22");
         spotConfig.setFallbackToOndemand(true);
@@ -480,8 +465,8 @@ public class SlaveTemplateTest {
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
-        Assert.assertEquals(false, stored.getMinimumNoInstancesActiveTimeRangeDays().get("monday"));
-        Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
+        Assert.assertEquals(false, stored.getDay("monday"));
+        Assert.assertEquals(true, stored.getDay("tuesday"));
     }
 
   @Test
@@ -567,6 +552,43 @@ public class SlaveTemplateTest {
         }
   }
 
+  @Issue("JENKINS-64571")
+  @Test
+  public void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
+        boolean associatePublicIp = true;
+        String ami = "ami1";
+        String description = "foo ami";
+        String subnetId = "some-subnet";
+        String securityGroups = "some security group";
+        String iamInstanceProfile = "some instance profile";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SpotConfiguration spotConfig = new SpotConfiguration(true);
+        spotConfig.setSpotMaxBidPrice(".05");
+        spotConfig.setFallbackToOndemand(true);
+        spotConfig.setSpotBlockReservationDuration(0);
+
+        SlaveTemplate template = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        AmazonEC2Exception quotaExceededException = new AmazonEC2Exception("Request has expired");
+        quotaExceededException.setServiceName("AmazonEC2");
+        quotaExceededException.setStatusCode(400);
+        quotaExceededException.setErrorCode("MaxSpotInstanceCountExceeded");
+        quotaExceededException.setRequestId("00000000-0000-0000-0000-000000000000");
+        when(mockedEC2.requestSpotInstances(any(RequestSpotInstancesRequest.class))).thenThrow(quotaExceededException);
+
+        template.provision(2, EnumSet.of(ProvisionOptions.ALLOW_CREATE));
+
+        verify(mockedEC2).runInstances(any(RunInstancesRequest.class));
+  }
+
   private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
         AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
@@ -620,4 +642,52 @@ public class SlaveTemplateTest {
 
         return mockedEC2;
   }
+
+    @Test
+    public void testTenancy() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,tenancy");
+    }
+
+    @Test
+    public void testMacConfig() throws Exception {
+        String ami = "ami1";
+        String description = "foo ami";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+
+        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,tenancy");
+    }
 }

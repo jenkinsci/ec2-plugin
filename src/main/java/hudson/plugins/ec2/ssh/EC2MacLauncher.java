@@ -23,54 +23,41 @@
  */
 package hudson.plugins.ec2.ssh;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.trilead.ssh2.*;
 import hudson.FilePath;
-import hudson.Util;
 import hudson.ProxyConfiguration;
+import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
-import hudson.plugins.ec2.ssh.verifiers.HostKeyHelper;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
+import jenkins.model.Jenkins;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import jenkins.model.Jenkins;
-
-import org.apache.commons.io.IOUtils;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.trilead.ssh2.Connection;
-import com.trilead.ssh2.HTTPProxyData;
-import com.trilead.ssh2.SCPClient;
-import com.trilead.ssh2.ServerHostKeyVerifier;
-import com.trilead.ssh2.Session;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
  *
  * @author Kohsuke Kawaguchi
  */
-public class EC2UnixLauncher extends EC2ComputerLauncher {
+public class EC2MacLauncher extends EC2ComputerLauncher {
 
-    private static final Logger LOGGER = Logger.getLogger(EC2UnixLauncher.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(EC2MacLauncher.class.getName());
 
     private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
     private static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
@@ -228,8 +215,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
-            executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
+            executeRemote(computer, conn, "java -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-8-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-8-x64-macos-jdk.pkg -target /", logger, listener);
 
             // Always copy so we get the most recent remoting.jar
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
@@ -247,17 +233,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
                 File identityKeyFile = createIdentityKeyFile(computer);
-                String ec2HostAddress = getEC2HostAddress(computer, template);
-                File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);
-                String userKnownHostsFileFlag = "";
-                if (hostKeyFile != null) {
-                    userKnownHostsFileFlag = String.format(" -o \"UserKnownHostsFile=%s\"", hostKeyFile.getAbsolutePath());
-                }
 
                 try {
                     // Obviously the controller must have an installed ssh client.
                     // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), userKnownHostsFileFlag, getEC2HostKeyAlgorithmFlag(computer), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -265,9 +245,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 } finally {
                     if(!identityKeyFile.delete()) {
                         LOGGER.log(Level.WARNING, "Failed to delete identity key file");
-                    }
-                    if(hostKeyFile != null && !hostKeyFile.delete()) {
-                        LOGGER.log(Level.WARNING, "Failed to delete host key file");
                     }
                 }
             } else {
@@ -330,30 +307,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 LOGGER.log(Level.WARNING, "Failed to delete identity key file");
             }
             throw new IOException("Error creating temporary identity key file for connecting to EC2 agent.", e);
-        }
-    }
-
-    private File createHostKeyFile(EC2Computer computer, String ec2HostAddress, TaskListener listener) throws IOException {
-        HostKey ec2HostKey = HostKeyHelper.getInstance().getHostKey(computer);
-        if (ec2HostKey == null){
-            return null;
-        }
-        File tempFile = File.createTempFile("ec2_", "_known_hosts");
-        String knownHost = "";
-        knownHost = String.format("%s %s %s", ec2HostAddress, ec2HostKey.getAlgorithm(), Base64.getEncoder().encodeToString(ec2HostKey.getKey()));
-
-        try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
-             OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8)) {
-            writer.write(knownHost);
-            writer.flush();
-            FilePath filePath = new FilePath(tempFile);
-            filePath.chmod(0400); // octal file mask - readonly by owner
-            return tempFile;
-        } catch (Exception e) {
-            if (!tempFile.delete()) {
-                LOGGER.log(Level.WARNING, "Failed to delete known hosts key file");
-            }
-            throw new IOException("Error creating temporary known hosts file for connecting to EC2 agent.", e);
         }
     }
 
@@ -488,14 +441,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
         return EC2HostAddressProvider.unix(instance, strategy);
-    }
-
-    private static String getEC2HostKeyAlgorithmFlag(EC2Computer computer) throws IOException {
-        HostKey ec2HostKey = HostKeyHelper.getInstance().getHostKey(computer);
-        if (ec2HostKey != null){
-            return String.format(" -o \"HostKeyAlgorithms=%s\"", ec2HostKey.getAlgorithm());
-        }
-        return "";
     }
 
     private int waitCompletion(Session session) throws InterruptedException {

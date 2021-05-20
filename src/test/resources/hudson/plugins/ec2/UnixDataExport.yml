@@ -14,6 +14,7 @@
       connectBySSHProcess: false
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false
+      ebsEncryptRootVolume: DEFAULT
       ebsOptimized: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       labelString: "linux ubuntu"
@@ -31,7 +32,7 @@
         useBidPrice: true
       stopOnTerminate: false
       t2Unlimited: false
+      tenancy: Default
       type: T2Micro
-      useDedicatedTenancy: false
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true
