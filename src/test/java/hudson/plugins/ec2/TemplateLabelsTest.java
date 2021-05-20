@@ -70,7 +70,7 @@ public class TemplateLabelsTest {
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL1)));
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL2)));
         assertEquals(false, ac.canProvision(new LabelAtom("aaa")));
-        assertEquals(true, ac.canProvision(null));
+        assertEquals(true, ac.canProvision((Label) null));
     }
 
     @Test
@@ -89,7 +89,7 @@ public class TemplateLabelsTest {
     public void testEmptyLabel() throws Exception {
         setUpCloud("");
 
-        assertEquals(true, ac.canProvision(null));
+        assertEquals(true, ac.canProvision((Label) null));
     }
 
     @Test
@@ -99,14 +99,14 @@ public class TemplateLabelsTest {
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL1)));
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL2)));
         assertEquals(false, ac.canProvision(new LabelAtom("aaa")));
-        assertEquals(false, ac.canProvision(null));
+        assertEquals(false, ac.canProvision((Label) null));
     }
 
     @Test
     public void testExclusiveModeEmptyLabel() throws Exception {
         setUpCloud("", Node.Mode.EXCLUSIVE);
 
-        assertEquals(false, ac.canProvision(null));
+        assertEquals(false, ac.canProvision((Label) null));
     }
 
 }
