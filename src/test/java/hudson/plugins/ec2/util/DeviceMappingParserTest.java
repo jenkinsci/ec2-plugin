@@ -85,6 +85,16 @@ public class DeviceMappingParserTest {
     }
 
     @Test
+    public void testParserWithThroughput() {
+        List<BlockDeviceMapping> expected = new ArrayList<>();
+        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120).withThroughput(1000)));
+
+        String customDeviceMappings = "/dev/sdd=:120:::::1000";
+        List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
+        assertEquals(expected, actual);
+    }
+
+    @Test
     public void testParserWithMultiple() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120).withEncrypted(true)));
