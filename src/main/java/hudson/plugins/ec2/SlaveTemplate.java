@@ -138,6 +138,8 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
 public class SlaveTemplate implements Describable<SlaveTemplate> {
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 
+    private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;:]+";
+
     public String ami;
 
     public final String description;
@@ -616,7 +618,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (StringUtils.isBlank(subnetId)) {
             return null;
         } else {
-            String[] subnetIdList= getSubnetId().split(" ");
+            String[] subnetIdList= getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS);
 
             // Round-robin subnet selection.
             currentSubnetId = subnetIdList[nextSubnet];
@@ -1743,7 +1745,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             /* Add filter using all subnets defined for this SlaveTemplate */
             Filter subnetFilter = new Filter("subnet-id");
-            subnetFilter.setValues(Arrays.asList(getSubnetId().split(" ")));
+            subnetFilter.setValues(Arrays.asList(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS)));
             diFilters.add(subnetFilter);
         }
 
