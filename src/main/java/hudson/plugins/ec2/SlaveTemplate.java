@@ -62,12 +62,14 @@ import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
 import hudson.XmlFile;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Failure;
 import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -81,6 +83,7 @@ import hudson.plugins.ec2.util.EC2AgentConfig;
 import hudson.plugins.ec2.util.EC2AgentFactory;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.security.Permission;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodePropertyDescriptor;
 import hudson.util.DescribableList;
@@ -96,7 +99,10 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -120,15 +126,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import javax.annotation.CheckForNull;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import hudson.security.Permission;
-
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -188,11 +185,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int instanceCap;
 
-    private int minimumNumberOfInstances;
+    private final int minimumNumberOfInstances;
 
     private MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig;
 
-    private int minimumNumberOfSpareInstances;
+    private final int minimumNumberOfSpareInstances;
 
     public final boolean stopOnTerminate;
 
@@ -550,7 +547,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getSlaveName(String instanceId) {
-        return String.format("%s (%s)", getDisplayName(), instanceId);
+        final String agentName = String.format("%s (%s)", getDisplayName(), instanceId);
+        try {
+            Jenkins.checkGoodName(agentName);
+            return agentName;
+        } catch (Failure e) {
+            return instanceId;
+        }
     }
 
     String getZone() {
@@ -823,12 +826,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
+    @NonNull
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         final Image image = getImage();
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(image, number, provisionOptions);
-            return null;
+            return Collections.emptyList();
         }
         return provisionOndemand(image, number, provisionOptions);
     }
@@ -1795,6 +1799,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (slaveDescriptor != null)
                 return slaveDescriptor.getHelpFile(fieldName);
             return null;
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckDescription(@QueryParameter String value) {
+            try {
+                Jenkins.checkGoodName(value);
+                return FormValidation.ok();
+            } catch (Failure e) {
+                return FormValidation.error(e.getMessage());
+            }
         }
 
         @Restricted(NoExternalUse.class)
