@@ -209,8 +209,6 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>script-security</artifactId>
-            <!-- TODO: remove version once https://github.com/jenkinsci/bom/commit/0de33628090ece61378f6e8d97711b93af9b997a is released -->
-            <version>1.77</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -288,7 +286,7 @@ THE SOFTWARE.
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.277.x</artifactId>
-                <version>807.v6d348e44c987</version>
+                <version>831.v9814430e6383</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
