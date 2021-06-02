@@ -2037,7 +2037,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public String getDefaultConnectionStrategy() {
-            return ConnectionStrategy.PRIVATE_IP.toString();
+            return ConnectionStrategy.PRIVATE_IP.name();
         }
 
         public List<NodePropertyDescriptor> getNodePropertyDescriptors() {
