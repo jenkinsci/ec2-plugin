@@ -1234,7 +1234,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @NonNull
-    private DescribeImagesRequest makeDescribeImagesRequest() {
+    private DescribeImagesRequest makeDescribeImagesRequest() throws AmazonClientException {
         List<String> imageIds = Util.fixEmptyAndTrim(ami) == null ?
             Collections.emptyList() :
             Collections.singletonList(ami);
@@ -1242,13 +1242,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<String> users = makeImageAttributeList(amiUsers);
         List<Filter> filters = EC2Filter.toFilterList(amiFilters);
 
-        // Log a warning if there were no search attributes. This is
-        // legal but probably not what anyone wants. Might be better
-        // as an exception.
+        // Raise an exception if there were no search attributes.
+        // This is legal but not what anyone wants - it will
+        // launch random recently created public AMIs.
         int numAttrs = Stream.of(imageIds, owners, users, filters)
             .collect(Collectors.summingInt(List::size));
         if (numAttrs == 0) {
-            LOGGER.warning("Neither AMI ID nor AMI search attributes provided");
+            throw new AmazonClientException("Neither AMI ID nor AMI search attributes provided");
         }
 
         return new DescribeImagesRequest()
@@ -1266,7 +1266,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<Image> images = getParent().connect().describeImages(request).getImages();
         if (images.isEmpty()) {
             throw new AmazonClientException("Unable to find image for request " + request);
-         }
+        }
 
         // Sort in reverse by creation date to get latest image
         images.sort(Comparator.comparing(Image::getCreationDate).reversed());
