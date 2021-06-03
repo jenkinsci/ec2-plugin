@@ -2061,7 +2061,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public ListBoxModel doFillConnectionStrategyItems(@QueryParameter String connectionStrategy) {
             return Stream.of(ConnectionStrategy.values())
                     .map(v -> {
-                        if (v.toString().equals(connectionStrategy)) {
+                        if (v.name().equals(connectionStrategy)) {
                             return new ListBoxModel.Option(v.toString(), v.name(), true);
                         } else {
                             return new ListBoxModel.Option(v.toString(), v.name(), false);
