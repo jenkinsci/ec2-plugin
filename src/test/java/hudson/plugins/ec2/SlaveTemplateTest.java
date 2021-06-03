@@ -67,6 +67,7 @@ import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Matchers.any;
@@ -680,7 +681,7 @@ public class SlaveTemplateTest {
 
         SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
 
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
@@ -689,5 +690,21 @@ public class SlaveTemplateTest {
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,tenancy");
+    }
+
+    @Issue("JENKINS-65569")
+    @Test
+    public void testAgentName() {
+        SlaveTemplate broken = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "broken/description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate working = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "working", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(broken);
+        templates.add(working);
+        AmazonEC2Cloud brokenCloud = new AmazonEC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        assertThat(broken.getSlaveName("test"), is("test"));
+        assertThat(working.getSlaveName("test"), is("test"));
+        AmazonEC2Cloud workingCloud = new AmazonEC2Cloud("cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        assertThat(broken.getSlaveName("test"), is("test"));
+        assertThat(working.getSlaveName("test"), is("EC2 (cloud) - working (test)"));
     }
 }
