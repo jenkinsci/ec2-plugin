@@ -187,38 +187,12 @@ THE SOFTWARE.
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-support</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-basic-steps</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>script-security</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>scm-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>structs</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -254,13 +228,6 @@ THE SOFTWARE.
                     <artifactId>commons-compress</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <!-- Upper bound deps -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.30</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.kohsuke</groupId>
