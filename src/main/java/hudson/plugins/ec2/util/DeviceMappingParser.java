@@ -60,7 +60,7 @@ public class DeviceMappingParser {
         return deviceMappings;
     }
 
-    // [<snapshot-id>]:[<size>]:[<delete-on-termination>]:[<type>]:[<iops>]:[encrypted]
+    // [<snapshot-id>]:[<size>]:[<delete-on-termination>]:[<type>]:[<iops>]:[encrypted]:[throughput]
     private static EbsBlockDevice parseEbs(String blockDevice) {
 
         String[] parts = blockDevice.split(":");
@@ -83,6 +83,9 @@ public class DeviceMappingParser {
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 5))) {
             ebs.setEncrypted(parts[5].equals("encrypted"));
+        }
+        if (StringUtils.isNotBlank(getOrEmpty(parts, 6))) {
+            ebs.setThroughput(Integer.valueOf(parts[6]));
         }
 
         return ebs;
