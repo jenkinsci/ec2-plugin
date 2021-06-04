@@ -2062,9 +2062,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return Stream.of(ConnectionStrategy.values())
                     .map(v -> {
                         if (v.name().equals(connectionStrategy)) {
-                            return new ListBoxModel.Option(v.toString(), v.name(), true);
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
                         } else {
-                            return new ListBoxModel.Option(v.toString(), v.name(), false);
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
                         }
                     })
                     .collect(Collectors.toCollection(ListBoxModel::new));
