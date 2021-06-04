@@ -12,14 +12,11 @@ import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import jenkins.util.NonLocalizable;
-import net.sf.json.JSONObject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.testcontainers.shaded.org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jvnet.hudson.test.LoggerRule;
 
-import java.security.Security;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -52,12 +49,12 @@ public class EC2RetentionStrategyTest {
 
     final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
     final AtomicBoolean terminateCalled = new AtomicBoolean(false);
-    private static ZoneId zoneId = ZoneId.systemDefault();
+    private static final ZoneId zoneId = ZoneId.systemDefault();
 
     @Test
     public void testOnBillingHourRetention() throws Exception {
-        List<int[]> upTime = new ArrayList<int[]>();
-        List<Boolean> expected = new ArrayList<Boolean>();
+        List<int[]> upTime = new ArrayList<>();
+        List<Boolean> expected = new ArrayList<>();
         upTime.add(new int[] { 58, 0 });
         expected.add(true);
         upTime.add(new int[] { 57, 59 });
@@ -144,8 +141,8 @@ public class EC2RetentionStrategyTest {
     @Test
     public void testOnUsageCountRetention() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
-        List<Integer> usageCounts = new ArrayList<Integer>();
-        List<Boolean> expected = new ArrayList<Boolean>();
+        List<Integer> usageCounts = new ArrayList<>();
+        List<Boolean> expected = new ArrayList<>();
         usageCounts.add(5);
         expected.add(false);
 
@@ -168,7 +165,6 @@ public class EC2RetentionStrategyTest {
                     assertEquals("Expected " + usageCount + " to be " + expected.get(i), (boolean) expected.get(i), terminateCalled.get());
                 }
             }
-
         }
     }
 
@@ -184,13 +180,12 @@ public class EC2RetentionStrategyTest {
                 return null;
             }
         };
-        EC2Computer computer = new EC2Computer(slave) {
+        return new EC2Computer(slave) {
             @Override
             public EC2AbstractSlave getNode() {
                 return slave;
             }
         };
-        return computer;
     }
 
     /**
@@ -230,9 +225,9 @@ public class EC2RetentionStrategyTest {
 
     @Test
     public void testInternalCheckRespectsWait() throws Exception {
-        List<Boolean> expected = new ArrayList<Boolean>();
+        List<Boolean> expected = new ArrayList<>();
         EC2Computer computer = computerWithIdleTime(0, 0);
-        List<int[]> upTimeAndCheckAfter = new ArrayList<int[]>();
+        List<int[]> upTimeAndCheckAfter = new ArrayList<>();
 
         upTimeAndCheckAfter.add(new int[] { 0, -1 });
         expected.add(true);
@@ -253,7 +248,6 @@ public class EC2RetentionStrategyTest {
             if (i > 0) {
                 Clock clock = Clock.fixed(now.plusSeconds(startingUptime), zoneId);
                 rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
-
             } else {
                 rs = new EC2RetentionStrategy("1");
             }

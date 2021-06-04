@@ -80,7 +80,6 @@ public class AmazonEC2CloudTest {
 
     @Test
     public void testAmazonEC2FactoryGetInstance() throws Exception {
-        r.configRoundtrip();
         AmazonEC2Cloud cloud = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2 connection = cloud.connect();
         Assert.assertNotNull(connection);
@@ -164,11 +163,7 @@ public class AmazonEC2CloudTest {
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        if (Jenkins.getVersion().isNewerThanOrEqualTo(new VersionNumber("2.205"))) {
-            return r.createWebClient().goTo("configureClouds").getFormByName("config");
-        } else {
-            return r.createWebClient().goTo("configure").getFormByName("config");
-        }
+        return r.createWebClient().goTo("configureClouds").getFormByName("config");
     }
 
 }

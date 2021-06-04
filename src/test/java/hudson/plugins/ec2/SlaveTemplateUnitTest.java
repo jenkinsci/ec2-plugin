@@ -347,6 +347,80 @@ public class SlaveTemplateUnitTest {
         Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.ENCRYPTED);
         Assert.assertTrue(test);
     }
+
+    @Test
+    public void testNullTimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testUpdateAmi() {
+        SlaveTemplate st = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        assertEquals("ami1", st.getAmi());
+        st.setAmi("ami2");
+        assertEquals("ami2", st.getAmi());
+        st.ami = "ami3";
+        assertEquals("ami3", st.getAmi());
+    }
+
+    @Test
+    public void test0TimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testNegativeTimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testNonNumericTimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testAssociatePublicIpSetting() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        assertEquals(true, st.getAssociatePublicIp());
+    }
+
+    @Test
+    public void testConnectUsingPublicIpSetting() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, false, null, true, "", false, true);
+        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
+    }
+
+    @Test
+    public void testConnectUsingPublicIpSettingWithDefaultSetting() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
+    }
+
+    @Test
+    public void testBackwardCompatibleUnixData() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", null, null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        assertFalse(st.isWindowsSlave());
+        assertEquals(22, st.getSshPort());
+        assertEquals("sudo", st.getRootCommandPrefix());
+    }
+
+    @Test
+    public void testChooseSubnetId() throws Exception {
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+
+        String subnet1 = slaveTemplate.chooseSubnetId();
+        String subnet2 = slaveTemplate.chooseSubnetId();
+        String subnet3 = slaveTemplate.chooseSubnetId();
+
+        assertEquals(subnet1, "subnet-123");
+        assertEquals(subnet2, "subnet-456");
+        assertEquals(subnet3, "subnet-123");
+    }
+
 }
 
 class TestHandler extends Handler {

@@ -22,5 +22,4 @@ public class EC2OndemandSlaveTest {
         EC2OndemandSlave slaveExclusive = new EC2OndemandSlave("name", "instanceId", "description", "remoteFS", 1, "labelString", Node.Mode.EXCLUSIVE, "initScript", "tmpDir", Collections.emptyList(), "remoteAdmin", "jvmopts", false, "30", "publicDNS", "privateDNS", Collections.emptyList(), "cloudName", false,  0, new UnixData("a", null, null, "b"), ConnectionStrategy.PRIVATE_IP, -1);
         assertEquals(Node.Mode.EXCLUSIVE, slaveExclusive.getMode());
     }
-
 }

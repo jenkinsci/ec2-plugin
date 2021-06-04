@@ -28,7 +28,10 @@ public class UnixData extends AMITypeData {
     }
 
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins j = Jenkins.getInstanceOrNull();
+        if (j != null) {
+            j.checkPermission(Jenkins.ADMINISTER);
+        }
         return this;
     }
 

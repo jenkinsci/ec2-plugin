@@ -572,7 +572,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (securityGroups == null || "".equals(securityGroups.trim())) {
             return Collections.emptySet();
         } else {
-            return new HashSet<String>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
+            return new HashSet<>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
         }
     }
 
@@ -684,6 +684,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Set<LabelAtom> getLabelSet() {
+        if (labelSet == null) {
+            labelSet = Label.parse(labels);
+        }
         return labelSet;
     }
 
@@ -1636,9 +1639,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins j = Jenkins.getInstanceOrNull();
+         if (j != null) {
+             j.checkPermission(Jenkins.ADMINISTER);
+         }
 
-        labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 
         /**
