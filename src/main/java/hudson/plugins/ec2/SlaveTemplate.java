@@ -230,11 +230,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public EbsEncryptRootVolume ebsEncryptRootVolume;
 
-    public Boolean metadataEndpointEnabled;
+    private Boolean metadataEndpointEnabled;
 
-    public Boolean metadataTokensRequired;
+    private Boolean metadataTokensRequired;
 
-    public Integer metadataHopsLimit;
+    private Integer metadataHopsLimit;
 
     private transient/* almost final */ Set<LabelAtom> labelSet;
 
@@ -844,6 +844,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMaxTotalUses() {
         return maxTotalUses;
+    }
+
+    public Boolean getMetadataEndpointEnabled() {
+        return metadataEndpointEnabled;
+    }
+
+    public Boolean getMetadataTokensRequired() {
+        return metadataTokensRequired;
+    }
+
+    public Integer getMetadataHopsLimit() {
+        return metadataHopsLimit;
     }
 
     public Tenancy getTenancyAttribute() {
