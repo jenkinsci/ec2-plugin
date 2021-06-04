@@ -50,7 +50,6 @@ import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-import jenkins.model.Jenkins;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,7 +65,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -101,44 +99,6 @@ public class SlaveTemplateTest {
         r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
-    }
-
-    @Test
-    public void testConfigRoundtripWithCustomConnectionStrategy() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1);
-
-        List<SlaveTemplate> templates = new ArrayList<>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
-    }
-
-    @Test
-    public void testDefaultSSHHostKeyVerificationStrategy() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        List<EC2Tag> tags = new ArrayList<>();
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null);
-
-        List<SlaveTemplate> templates = new ArrayList<>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
         // For already existing strategies, the default is this one
         assertEquals(HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT, received.getHostKeyVerificationStrategy());
     }
@@ -179,7 +139,7 @@ public class SlaveTemplateTest {
 
         SpotConfiguration spotConfig = new SpotConfiguration(true);
         spotConfig.setSpotMaxBidPrice(".05");
-        spotConfig.setFallbackToOndemand(false);
+        spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(0);
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
@@ -219,34 +179,6 @@ public class SlaveTemplateTest {
         r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
-    /**
-     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
-     * has been set properly.
-     *
-     * @throws Exception - Exception that can be thrown by the Jenkins test harness
-     */
-    @Test
-    public void testSpotConfigWithFallback() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        SpotConfiguration spotConfig = new SpotConfiguration(true);
-        spotConfig.setSpotMaxBidPrice("0.1");
-        spotConfig.setFallbackToOndemand(true);
-        spotConfig.setSpotBlockReservationDuration(0);
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
-        List<SlaveTemplate> templates = new ArrayList<>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,connectionStrategy,hostKeyVerificationStrategy");
-    }
-
     @Test
     public void testWindowsConfigRoundTrip() throws Exception {
         String ami = "ami1";
@@ -283,16 +215,6 @@ public class SlaveTemplateTest {
         r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "amiType");
-    }
-
-    @Issue("JENKINS-59460")
-    @Test
-    public void testConnectionStrategyDeprecatedFieldsAreExported() {
-        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
-
-        String exported = Jenkins.XSTREAM.toXML(template);
-        assertThat(exported, containsString("usePrivateDnsName"));
-        assertThat(exported, containsString("connectUsingPublicIp"));
     }
 
     @Test

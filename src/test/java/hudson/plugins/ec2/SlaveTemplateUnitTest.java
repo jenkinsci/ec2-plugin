@@ -6,9 +6,11 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.*;
 import hudson.model.Node;
+import jenkins.model.Jenkins;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.powermock.reflect.Whitebox;
 import org.powermock.reflect.internal.WhiteboxImpl;
 
@@ -22,6 +24,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -419,6 +423,16 @@ public class SlaveTemplateUnitTest {
         assertEquals(subnet1, "subnet-123");
         assertEquals(subnet2, "subnet-456");
         assertEquals(subnet3, "subnet-123");
+    }
+
+    @Issue("JENKINS-59460")
+    @Test
+    public void testConnectionStrategyDeprecatedFieldsAreExported() {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
+
+        String exported = Jenkins.XSTREAM.toXML(template);
+        assertThat(exported, containsString("usePrivateDnsName"));
+        assertThat(exported, containsString("connectUsingPublicIp"));
     }
 
 }
