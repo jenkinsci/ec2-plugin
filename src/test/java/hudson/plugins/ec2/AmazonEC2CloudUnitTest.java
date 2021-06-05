@@ -117,4 +117,16 @@ public class AmazonEC2CloudUnitTest {
         // Should equal number of spot instance requests + 1 for spot nodes not having a spot instance request
         assertEquals(numberOfSpotInstanceRequests+1, n);
     }
+
+    @Test
+    public void testCNPartition() {
+        assertEquals(EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "ec2"), "ec2.cn-northwest-1.amazonaws.com.cn");
+        assertEquals(EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "s3"), "s3.cn-northwest-1.amazonaws.com.cn");
+    }
+
+    @Test
+    public void testNormalPartition() {
+        assertEquals(EC2Cloud.getAwsPartitionHostForService("us-east-1", "ec2"), "ec2.us-east-1.amazonaws.com");
+        assertEquals(EC2Cloud.getAwsPartitionHostForService("us-east-1", "s3"), "s3.us-east-1.amazonaws.com");
+    }
 }
