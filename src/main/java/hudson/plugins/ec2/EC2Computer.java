@@ -106,7 +106,7 @@ public class EC2Computer extends SlaveComputer {
         GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
         return ec2.getConsoleOutput(request).getDecodedOutput();
     }
-    
+
     /**
      * Obtains the instance state description in EC2.
      *
@@ -152,6 +152,15 @@ public class EC2Computer extends SlaveComputer {
      */
     public String getUptimeString() throws AmazonClientException, InterruptedException {
         return Util.getTimeSpanString(getUptime());
+    }
+
+    /**
+     * Return the time this instance was launched in ms since the epoch.
+     *
+     * @return Time this instance was launched, in ms since the epoch.
+     */
+    public long launchedAtMs() throws InterruptedException {
+        return this.describeInstance().getLaunchTime().getTime();
     }
 
     /**

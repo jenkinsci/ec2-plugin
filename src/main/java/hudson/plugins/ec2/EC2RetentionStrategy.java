@@ -140,11 +140,13 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
         if (computer.isIdle() && !DISABLED) {
             final long uptime;
+            final long launchedAtMs;
             InstanceState state;
 
             try {
                 state = computer.getState(); //Get State before Uptime because getState will refresh the cached EC2 info
                 uptime = computer.getUptime();
+                launchedAtMs = computer.launchedAtMs();
             } catch (AmazonClientException | InterruptedException e) {
                 // We'll just retry next time we test for idleness.
                 LOGGER.fine("Exception while checking host uptime for " + computer.getName()
@@ -190,7 +192,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
             }
 
-            final long idleMilliseconds = this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), uptime);
+            final long idleMilliseconds = this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), launchedAtMs);
 
 
             if (idleTerminationMinutes > 0) {

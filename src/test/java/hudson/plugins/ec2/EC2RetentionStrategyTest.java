@@ -11,12 +11,6 @@ import hudson.plugins.ec2.util.PrivateKeyHelper;
 import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
-import jenkins.util.NonLocalizable;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,18 +20,23 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-
+import jenkins.util.NonLocalizable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import org.junit.Rule;
+import org.junit.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
 
 public class EC2RetentionStrategyTest {
 
@@ -103,6 +102,7 @@ public class EC2RetentionStrategyTest {
             }
         };
         EC2Computer computer = new EC2Computer(slave) {
+            private final long launchedAtMs = new Date().getTime();
 
             @Override
             public EC2AbstractSlave getNode() {
@@ -112,6 +112,11 @@ public class EC2RetentionStrategyTest {
             @Override
             public long getUptime() throws AmazonClientException, InterruptedException {
                 return ((minutes * 60L) + seconds) * 1000L;
+            }
+
+            @Override
+            public long launchedAtMs() throws InterruptedException {
+                return this.launchedAtMs;
             }
 
             @Override
