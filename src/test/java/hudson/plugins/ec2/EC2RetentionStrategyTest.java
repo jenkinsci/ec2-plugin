@@ -243,6 +243,28 @@ public class EC2RetentionStrategyTest {
         assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
 
+
+    /**
+     * Do not terminate na instance if a computer just launched, and the
+     * retention strategy timeout has not expired yet. The idle timeout
+     * is correctly accounted for nodes that have been stopped and started
+     * again (i.e termination policy is stop, rather than terminate).
+     */
+    @Test
+    public void testDoNotTerminateInstancesJustBooted() throws Exception {
+        logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
+        logging.capture(5);
+        final Instant inOneMinute = Instant.now().plus(Duration.ofSeconds(60));
+        // We terminate this one
+        new EC2RetentionStrategy(
+            "5",
+            Clock.fixed(inOneMinute.plusSeconds(1), zoneId),
+            inOneMinute.toEpochMilli()
+        ).check(computerWithIdleTime(0, 0, null, false));
+        assertThat("The computer is terminated, but should not be", idleTimeoutCalled.get(), equalTo(false));
+        assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
+    }
+
     @Test
     public void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<>();
