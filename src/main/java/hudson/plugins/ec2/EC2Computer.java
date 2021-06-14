@@ -159,7 +159,7 @@ public class EC2Computer extends SlaveComputer {
      *
      * @return Time this instance was launched, in ms since the epoch.
      */
-    public long launchedAtMs() throws InterruptedException {
+    public long getLaunchTime() throws InterruptedException {
         return this.describeInstance().getLaunchTime().getTime();
     }
 

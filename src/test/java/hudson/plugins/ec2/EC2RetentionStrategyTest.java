@@ -115,7 +115,7 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long launchedAtMs() throws InterruptedException {
+            public long getLaunchTime() throws InterruptedException {
                 return this.launchedAtMs;
             }
 

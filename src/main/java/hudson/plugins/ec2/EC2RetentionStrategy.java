@@ -146,7 +146,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             try {
                 state = computer.getState(); //Get State before Uptime because getState will refresh the cached EC2 info
                 uptime = computer.getUptime();
-                launchedAtMs = computer.launchedAtMs();
+                launchedAtMs = computer.getLaunchTime();
             } catch (AmazonClientException | InterruptedException e) {
                 // We'll just retry next time we test for idleness.
                 LOGGER.fine("Exception while checking host uptime for " + computer.getName()
