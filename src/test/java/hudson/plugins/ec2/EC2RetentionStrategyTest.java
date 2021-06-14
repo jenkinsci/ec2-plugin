@@ -86,6 +86,7 @@ public class EC2RetentionStrategyTest {
      * the computer returns the value established.
      */
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
+        idleTimeoutCalled.set(false);
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             public void terminate() {
@@ -220,6 +221,20 @@ public class EC2RetentionStrategyTest {
         // We terminate this one
         rs.check(computer2);
         assertThat("The computer is terminated, it should not accept more tasks", idleTimeoutCalled.get(), equalTo(true));
+        assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
+
+        // A computer that just booted should not be terminated. Let's wait
+        // until up to termination minutes before terminating it
+        final Instant inOneMinute = Instant.now().plus(Duration.ofSeconds(60));
+        rs = new EC2RetentionStrategy(
+            "5",
+            Clock.fixed(inOneMinute.plusSeconds(1), zoneId),
+            inOneMinute.toEpochMilli()
+        );
+        final EC2Computer booting = computerWithIdleTime(0, 0, null, false);
+        // We terminate this one
+        rs.check(booting);
+        assertThat("The computer is terminated, but should not be", idleTimeoutCalled.get(), equalTo(false));
         assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
 
