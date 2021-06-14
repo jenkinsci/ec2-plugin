@@ -20,7 +20,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -67,7 +66,7 @@ public class EC2RetentionStrategyTest {
 
         for (int i = 0; i < upTime.size(); i++) {
             int[] t = upTime.get(i);
-            EC2Computer computer = computerWithIdleTime(t[0], t[1]);
+            EC2Computer computer = computerWithUpTime(t[0], t[1]);
             EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
             checkRetentionStrategy(rs, computer);
             assertEquals("Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i), (boolean) expected.get(i), idleTimeoutCalled.get());
@@ -76,15 +75,15 @@ public class EC2RetentionStrategyTest {
         }
     }
 
-    private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
-        return computerWithIdleTime(minutes, seconds, false, null);
+    private EC2Computer computerWithUpTime(final int minutes, final int seconds) throws Exception {
+        return computerWithUpTime(minutes, seconds, false, null);
     }
 
     /*
      * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise,
      * the computer returns the value established.
      */
-    private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
+    private EC2Computer computerWithUpTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
         idleTimeoutCalled.set(false);
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
@@ -102,7 +101,7 @@ public class EC2RetentionStrategyTest {
             }
         };
         EC2Computer computer = new EC2Computer(slave) {
-            private final long launchedAtMs = new Date().getTime();
+            private final long launchedAtMs = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds)).toEpochMilli();
 
             @Override
             public EC2AbstractSlave getNode() {
@@ -212,7 +211,7 @@ public class EC2RetentionStrategyTest {
         OfflineCause cause = OfflineCause.create(new NonLocalizable("Testing terminate on offline computer"));
 
         // A computer returning the real isOffline value and still connecting
-        EC2Computer computer = computerWithIdleTime(0, 0, null, true);
+        EC2Computer computer = computerWithUpTime(0, 0, null, true);
         computer.setTemporarilyOffline(true, cause);
         // We don't terminate this one
         rs.check(computer);
@@ -221,7 +220,7 @@ public class EC2RetentionStrategyTest {
 
         // A computer returning the real isOffline value and not connecting
         rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
-        EC2Computer computer2 = computerWithIdleTime(0, 0, null, false);
+        EC2Computer computer2 = computerWithUpTime(0, 0, null, false);
         computer.setTemporarilyOffline(true, cause);
         // We terminate this one
         rs.check(computer2);
@@ -231,30 +230,70 @@ public class EC2RetentionStrategyTest {
 
 
     /**
-     * Do not terminate na instance if a computer just launched, and the
+     * Do not terminate an instance if a computer just launched, and the
      * retention strategy timeout has not expired yet. The idle timeout
      * is correctly accounted for nodes that have been stopped and started
      * again (i.e termination policy is stop, rather than terminate).
+     *
+     * How does the test below work: for our "mock" EC2Computer idle start time
+     * is always the time when the object has been created, and we cannot
+     * easily control test in a test suite as the relevant method to override,
+     * is declared final.
+     *
+     * We can achieve the same result where idle start time is < launch time
+     * by manipulating the node launch time variables. Since, as we said, idle
+     * start time is always now, what we end up doing is tricking the node
+     * into returning a launch time in the future. To do this we pass a negative
+     * value for minutes to {@link #computerWithUpTime(int, int, Boolean, Boolean)}.
+     *
+     * Now if we set retention time to something bigger than the computer uptime
+     * we can reproduce the issue, and prove its resolution.
+     *
+     * The time at which we perform the check must be < than computer uptime
+     * plus the retention interval.
      */
     @Test
     public void testDoNotTerminateInstancesJustBooted() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
-        final Instant inOneMinute = Instant.now().plus(Duration.ofSeconds(60));
-        // We terminate this one
+        final int COMPUTER_UPTIME_MINUTES=5;
+        final int RETENTION_MINUTES=5;
+        final int CHECK_TIME_MINUTES=COMPUTER_UPTIME_MINUTES+RETENTION_MINUTES-1;
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(CHECK_TIME_MINUTES));
         new EC2RetentionStrategy(
-            "5",
-            Clock.fixed(inOneMinute.plusSeconds(1), zoneId),
-            inOneMinute.toEpochMilli()
-        ).check(computerWithIdleTime(0, 0, null, false));
+            String.format("%d", RETENTION_MINUTES),
+            Clock.fixed(checkTime.plusSeconds(1), zoneId),
+            checkTime.toEpochMilli()
+        ).check(computerWithUpTime(-COMPUTER_UPTIME_MINUTES, 0, null, false));
         assertThat("The computer is terminated, but should not be", idleTimeoutCalled.get(), equalTo(false));
+        assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
+    }
+
+    /**
+     * Ensure that we terminate instances that stay unconnected, as soon as
+     * termination time expires.
+     */
+    @Test
+    public void testCleanupUnconnectedInstanceAfterTerminationTime() throws Exception {
+        logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
+        logging.capture(5);
+        final int COMPUTER_UPTIME_MINUTES=5;
+        final int RETENTION_MINUTES=5;
+        final int CHECK_TIME_MINUTES=COMPUTER_UPTIME_MINUTES+RETENTION_MINUTES+1;
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(CHECK_TIME_MINUTES));
+        new EC2RetentionStrategy(
+            String.format("%d", RETENTION_MINUTES),
+            Clock.fixed(checkTime.plusSeconds(1), zoneId),
+            checkTime.toEpochMilli()
+        ).check(computerWithUpTime(-COMPUTER_UPTIME_MINUTES, 0, null, false));
+        assertThat("The computer is terminated, but should not be", idleTimeoutCalled.get(), equalTo(true));
         assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
 
     @Test
     public void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<>();
-        EC2Computer computer = computerWithIdleTime(0, 0);
+        EC2Computer computer = computerWithUpTime(0, 0);
         List<int[]> upTimeAndCheckAfter = new ArrayList<>();
 
         upTimeAndCheckAfter.add(new int[] { 0, -1 });
