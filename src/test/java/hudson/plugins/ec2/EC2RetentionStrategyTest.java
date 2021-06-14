@@ -231,13 +231,13 @@ public class EC2RetentionStrategyTest {
 
     /**
      * Do not terminate an instance if a computer just launched, and the
-     * retention strategy timeout has not expired yet. The idle timeout
-     * is correctly accounted for nodes that have been stopped and started
+     * retention strategy timeout has not expired yet. The quirks with idle timeout
+     * are now correctly accounted for nodes that have been stopped and started
      * again (i.e termination policy is stop, rather than terminate).
      *
-     * How does the test below work: for our "mock" EC2Computer idle start time
+     * How does the test below work: for our "mock" EC2Computer, idle start time
      * is always the time when the object has been created, and we cannot
-     * easily control test in a test suite as the relevant method to override,
+     * easily control idle start time in a test suite as the relevant method to override
      * is declared final.
      *
      * We can achieve the same result where idle start time is < launch time
