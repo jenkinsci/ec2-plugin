@@ -286,7 +286,7 @@ public class EC2RetentionStrategyTest {
             Clock.fixed(checkTime.plusSeconds(1), zoneId),
             checkTime.toEpochMilli()
         ).check(computerWithUpTime(-COMPUTER_UPTIME_MINUTES, 0, null, false));
-        assertThat("The computer is terminated, but should not be", idleTimeoutCalled.get(), equalTo(true));
+        assertThat("The computer is not terminated, but should be", idleTimeoutCalled.get(), equalTo(true));
         assertThat(logging.getMessages(), hasItem(containsString("offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
 
