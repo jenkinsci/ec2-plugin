@@ -108,9 +108,9 @@ public abstract class EC2AbstractSlave extends Slave {
     public final Tenancy tenancy;
     private String instanceType;
 
-    public final Boolean metadataEndpointEnabled;
-    public final Boolean metadataTokensRequired;
-    public final Integer metadataHopsLimit;
+    private Boolean metadataEndpointEnabled;
+    private Boolean metadataTokensRequired;
+    private Integer metadataHopsLimit;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
