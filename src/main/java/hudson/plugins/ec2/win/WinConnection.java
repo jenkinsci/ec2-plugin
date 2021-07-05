@@ -35,6 +35,9 @@ public class WinConnection {
     private final SMBClient smbclient;
     private final AuthenticationContext authentication;
 
+    private Connection connection;
+    private Session session;
+
     private boolean useHTTPS;
     private static final int TIMEOUT=8000; //8 seconds
     private boolean allowSelfSignedCertificate;
@@ -76,8 +79,12 @@ public class WinConnection {
     }
 
     private DiskShare getSmbShare(String path) throws IOException {
-        Connection connection = smbclient.connect(host);
-        Session session = connection.authenticate(authentication);
+        if(this.connection == null) {
+            this.connection = smbclient.connect(host);
+        }
+        if(this.session == null) {
+            this.session = connection.authenticate(this.authentication);
+        }
         return (DiskShare) session.connectShare(toAdministrativeShare(path));
     }
 
@@ -124,11 +131,13 @@ public class WinConnection {
     
     public boolean pingFailingIfSSHHandShakeError() throws IOException {
         LOGGER.log(Level.FINE, () -> "checking SMB connection to " + host);
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
-            winrm().ping();
+        try (
+            Socket socket = new Socket();
             Connection connection = smbclient.connect(host);
             Session session = connection.authenticate(authentication);
+        ) {
+            socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
+            winrm().ping();
             session.connectShare("IPC$");
             return true;
         } catch (Exception e) {
@@ -143,6 +152,27 @@ public class WinConnection {
     }
 
     public void close() {
+        if(this.session != null) {
+            try {
+                this.session.close();
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Failed to close session", e);
+            }
+        }
+        if(this.connection != null) {
+            try {
+                this.connection.close();
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Failed to close connection", e);
+            }
+        }
+        if(this.smbclient != null) {
+            try {
+                this.smbclient.close();
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Failed to close smbclient", e);
+            }
+        }
     }
 
     public void setUseHTTPS(boolean useHTTPS) {
