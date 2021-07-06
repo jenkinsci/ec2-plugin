@@ -41,7 +41,7 @@ public class MinimumInstanceChecker {
 
     public static int countCurrentNumberOfSpareAgents(@Nonnull SlaveTemplate agentTemplate) {
         return (int) agentsForTemplate(agentTemplate)
-            .filter(computer -> computer.countBusy() == 0)
+            .filter(computer -> computer.countIdle() > 0)
             .filter(computer -> computer.isOnline())
             .count();
     }
