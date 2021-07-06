@@ -1,5 +1,9 @@
 package hudson.plugins.ec2;
 
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+
 import hudson.slaves.NodeProperty;
 import hudson.model.Node;
 import java.util.ArrayList;
@@ -21,7 +25,8 @@ public class EC2AbstractSlaveTest {
     @Test
     public void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {
 
-        EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), ConnectionStrategy.PRIVATE_IP, -1) {
+        EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, new UnixData("remote", null, null, "22"), ConnectionStrategy.PRIVATE_IP, -1, Tenancy.Default,
+                DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT) {
             @Override
             public void terminate() {
                 // To change body of implemented methods use File | Settings |
@@ -41,7 +46,7 @@ public class EC2AbstractSlaveTest {
     @Test
     public void testMaxUsesBackwardCompat() throws Exception {
         final String description = "description";
-        SlaveTemplate orig = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1);
+        SlaveTemplate orig = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 1, 1, "", "profile", false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);

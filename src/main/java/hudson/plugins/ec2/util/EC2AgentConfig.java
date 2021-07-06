@@ -60,6 +60,9 @@ public abstract class EC2AgentConfig {
         final Tenancy tenancy;
         @Deprecated
         final boolean useDedicatedTenancy;
+        final Boolean metadataEndpointEnabled;
+        final Boolean metadataTokensRequired;
+        final Integer metadataHopsLimit;
 
         private OnDemand(OnDemandBuilder builder) {
             super(builder);
@@ -69,6 +72,9 @@ public abstract class EC2AgentConfig {
             this.privateDNS = builder.getPrivateDNS();
             this.tenancy = builder.getTenancyAttribute();
             this.useDedicatedTenancy = builder.isUseDedicatedTenancy();
+            this.metadataHopsLimit = builder.metadataHopsLimit;
+            this.metadataEndpointEnabled = builder.metadataEndpointEnabled;
+            this.metadataTokensRequired = builder.metadataTokensRequired;
         }
     }
 
@@ -211,6 +217,9 @@ public abstract class EC2AgentConfig {
         private Tenancy tenancy;
         @Deprecated
         private boolean useDedicatedTenancy;
+        private Boolean metadataEndpointEnabled;
+        private Boolean metadataTokensRequired;
+        private Integer metadataHopsLimit;
 
         public OnDemandBuilder withInstanceId(String instanceId) {
             this.instanceId = instanceId;
@@ -265,6 +274,21 @@ public abstract class EC2AgentConfig {
         }
 
         public Tenancy getTenancyAttribute(){ return tenancy;}
+
+        public OnDemandBuilder withMetadataEndpointEnabled(Boolean metadataEndpointEnabled) {
+            this.metadataEndpointEnabled = metadataEndpointEnabled;
+            return this;
+        }
+
+        public OnDemandBuilder withMetadataTokensRequired(Boolean metadataTokensRequired) {
+            this.metadataTokensRequired = metadataTokensRequired;
+            return this;
+        }
+
+        public OnDemandBuilder withMetadataHopsLimit(Integer metadataHopsLimit) {
+            this.metadataHopsLimit = metadataHopsLimit;
+            return this;
+        }
 
         @Override
         protected OnDemandBuilder self() {
