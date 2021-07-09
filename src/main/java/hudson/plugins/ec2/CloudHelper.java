@@ -10,17 +10,17 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
-import java.util.ArrayList;
 import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.CheckForNull;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
 final class CloudHelper {
     private static final Logger LOGGER = Logger.getLogger(CloudHelper.class.getName());
+    private static final RequestExpiredPredicate requestExpiredPredicate = new RequestExpiredPredicate();
 
     static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud) throws AmazonClientException, InterruptedException {
         // Sometimes even after a successful RunInstances, DescribeInstances
@@ -31,6 +31,11 @@ final class CloudHelper {
                 return getInstance(instanceId, cloud);
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals("InvalidInstanceID.NotFound") || e.getErrorCode().equals("RequestExpired")) {
+                    // retry in 5 seconds.
+                    Thread.sleep(5000);
+                    continue;
+                } else if (requestExpiredPredicate.test(e)) {
+                    cloud.reconnect();
                     // retry in 5 seconds.
                     Thread.sleep(5000);
                     continue;

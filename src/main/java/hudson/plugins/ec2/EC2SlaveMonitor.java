@@ -15,13 +15,15 @@ import jenkins.model.Jenkins;
 
 import com.amazonaws.AmazonClientException;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author Bruno Meneguello
  */
 @Extension
 public class EC2SlaveMonitor extends AsyncPeriodicWork {
     private static final Logger LOGGER = Logger.getLogger(EC2SlaveMonitor.class.getName());
-
+    private static final RequestExpiredPredicate requestExpiredPredicate = new RequestExpiredPredicate();
     private final Long recurrencePeriod;
 
     public EC2SlaveMonitor() {
@@ -46,10 +48,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
             if (node instanceof EC2AbstractSlave) {
                 final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;
                 try {
-                    if (!ec2Slave.isAlive(true)) {
-                        LOGGER.info("EC2 instance is dead: " + ec2Slave.getInstanceId());
-                        ec2Slave.terminate();
-                    }
+                    removeDeadNodesWithRetry(ec2Slave);
                 } catch (AmazonClientException e) {
                     LOGGER.info("EC2 instance is dead and failed to terminate: " + ec2Slave.getInstanceId());
                     removeNode(ec2Slave);
@@ -58,11 +57,29 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
         }
     }
 
+    private void removeDeadNodesWithRetry(@Nonnull EC2AbstractSlave node) {
+        try {
+            terminateNode(node);
+        } catch (AmazonClientException e) {
+            if (requestExpiredPredicate.test(e)) {
+                LOGGER.info(() -> "Request Expired, reconnect and retry removing node");
+                node.getCloud().reconnect();
+                terminateNode(node);
+            }
+        }
+    }
+    private void terminateNode(@Nonnull EC2AbstractSlave node) {
+        if (!node.isAlive(true)) {
+            LOGGER.info("EC2 instance is dead: " + node.getInstanceId());
+            node.terminate();
+        }
+    }
+
     private void removeNode(EC2AbstractSlave ec2Slave) {
         try {
             Jenkins.get().removeNode(ec2Slave);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Slave.getInstanceId());
+            LOGGER.log(Level.WARNING, () -> "Failed to remove node: " + ec2Slave.getInstanceId());
         }
     }
 
