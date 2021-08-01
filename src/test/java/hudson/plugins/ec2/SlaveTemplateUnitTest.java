@@ -413,8 +413,34 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void testChooseSubnetId() throws Exception {
+    public void testChooseSpaceDelimitedSubnetId() throws Exception {
         SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+
+        String subnet1 = slaveTemplate.chooseSubnetId();
+        String subnet2 = slaveTemplate.chooseSubnetId();
+        String subnet3 = slaveTemplate.chooseSubnetId();
+
+        assertEquals(subnet1, "subnet-123");
+        assertEquals(subnet2, "subnet-456");
+        assertEquals(subnet3, "subnet-123");
+    }
+
+    @Test
+    public void testChooseCommaDelimitedSubnetId() throws Exception {
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123,subnet-456", null, null, true, null, "", false, false, "", false, "");
+
+        String subnet1 = slaveTemplate.chooseSubnetId();
+        String subnet2 = slaveTemplate.chooseSubnetId();
+        String subnet3 = slaveTemplate.chooseSubnetId();
+
+        assertEquals(subnet1, "subnet-123");
+        assertEquals(subnet2, "subnet-456");
+        assertEquals(subnet3, "subnet-123");
+    }
+
+    @Test
+    public void testChooseSemicolonDelimitedSubnetId() throws Exception {
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123;subnet-456", null, null, true, null, "", false, false, "", false, "");
 
         String subnet1 = slaveTemplate.chooseSubnetId();
         String subnet2 = slaveTemplate.chooseSubnetId();
@@ -434,7 +460,6 @@ public class SlaveTemplateUnitTest {
         assertThat(exported, containsString("usePrivateDnsName"));
         assertThat(exported, containsString("connectUsingPublicIp"));
     }
-
 }
 
 class TestHandler extends Handler {
