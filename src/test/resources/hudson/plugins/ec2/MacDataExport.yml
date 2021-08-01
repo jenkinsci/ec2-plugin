@@ -19,6 +19,9 @@
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       labelString: "mac metal"
       maxTotalUses: -1
+      metadataEndpointEnabled: true
+      metadataHopsLimit: 1
+      metadataTokensRequired: false
       minimumNumberOfInstances: 0
       minimumNumberOfSpareInstances: 0
       mode: NORMAL

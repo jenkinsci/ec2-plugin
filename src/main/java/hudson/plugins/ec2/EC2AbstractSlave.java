@@ -76,6 +76,10 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
  */
 @SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
+    public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
+    public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.FALSE;
+    public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
+
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
     protected String instanceId;
@@ -103,6 +107,10 @@ public abstract class EC2AbstractSlave extends Slave {
     public int maxTotalUses;
     public final Tenancy tenancy;
     private String instanceType;
+
+    private Boolean metadataEndpointEnabled;
+    private Boolean metadataTokensRequired;
+    private Integer metadataHopsLimit;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
@@ -144,9 +152,9 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
+                            Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
-
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
         setMode(mode);
@@ -170,7 +178,17 @@ public abstract class EC2AbstractSlave extends Slave {
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
+        this.metadataEndpointEnabled = metadataEndpointEnabled;
+        this.metadataTokensRequired = metadataTokensRequired;
+        this.metadataHopsLimit = metadataHopsLimit;
         readResolve();
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
+            throws FormException, IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+
     }
 
     @Deprecated
