@@ -646,6 +646,18 @@ public abstract class EC2Cloud extends Cloud {
                     }
                 }
             }
+            // Add Security group filters
+            if (template.getSecurityGroupSet() != null && template.getSecurityGroupSet().size() > 0) {
+                for (String sg: template.getSecurityGroupSet()) {
+                    filters.add(new Filter("group-name").withValues(sg));
+                }
+            }
+            // Add Subnet filters
+            if (template.getSubnetId() != null && !template.getSubnetId().isEmpty()) {
+                for (String s: template.getSubnetId().split(SlaveTemplate.EC2_RESOURCE_ID_DELIMETERS)) {
+                    filters.add(new Filter("subnet-id").withValues(s));
+                }
+            }
         }
         return filters;
     }
