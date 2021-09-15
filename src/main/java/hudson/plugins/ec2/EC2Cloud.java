@@ -658,6 +658,12 @@ public abstract class EC2Cloud extends Cloud {
                     filters.add(new Filter("subnet-id").withValues(s));
                 }
             }
+
+            // Add IAM Instance profile filters
+            if (template.getIamInstanceProfile() != null && !template.getIamInstanceProfile().isEmpty()) {
+                filters.add(new Filter("iam-instance-profile.arn").withValues(template.getIamInstanceProfile()));
+            }
+
         }
         return filters;
     }
