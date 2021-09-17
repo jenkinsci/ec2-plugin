@@ -471,7 +471,7 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all instances are counted.
      */
-    private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
+    private int countCurrentEC2Slaves(SlaveTemplate template, List<Filter> addonFilters) throws AmazonClientException {
         String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
 
         if (jenkinsServerUrl == null) {
@@ -487,6 +487,8 @@ public abstract class EC2Cloud extends Cloud {
         String description = template != null ? template.description : null;
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
+        if (addonFilters != null)
+            filters.addAll(addonFilters);
         filters.add(new Filter("instance-state-name").withValues("running", "pending", "stopping"));
         DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
         DescribeInstancesResult result = null;
@@ -508,6 +510,10 @@ public abstract class EC2Cloud extends Cloud {
         n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, instanceIds);
         
         return n;
+    }
+
+    int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
+        return countCurrentEC2Slaves(template, null);
     }
 
     /**
@@ -692,6 +698,11 @@ public abstract class EC2Cloud extends Cloud {
      * Returns the maximum number of possible agents that can be created.
      */
     private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
+        List<Filter> vpcFilters = new ArrayList<>();
+        for (String vpc: getTemplateVpcs(template)) {
+            vpcFilters.add(new Filter("vpc-id").withValues(vpc));
+        }
+
         int estimatedTotalSlaves = countCurrentEC2Slaves(null);
         int estimatedAmiSlaves = countCurrentEC2Slaves(template);
 
@@ -701,6 +712,23 @@ public abstract class EC2Cloud extends Cloud {
                 + " AMI: " + template.getAmi() + " TemplateDesc: " + template.description);
 
         return Math.min(availableAmiSlaves, availableTotalSlaves);
+    }
+
+    /* Gets the VPCs of the subnets configured for a given Slave Template  */
+    private Set<String> getTemplateVpcs(SlaveTemplate template) throws AmazonClientException {
+        Set<String> vpcs = new HashSet<>();
+        if (template != null && template.getSubnetId() != null && !template.getSubnetId().isEmpty()) {
+            DescribeSubnetsRequest dsr = new DescribeSubnetsRequest().withSubnetIds(template.getSubnetId().split(SlaveTemplate.EC2_RESOURCE_ID_DELIMETERS));
+            DescribeSubnetsResult result = null;
+            do {
+                result = connect().describeSubnets(dsr);
+                dsr.setNextToken(result.getNextToken());
+                for (Subnet subnet: result.getSubnets()) {
+                    vpcs.add(subnet.getVpcId());
+                }
+            } while (result.getNextToken() != null);
+        }
+        return vpcs;
     }
 
     /**
