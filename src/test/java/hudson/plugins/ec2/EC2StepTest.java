@@ -98,8 +98,9 @@ public class EC2StepTest {
     @Test
     public void bootInstance() throws Exception {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('master') {\n" +
+                " node('" + builtInNodeLabel + "') {\n" +
                         "    def X = ec2 cloud: 'myCloud', template: 'aws-CentOS-7'\n" +
                         "}" , true));
         WorkflowRun b = r.buildAndAssertSuccess(boot);
@@ -109,8 +110,9 @@ public class EC2StepTest {
     @Test
     public void boot_noCloud() throws Exception {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('master') {\n" +
+                " node('" + builtInNodeLabel + "') {\n" +
                         "    def X = ec2 cloud: 'dummyCloud', template: 'aws-CentOS-7'\n" +
                         "    X.boot()\n" +
                         "}" , true));
@@ -125,8 +127,9 @@ public class EC2StepTest {
         when(cl.getTemplate(anyString())).thenReturn(null);
 
         WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('master') {\n" +
+                " node('" + builtInNodeLabel + "') {\n" +
                         "    def X = ec2 cloud: 'myCloud', template: 'dummyTemplate'\n" +
                         "    X.boot()\n" +
                         "}" , true));
