@@ -889,6 +889,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return provisionSpot(image, number, provisionOptions);
             return Collections.emptyList();
         }
+        LOGGER.info("No Configuration Spot, falling back to on-demand instance.");
         return provisionOndemand(image, number, provisionOptions);
     }
 
@@ -1352,6 +1353,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
+            LOGGER.info("No Bidding for Spot, falling back to on-demand instance.");
             return provisionOndemand(image, 1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
