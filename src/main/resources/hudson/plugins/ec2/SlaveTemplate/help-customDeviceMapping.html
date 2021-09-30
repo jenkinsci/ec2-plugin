@@ -29,7 +29,7 @@ THE SOFTWARE.
 
     Where block-device format is:
     <pre>
-        [&lt;snapshot-id&gt;]:[&lt;size&gt;]:[&lt;delete-on-termination&gt;]:[&lt;type&gt;]:[&lt;iops&gt;]:[encrypted]
+        [snapshot-id]:[size]:[delete-on-termination]:[type]:[iops]:[encrypted]:[throughput]
     </pre>
 
     Examples:
@@ -39,6 +39,7 @@ THE SOFTWARE.
         /dev/sdc=snap-7eb96d16:80:false:io1:100
         /dev/sdd=:120
         /dev/sdd=:120::::encrypted
+        /dev/sdd=:120:::::100
         /dev/sdd=:120::::encrypted,/dev/sdc=:120
     </pre>
 </div>
