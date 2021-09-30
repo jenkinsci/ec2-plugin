@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.win;
 
+import com.hierynomus.protocol.transport.TransportException;
 import com.hierynomus.security.bc.BCSecurityProvider;
 import com.hierynomus.smbj.SmbConfig;
 import hudson.plugins.ec2.win.winrm.WinRM;
@@ -80,7 +81,13 @@ public class WinConnection {
 
     private DiskShare getSmbShare(String path) throws IOException {
         if(this.connection == null) {
-            this.connection = smbclient.connect(host);
+            try {
+                this.connection = smbclient.connect(host);
+            } catch (TransportException e) {
+                // JENKINS-66736: unregister and try again
+                smbclient.getServerList().unregister(host);
+                this.connection = smbclient.connect(host);
+            }
         }
         if(this.session == null) {
             this.session = connection.authenticate(this.authentication);
