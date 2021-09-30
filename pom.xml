@@ -80,7 +80,6 @@ THE SOFTWARE.
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.277.4</jenkins.version>
         <java.level>8</java.level>
-        <aws-java-sdk.version>1.12.68</aws-java-sdk.version>
     </properties>
 
     <dependencies>
@@ -106,7 +105,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>1.30</version>
+            <version>1.31-rc150.2d46aabfddaa</version><!-- https://github.com/jenkinsci/aws-credentials-plugin/pull/93 -->
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -117,9 +116,9 @@ THE SOFTWARE.
             <artifactId>bouncycastle-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>aws-java-sdk</artifactId>
-            <version>${aws-java-sdk.version}</version>
+            <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
+            <artifactId>aws-java-sdk-ec2</artifactId>
+            <version>1.12.70</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -243,13 +242,6 @@ THE SOFTWARE.
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-bom</artifactId>
-                <version>${aws-java-sdk.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.277.x</artifactId>
                 <version>950.v396cb834de1e</version>
@@ -260,6 +252,12 @@ THE SOFTWARE.
                 <groupId>joda-time</groupId>
                 <artifactId>joda-time</artifactId>
                 <version>2.10.10</version>
+            </dependency>
+            <dependency>
+                <!-- fix upper bound -->
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>2.12.4</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
