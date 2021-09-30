@@ -23,7 +23,7 @@ public class WinRMConnectionManagerFactory {
     static final WinRMHttpConnectionManager SSL_ALLOW_SELF_SIGNED = new WinRMHttpConnectionManager(true);
 
     static class WinRMHttpConnectionManager {
-        private PoolingHttpClientConnectionManager connectionManager;
+        private final PoolingHttpClientConnectionManager connectionManager;
         private SSLConnectionSocketFactory socketFactory;
 
         final static int DEFAULT_MAX_PER_ROUTE = 50;

@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -32,6 +31,7 @@ import org.apache.http.config.Lookup;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicSchemeFactory;
 import org.apache.http.impl.client.BasicAuthCache;
@@ -51,7 +51,6 @@ import org.jaxen.SimpleNamespaceContext;
 
 public class WinRMClient {
     private static final Logger LOGGER = Logger.getLogger(WinRMClient.class.getName());
-    private static final String APPLICATION_SOAP_XML = "application/soap+xml";
 
     private final URL url;
     private final String username;
@@ -61,14 +60,12 @@ public class WinRMClient {
     private String commandId;
     private int exitCode;
 
-    private SimpleNamespaceContext namespaceContext;
-
     private final RequestFactory factory;
 
-    private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<BasicAuthCache>();
+    private final ThreadLocal<BasicAuthCache> authCache = new ThreadLocal<>();
     private boolean useHTTPS;
     private BasicCredentialsProvider credsProvider;
-    private boolean allowSelfSignedCertificate;
+    private final boolean allowSelfSignedCertificate;
     
     @Deprecated
     public WinRMClient(URL url, String username, String password) {
@@ -137,7 +134,7 @@ public class WinRMClient {
         Document response = sendRequest(request);
 
         XPath xpath = DocumentHelper.createXPath("//" + Namespaces.NS_WIN_SHELL.getPrefix() + ":Stream");
-        namespaceContext = new SimpleNamespaceContext();
+        SimpleNamespaceContext namespaceContext = new SimpleNamespaceContext();
         namespaceContext.addNamespace(Namespaces.NS_WIN_SHELL.getPrefix(), Namespaces.NS_WIN_SHELL.getURI());
         xpath.setNamespaceContext(namespaceContext);
 
@@ -224,7 +221,7 @@ public class WinRMClient {
                     // sleep before retrying, increase the sleep time on each re-try
                     int sleepTime = executionCount * 5;
                     try {
-                        Thread.sleep(sleepTime * 1000);
+                        TimeUnit.SECONDS.sleep(sleepTime);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException("Exception while executing command", e);
@@ -257,7 +254,7 @@ public class WinRMClient {
         try {
             HttpPost post = new HttpPost(url.toURI());
 
-            HttpEntity entity = new StringEntity(request.asXML(), APPLICATION_SOAP_XML, "UTF-8");
+            HttpEntity entity = new StringEntity(request.asXML(), ContentType.APPLICATION_SOAP_XML);
             post.setEntity(entity);
 
             LOGGER.log(Level.FINEST, () -> "Request:\nPOST " + url + "\n" + request.asXML());
@@ -269,7 +266,7 @@ public class WinRMClient {
                 // check for possible timeout
 
                 if (response.getStatusLine().getStatusCode() == 500
-                        && (responseEntity.getContentType() != null && entity.getContentType().getValue().startsWith(APPLICATION_SOAP_XML))) {
+                        && (responseEntity.getContentType() != null && entity.getContentType().getValue().startsWith(ContentType.APPLICATION_SOAP_XML.getMimeType()))) {
                     String respStr = EntityUtils.toString(responseEntity);
                     if (respStr.contains("TimedOut")) {
                         return DocumentHelper.parseText(respStr);
@@ -302,7 +299,7 @@ public class WinRMClient {
             }
 
             if (responseEntity.getContentType() == null
-                    || !entity.getContentType().getValue().startsWith(APPLICATION_SOAP_XML)) {
+                    || !entity.getContentType().getValue().startsWith(ContentType.APPLICATION_SOAP_XML.getMimeType())) {
                 throw new RuntimeException("Unexpected WinRM content type: " + entity.getContentType());
             }
 
