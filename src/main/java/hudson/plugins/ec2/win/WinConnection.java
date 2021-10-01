@@ -51,9 +51,7 @@ public class WinConnection {
         this.host = host;
         this.username = username;
         this.password = password;
-        // TODO: Remove once https://github.com/hierynomus/smbj/issues/638 is in the release
-        SmbConfig config = SmbConfig.builder().withSecurityProvider(new BCSecurityProvider()).build();
-        this.smbclient = new SMBClient(config);
+        this.smbclient = new SMBClient();
         this.authentication = new AuthenticationContext(username, password.toCharArray(), null);
         this.allowSelfSignedCertificate = allowSelfSignedCertificate;
     }
