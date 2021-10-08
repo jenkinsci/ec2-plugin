@@ -79,13 +79,7 @@ public class WinConnection {
 
     private DiskShare getSmbShare(String path) throws IOException {
         if(this.connection == null) {
-            try {
-                this.connection = smbclient.connect(host);
-            } catch (TransportException e) {
-                // JENKINS-66736: unregister and try again
-                smbclient.getServerList().unregister(host);
-                this.connection = smbclient.connect(host);
-            }
+            this.connection = smbclient.connect(host);
         }
         if(this.session == null) {
             this.session = connection.authenticate(this.authentication);
@@ -149,6 +143,9 @@ public class WinConnection {
             LOGGER.log(Level.WARNING, "Failed to verify connectivity to Windows agent", e);
             if (e instanceof SSLException) {
                 throw e;
+            } else if (e instanceof TransportException) {
+                // JENKINS-66736: unregister and try again
+                smbclient.getServerList().unregister(host);
             } else if (e.getCause() instanceof SSLException) {
                 throw (SSLException) e.getCause();
             }
