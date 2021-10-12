@@ -1,7 +1,7 @@
 <!--
 The MIT License
 
-Copyright (c) 2004-, Kohsuke Kawaguchi, Sun Microsystems, Inc., and a number of other of contributors
+Copyright (c) 2010, InfraDNA, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
-<div>
-    Create instance using dedicated hardware instead of shared.  Additional charges will apply, please see
-    here: http://aws.amazon.com/dedicated-instances/.
-    <p>
-    This only applies if you have specified a VPC, Availability-Zone and this is an On-Demand 
-    Instance (not Spot Instance).
-</div>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson" xmlns:f="/lib/form">	  
+      <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
+	    <f:textbox/>
+	  </f:entry>
+      <f:entry title="${%Slave command prefix}" field="slaveCommandPrefix">
+	    <f:textbox/>
+	  </f:entry>
+      <f:entry title="${%Slave command suffix}" field="slaveCommandSuffix">
+	    <f:textbox/>
+	  </f:entry>
+      <f:entry title="${%Remote ssh port}" field="sshPort">
+        <f:textbox />
+      </f:entry>
+</j:jelly>

@@ -5,15 +5,14 @@ import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.model.PeriodicWork;
 import hudson.model.Result;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
-import hudson.plugins.ec2.util.PluginTestRule;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mock;
 import org.mockito.internal.stubbing.answers.ThrowsException;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -27,9 +26,9 @@ import java.util.List;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,7 +39,7 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({EC2AbstractSlave.class, SlaveTemplate.class})
 public class EC2StepTest {
     @Rule
-    public PluginTestRule r = new PluginTestRule();
+    public JenkinsRule r = new JenkinsRule();
 
     @Mock
     private AmazonEC2Cloud cl;
@@ -53,14 +52,15 @@ public class EC2StepTest {
 
     @Before
     public void setup() throws Exception {
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        r.jenkins.clouds.clear();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(st);
 
         when(cl.getCloudName()).thenReturn("myCloud");
         when(cl.getDisplayName()).thenReturn("myCloud");
         when(cl.getTemplates()).thenReturn(templates);
         when(cl.getTemplate(anyString())).thenReturn(st);
-        r.addCloud(cl);
+        r.jenkins.clouds.add(cl);
 
         when(instance.getNodeName()).thenReturn("nodeName");
         List<EC2AbstractSlave> slaves = Collections.singletonList(instance);
@@ -97,24 +97,26 @@ public class EC2StepTest {
 
     @Test
     public void bootInstance() throws Exception {
-        WorkflowJob boot = r.jenkins.createProject(WorkflowJob.class, "EC2Test");
+        WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('master') {\n" +
+                " node('" + builtInNodeLabel + "') {\n" +
                         "    def X = ec2 cloud: 'myCloud', template: 'aws-CentOS-7'\n" +
                         "}" , true));
-        WorkflowRun b = r.assertBuildStatusSuccess(boot.scheduleBuild2(0));
+        WorkflowRun b = r.buildAndAssertSuccess(boot);
         r.assertLogContains("SUCCESS", b);
     }
 
     @Test
     public void boot_noCloud() throws Exception {
-        WorkflowJob boot = r.jenkins.createProject(WorkflowJob.class, "EC2Test");
+        WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('master') {\n" +
+                " node('" + builtInNodeLabel + "') {\n" +
                         "    def X = ec2 cloud: 'dummyCloud', template: 'aws-CentOS-7'\n" +
                         "    X.boot()\n" +
                         "}" , true));
-        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, boot.scheduleBuild2(0).get());
+        WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, boot);
         r.assertLogContains("Error in AWS Cloud. Please review EC2 settings in Jenkins configuration.", b);
         r.assertLogContains("FAILURE", b);
     }
@@ -124,19 +126,15 @@ public class EC2StepTest {
     public void boot_noTemplate() throws Exception {
         when(cl.getTemplate(anyString())).thenReturn(null);
 
-        WorkflowJob boot = r.jenkins.createProject(WorkflowJob.class, "EC2Test");
+        WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('master') {\n" +
+                " node('" + builtInNodeLabel + "') {\n" +
                         "    def X = ec2 cloud: 'myCloud', template: 'dummyTemplate'\n" +
                         "    X.boot()\n" +
                         "}" , true));
-        WorkflowRun b = r.assertBuildStatus(Result.FAILURE, boot.scheduleBuild2(0).get());
+        WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, boot);
         r.assertLogContains("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.", b);
         r.assertLogContains("FAILURE", b);
-    }
-
-    @After
-    public void teardown() {
-        r.jenkins.clouds.clear();
     }
 }

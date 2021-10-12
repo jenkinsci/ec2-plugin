@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -32,39 +33,32 @@ import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
+import com.amazonaws.services.ec2.model.HttpTokensState;
 import com.amazonaws.services.ec2.model.IamInstanceProfile;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceMetadataEndpointState;
+import com.amazonaws.services.ec2.model.InstanceMetadataOptionsRequest;
 import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SecurityGroup;
 import com.amazonaws.services.ec2.model.Subnet;
-
 import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-import com.amazonaws.services.ec2.model.Reservation;
-import hudson.plugins.ec2.util.PrivateKeyHelper;
-import jenkins.model.Jenkins;
-
-import net.sf.json.JSONObject;
-import org.apache.commons.math3.analysis.function.Power;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
 import org.mockito.ArgumentCaptor;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,12 +67,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -89,70 +84,24 @@ public class SlaveTemplateTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
-        String ami = "ami1";
         String description = "foo ami";
 
         EC2Tag tag1 = new EC2Tag("name1", "value1");
         EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
-    }
-
-    @Test
-    public void testConfigRoundtripWithCustomConnectionStrategy() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1);
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
-    }
-
-    @Test
-    public void testDefaultSSHHostKeyVerificationStrategy() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null);
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
         // For already existing strategies, the default is this one
         assertEquals(HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT, received.getHostKeyVerificationStrategy());
     }
@@ -162,31 +111,25 @@ public class SlaveTemplateTest {
         String ami = "ami1";
         String description = "foo ami";
 
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
-
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
-        
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
 
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
+
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
         assertEquals(STRATEGY_TO_CHECK, received.getHostKeyVerificationStrategy());
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception
@@ -197,31 +140,25 @@ public class SlaveTemplateTest {
         String ami = "ami1";
         String description = "foo ami";
 
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
-
         SpotConfiguration spotConfig = new SpotConfiguration(true);
         spotConfig.setSpotMaxBidPrice(".05");
-        spotConfig.setFallbackToOndemand(false);
+        spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(0);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
+     * Tests to make sure the agent created has been configured properly. Also tests to make sure the spot max bid price
      * has been set properly.
      *
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
@@ -231,147 +168,18 @@ public class SlaveTemplateTest {
         String ami = "ami1";
         String description = "foo ami";
 
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
-
         SpotConfiguration spotConfig = new SpotConfiguration(false);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
-    }
-
-    /**
-     * Tests to make sure the slave created has been configured properly. Also tests to make sure the spot max bid price
-     * has been set properly.
-     *
-     * @throws Exception - Exception that can be thrown by the Jenkins test harness
-     */
-    @Test
-    public void testSpotConfigWithFallback() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
-
-        SpotConfiguration spotConfig = new SpotConfiguration(true);
-        spotConfig.setSpotMaxBidPrice("0.1");
-        spotConfig.setFallbackToOndemand(true);
-        spotConfig.setSpotBlockReservationDuration(0);
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, true, null, "", false, false, "", false, "");
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,connectionStrategy,hostKeyVerificationStrategy");
-    }
-
-    /**
-     * Test to make sure the IAM Role is set properly.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testConfigRoundtripIamRole() throws Exception {
-        String ami = "ami1";
-        String description = "foo ami";
-
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
-
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "iamInstanceProfile", false, false, "", false, "");
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
-        templates.add(orig);
-
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
-        r.jenkins.clouds.add(ac);
-
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
-        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,iamInstanceProfile,connectionStrategy,hostKeyVerificationStrategy");
-    }
-
-    @Test
-    public void testNullTimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
-        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
-    }
-
-    @Test
-    public void testUpdateAmi() {
-        SlaveTemplate st = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
-        assertEquals("ami1", st.getAmi());
-        st.setAmi("ami2");
-        assertEquals("ami2", st.getAmi());
-        st.ami = "ami3";
-        assertEquals("ami3", st.getAmi());
-    }
-
-    @Test
-    public void test0TimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
-        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
-    }
-
-    @Test
-    public void testNegativeTimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
-        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
-    }
-
-    @Test
-    public void testNonNumericTimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
-        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
-    }
-
-    @Test
-    public void testAssociatePublicIpSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
-        assertEquals(true, st.getAssociatePublicIp());
-    }
-
-    @Test
-    public void testConnectUsingPublicIpSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, false, null, true, "", false, true);
-        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
-    }
-
-    @Test
-    public void testConnectUsingPublicIpSettingWithDefaultSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
-        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
-    }
-
-    @Test
-    public void testBackwardCompatibleUnixData() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", null, null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
-        assertFalse(st.isWindowsSlave());
-        assertEquals(22, st.getSshPort());
-        assertEquals("sudo", st.getRootCommandPrefix());
     }
 
     @Test
@@ -379,21 +187,15 @@ public class SlaveTemplateTest {
         String ami = "ami1";
         String description = "foo ami";
 
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new WindowsData("password", false, ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new WindowsData("password", false, ""), "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         assertEquals(orig.getAdminPassword(), received.getAdminPassword());
         assertEquals(orig.amiType, received.amiType);
@@ -405,46 +207,17 @@ public class SlaveTemplateTest {
         String ami = "ami1";
         String description = "foo ami";
 
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", null, null, "22"), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", null, null, "22"), "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "");
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "amiType");
-    }
-
-    @Test
-    public void testChooseSubnetId() throws Exception {
-        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
-
-        String subnet1 = slaveTemplate.chooseSubnetId();
-        String subnet2 = slaveTemplate.chooseSubnetId();
-        String subnet3 = slaveTemplate.chooseSubnetId();
-
-        assertEquals(subnet1, "subnet-123");
-        assertEquals(subnet2, "subnet-456");
-        assertEquals(subnet3, "subnet-123");
-    }
-
-    @Issue("JENKINS-59460")
-    @Test
-    public void testConnectionStrategyDeprecatedFieldsAreExported() {
-        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
-
-        String exported = Jenkins.XSTREAM.toXML(template);
-        assertThat(exported, containsString("usePrivateDnsName"));
-        assertThat(exported, containsString("connectUsingPublicIp"));
     }
 
     @Test
@@ -452,15 +225,8 @@ public class SlaveTemplateTest {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("monday", false);
-        jsonObject.put("tuesday", true);
-        jsonObject.put("wednesday", false);
-        jsonObject.put("thursday", false);
-        jsonObject.put("friday", false);
-        jsonObject.put("saturday", false);
-        jsonObject.put("sunday", false);
-        minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeDays(jsonObject);
+        minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
+        minimumNumberOfInstancesTimeRangeConfig.setTuesday(true);
         SpotConfiguration spotConfig = new SpotConfiguration(true);
         spotConfig.setSpotMaxBidPrice("22");
         spotConfig.setFallbackToOndemand(true);
@@ -468,7 +234,7 @@ public class SlaveTemplateTest {
         SlaveTemplate slaveTemplate = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(slaveTemplate);
 
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
@@ -480,12 +246,12 @@ public class SlaveTemplateTest {
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
-        Assert.assertEquals(false, stored.getMinimumNoInstancesActiveTimeRangeDays().get("monday"));
-        Assert.assertEquals(true, stored.getMinimumNoInstancesActiveTimeRangeDays().get("tuesday"));
+        Assert.assertEquals(false, stored.getDay("monday"));
+        Assert.assertEquals(true, stored.getDay("tuesday"));
     }
 
-  @Test
-  public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
+    @Test
+    public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
         boolean associatePublicIp = false;
         String ami = "ami1";
         String description = "foo ami";
@@ -493,16 +259,10 @@ public class SlaveTemplateTest {
         String securityGroups = "some security group";
         String iamInstanceProfile = "some instance profile";
 
-        EC2Tag tag1 = new EC2Tag("name1", "value1");
-        EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
-        tags.add(tag1);
-        tags.add(tag2);
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
-        SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
-
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         templates.add(noSubnet);
         for (SlaveTemplate template : templates) {
@@ -525,10 +285,10 @@ public class SlaveTemplateTest {
                 assertEquals(actualRequest.getSecurityGroups(), Stream.of(securityGroups).collect(Collectors.toList()));
             }
         }
-  }
+    }
 
-  @Test
-  public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
+    @Test
+    public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
         boolean associatePublicIp = true;
         String ami = "ami1";
         String description = "foo ami";
@@ -538,14 +298,14 @@ public class SlaveTemplateTest {
 
         EC2Tag tag1 = new EC2Tag("name1", "value1");
         EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
 
         SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
         SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         templates.add(noSubnet);
         for (SlaveTemplate template : templates) {
@@ -565,9 +325,40 @@ public class SlaveTemplateTest {
             assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
         }
-  }
+    }
 
-  private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
+    @Issue("JENKINS-64571")
+    @Test
+    public void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
+        boolean associatePublicIp = true;
+        String ami = "ami1";
+        String description = "foo ami";
+        String subnetId = "some-subnet";
+        String securityGroups = "some security group";
+        String iamInstanceProfile = "some instance profile";
+
+        SpotConfiguration spotConfig = new SpotConfiguration(true);
+        spotConfig.setSpotMaxBidPrice(".05");
+        spotConfig.setFallbackToOndemand(true);
+        spotConfig.setSpotBlockReservationDuration(0);
+
+        SlaveTemplate template = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        AmazonEC2Exception quotaExceededException = new AmazonEC2Exception("Request has expired");
+        quotaExceededException.setServiceName("AmazonEC2");
+        quotaExceededException.setStatusCode(400);
+        quotaExceededException.setErrorCode("MaxSpotInstanceCountExceeded");
+        quotaExceededException.setRequestId("00000000-0000-0000-0000-000000000000");
+        when(mockedEC2.requestSpotInstances(any(RequestSpotInstancesRequest.class))).thenThrow(quotaExceededException);
+
+        template.provision(2, EnumSet.of(ProvisionOptions.ALLOW_CREATE));
+
+        verify(mockedEC2).runInstances(any(RunInstancesRequest.class));
+    }
+
+    private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
         AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
@@ -619,5 +410,89 @@ public class SlaveTemplateTest {
         when(mockedEC2.runInstances(any(RunInstancesRequest.class))).thenReturn(mockedResult);
 
         return mockedEC2;
-  }
+    }
+
+    @Test
+    public void testMacConfig() throws Exception {
+        String description = "foo ami";
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", new MacData("sudo", null, null, "22"), "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "type,amiType");
+    }
+
+    @Issue("JENKINS-65569")
+    @Test
+    public void testAgentName() {
+        SlaveTemplate broken = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "broken/description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate working = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "working", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(broken);
+        templates.add(working);
+        AmazonEC2Cloud brokenCloud = new AmazonEC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        assertThat(broken.getSlaveName("test"), is("test"));
+        assertThat(working.getSlaveName("test"), is("test"));
+        AmazonEC2Cloud workingCloud = new AmazonEC2Cloud("cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        assertThat(broken.getSlaveName("test"), is("test"));
+        assertThat(working.getSlaveName("test"), is("EC2 (cloud) - working (test)"));
+    }
+
+    @Test
+    public void testMetadataV2Config() throws Exception {
+        final String slaveDescription = "foobar";
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+
+        List<SlaveTemplate> templates = Collections.singletonList(orig);
+
+        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(slaveDescription);
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,metadataEndpointEnabled,metadataTokensRequired,metadataHopsLimit");
+    }
+
+    @Test
+    public void provisionOnDemandSetsMetadataV2Options() throws Exception {
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
+        assertEquals(metadataOptionsRequest.getHttpEndpoint(), InstanceMetadataEndpointState.Enabled.toString());
+        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Required.toString());
+        assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(2));
+    }
+
+    @Test
+    public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, null, null);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
+        assertEquals(metadataOptionsRequest.getHttpEndpoint(), InstanceMetadataEndpointState.Enabled.toString());
+        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Optional.toString());
+        assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
+    }
+
 }

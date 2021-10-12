@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.15</version>
+        <version>4.25</version>
         <relativePath />
     </parent>
 
@@ -76,18 +76,17 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>1.57</revision>
+        <revision>1.66</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.222.4</jenkins.version>
+        <jenkins.version>2.277.4</jenkins.version>
         <java.level>8</java.level>
-        <aws-java-sdk.version>1.11.854</aws-java-sdk.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.hierynomus</groupId>
             <artifactId>smbj</artifactId>
-            <version>0.10.0</version>
+            <version>0.11.3</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.bouncycastle</groupId>
@@ -106,7 +105,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>1.28</version>
+            <version>1.32</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -115,17 +114,16 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>bouncycastle-api</artifactId>
-            <version>2.18</version>
         </dependency>
         <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>aws-java-sdk</artifactId>
-            <version>${aws-java-sdk.version}</version>
+            <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
+            <artifactId>aws-java-sdk-ec2</artifactId>
+            <version>1.12.80</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>node-iterator-api</artifactId>
-            <version>1.5.0</version>
+            <version>1.5.1</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -187,38 +185,12 @@ THE SOFTWARE.
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-support</artifactId>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
-            <artifactId>workflow-basic-steps</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>script-security</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>scm-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>structs</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -245,7 +217,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.15.1</version>
+            <version>1.16.0</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -255,23 +227,14 @@ THE SOFTWARE.
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- Upper bound deps -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.30</version>
-            <scope>test</scope>
+            <groupId>org.kohsuke</groupId>
+            <artifactId>libzfs</artifactId>
+            <version>0.8</version>
         </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>org.jenkins-ci.main</groupId>
-                <artifactId>jenkins-bom</artifactId>
-                <version>${jenkins.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest-core</artifactId>
@@ -279,18 +242,22 @@ THE SOFTWARE.
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-bom</artifactId>
-                <version>${aws-java-sdk.version}</version>
-                <type>pom</type>
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-2.277.x</artifactId>
+                <version>961.vf0c9f6f59827</version>
                 <scope>import</scope>
+                <type>pom</type>
             </dependency>
             <dependency>
-                <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.222.x</artifactId>
-                <version>20</version>
-                <scope>import</scope>
-                <type>pom</type>
+                <groupId>joda-time</groupId>
+                <artifactId>joda-time</artifactId>
+                <version>2.10.12</version>
+            </dependency>
+            <dependency>
+                <!-- fix upper bound -->
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>2.12.4</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

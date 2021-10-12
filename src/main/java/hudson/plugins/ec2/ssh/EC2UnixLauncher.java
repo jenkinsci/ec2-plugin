@@ -30,6 +30,7 @@ import hudson.model.Descriptor;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
+import hudson.plugins.ec2.ssh.verifiers.HostKeyHelper;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -44,6 +45,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -62,7 +64,7 @@ import com.trilead.ssh2.Session;
 import org.apache.commons.lang.StringUtils;
 
 /**
- * {@link ComputerLauncher} that connects to a Unix slave on EC2 by using SSH.
+ * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
  *
  * @author Kohsuke Kawaguchi
  */
@@ -136,7 +138,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
 
         if (template == null) {
-            throw new IOException("Could not find corresponding slave template for " + computer.getDisplayName());
+            throw new IOException("Could not find corresponding agent template for " + computer.getDisplayName());
         }
 
         if (node instanceof EC2Readiness) {
@@ -229,7 +231,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
             executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
-            // Always copy so we get the most recent slave.jar
+            // Always copy so we get the most recent remoting.jar
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
             scp.put(Jenkins.get().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
@@ -245,11 +247,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
                 File identityKeyFile = createIdentityKeyFile(computer);
+                String ec2HostAddress = getEC2HostAddress(computer, template);
+                File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);
+                String userKnownHostsFileFlag = "";
+                if (hostKeyFile != null) {
+                    userKnownHostsFileFlag = String.format(" -o \"UserKnownHostsFile=%s\"", hostKeyFile.getAbsolutePath());
+                }
 
                 try {
-                    // Obviously the master must have an installed ssh client.
+                    // Obviously the controller must have an installed ssh client.
                     // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), userKnownHostsFileFlag, getEC2HostKeyAlgorithmFlag(computer), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -257,6 +265,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 } finally {
                     if(!identityKeyFile.delete()) {
                         LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+                    }
+                    if(hostKeyFile != null && !hostKeyFile.delete()) {
+                        LOGGER.log(Level.WARNING, "Failed to delete host key file");
                     }
                 }
             } else {
@@ -319,6 +330,30 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 LOGGER.log(Level.WARNING, "Failed to delete identity key file");
             }
             throw new IOException("Error creating temporary identity key file for connecting to EC2 agent.", e);
+        }
+    }
+
+    private File createHostKeyFile(EC2Computer computer, String ec2HostAddress, TaskListener listener) throws IOException {
+        HostKey ec2HostKey = HostKeyHelper.getInstance().getHostKey(computer);
+        if (ec2HostKey == null){
+            return null;
+        }
+        File tempFile = File.createTempFile("ec2_", "_known_hosts");
+        String knownHost = "";
+        knownHost = String.format("%s %s %s", ec2HostAddress, ec2HostKey.getAlgorithm(), Base64.getEncoder().encodeToString(ec2HostKey.getKey()));
+
+        try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+             OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8)) {
+            writer.write(knownHost);
+            writer.flush();
+            FilePath filePath = new FilePath(tempFile);
+            filePath.chmod(0400); // octal file mask - readonly by owner
+            return tempFile;
+        } catch (Exception e) {
+            if (!tempFile.delete()) {
+                LOGGER.log(Level.WARNING, "Failed to delete known hosts key file");
+            }
+            throw new IOException("Error creating temporary known hosts file for connecting to EC2 agent.", e);
         }
     }
 
@@ -416,9 +451,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             } catch (IOException e) {
                 // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
-                
-                // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it. 
-                // The computer is offline for a long period 
+
+                // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it.
+                // The computer is offline for a long period
                 if (computer.isOffline() && StringUtils.isNotBlank(computer.getOfflineCauseReason()) && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
                     throw new AmazonClientException("The connection couldn't be established and the computer is now offline", e);
                 } else {
@@ -448,11 +483,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             return template != null && template.getHostKeyVerificationStrategy().getStrategy().verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
         }
     }
-    
+
     private static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
         return EC2HostAddressProvider.unix(instance, strategy);
+    }
+
+    private static String getEC2HostKeyAlgorithmFlag(EC2Computer computer) throws IOException {
+        HostKey ec2HostKey = HostKeyHelper.getInstance().getHostKey(computer);
+        if (ec2HostKey != null){
+            return String.format(" -o \"HostKeyAlgorithms=%s\"", ec2HostKey.getAlgorithm());
+        }
+        return "";
     }
 
     private int waitCompletion(Session session) throws InterruptedException {

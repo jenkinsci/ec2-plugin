@@ -70,12 +70,16 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 /**
- * Slave running on EC2.
+ * Agent running on EC2.
  *
  * @author Kohsuke Kawaguchi
  */
 @SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
+    public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
+    public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.FALSE;
+    public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
+
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
     protected String instanceId;
@@ -92,19 +96,27 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
-    public final boolean useDedicatedTenancy;
+
+    @Deprecated
+    public transient boolean useDedicatedTenancy;
+
     public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
     public int maxTotalUses;
+    public final Tenancy tenancy;
     private String instanceType;
+
+    private Boolean metadataEndpointEnabled;
+    private Boolean metadataTokensRequired;
+    private Integer metadataHopsLimit;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
     public transient String privateDNS;
 
-    /* The last instance data to be fetched for the slave */
+    /* The last instance data to be fetched for the agent */
     protected transient Instance lastFetchInstance = null;
 
     /* The time at which we fetched the last instance data */
@@ -140,9 +152,9 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
+                            Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
-
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
         setMode(mode);
@@ -160,13 +172,30 @@ public abstract class EC2AbstractSlave extends Slave {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
         this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
-        this.useDedicatedTenancy = useDedicatedTenancy;
+        this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
+        this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
+        this.metadataEndpointEnabled = metadataEndpointEnabled;
+        this.metadataTokensRequired = metadataTokensRequired;
+        this.metadataHopsLimit = metadataHopsLimit;
         readResolve();
-        fetchLiveInstanceData(true);
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
+            throws FormException, IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+            throws FormException, IOException {
+
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
@@ -201,7 +230,7 @@ public abstract class EC2AbstractSlave extends Slave {
                 }
             }
         }
-        
+
         /*
          * If this field is null (as it would be if this object is deserialized and not constructed normally) then
          * we need to explicitly initialize it, otherwise we will cause major blocker issues such as this one which
@@ -382,6 +411,8 @@ public abstract class EC2AbstractSlave extends Slave {
             return 240;
         case M5a24xlarge:
             return 240;
+         case Mac1Metal:
+            return 1;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
         default:
@@ -504,21 +535,21 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     String getRootCommandPrefix() {
-        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        String commandPrefix = (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
     }
 
     String getSlaveCommandPrefix() {
-        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+        String commandPrefix = (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() :(amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
     }
 
     String getSlaveCommandSuffix() {
-        String commandSuffix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+        String commandSuffix = (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() :(amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
         if (commandSuffix == null || commandSuffix.length() == 0)
             return "";
         return " " + commandSuffix;
@@ -529,7 +560,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getSshPort() {
-        String sshPort = amiType.isUnix() ? ((UnixData) amiType).getSshPort() : "22";
+        String sshPort = (amiType.isUnix() ? ((UnixData) amiType).getSshPort() :(amiType.isMac() ? ((MacData) amiType).getSshPort() : "22"));
         if (sshPort == null || sshPort.length() == 0)
             return 22;
 
@@ -546,7 +577,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     /**
-     * Called when the slave is connected to Jenkins
+     * Called when the agent is connected to Jenkins
      */
     public void onConnected() {
         isConnected = true;
@@ -735,7 +766,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public boolean isSpecifyPassword() {
         return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
-    
+
     public boolean isAllowSelfSignedCertificate() {
         return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }
@@ -756,7 +787,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     /*
-     * Used to determine if the slave is On Demand or Spot
+     * Used to determine if the agent is On Demand or Spot
      */
     abstract public String getEc2Type();
 

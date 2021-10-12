@@ -136,16 +136,16 @@ public class MinimumInstanceChecker {
         if (passingMidnight) {
             if (nowTime.isAfter(fromTime)) {
                 String today = now.getDayOfWeek().name().toLowerCase();
-                return minimumNumberOfInstancesTimeRangeConfig.getMinimumNoInstancesActiveTimeRangeDays().get(today);
+                return minimumNumberOfInstancesTimeRangeConfig.getDay(today);
             } else if (nowTime.isBefore(toTime)) {
                 //We've gone past midnight and want to check yesterday's setting.
                 String yesterday = now.minusDays(1).getDayOfWeek().name().toLowerCase();
-                return minimumNumberOfInstancesTimeRangeConfig.getMinimumNoInstancesActiveTimeRangeDays().get(yesterday);
+                return minimumNumberOfInstancesTimeRangeConfig.getDay(yesterday);
             }
         } else {
             if (nowTime.isAfter(fromTime) && nowTime.isBefore(toTime)) {
                 String today = now.getDayOfWeek().name().toLowerCase();
-                return minimumNumberOfInstancesTimeRangeConfig.getMinimumNoInstancesActiveTimeRangeDays().get(today);
+                return minimumNumberOfInstancesTimeRangeConfig.getDay(today);
             }
         }
         return false;

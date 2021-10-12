@@ -28,7 +28,10 @@ public class UnixData extends AMITypeData {
     }
 
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins j = Jenkins.getInstanceOrNull();
+        if (j != null) {
+            j.checkPermission(Jenkins.ADMINISTER);
+        }
         return this;
     }
 
@@ -40,6 +43,11 @@ public class UnixData extends AMITypeData {
     @Override
     public boolean isUnix() {
         return true;
+    }
+
+    @Override
+    public boolean isMac() {
+        return false;
     }
 
     @Extension

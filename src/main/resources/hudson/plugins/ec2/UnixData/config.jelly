@@ -27,10 +27,10 @@ THE SOFTWARE.
       <f:entry title="${%Root command prefix}" field="rootCommandPrefix">
 	    <f:textbox/>
 	  </f:entry>
-      <f:entry title="${%Slave command prefix}" field="slaveCommandPrefix">
+      <f:entry title="${%Agent command prefix}" field="slaveCommandPrefix">
 	    <f:textbox/>
 	  </f:entry>
-      <f:entry title="${%Slave command suffix}" field="slaveCommandSuffix">
+      <f:entry title="${%Agent command suffix}" field="slaveCommandSuffix">
 	    <f:textbox/>
 	  </f:entry>
       <f:entry title="${%Remote ssh port}" field="sshPort">

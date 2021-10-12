@@ -52,12 +52,12 @@ public class TemplateLabelsTest {
     private void setUpCloud(String label, Node.Mode mode) throws Exception {
         EC2Tag tag1 = new EC2Tag("name1", "value1");
         EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
 
         SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, false, label, mode, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
-        List<SlaveTemplate> templates = new ArrayList<SlaveTemplate>();
+        List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(template);
 
         ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
@@ -70,7 +70,7 @@ public class TemplateLabelsTest {
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL1)));
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL2)));
         assertEquals(false, ac.canProvision(new LabelAtom("aaa")));
-        assertEquals(true, ac.canProvision(null));
+        assertEquals(true, ac.canProvision((Label) null));
     }
 
     @Test
@@ -89,7 +89,7 @@ public class TemplateLabelsTest {
     public void testEmptyLabel() throws Exception {
         setUpCloud("");
 
-        assertEquals(true, ac.canProvision(null));
+        assertEquals(true, ac.canProvision((Label) null));
     }
 
     @Test
@@ -99,14 +99,14 @@ public class TemplateLabelsTest {
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL1)));
         assertEquals(true, ac.canProvision(new LabelAtom(LABEL2)));
         assertEquals(false, ac.canProvision(new LabelAtom("aaa")));
-        assertEquals(false, ac.canProvision(null));
+        assertEquals(false, ac.canProvision((Label) null));
     }
 
     @Test
     public void testExclusiveModeEmptyLabel() throws Exception {
         setUpCloud("", Node.Mode.EXCLUSIVE);
 
-        assertEquals(false, ac.canProvision(null));
+        assertEquals(false, ac.canProvision((Label) null));
     }
 
 }

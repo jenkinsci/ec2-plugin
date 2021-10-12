@@ -106,7 +106,7 @@ public class EC2Computer extends SlaveComputer {
         GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
         return ec2.getConsoleOutput(request).getDecodedOutput();
     }
-    
+
     /**
      * Obtains the instance state description in EC2.
      *
@@ -155,7 +155,16 @@ public class EC2Computer extends SlaveComputer {
     }
 
     /**
-     * When the slave is deleted, terminate the instance.
+     * Return the time this instance was launched in ms since the epoch.
+     *
+     * @return Time this instance was launched, in ms since the epoch.
+     */
+    public long getLaunchTime() throws InterruptedException {
+        return this.describeInstance().getLaunchTime().getTime();
+    }
+
+    /**
+     * When the agent is deleted, terminate the instance.
      */
     @Override
     public HttpResponse doDoDelete() throws IOException {

@@ -17,33 +17,35 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
 import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
 import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
 import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.HttpTokensState;
 import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
+import com.amazonaws.services.ec2.model.InstanceMetadataEndpointState;
+import com.amazonaws.services.ec2.model.InstanceMetadataOptionsRequest;
 import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -61,18 +63,19 @@ import com.amazonaws.services.ec2.model.ShutdownBehavior;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotMarketOptions;
 import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
 import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
 import hudson.XmlFile;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
+import hudson.model.Failure;
 import hudson.model.Hudson;
 import hudson.model.Label;
 import hudson.model.Node;
@@ -86,6 +89,7 @@ import hudson.plugins.ec2.util.EC2AgentConfig;
 import hudson.plugins.ec2.util.EC2AgentFactory;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.security.Permission;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.NodePropertyDescriptor;
 import hudson.util.DescribableList;
@@ -101,7 +105,10 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
+import javax.annotation.CheckForNull;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -126,96 +133,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.CheckForNull;
-import javax.servlet.ServletException;
-
-import hudson.plugins.ec2.util.AmazonEC2Factory;
-import hudson.plugins.ec2.util.DeviceMappingParser;
-import hudson.plugins.ec2.util.EC2AgentConfig;
-import hudson.plugins.ec2.util.EC2AgentFactory;
-import hudson.plugins.ec2.util.MinimumInstanceChecker;
-import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import hudson.XmlFile;
-import hudson.model.listeners.SaveableListener;
-import hudson.security.Permission;
-import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.model.JenkinsLocationConfiguration;
-import jenkins.slaves.iterators.api.NodeIterator;
-
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.LaunchSpecification;
-import com.amazonaws.services.ec2.model.MarketType;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.ResourceType;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.ShutdownBehavior;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.SpotMarketOptions;
-import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StartInstancesResult;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TagSpecification;
-
-import hudson.Extension;
-import hudson.Util;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
-import hudson.model.Descriptor.FormException;
-import hudson.model.Hudson;
-import hudson.model.Label;
-import hudson.model.Node;
-import hudson.model.Saveable;
-import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.NodePropertyDescriptor;
-import hudson.util.DescribableList;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-
 /**
  * Template of {@link EC2AbstractSlave} to launch.
  *
@@ -223,6 +140,8 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
  */
 public class SlaveTemplate implements Describable<SlaveTemplate> {
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
+
+    private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
 
     public String ami;
 
@@ -274,25 +193,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int instanceCap;
 
-    private int minimumNumberOfInstances;
+    private final int minimumNumberOfInstances;
 
     private MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig;
 
-    private int minimumNumberOfSpareInstances;
+    private final int minimumNumberOfSpareInstances;
 
     public final boolean stopOnTerminate;
 
     private final List<EC2Tag> tags;
 
     public ConnectionStrategy connectionStrategy;
-    
+
     public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
     public final boolean associatePublicIp;
 
     protected transient EC2Cloud parent;
-
-    public final boolean useDedicatedTenancy;
 
     public AMITypeData amiType;
 
@@ -307,6 +224,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int nextSubnet;
 
     public String currentSubnetId;
+
+    public Tenancy tenancy;
+
+    public EbsEncryptRootVolume ebsEncryptRootVolume;
+
+    private Boolean metadataEndpointEnabled;
+
+    private Boolean metadataTokensRequired;
+
+    private Integer metadataHopsLimit;
 
     private transient/* almost final */ Set<LabelAtom> labelSet;
 
@@ -348,16 +275,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @Deprecated
     public boolean connectUsingPublicIp;
 
+    @Deprecated
+    public transient boolean useDedicatedTenancy;
+
     @DataBoundConstructor
     public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
                          int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
+                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
+
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
@@ -389,7 +321,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.associatePublicIp = associatePublicIp;
         this.connectionStrategy = connectionStrategy == null ? ConnectionStrategy.PRIVATE_IP : connectionStrategy;
-        this.useDedicatedTenancy = useDedicatedTenancy;
+        this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
         this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
@@ -420,9 +352,77 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
-        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
-
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+        this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
+        this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
+        this.metadataEndpointEnabled = metadataEndpointEnabled != null ? metadataEndpointEnabled : DEFAULT_METADATA_ENDPOINT_ENABLED;
+        this.metadataTokensRequired = metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
+        this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_ENDPOINT_ENABLED,
+                DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null);
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
@@ -587,7 +587,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getSlaveName(String instanceId) {
-        return String.format("%s (%s)", getDisplayName(), instanceId);
+        final String agentName = String.format("%s (%s)", getDisplayName(), instanceId);
+        try {
+            Jenkins.checkGoodName(agentName);
+            return agentName;
+        } catch (Failure e) {
+            return instanceId;
+        }
     }
 
     String getZone() {
@@ -606,7 +612,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (securityGroups == null || "".equals(securityGroups.trim())) {
             return Collections.emptySet();
         } else {
-            return new HashSet<String>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
+            return new HashSet<>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
         }
     }
 
@@ -624,6 +630,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (amiType.isUnix()) {
                 sshPort = ((UnixData) amiType).getSshPort();
             }
+            if (amiType.isMac()) {
+                sshPort = ((MacData) amiType).getSshPort();
+            }
             return Integer.parseInt(sshPort);
         } catch (NumberFormatException e) {
             return 22;
@@ -635,22 +644,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getRootCommandPrefix() {
-        return amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        return (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix():""));
     }
 
     public String getSlaveCommandPrefix() {
-        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
     }
 
     public String getSlaveCommandSuffix() {
-        return amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : "";
+        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
     }
 
     public String chooseSubnetId() {
         if (StringUtils.isBlank(subnetId)) {
             return null;
         } else {
-            String[] subnetIdList= getSubnetId().split(" ");
+            String[] subnetIdList= getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS);
 
             // Round-robin subnet selection.
             currentSubnetId = subnetIdList[nextSubnet];
@@ -714,11 +723,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return idleTerminationMinutes;
     }
 
-    public boolean getUseDedicatedTenancy() {
-        return useDedicatedTenancy;
-    }
-
     public Set<LabelAtom> getLabelSet() {
+        if (labelSet == null) {
+            labelSet = Label.parse(labels);
+        }
         return labelSet;
     }
 
@@ -796,9 +804,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundSetter
     public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
-        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT; 
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
-    
+
     @NonNull
     public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
         return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
@@ -833,7 +841,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public void setAmiFilters(List<EC2Filter> amiFilters) {
         this.amiFilters = amiFilters;
     }
-    
+
     @Override
     public String toString() {
         return "SlaveTemplate{" +
@@ -846,23 +854,40 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return maxTotalUses;
     }
 
+    public Boolean getMetadataEndpointEnabled() {
+        return metadataEndpointEnabled;
+    }
+
+    public Boolean getMetadataTokensRequired() {
+        return metadataTokensRequired;
+    }
+
+    public Integer getMetadataHopsLimit() {
+        return metadataHopsLimit;
+    }
+
+    public Tenancy getTenancyAttribute() {
+        return tenancy;
+    }
+
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
-    	return Objects.requireNonNull(nodeProperties);
+        return Objects.requireNonNull(nodeProperties);
     }
 
     public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
 
     /**
-     * Provisions a new EC2 slave or starts a previously stopped on-demand instance.
+     * Provisions a new EC2 agent or starts a previously stopped on-demand instance.
      *
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
+    @NonNull
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         final Image image = getImage();
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
                 return provisionSpot(image, number, provisionOptions);
-            return null;
+            return Collections.emptyList();
         }
         return provisionOndemand(image, number, provisionOptions);
     }
@@ -876,7 +901,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
                 ))
                ){
-                logInstanceCheck(instance, ". false - found existing corresponding Jenkins slave: " + node.getInstanceId());
+                logInstanceCheck(instance, ". false - found existing corresponding Jenkins agent: " + node.getInstanceId());
                 return false;
             }
         }
@@ -951,11 +976,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (StringUtils.isNotBlank(getZone())) {
             Placement placement = new Placement(getZone());
-            if (getUseDedicatedTenancy()) {
+            if (getTenancyAttribute().equals(Tenancy.Dedicated)) {
                 placement.setTenancy("dedicated");
             }
             riRequest.setPlacement(placement);
             diFilters.add(new Filter("availability-zone").withValues(getZone()));
+        }
+
+        if(getTenancyAttribute().equals(Tenancy.Host)){
+            Placement placement = new Placement();
+            placement.setTenancy("host");
+            riRequest.setPlacement(placement);
+            diFilters.add(new Filter("tenancy").withValues(placement.getTenancy()));
+        }else if(getTenancyAttribute().equals(Tenancy.Default)){
+            Placement placement = new Placement();
+            placement.setTenancy("default");
+            riRequest.setPlacement(placement);
+            diFilters.add(new Filter("tenancy").withValues(placement.getTenancy()));
         }
 
         String subnetId = chooseSubnetId(rotateSubnet);
@@ -1024,6 +1061,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
         riRequest.setTagSpecifications(tagList);
 
+        InstanceMetadataOptionsRequest instanceMetadataOptionsRequest = new InstanceMetadataOptionsRequest();
+        instanceMetadataOptionsRequest.setHttpEndpoint(metadataEndpointEnabled ? InstanceMetadataEndpointState.Enabled.toString() : InstanceMetadataEndpointState.Disabled.toString());
+        instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
+        instanceMetadataOptionsRequest.setHttpTokens(
+                    metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
+        riRequest.setMetadataOptions(instanceMetadataOptionsRequest);
+
         HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
         ret.put(riRequest, diFilters);
         return ret;
@@ -1035,7 +1079,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
@@ -1043,7 +1087,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions an On-demand EC2 slave by launching a new instance or starting a previously-stopped instance.
+     * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
             throws IOException {
@@ -1175,17 +1219,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private void setupRootDevice(Image image, List<BlockDeviceMapping> deviceMappings) {
-        if (deleteRootOnTermination && image.getRootDeviceType().equals("ebs")) {
-            // get the root device (only one expected in the blockmappings)
-            final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
-            if (rootDeviceMappings.size() == 0) {
-                LOGGER.warning("AMI missing block devices");
-                return;
-            }
-            BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
-            LOGGER.info("AMI had " + rootMapping.getDeviceName());
-            LOGGER.info(rootMapping.getEbs().toString());
+        if (!"ebs".equals(image.getRootDeviceType())) {
+            return;
+        }
 
+        // get the root device (only one expected in the blockmappings)
+        final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
+        if (rootDeviceMappings.size() == 0) {
+            LOGGER.warning("AMI missing block devices");
+            return;
+        }
+        BlockDeviceMapping rootMapping = rootDeviceMappings.get(0);
+        LOGGER.info("AMI had " + rootMapping.getDeviceName());
+        LOGGER.info(rootMapping.getEbs().toString());
+
+        // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
+        BlockDeviceMapping newMapping = rootMapping.clone();
+
+        if (deleteRootOnTermination) {
             // Check if the root device is already in the mapping and update it
             for (final BlockDeviceMapping mapping : deviceMappings) {
                 LOGGER.info("Request had " + mapping.getDeviceName());
@@ -1195,14 +1246,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            // Create a shadow of the AMI mapping (doesn't like reusing rootMapping directly)
-            BlockDeviceMapping newMapping = rootMapping.clone();
+            // pass deleteRootOnTermination to shadow of the AMI mapping
             newMapping.getEbs().setDeleteOnTermination(Boolean.TRUE);
-            //Per the documentation, "If you are creating a volume from a snapshot, you can't specify an encryption value. This is because only blank volumes can be encrypted on creation. "
-            //The root volume will always have a snapshot, so this value needs to be set to null to work correctly
-            newMapping.getEbs().setEncrypted(null);
-            deviceMappings.add(0, newMapping);
         }
+
+        newMapping.getEbs().setEncrypted(ebsEncryptRootVolume.getValue());
+        String message = String.format("EBS default encryption value set to: %s (%s)", ebsEncryptRootVolume.getDisplayText(), ebsEncryptRootVolume.getValue());
+        logProvisionInfo(message);
+        deviceMappings.add(0, newMapping);
+
     }
 
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping(Image image) {
@@ -1248,7 +1300,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @NonNull
-    private DescribeImagesRequest makeDescribeImagesRequest() {
+    private DescribeImagesRequest makeDescribeImagesRequest() throws AmazonClientException {
         List<String> imageIds = Util.fixEmptyAndTrim(ami) == null ?
             Collections.emptyList() :
             Collections.singletonList(ami);
@@ -1256,13 +1308,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<String> users = makeImageAttributeList(amiUsers);
         List<Filter> filters = EC2Filter.toFilterList(amiFilters);
 
-        // Log a warning if there were no search attributes. This is
-        // legal but probably not what anyone wants. Might be better
-        // as an exception.
+        // Raise an exception if there were no search attributes.
+        // This is legal but not what anyone wants - it will
+        // launch random recently created public AMIs.
         int numAttrs = Stream.of(imageIds, owners, users, filters)
             .collect(Collectors.summingInt(List::size));
         if (numAttrs == 0) {
-            LOGGER.warning("Neither AMI ID nor AMI search attributes provided");
+            throw new AmazonClientException("Neither AMI ID nor AMI search attributes provided");
         }
 
         return new DescribeImagesRequest()
@@ -1280,7 +1332,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<Image> images = getParent().connect().describeImages(request).getImages();
         if (images.isEmpty()) {
             throw new AmazonClientException("Unable to find image for request " + request);
-         }
+        }
 
         // Sort in reverse by creation date to get latest image
         images.sort(Comparator.comparing(Image::getCreationDate).reversed());
@@ -1295,7 +1347,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provision a new slave for an EC2 spot instance to call back to Jenkins
+     * Provision a new agent for an EC2 spot instance to call back to Jenkins
      */
     private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
@@ -1381,8 +1433,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotRequest.setBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
             }
 
-            // Make the request for a new Spot instance
-            RequestSpotInstancesResult reqResult = ec2.requestSpotInstances(spotRequest);
+            RequestSpotInstancesResult reqResult;
+            try {
+                // Make the request for a new Spot instance
+                reqResult = ec2.requestSpotInstances(spotRequest);
+            } catch (AmazonEC2Exception e) {
+                if (spotConfig.getFallbackToOndemand() && e.getErrorCode().equals("MaxSpotInstanceCountExceeded")) {
+                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                    return provisionOndemand(image, number, provisionOptions);
+                } else {
+                    throw e;
+                }
+            }
 
             List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
             if (reqInstances.isEmpty()) {
@@ -1492,11 +1554,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withPrivateDNS(inst.getPrivateDnsName())
             .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
             .withCloudName(parent.name)
-            .withUseDedicatedTenancy(useDedicatedTenancy)
             .withLaunchTimeout(getLaunchTimeout())
             .withAmiType(amiType)
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
+            .withTenancyAttribute(tenancy)
+            .withMetadataEndpointEnabled(metadataEndpointEnabled)
+            .withMetadataTokensRequired(metadataTokensRequired)
+            .withMetadataHopsLimit(metadataHopsLimit)
             .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
@@ -1527,7 +1592,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Get a KeyPair from the configured information for the slave template
+     * Get a KeyPair from the configured information for the agent template
      */
     @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
@@ -1571,7 +1636,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Get a list of security group ids for the slave
+     * Get a list of security group ids for the agent
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
         List<String> groupIds = new ArrayList<>();
@@ -1613,7 +1678,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provisions a new EC2 slave based on the currently running instance on EC2, instead of starting a new one.
+     * Provisions a new EC2 agent based on the currently running instance on EC2, instead of starting a new one.
      */
     public EC2AbstractSlave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
@@ -1636,9 +1701,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Initializes data structure that we don't persist.
      */
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins j = Jenkins.getInstanceOrNull();
+         if (j != null) {
+             j.checkPermission(Jenkins.ADMINISTER);
+         }
 
-        labelSet = Label.parse(labels);
         securityGroupSet = parseSecurityGroups();
 
         /**
@@ -1669,6 +1736,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (nodeProperties == null) {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
+        
+        if (tenancy == null) {
+            tenancy = Tenancy.Default;
+        }
+
+        // migration of old value to new variable.
+        if (useDedicatedTenancy) {
+            tenancy = Tenancy.Dedicated;
+        }
+        
+        if (ebsEncryptRootVolume == null) {
+            ebsEncryptRootVolume = EbsEncryptRootVolume.DEFAULT;
+        }
+
+        if (metadataEndpointEnabled == null) {
+            metadataEndpointEnabled = EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+        }
+        if (metadataTokensRequired == null) {
+            metadataTokensRequired = EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+        }
+        if (metadataHopsLimit == null) {
+            metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+        }
 
         return this;
     }
@@ -1695,6 +1785,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean isUnixSlave() {
         return amiType.isUnix();
+    }
+
+    public boolean isMacAgent() {
+        return amiType.isMac();
     }
 
     public Secret getAdminPassword() {
@@ -1730,7 +1824,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             /* Add filter using all subnets defined for this SlaveTemplate */
             Filter subnetFilter = new Filter("subnet-id");
-            subnetFilter.setValues(Arrays.asList(getSubnetId().split(" ")));
+            subnetFilter.setValues(Arrays.asList(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS)));
             diFilters.add(subnetFilter);
         }
 
@@ -1782,6 +1876,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (slaveDescriptor != null)
                 return slaveDescriptor.getHelpFile(fieldName);
             return null;
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckDescription(@QueryParameter String value) {
+            try {
+                Jenkins.checkGoodName(value);
+                return FormValidation.ok();
+            } catch (Failure e) {
+                return FormValidation.error(e.getMessage());
+            }
         }
 
         @Restricted(NoExternalUse.class)
@@ -2008,6 +2112,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
+        public String getDefaultTenancy() {
+            // new templates default to the most secure strategy
+            return Tenancy.Default.name();
+        }
+
         /*
          * Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001
          */
@@ -2019,7 +2128,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public String getDefaultConnectionStrategy() {
-            return ConnectionStrategy.PRIVATE_IP.toString();
+            return ConnectionStrategy.PRIVATE_IP.name();
         }
 
         public List<NodePropertyDescriptor> getNodePropertyDescriptors() {
@@ -2029,10 +2138,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public ListBoxModel doFillConnectionStrategyItems(@QueryParameter String connectionStrategy) {
             return Stream.of(ConnectionStrategy.values())
                     .map(v -> {
-                        if (v.toString().equals(connectionStrategy)) {
-                            return new ListBoxModel.Option(v.toString(), v.name(), true);
+                        if (v.name().equals(connectionStrategy)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
                         } else {
-                            return new ListBoxModel.Option(v.toString(), v.name(), false);
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
                         }
                     })
                     .collect(Collectors.toCollection(ListBoxModel::new));
@@ -2045,7 +2154,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
         }
-        
+
         public String getDefaultHostKeyVerificationStrategy() {
             // new templates default to the most secure strategy
             return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
@@ -2069,6 +2178,41 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Optional<HostKeyVerificationStrategyEnum> matched = filteredStream.findFirst();
             Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
             return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
+        }
+
+        public ListBoxModel doFillTenancyItems(@QueryParameter String tenancy) {
+            return Stream.of(Tenancy.values())
+                    .map(v -> {
+                        if (v.name().equals(tenancy)) {
+                            return new ListBoxModel.Option(v.name(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.name(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+        public String getDefaultEbsEncryptRootVolume() {
+            return EbsEncryptRootVolume.DEFAULT.getDisplayText();
+        }
+
+        public ListBoxModel doFillEbsEncryptRootVolumeItems(@QueryParameter String ebsEncryptRootVolume ) {
+            return Stream.of(EbsEncryptRootVolume.values())
+                    .map(v -> {
+                        if (v.name().equals(ebsEncryptRootVolume)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        public FormValidation doEbsEncryptRootVolume(@QueryParameter String ebsEncryptRootVolume) {
+            Stream<EbsEncryptRootVolume> stream = Stream.of(EbsEncryptRootVolume.values());
+            Stream<EbsEncryptRootVolume> filteredStream = stream.filter(v -> v.name().equals(ebsEncryptRootVolume));
+            Optional<EbsEncryptRootVolume> matched = filteredStream.findFirst();
+            Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
+            return okResult.orElse(FormValidation.error(String.format("Could not find selected option (%s)", ebsEncryptRootVolume)));
         }
     }
 }

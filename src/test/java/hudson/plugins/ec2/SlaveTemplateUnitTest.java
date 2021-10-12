@@ -1,17 +1,18 @@
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.CreateTagsResult;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.*;
 import hudson.model.Node;
+import jenkins.model.Jenkins;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.powermock.reflect.Whitebox;
+import org.powermock.reflect.internal.WhiteboxImpl;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -23,9 +24,12 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class SlaveTemplateUnitTest {
@@ -118,29 +122,6 @@ public class SlaveTemplateUnitTest {
         }
     }
 
-    private void assertMakeDescribeImagesRequestWarning(boolean shouldWarn) {
-        boolean foundWarning = false;
-        for (LogRecord logRecord : handler.getRecords()) {
-            if (!logRecord.getSourceMethodName().equals("makeDescribeImagesRequest")) {
-                continue;
-            }
-            if (logRecord.getLevel() != Level.WARNING) {
-                continue;
-            }
-            if (!logRecord.getMessage().equals("Neither AMI ID nor AMI search attributes provided")) {
-                continue;
-            }
-
-            foundWarning = true;
-        }
-
-        if (shouldWarn) {
-            assertTrue("No warning message logged", foundWarning);
-        } else {
-            assertFalse("Warning message logged", foundWarning);
-        }
-    }
-
     private void doTestMakeDescribeImagesRequest(SlaveTemplate template,
                                                  String testImageId,
                                                  String testOwners,
@@ -150,19 +131,23 @@ public class SlaveTemplateUnitTest {
                                                  List<String> expectedOwners,
                                                  List<String> expectedUsers,
                                                  List<Filter> expectedFilters,
-                                                 boolean shouldWarn) throws Exception {
+                                                 boolean shouldRaise) throws Exception {
         handler.clearRecords();
         template.setAmi(testImageId);
         template.setAmiOwners(testOwners);
         template.setAmiUsers(testUsers);
         template.setAmiFilters(testFilters);
-        DescribeImagesRequest request = Whitebox.invokeMethod(template,
+        if (shouldRaise) {
+            assertThrows(AmazonClientException.class, () ->
+                Whitebox.invokeMethod(template, "makeDescribeImagesRequest"));
+        } else {
+            DescribeImagesRequest request = Whitebox.invokeMethod(template,
                                                               "makeDescribeImagesRequest");
-        assertEquals(expectedImageIds, request.getImageIds());
-        assertEquals(expectedOwners, request.getOwners());
-        assertEquals(expectedUsers, request.getExecutableUsers());
-        assertEquals(expectedFilters, request.getFilters());
-        assertMakeDescribeImagesRequestWarning(shouldWarn);
+            assertEquals(expectedImageIds, request.getImageIds());
+            assertEquals(expectedOwners, request.getOwners());
+            assertEquals(expectedUsers, request.getExecutableUsers());
+            assertEquals(expectedFilters, request.getFilters());
+        }
     }
 
     @Test
@@ -183,8 +168,8 @@ public class SlaveTemplateUnitTest {
         List<String> expectedUsers = Collections.emptyList();
         List<Filter> expectedFilters = Collections.emptyList();
 
-        // Request will all null search parameters. There should be a
-        // warning about requesting an image with no search parameters
+        // Request will all null search parameters. There should be an
+        // exception on requesting an image with no search parameters
         doTestMakeDescribeImagesRequest(template,
                                         testImageId,
                                         testOwners,
@@ -197,7 +182,7 @@ public class SlaveTemplateUnitTest {
                                         true);
 
         // Try again with empty rather than null parameters. There
-        // should be a warning about requesting an image with no search
+        // should be an exception on requesting an image with no search
         // parameters
         testImageId = "";
         testOwners = "";
@@ -319,6 +304,161 @@ public class SlaveTemplateUnitTest {
                                             expectedFilters,
                                             false);
         }
+    }
+
+    private Boolean checkEncryptedForSetupRootDevice(EbsEncryptRootVolume rootVolumeEnum) throws Exception {
+        SlaveTemplate template = new SlaveTemplate(null, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
+            @Override
+            protected Object readResolve() {
+                return null;
+            }
+        };
+        List deviceMappings = new ArrayList();
+        deviceMappings.add(deviceMappings);
+
+        Image image = new Image();
+        image.setRootDeviceType("ebs");
+        BlockDeviceMapping blockDeviceMapping = new BlockDeviceMapping();
+        blockDeviceMapping.setEbs(new EbsBlockDevice());
+        image.getBlockDeviceMappings().add(blockDeviceMapping);
+        if (rootVolumeEnum instanceof EbsEncryptRootVolume) {
+            template.ebsEncryptRootVolume = rootVolumeEnum;
+        };
+        WhiteboxImpl.invokeMethod(template, "setupRootDevice", image, deviceMappings);
+        return image.getBlockDeviceMappings().get(0).getEbs().getEncrypted();
+    }
+
+    @Test
+    public void testSetupRootDeviceNull() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(null);
+        Assert.assertNull(test);
+    }
+
+    @Test
+    public void testSetupRootDeviceDefault() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.DEFAULT);
+        Assert.assertNull(test);
+    }
+
+    @Test
+    public void testSetupRootDeviceNotEncrypted() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.UNENCRYPTED);
+        Assert.assertFalse(test);
+    }
+
+    @Test
+    public void testSetupRootDeviceEncrypted() throws Exception {
+        Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.ENCRYPTED);
+        Assert.assertTrue(test);
+    }
+
+    @Test
+    public void testNullTimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testUpdateAmi() {
+        SlaveTemplate st = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        assertEquals("ami1", st.getAmi());
+        st.setAmi("ami2");
+        assertEquals("ami2", st.getAmi());
+        st.ami = "ami3";
+        assertEquals("ami3", st.getAmi());
+    }
+
+    @Test
+    public void test0TimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testNegativeTimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testNonNumericTimeoutShouldReturnMaxInt() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
+        assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
+    }
+
+    @Test
+    public void testAssociatePublicIpSetting() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        assertEquals(true, st.getAssociatePublicIp());
+    }
+
+    @Test
+    public void testConnectUsingPublicIpSetting() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, false, null, true, "", false, true);
+        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
+    }
+
+    @Test
+    public void testConnectUsingPublicIpSettingWithDefaultSetting() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
+    }
+
+    @Test
+    public void testBackwardCompatibleUnixData() {
+        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", null, null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        assertFalse(st.isWindowsSlave());
+        assertEquals(22, st.getSshPort());
+        assertEquals("sudo", st.getRootCommandPrefix());
+    }
+
+    @Test
+    public void testChooseSpaceDelimitedSubnetId() throws Exception {
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+
+        String subnet1 = slaveTemplate.chooseSubnetId();
+        String subnet2 = slaveTemplate.chooseSubnetId();
+        String subnet3 = slaveTemplate.chooseSubnetId();
+
+        assertEquals(subnet1, "subnet-123");
+        assertEquals(subnet2, "subnet-456");
+        assertEquals(subnet3, "subnet-123");
+    }
+
+    @Test
+    public void testChooseCommaDelimitedSubnetId() throws Exception {
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123,subnet-456", null, null, true, null, "", false, false, "", false, "");
+
+        String subnet1 = slaveTemplate.chooseSubnetId();
+        String subnet2 = slaveTemplate.chooseSubnetId();
+        String subnet3 = slaveTemplate.chooseSubnetId();
+
+        assertEquals(subnet1, "subnet-123");
+        assertEquals(subnet2, "subnet-456");
+        assertEquals(subnet3, "subnet-123");
+    }
+
+    @Test
+    public void testChooseSemicolonDelimitedSubnetId() throws Exception {
+        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123;subnet-456", null, null, true, null, "", false, false, "", false, "");
+
+        String subnet1 = slaveTemplate.chooseSubnetId();
+        String subnet2 = slaveTemplate.chooseSubnetId();
+        String subnet3 = slaveTemplate.chooseSubnetId();
+
+        assertEquals(subnet1, "subnet-123");
+        assertEquals(subnet2, "subnet-456");
+        assertEquals(subnet3, "subnet-123");
+    }
+
+    @Issue("JENKINS-59460")
+    @Test
+    public void testConnectionStrategyDeprecatedFieldsAreExported() {
+        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
+
+        String exported = Jenkins.XSTREAM.toXML(template);
+        assertThat(exported, containsString("usePrivateDnsName"));
+        assertThat(exported, containsString("connectUsingPublicIp"));
     }
 }
 

@@ -12,7 +12,7 @@ public class WinRM {
     private final String username;
     private final String password;
     private int timeout = 60;
-    private boolean allowSelfSignedCertificate;
+    private final boolean allowSelfSignedCertificate;
 
     private boolean useHTTPS;
 

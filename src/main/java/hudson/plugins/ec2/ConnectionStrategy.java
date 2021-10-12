@@ -6,18 +6,14 @@ public enum ConnectionStrategy {
     PRIVATE_DNS("Private DNS"),
     PRIVATE_IP("Private IP");
 
-    private final String name;
+    private final String displayText;
 
-    ConnectionStrategy(String name) {
-        this.name = name;
+    ConnectionStrategy(String displayText) {
+        this.displayText = displayText;
     }
 
-    public boolean equalsName(String other) {
-        return this.name.equals(other);
-    }
-
-    public String toString() {
-        return this.name;
+    public String getDisplayText() {
+        return this.displayText;
     }
 
     /**

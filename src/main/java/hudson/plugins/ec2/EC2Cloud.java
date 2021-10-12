@@ -67,6 +67,7 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -198,7 +199,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
         if (sshKeysCredentialsId != null) {
-            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId);
+            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
@@ -362,6 +363,7 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Gets {@link SlaveTemplate} that has the matching {@link Label}.
      */
+    @Deprecated
     public SlaveTemplate getTemplate(Label label) {
         for (SlaveTemplate t : templates) {
             if (t.getMode() == Node.Mode.NORMAL) {
@@ -375,6 +377,25 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
         return null;
+    }
+
+    /**
+     * Gets list of {@link SlaveTemplate} that matches {@link Label}.
+     */
+    public Collection<SlaveTemplate> getTemplates(Label label) {
+        List<SlaveTemplate> matchingTemplates = new ArrayList<>();
+        for (SlaveTemplate t : templates) {
+            if (t.getMode() == Node.Mode.NORMAL) {
+                if (label == null || label.matches(t.getLabelSet())) {
+                    matchingTemplates.add(t);
+                }
+            } else if (t.getMode() == Node.Mode.EXCLUSIVE) {
+                if (label != null && label.matches(t.getLabelSet())) {
+                    matchingTemplates.add(t);
+                }
+            }
+        }
+        return matchingTemplates;
     }
 
     /**
@@ -455,10 +476,10 @@ public abstract class EC2Cloud extends Cloud {
 
         if (jenkinsServerUrl == null) {
             LOGGER.log(Level.WARNING, "No Jenkins server URL specified, it is strongly recommended to open /configure and set the server URL. " +
-                    "Not having has disabled the per-master instance cap counting (cf. https://github.com/jenkinsci/ec2-plugin/pull/310)");
+                    "Not having has disabled the per-controller instance cap counting (cf. https://github.com/jenkinsci/ec2-plugin/pull/310)");
         }
 
-        LOGGER.log(Level.FINE, "Counting current slaves: "
+        LOGGER.log(Level.FINE, "Counting current agents: "
             + (template != null ? (" AMI: " + template.getAmi() + " TemplateDesc: " + template.description) : " All AMIS")
             + " Jenkins Server: " + jenkinsServerUrl);
         int n = 0;
@@ -636,7 +657,7 @@ public abstract class EC2Cloud extends Cloud {
                     return true;
                 } else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
                         || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
-                    // To handle cases where description is null and also upgrade cases for existing slave nodes.
+                    // To handle cases where description is null and also upgrade cases for existing agent nodes.
                     return true;
                 } else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description))
                         || StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description))) {
@@ -650,7 +671,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Returns the maximum number of possible slaves that can be created.
+     * Returns the maximum number of possible agents that can be created.
      */
     private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null);
@@ -658,15 +679,15 @@ public abstract class EC2Cloud extends Cloud {
 
         int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
         int availableAmiSlaves = template.getInstanceCap() - estimatedAmiSlaves;
-        LOGGER.log(Level.FINE, "Available Total Slaves: " + availableTotalSlaves + " Available AMI slaves: " + availableAmiSlaves
+        LOGGER.log(Level.FINE, "Available Total Agents: " + availableTotalSlaves + " Available AMI agents: " + availableAmiSlaves
                 + " AMI: " + template.getAmi() + " TemplateDesc: " + template.description);
 
         return Math.min(availableAmiSlaves, availableTotalSlaves);
     }
 
     /**
-     * Obtains a slave whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
-     * forceCreateNew specifies that the creation of a new slave is required. Otherwise, an existing matching slave may be re-used
+     * Obtains a agent whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
+     * forceCreateNew specifies that the creation of a new agent is required. Otherwise, an existing matching agent may be re-used
      */
     private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
         try {
@@ -700,47 +721,48 @@ public abstract class EC2Cloud extends Cloud {
 
     @Override
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
-        final SlaveTemplate t = getTemplate(label);
+        final Collection<SlaveTemplate> matchingTemplates = getTemplates(label);
         List<PlannedNode> plannedNodes = new ArrayList<>();
 
         Jenkins jenkinsInstance = Jenkins.get();
         if (jenkinsInstance.isQuietingDown()) {
             LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is quieting down");
             return Collections.emptyList();
-        }
-        else if (jenkinsInstance.isTerminating()) {
+        } else if (jenkinsInstance.isTerminating()) {
             LOGGER.log(Level.FINE, "Not provisioning nodes, Jenkins instance is terminating");
             return Collections.emptyList();
         }
 
-        try {
-            LOGGER.log(Level.INFO, "{0}. Attempting to provision slave needed by excess workload of " + excessWorkload + " units", t);
-            int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
-            final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
+        for (SlaveTemplate t : matchingTemplates) {
+            try {
+                LOGGER.log(Level.INFO, "{0}. Attempting to provision agent needed by excess workload of " + excessWorkload + " units", t);
+                int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
+                final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
 
-            if (slaves == null || slaves.isEmpty()) {
-                LOGGER.warning("Can't raise nodes for " + t);
-                return Collections.emptyList();
-            }
-
-            for (final EC2AbstractSlave slave : slaves) {
-                if (slave == null) {
-                    LOGGER.warning("Can't raise node for " + t);
+                if (slaves == null || slaves.isEmpty()) {
+                    LOGGER.warning("Can't raise nodes for " + t);
                     continue;
                 }
 
-                plannedNodes.add(createPlannedNode(t, slave));
-                excessWorkload -= t.getNumExecutors();
-            }
+                for (final EC2AbstractSlave slave : slaves) {
+                    if (slave == null) {
+                        LOGGER.warning("Can't raise node for " + t);
+                        continue;
+                    }
 
-            LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
-            LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
-                    new Object[]{jenkinsInstance.getComputers().length, plannedNodes.size()});
-            return plannedNodes;
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-            return Collections.emptyList();
+                    plannedNodes.add(createPlannedNode(t, slave));
+                    excessWorkload -= t.getNumExecutors();
+                }
+
+                LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
+                if (excessWorkload == 0) break;
+            } catch (AmazonClientException e) {
+                LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+            }
         }
+        LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
+            new Object[]{jenkinsInstance.getComputers().length, plannedNodes.size()});
+        return plannedNodes;
     }
 
     private static void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t) throws IOException {
@@ -770,7 +792,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         try {
-            LOGGER.log(Level.INFO, "{0}. Attempting to provision {1} slave(s)", new Object[]{t, number});
+            LOGGER.log(Level.INFO, "{0}. Attempting to provision {1} agent(s)", new Object[]{t, number});
             final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
 
             if (slaves == null || slaves.isEmpty()) {
@@ -789,7 +811,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Helper method to reattach lost EC2 node slaves @Issue("JENKINS-57795")
+     * Helper method to reattach lost EC2 node agents @Issue("JENKINS-57795")
      *
      * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
      * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
@@ -877,7 +899,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @Override
     public boolean canProvision(Label label) {
-        return getTemplate(label) != null;
+        return !getTemplates(label).isEmpty();
     }
 
     protected AWSCredentialsProvider createCredentialsProvider() {
@@ -1034,17 +1056,17 @@ public abstract class EC2Cloud extends Cloud {
             throw FormValidation.error("Endpoint URL is not a valid URL");
         }
     }
-
+    
     @CheckForNull
-    private static SSHUserPrivateKey getSshCredential(String id){
+    private static SSHUserPrivateKey getSshCredential(String id, ItemGroup context){
 
         SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(
-                        SSHUserPrivateKey.class, // (1)
-                        (ItemGroup) null,
-                        null,
-                        Collections.emptyList()),
-                CredentialsMatchers.withId(id));
+            CredentialsProvider.lookupCredentials(
+                SSHUserPrivateKey.class, // (1)
+                context,
+                null,
+                Collections.emptyList()),
+            CredentialsMatchers.withId(id));
 
         if (credential == null){
             LOGGER.log(Level.WARNING, "EC2 Plugin could not find the specified credentials ({0}) in the Jenkins Global Credentials Store, EC2 Plugin for cloud must be manually reconfigured", new String[]{id});
@@ -1071,26 +1093,26 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillSshKeysCredentialsIdItems(@QueryParameter String sshKeysCredentialsId) {
+        public ListBoxModel doFillSshKeysCredentialsIdItems(@AncestorInPath ItemGroup context, @QueryParameter String sshKeysCredentialsId) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             StandardListBoxModel result = new StandardListBoxModel();
 
             return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), Jenkins.get(), SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, Jenkins.get(), SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                    .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                     .includeCurrentValue(sshKeysCredentialsId);
         }
 
         @RequirePOST
-        public FormValidation doCheckSshKeysCredentialsId(@QueryParameter String value) throws IOException, ServletException {
+        public FormValidation doCheckSshKeysCredentialsId(@AncestorInPath ItemGroup context, @QueryParameter String value) throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             if (value == null || value.isEmpty()){
                 return FormValidation.error("No ssh credentials selected");
             }
 
-            SSHUserPrivateKey sshCredential = getSshCredential(value);
+            SSHUserPrivateKey sshCredential = getSshCredential(value, context);
             String privateKey = "";
             if (sshCredential != null) {
                 privateKey = sshCredential.getPrivateKey();
@@ -1102,9 +1124,11 @@ public abstract class EC2Cloud extends Cloud {
             BufferedReader br = new BufferedReader(new StringReader(privateKey));
             String line;
             while ((line = br.readLine()) != null) {
-                if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
+                if (line.equals("-----BEGIN RSA PRIVATE KEY-----") ||
+                        line.equals("-----BEGIN OPENSSH PRIVATE KEY-----"))
                     hasStart = true;
-                if (line.equals("-----END RSA PRIVATE KEY-----"))
+                if (line.equals("-----END RSA PRIVATE KEY-----") ||
+                        line.equals("-----END OPENSSH PRIVATE KEY-----"))
                     hasEnd = true;
             }
             if (!hasStart)
@@ -1130,12 +1154,12 @@ public abstract class EC2Cloud extends Cloud {
          * @throws IOException
          * @throws ServletException
          */
-        protected FormValidation doTestConnection(URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
+        protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
 
-                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId);
+                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                 String privateKey = "";
                 if (sshCredential != null) {
                     privateKey = sshCredential.getPrivateKey();
@@ -1164,16 +1188,11 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         @RequirePOST
-        public ListBoxModel doFillCredentialsIdItems() {
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             return new StandardListBoxModel()
-                    .withEmptySelection()
-                    .withMatching(
-                            CredentialsMatchers.always(),
-                            CredentialsProvider.lookupCredentials(AmazonWebServicesCredentials.class,
-                                    Jenkins.get(),
-                                    ACL.SYSTEM,
-                                    Collections.emptyList()));
+                    .includeEmptyValue()
+                    .includeMatchingAs(ACL.SYSTEM, context, AmazonWebServicesCredentials.class, Collections.emptyList(), CredentialsMatchers.always());
         }
     }
 

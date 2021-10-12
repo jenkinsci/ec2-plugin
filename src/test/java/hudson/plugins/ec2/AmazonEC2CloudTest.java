@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -79,7 +80,6 @@ public class AmazonEC2CloudTest {
 
     @Test
     public void testAmazonEC2FactoryGetInstance() throws Exception {
-        r.configRoundtrip();
         AmazonEC2Cloud cloud = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2 connection = cloud.connect();
         Assert.assertNotNull(connection);
@@ -99,11 +99,29 @@ public class AmazonEC2CloudTest {
     }
 
     @Test
+    public void testAWSCredentials() throws IOException {
+        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertNotNull(descriptor);
+        ListBoxModel m = descriptor.doFillCredentialsIdItems(Jenkins.get());
+        assertThat(m.size(), is(1));
+        SystemCredentialsProvider.getInstance().getCredentials().add(
+            new AWSCredentialsImpl(CredentialsScope.SYSTEM, "system_id","system_ak", "system_sk", "system_desc"));
+        //Ensure added credential is displayed
+        m = descriptor.doFillCredentialsIdItems(Jenkins.get());
+        assertThat(m.size(), is(2));
+        SystemCredentialsProvider.getInstance().getCredentials().add(
+            new AWSCredentialsImpl(CredentialsScope.GLOBAL, "global_id","global_ak", "global_sk", "global_desc"));
+        m = descriptor.doFillCredentialsIdItems(Jenkins.get());
+        assertThat(m.size(), is(3));
+    }
+
+    @Test
     public void testSshCredentials() throws IOException {
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);
-        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems("");
+        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(1));
         BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "ghi", "key",
                 new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"), "", "");
@@ -113,7 +131,7 @@ public class AmazonEC2CloudTest {
             }
         }
         //Ensure added credential is displayed
-        m = descriptor.doFillSshKeysCredentialsIdItems("");
+        m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(2));
         //Ensure that the cloud can resolve the new key
         assertThat(actual.resolvePrivateKey(), notNullValue());
@@ -128,7 +146,7 @@ public class AmazonEC2CloudTest {
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);
-        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems("");
+        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(1));
         SSHUserPrivateKey sshKeyCredentials = new TestSSHUserPrivateKey(CredentialsScope.SYSTEM, "ghi", "key",
                 new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"), "", "");
@@ -138,18 +156,14 @@ public class AmazonEC2CloudTest {
             }
         }
         //Ensure added credential is displayed
-        m = descriptor.doFillSshKeysCredentialsIdItems("");
+        m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(2));
         //Ensure that the cloud can resolve the new key
         assertThat(actual.resolvePrivateKey(), notNullValue());
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        if (Jenkins.getVersion().isNewerThanOrEqualTo(new VersionNumber("2.205"))) {
-            return r.createWebClient().goTo("configureClouds").getFormByName("config");
-        } else {
-            return r.createWebClient().goTo("configure").getFormByName("config");
-        }
+        return r.createWebClient().goTo("configureClouds").getFormByName("config");
     }
 
 }
