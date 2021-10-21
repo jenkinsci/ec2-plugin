@@ -243,9 +243,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + workDir + suffix;
            // launchString = launchString.trim();
 
-            SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-
-            if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
+            if (template.isConnectBySSHProcess()) {
                 File identityKeyFile = createIdentityKeyFile(computer);
                 String ec2HostAddress = getEC2HostAddress(computer, template);
                 File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);
@@ -257,7 +255,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 try {
                     // Obviously the controller must have an installed ssh client.
                     // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), userKnownHostsFileFlag, getEC2HostKeyAlgorithmFlag(computer), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s", template.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), userKnownHostsFileFlag, getEC2HostKeyAlgorithmFlag(computer), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -285,7 +283,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             successful = true;
         } finally {
-            if (cleanupConn != null && !successful)
+            if (cleanupConn != null && (!successful || template.isConnectBySSHProcess()))
                 cleanupConn.close();
         }
     }
