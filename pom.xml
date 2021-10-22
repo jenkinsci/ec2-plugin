@@ -217,13 +217,17 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.16.0</version>
+            <version>1.16.1</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
                     <!-- Use common-compress from core -->
                     <groupId>org.apache.commons</groupId>
                     <artifactId>commons-compress</artifactId>
+                </exclusion>
+                <exclusion>
+                  <groupId>org.slf4j</groupId>
+                  <artifactId>slf4j-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
