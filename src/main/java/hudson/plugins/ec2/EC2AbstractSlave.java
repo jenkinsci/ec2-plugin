@@ -411,7 +411,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return 240;
         case M5a24xlarge:
             return 240;
-        case dl124xlarge:
+        case Dl124xlarge:
             return 250;
          case Mac1Metal:
             return 1;
