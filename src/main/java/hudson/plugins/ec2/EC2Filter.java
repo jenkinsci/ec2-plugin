@@ -34,13 +34,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import com.amazonaws.services.ec2.model.Filter;
 
 public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
-    @Nonnull
+    @NonNull
     private final String name;
 
     /* FIXME: Ideally this would be List<String>, but Jenkins currently
@@ -49,11 +49,11 @@ public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
      *
      * https://issues.jenkins.io/browse/JENKINS-27901
      */
-    @Nonnull
+    @NonNull
     private final String values;
 
     @DataBoundConstructor
-    public EC2Filter(@Nonnull String name, @Nonnull String values) {
+    public EC2Filter(@NonNull String name, @NonNull String values) {
         this.name = Objects.requireNonNull(name);
         this.values = Objects.requireNonNull(values);
     }
@@ -79,30 +79,30 @@ public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
         return Objects.hash(name, values);
     }
 
-    @Nonnull
+    @NonNull
     public String getName() {
         return name;
     }
 
-    @Nonnull
+    @NonNull
     public String getValues() {
         return values;
     }
 
-    @Nonnull
+    @NonNull
     private List<String> getValuesList() {
         return Stream.of(Util.tokenize(values))
             .collect(Collectors.toList());
     }
 
     /* Helper method to convert EC2Filter to Filter */
-    @Nonnull
+    @NonNull
     public Filter toFilter() {
         return new Filter(name, getValuesList());
     }
 
     /* Helper method to convert list of EC2Filter to list of Filter */
-    @Nonnull
+    @NonNull
     public static List<Filter> toFilterList(@CheckForNull List<EC2Filter> filters) {
         return Util.fixNull(filters).stream()
             .map(EC2Filter::toFilter)
