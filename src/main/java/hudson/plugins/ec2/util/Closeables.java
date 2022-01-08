@@ -1,6 +1,6 @@
 package hudson.plugins.ec2.util;
 
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.logging.Level;

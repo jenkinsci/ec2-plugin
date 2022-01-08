@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import hudson.slaves.OfflineCause;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
@@ -119,7 +119,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
         }
     }
 
-    @Nonnull
+    @NonNull
     private WinConnection connectToWinRM(EC2Computer computer, EC2AbstractSlave node, SlaveTemplate template, PrintStream logger) throws AmazonClientException,
             InterruptedException {
         final long minTimeout = 3000;

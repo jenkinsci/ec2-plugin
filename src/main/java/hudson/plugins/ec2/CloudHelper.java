@@ -13,7 +13,7 @@ import com.amazonaws.services.ec2.model.Reservation;
 import java.util.ArrayList;
 import org.apache.commons.lang.StringUtils;
 
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
