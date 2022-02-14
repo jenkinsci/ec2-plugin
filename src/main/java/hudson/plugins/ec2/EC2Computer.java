@@ -23,19 +23,19 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
+import java.util.Collections;
 
 
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
-import com.amazonaws.services.ec2.model.Instance;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -45,6 +45,8 @@ public class EC2Computer extends SlaveComputer {
      * Cached description of this EC2 instance. Lazily fetched.
      */
     private volatile Instance ec2InstanceDescription;
+
+    private volatile Boolean isNitro;
 
     public EC2Computer(EC2AbstractSlave slave) {
         super(slave);
@@ -92,9 +94,11 @@ public class EC2Computer extends SlaveComputer {
      * Gets the EC2 console output.
      */
     public String getConsoleOutput() throws AmazonClientException {
-        AmazonEC2 ec2 = getCloud().connect();
-        GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
-        return ec2.getConsoleOutput(request).getOutput();
+        try {
+            return getDecodedConsoleOutputResponse().getOutput();
+        } catch (InterruptedException e) {
+            return null;
+        }
     }
 
     /**
@@ -102,9 +106,41 @@ public class EC2Computer extends SlaveComputer {
      * @since TODO
      */
     public String getDecodedConsoleOutput() throws AmazonClientException {
+        try {
+            return getDecodedConsoleOutputResponse().getDecodedOutput();
+        } catch (InterruptedException e) {
+            return null;
+        }
+    }
+
+    private GetConsoleOutputResult getDecodedConsoleOutputResponse() throws AmazonClientException, InterruptedException {
         AmazonEC2 ec2 = getCloud().connect();
         GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
-        return ec2.getConsoleOutput(request).getDecodedOutput();
+        if (checkIfNitro()) {
+            //Can only be used if instance has hypervisor Nitro
+            request.setLatest(true);
+        }
+        return ec2.getConsoleOutput(request);
+    }
+
+    /**
+     * Check if instance has hypervisor Nitro
+     */
+    private boolean checkIfNitro() throws AmazonClientException, InterruptedException {
+        if (isNitro == null) {
+            DescribeInstanceTypesRequest request = new DescribeInstanceTypesRequest();
+            request.setInstanceTypes(Collections.singletonList(describeInstance().getInstanceType()));
+            AmazonEC2 ec2 = getCloud().connect();
+            DescribeInstanceTypesResult result = ec2.describeInstanceTypes(request);
+            if (result.getInstanceTypes().size() == 1) {
+                String hypervisor = result.getInstanceTypes().get(0).getHypervisor();
+                isNitro = hypervisor.equals("nitro");
+            } else {
+                isNitro = false;
+            }
+
+        }
+        return isNitro;
     }
 
     /**
