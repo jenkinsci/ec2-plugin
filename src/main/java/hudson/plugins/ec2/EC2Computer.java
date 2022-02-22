@@ -30,6 +30,8 @@ import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 import org.kohsuke.stapler.HttpRedirect;
@@ -41,6 +43,9 @@ import com.amazonaws.services.ec2.AmazonEC2;
  * @author Kohsuke Kawaguchi
  */
 public class EC2Computer extends SlaveComputer {
+
+    private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
+
     /**
      * Cached description of this EC2 instance. Lazily fetched.
      */
@@ -127,20 +132,26 @@ public class EC2Computer extends SlaveComputer {
      * Check if instance has hypervisor Nitro
      */
     private boolean checkIfNitro() throws AmazonClientException, InterruptedException {
-        if (isNitro == null) {
-            DescribeInstanceTypesRequest request = new DescribeInstanceTypesRequest();
-            request.setInstanceTypes(Collections.singletonList(describeInstance().getInstanceType()));
-            AmazonEC2 ec2 = getCloud().connect();
-            DescribeInstanceTypesResult result = ec2.describeInstanceTypes(request);
-            if (result.getInstanceTypes().size() == 1) {
-                String hypervisor = result.getInstanceTypes().get(0).getHypervisor();
-                isNitro = hypervisor.equals("nitro");
-            } else {
-                isNitro = false;
-            }
+        try {
+            if (isNitro == null) {
+                DescribeInstanceTypesRequest request = new DescribeInstanceTypesRequest();
+                request.setInstanceTypes(Collections.singletonList(describeInstance().getInstanceType()));
+                AmazonEC2 ec2 = getCloud().connect();
+                DescribeInstanceTypesResult result = ec2.describeInstanceTypes(request);
+                if (result.getInstanceTypes().size() == 1) {
+                    String hypervisor = result.getInstanceTypes().get(0).getHypervisor();
+                    isNitro = hypervisor.equals("nitro");
+                } else {
+                    isNitro = false;
+                }
 
+            }
+            return isNitro;
+        } catch (AmazonClientException e) {
+            LOGGER.log(Level.WARNING, "Could not describe-instance-types to check if instance is nitro based", e);
+            isNitro = false;
+            return isNitro;
         }
-        return isNitro;
     }
 
     /**
