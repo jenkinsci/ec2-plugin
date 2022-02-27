@@ -250,6 +250,7 @@ your user is not called ***jenkins***):
                 "ec2:CreateTags",
                 "ec2:DeleteTags",
                 "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypes",
                 "ec2:DescribeKeyPairs",
                 "ec2:DescribeRegions",
                 "ec2:DescribeImages",
