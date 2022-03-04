@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" >
-  <table width="100%">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:ec="/lib/ec2">
+  <ec:blockWrapper>
 
   <f:entry title="${%Description}" field="description">
     <f:textbox />
@@ -33,13 +33,43 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami" />
+  <!-- FIXME: Ideally this would include owners and filters, but
+       validateButton only marshals simple types and can't handle the
+       filters repeatableProperty.
+  -->
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami,roleArn,roleSessionName" />
+
+  <f:entry title="${%AMI Owners}" field="amiOwners">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI Users}" field="amiUsers">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI Filters}" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/amiFilters">
+    <f:repeatableProperty field="amiFilters">
+      <f:block>
+        <div align="right">
+          <f:repeatableDeleteButton />
+        </div>
+      </f:block>
+    </f:repeatableProperty>
+  </f:entry>
 
   <f:entry title="${%Instance Type}" field="type">
     <f:enum>${it.name()}</f:enum>
   </f:entry>
 
   <f:entry title="${%EBS Optimized}" field="ebsOptimized">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%Monitoring}" field="monitoring">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%T2 Unlimited}" field="t2Unlimited">
     <f:checkbox />
   </f:entry>
 
@@ -50,13 +80,7 @@ THE SOFTWARE.
     <f:textbox/>
   </f:entry>
 
-  <f:optionalBlock name="spotConfig" title="Use Spot Instance" checked="${instance.spotConfig != null}">
-    <f:validateButton title="${%Check Current Spot Price}" progress="${%Checking...}" method="currentSpotPrice" with="useInstanceProfileForCredentials,credentialsId,region,type,zone" />
-
-    <f:entry title="${%Spot Max Bid Price}" field="spotMaxBidPrice">
-      <f:textbox />
-    </f:entry>
-  </f:optionalBlock>
+  <f:optionalProperty title="${%Spot configuration}" field="spotConfig"/>
 
   <f:entry title="${%Security group names}" field="securityGroups">
     <f:textbox/>
@@ -70,7 +94,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
- <f:dropdownDescriptorSelector title="${%AMI Type}" field="amiType" descriptors="${descriptor.getAMITypeDescriptors()}" />
+  <f:dropdownDescriptorSelector title="${%AMI Type}" field="amiType" descriptors="${descriptor.getAMITypeDescriptors()}" />
 
   <f:entry title="${%Labels}" field="labelString">
     <f:textbox />
@@ -108,12 +132,8 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
-    <f:entry title="${%Subnet ID for VPC}" field="subnetId">
+    <f:entry title="${%Subnet IDs for VPC}" field="subnetId">
        <f:textbox />
-    </f:entry>
-
-    <f:entry title="${%Use dedicated tenancy}" field="useDedicatedTenancy">
-      <f:checkbox />
     </f:entry>
 
     <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
@@ -122,9 +142,32 @@ THE SOFTWARE.
        </f:repeatable>
     </f:entry>
 
-    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
-      <f:checkbox />
+    <f:entry title="${%Minimum number of instances}" field="minimumNumberOfInstances">
+      <f:textbox />
     </f:entry>
+
+    <f:entry title="${%Minimum number of spare instances}" field="minimumNumberOfSpareInstances">
+      <f:textbox />
+    </f:entry>
+
+    <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
+                     title="${%Only apply minimum number of instances during specific time range}" checked="${instance.minimumNumberOfInstancesTimeRangeConfig != null}"
+        help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >
+      <f:entry title="${%From/to}" description="${%''13:00'' or ''1:00 PM'' format supported}">
+        From: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeFrom" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeFrom}" />
+        To: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeTo" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeTo}" />
+      </f:entry>
+      <f:entry title="${%On days}">
+          <f:checkbox field="monday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.monday}" title="${%Monday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="tuesday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.tuesday}" title="${%Tuesday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="wednesday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.wednesday}" title="${%Wednesday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="thursday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.thursday}" title="${%Thursday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="friday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.friday}" title="${%Friday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="saturday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.saturday}" title="${%Saturday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="sunday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.sunday}" title="${%Sunday}"/><st:nbsp/><st:nbsp/>
+      </f:entry>
+    </f:optionalBlock>
+    <f:entry />
 
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
@@ -142,6 +185,10 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
+    <f:entry title="${%Encrypt EBS root volume}" field="ebsEncryptRootVolume">
+      <f:select default="${descriptor.getDefaultEbsEncryptRootVolume()}"/>
+    </f:entry>
+
     <f:entry title="${%Block device mapping}" field="customDeviceMapping">
       <f:textbox />
     </f:entry>
@@ -154,14 +201,37 @@ THE SOFTWARE.
       <f:checkbox />
     </f:entry>
 
-    <f:entry title="${%Connect using Public IP}" field="connectUsingPublicIp">
-      <f:checkbox />
+    <f:entry title="${%Tenancy}" field="tenancy">
+        <f:enum>${it.name()}</f:enum>
+    </f:entry>
+
+    <f:entry title="${%Connection Strategy}" field="connectionStrategy">
+      <f:select default="${descriptor.getDefaultConnectionStrategy()}"/>
     </f:entry>
 
     <f:entry title="${%Connect by SSH Process}" field="connectBySSHProcess">
       <f:checkbox />
     </f:entry>
 
+      <f:entry title="${%Host Key Verification Strategy}" field="hostKeyVerificationStrategy">
+          <f:select default="${descriptor.defaultHostKeyVerificationStrategy}"/>
+      </f:entry>
+
+    <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">
+      <f:textbox default="-1"/>
+    </f:entry>
+
+    <f:descriptorList title="${%Node Properties}" field="nodeProperties" descriptors="${descriptor.nodePropertyDescriptors}" />
+
+    <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" >
+      <f:checkbox default="true"/>
+    </f:entry>
+    <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired">
+      <f:checkbox default="false"/>
+    </f:entry>
+    <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit">
+      <f:number default="1" max="64" min="1" />
+    </f:entry>
   </f:advanced>
 
   <f:entry title="">
@@ -170,5 +240,5 @@ THE SOFTWARE.
     </div>
   </f:entry>
 
-</table>
+</ec:blockWrapper>
 </j:jelly>

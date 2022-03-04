@@ -29,16 +29,20 @@ import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.model.Slave;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.ResettableCountDownLatch;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -57,22 +61,25 @@ import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DeleteTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
 import com.amazonaws.services.ec2.model.InstanceStateName;
 import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 /**
- * Slave running on EC2.
+ * Agent running on EC2.
  *
  * @author Kohsuke Kawaguchi
  */
 @SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
+    public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
+    public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.FALSE;
+    public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
+
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
     protected String instanceId;
@@ -89,50 +96,74 @@ public abstract class EC2AbstractSlave extends Slave {
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
-    public final boolean usePrivateDnsName;
-    public final boolean useDedicatedTenancy;
+
+    @Deprecated
+    public transient boolean useDedicatedTenancy;
+
     public boolean isConnected = false;
     public List<EC2Tag> tags;
     public final String cloudName;
     public AMITypeData amiType;
+    public int maxTotalUses;
+    public final Tenancy tenancy;
+    private String instanceType;
+
+    private Boolean metadataEndpointEnabled;
+    private Boolean metadataTokensRequired;
+    private Integer metadataHopsLimit;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
     public transient String privateDNS;
 
-    /* The last instance data to be fetched for the slave */
+    /* The last instance data to be fetched for the agent */
     protected transient Instance lastFetchInstance = null;
 
     /* The time at which we fetched the last instance data */
     protected transient long lastFetchTime;
 
+    /** Terminate was scheduled */
+    protected transient ResettableCountDownLatch terminateScheduled = new ResettableCountDownLatch(1, false);
+
     /*
      * The time (in milliseconds) after which we will always re-fetch externally changeable EC2 data when we are asked
      * for it
      */
-    protected static final long MIN_FETCH_TIME = 20 * 1000;
+    protected static final long MIN_FETCH_TIME = Long.getLong("hudson.plugins.ec2.EC2AbstractSlave.MIN_FETCH_TIME",
+            TimeUnit.SECONDS.toMillis(20));
 
     protected final int launchTimeout;
 
     // Deprecated by the AMITypeData data structure
     @Deprecated
     protected transient int sshPort;
+
     @Deprecated
     public transient String rootCommandPrefix; // e.g. 'sudo'
 
+    @Deprecated
+    public transient boolean usePrivateDnsName;
+
     public transient String slaveCommandPrefix;
+
+    public transient String slaveCommandSuffix;
 
     private transient long createdTime;
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String description, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
+                            Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
-
-        super(name, "", remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, nodeProperties);
+        super(name, remoteFS, launcher);
+        setNumExecutors(numExecutors);
+        setMode(mode);
+        setLabelString(labelString);
+        setRetentionStrategy(retentionStrategy);
+        setNodeProperties(nodeProperties);
 
         this.instanceId = instanceId;
-        this.templateDescription = description;
+        this.templateDescription = templateDescription;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
         this.remoteAdmin = remoteAdmin;
@@ -140,12 +171,37 @@ public abstract class EC2AbstractSlave extends Slave {
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
         this.tags = tags;
-        this.usePrivateDnsName = usePrivateDnsName;
-        this.useDedicatedTenancy = useDedicatedTenancy;
+        this.usePrivateDnsName = connectionStrategy == ConnectionStrategy.PRIVATE_DNS;
+        this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.cloudName = cloudName;
         this.launchTimeout = launchTimeout;
         this.amiType = amiType;
+        this.maxTotalUses = maxTotalUses;
+        this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
+        this.metadataEndpointEnabled = metadataEndpointEnabled;
+        this.metadataTokensRequired = metadataTokensRequired;
+        this.metadataHopsLimit = metadataHopsLimit;
         readResolve();
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
+            throws FormException, IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+            throws FormException, IOException {
+
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
+            throws FormException, IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @Override
@@ -160,14 +216,36 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, Integer.toString(sshPort), null);
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, Integer.toString(sshPort), null);
+        }
+
+        if (maxTotalUses == 0) {
+            EC2Cloud cloud = getCloud();
+            if (cloud != null) {
+                SlaveTemplate template = cloud.getTemplate(templateDescription);
+                if (template != null) {
+                    if (template.getMaxTotalUses() == -1) {
+                        maxTotalUses = -1;
+                    }
+                }
+            }
+        }
+
+        /*
+         * If this field is null (as it would be if this object is deserialized and not constructed normally) then
+         * we need to explicitly initialize it, otherwise we will cause major blocker issues such as this one which
+         * made Jenkins entirely unusable for some in the 1.50 release:
+         * https://issues.jenkins-ci.org/browse/JENKINS-62043
+         */
+        if (terminateScheduled == null) {
+            terminateScheduled = new ResettableCountDownLatch(1, false);
         }
 
         return this;
     }
 
     public EC2Cloud getCloud() {
-        return (EC2Cloud) Jenkins.getInstance().getCloud(cloudName);
+        return (EC2Cloud) Jenkins.get().getCloud(cloudName);
     }
 
     /**
@@ -183,12 +261,44 @@ public abstract class EC2AbstractSlave extends Slave {
             return 2;
         case M3Medium:
             return 2;
+        case T3Nano:
+            return 2;
+        case T3aNano:
+            return 2;
+        case T3Micro:
+            return 2;
+        case T3aMicro:
+            return 2;
+        case T3Small:
+            return 2;
+        case T3aSmall:
+            return 2;
+        case T3Medium:
+            return 2;
+        case T3aMedium:
+            return 2;
+        case A1Large:
+            return 2;
+        case T3Large:
+            return 3;
+        case T3aLarge:
+            return 3;
         case M1Large:
             return 4;
         case M3Large:
             return 4;
         case M4Large:
             return 4;
+        case M5Large:
+            return 4;
+        case M5aLarge:
+            return 4;
+        case T3Xlarge:
+            return 5;
+        case T3aXlarge:
+            return 5;
+        case A1Xlarge:
+            return 5;
         case C1Medium:
             return 5;
         case M2Xlarge:
@@ -203,12 +313,24 @@ public abstract class EC2AbstractSlave extends Slave {
             return 7;
         case M1Xlarge:
             return 8;
+        case T32xlarge:
+            return 10;
+        case T3a2xlarge:
+            return 10;
+        case A12xlarge:
+            return 10;
         case M22xlarge:
             return 13;
         case M3Xlarge:
             return 13;
         case M4Xlarge:
             return 13;
+        case M5Xlarge:
+            return 13;
+        case M5aXlarge:
+            return 13;
+        case A14xlarge:
+            return 14;
         case C3Xlarge:
             return 14;
         case C4Xlarge:
@@ -224,6 +346,10 @@ public abstract class EC2AbstractSlave extends Slave {
         case M32xlarge:
             return 26;
         case M42xlarge:
+            return 26;
+        case M52xlarge:
+            return 26;
+        case M5a2xlarge:
             return 26;
         case G22xlarge:
             return 26;
@@ -253,6 +379,10 @@ public abstract class EC2AbstractSlave extends Slave {
             return 55;
         case M44xlarge:
             return 55;
+        case M54xlarge:
+            return 55;
+        case M5a4xlarge:
+            return 55;
         case Cc28xlarge:
             return 88;
         case Cr18xlarge:
@@ -267,11 +397,24 @@ public abstract class EC2AbstractSlave extends Slave {
             return 108;
         case M410xlarge:
             return 120;
-            // TODO: M416xlarge
+        case M512xlarge:
+            return 120;
+        case M5a12xlarge:
+            return 120;
+        case M416xlarge:
+            return 160;
         case C518xlarge:
             return 216;
         case C5d18xlarge:
             return 216;
+        case M524xlarge:
+            return 240;
+        case M5a24xlarge:
+            return 240;
+        case Dl124xlarge:
+            return 250;
+         case Mac1Metal:
+            return 1;
             // We don't have a suggestion, but we don't want to fail completely
             // surely?
         default:
@@ -291,28 +434,23 @@ public abstract class EC2AbstractSlave extends Slave {
         return new EC2Computer(this);
     }
 
+    /**
+     * Returns view of AWS EC2 Instance.
+     *
+     * @param instanceId instance id.
+     * @param cloud cloud provider (EC2Cloud compatible).
+     * @return instance in EC2.
+     */
     public static Instance getInstance(String instanceId, EC2Cloud cloud) {
-        if (instanceId == null || instanceId == "" || cloud == null)
-            return null;
-
         Instance i = null;
         try {
-            DescribeInstancesRequest request = new DescribeInstancesRequest();
-            request.setInstanceIds(Collections.<String> singletonList(instanceId));
-            AmazonEC2 ec2 = cloud.connect();
-            List<Reservation> reservations = ec2.describeInstances(request).getReservations();
-            if (!reservations.isEmpty()) {
-                List<Instance> instances = reservations.get(0).getInstances();
-                if (!instances.isEmpty()) {
-                    i = instances.get(0);
-                }
-            }
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to fetch EC2 instance: " + instanceId, e);
+            i = CloudHelper.getInstanceWithRetry(instanceId, cloud);
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + instanceId + " Exception: " + e);
         }
         return i;
     }
-
     /**
      * Terminates the instance in EC2.
      */
@@ -325,12 +463,14 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
             LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
-            toComputer().disconnect(null);
+            Computer computer = toComputer();
+            if (computer != null) {
+                computer.disconnect(null);
+            }
         } catch (AmazonClientException e) {
-            Instance i = getInstance(getInstanceId(), getCloud());
-            LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId() + " info: "
-                    + ((i != null) ? i : ""), e);
+            LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
         }
+
     }
 
     boolean terminateInstance() {
@@ -355,12 +495,20 @@ public abstract class EC2AbstractSlave extends Slave {
 
         EC2AbstractSlave result = (EC2AbstractSlave) super.reconfigure(req, form);
 
-        /* Get rid of the old tags, as represented by ourselves. */
-        clearLiveInstancedata();
+        if (result != null) {
+            /* Get rid of the old tags, as represented by ourselves. */
+            clearLiveInstancedata();
 
-        /* Set the new tags, as represented by our successor */
-        result.pushLiveInstancedata();
-        return result;
+            /* Set the new tags, as represented by our successor */
+            result.pushLiveInstancedata();
+            return result;
+        }
+        return null;
+    }
+
+    @Override
+    public boolean isAcceptingTasks() {
+        return terminateScheduled.getCount() == 0;
     }
 
     void idleTimeout() {
@@ -372,29 +520,41 @@ public abstract class EC2AbstractSlave extends Slave {
         }
     }
 
+    void launchTimeout(){
+        LOGGER.info("EC2 instance failed to launch: " + getInstanceId());
+        terminate();
+    }
+
     public long getLaunchTimeoutInMillis() {
         // this should be fine as long as launchTimeout remains an int type
         return launchTimeout * 1000L;
     }
 
-    String getRemoteAdmin() {
+    public String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.length() == 0)
             return amiType.isWindows() ? "Administrator" : "root";
         return remoteAdmin;
     }
 
     String getRootCommandPrefix() {
-        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : "";
+        String commandPrefix = (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
     }
 
     String getSlaveCommandPrefix() {
-        String commandPrefix = amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : "";
+        String commandPrefix = (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() :(amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
         if (commandPrefix == null || commandPrefix.length() == 0)
             return "";
         return commandPrefix + " ";
+    }
+
+    String getSlaveCommandSuffix() {
+        String commandSuffix = (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() :(amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
+        if (commandSuffix == null || commandSuffix.length() == 0)
+            return "";
+        return " " + commandSuffix;
     }
 
     String getJvmopts() {
@@ -402,7 +562,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getSshPort() {
-        String sshPort = amiType.isUnix() ? ((UnixData) amiType).getSshPort() : "22";
+        String sshPort = (amiType.isUnix() ? ((UnixData) amiType).getSshPort() :(amiType.isMac() ? ((MacData) amiType).getSshPort() : "22"));
         if (sshPort == null || sshPort.length() == 0)
             return 22;
 
@@ -419,7 +579,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     /**
-     * Called when the slave is connected to Jenkins
+     * Called when the agent is connected to Jenkins
      */
     public void onConnected() {
         isConnected = true;
@@ -438,7 +598,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to time to ensure we
      * reflect the reality of the instances.
      */
-    protected void fetchLiveInstanceData(boolean force) throws AmazonClientException {
+    private void fetchLiveInstanceData(boolean force) throws AmazonClientException {
         /*
          * If we've grabbed the data recently, don't bother getting it again unless we are forced
          */
@@ -447,7 +607,7 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        if (getInstanceId() == null || getInstanceId() == "") {
+        if (getInstanceId() == null || getInstanceId().isEmpty()) {
             /*
              * The getInstanceId() implementation on EC2SpotSlave can return null if the spot request doesn't yet know
              * the instance id that it is starting. What happens is that null is passed to getInstanceId() which
@@ -458,7 +618,16 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        Instance i = getInstance(getInstanceId(), getCloud());
+        Instance i = null;
+        try {
+            i = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+            return;
+        }
+
 
         lastFetchTime = now;
         lastFetchInstance = i;
@@ -468,10 +637,17 @@ public abstract class EC2AbstractSlave extends Slave {
         publicDNS = i.getPublicDnsName();
         privateDNS = i.getPrivateIpAddress();
         createdTime = i.getLaunchTime().getTime();
-        tags = new LinkedList<EC2Tag>();
+        instanceType = i.getInstanceType();
 
-        for (Tag t : i.getTags()) {
-            tags.add(new EC2Tag(t.getKey(), t.getValue()));
+        /*
+         * Only fetch tags from live instance if tags are set. This check is required to mitigate a race condition
+         * when fetchLiveInstanceData() is called before pushLiveInstancedata().
+         */
+        if(!i.getTags().isEmpty()) {
+            tags = new LinkedList<EC2Tag>();
+            for (Tag t : i.getTags()) {
+                tags.add(new EC2Tag(t.getKey(), t.getValue()));
+            }
         }
     }
 
@@ -479,7 +655,16 @@ public abstract class EC2AbstractSlave extends Slave {
      * Clears all existing tag data so that we can force the instance into a known state
      */
     protected void clearLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId(), getCloud());
+        Instance inst = null;
+        try {
+            inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+            return;
+        }
+
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
@@ -489,17 +674,27 @@ public abstract class EC2AbstractSlave extends Slave {
                 instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
+            List<String> resources = getResourcesToTag(inst);
             DeleteTagsRequest tagRequest = new DeleteTagsRequest();
-            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            tagRequest.withResources(resources).setTags(instTags);
             getCloud().connect().deleteTags(tagRequest);
         }
     }
 
     /*
-     * Sets tags on an instance. This will not clear existing tag data, so call clearLiveInstancedata if needed
+     * Sets tags on an instance and on the volumes attached to it. This will not clear existing tag data, so call
+     * clearLiveInstancedata if needed
      */
     protected void pushLiveInstancedata() throws AmazonClientException {
-        Instance inst = getInstance(getInstanceId(), getCloud());
+        Instance inst = null;
+        try {
+            inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        } catch (InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("InterruptedException while get " + getInstanceId()
+                    + " Exception: " + e);
+        }
+
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {
@@ -509,10 +704,23 @@ public abstract class EC2AbstractSlave extends Slave {
                 instTags.add(new Tag(t.getName(), t.getValue()));
             }
 
+            List<String> resources = getResourcesToTag(inst);
             CreateTagsRequest tagRequest = new CreateTagsRequest();
-            tagRequest.withResources(inst.getInstanceId()).setTags(instTags);
+            tagRequest.withResources(resources).setTags(instTags);
             getCloud().connect().createTags(tagRequest);
         }
+    }
+
+    /*
+     * Get resources to tag, that is the instance itself and the volumes attached to it.
+     */
+    private List<String> getResourcesToTag(Instance inst) {
+        List<String> resources = new ArrayList<>();
+        resources.add(inst.getInstanceId());
+        for(InstanceBlockDeviceMapping blockDeviceMapping : inst.getBlockDeviceMappings()) {
+            resources.add(blockDeviceMapping.getEbs().getVolumeId());
+        }
+        return resources;
     }
 
     public String getPublicDNS() {
@@ -525,6 +733,11 @@ public abstract class EC2AbstractSlave extends Slave {
         return privateDNS;
     }
 
+    public String getInstanceType() {
+        fetchLiveInstanceData(false);
+        return instanceType;
+    }
+
     public List<EC2Tag> getTags() {
         fetchLiveInstanceData(false);
         return Collections.unmodifiableList(tags);
@@ -535,6 +748,7 @@ public abstract class EC2AbstractSlave extends Slave {
         return createdTime;
     }
 
+    @Deprecated
     public boolean getUsePrivateDnsName() {
         return usePrivateDnsName;
     }
@@ -551,15 +765,19 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.getBootDelayInMillis();
     }
 
+    public boolean isSpecifyPassword() {
+        return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
+    }
+
+    public boolean isAllowSelfSignedCertificate() {
+        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+    }
+
     public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
-        if (AmazonEC2Cloud.testMode) {
-            model.add(TEST_ZONE);
-            return model;
-        }
 
         if (!StringUtils.isEmpty(region)) {
-            AmazonEC2 client = EC2Cloud.connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
             DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
             List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
             model.add("<not specified>", "");
@@ -571,7 +789,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     /*
-     * Used to determine if the slave is On Demand or Spot
+     * Used to determine if the agent is On Demand or Spot
      */
     abstract public String getEc2Type();
 
@@ -585,13 +803,17 @@ public abstract class EC2AbstractSlave extends Slave {
             return false;
         }
 
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String region) {
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
+                                            @QueryParameter String credentialsId,
+                                            @QueryParameter String region,
+                                            @QueryParameter String roleArn,
+                                            @QueryParameter String roleSessionName) {
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return fillZoneItems(credentialsProvider, region);
         }
 
         public List<Descriptor<AMITypeData>> getAMITypeDescriptors() {
-            return Jenkins.getInstance().<AMITypeData, Descriptor<AMITypeData>> getDescriptorList(AMITypeData.class);
+            return Jenkins.get().getDescriptorList(AMITypeData.class);
         }
     }
 

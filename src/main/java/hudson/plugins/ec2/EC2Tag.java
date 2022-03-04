@@ -30,6 +30,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.List;
 import java.util.LinkedList;
+import java.util.Objects;
+
 
 import com.amazonaws.services.ec2.model.Tag;
 
@@ -38,9 +40,10 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
     private final String value;
 
     /**
-     * Tag name for the specific jenkings slave type tag, used to identify the EC2 instances provisioned by this plugin.
+     * Tag name for the specific jenkins agent type tag, used to identify the EC2 instances provisioned by this plugin.
      */
     public static final String TAG_NAME_JENKINS_SLAVE_TYPE = "jenkins_slave_type";
+    public static final String TAG_NAME_JENKINS_SERVER_URL = "jenkins_server_url";
 
     @DataBoundConstructor
     public EC2Tag(String name, String value) {
@@ -81,6 +84,11 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
             return false;
 
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, value);
     }
 
     @Extension

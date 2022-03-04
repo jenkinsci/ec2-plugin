@@ -3,18 +3,13 @@ package hudson.plugins.ec2.win.winrm;
 import org.apache.http.Header;
 import org.apache.http.HttpRequest;
 import org.apache.http.auth.*;
-import org.apache.http.client.params.AuthPolicy;
+import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.impl.auth.NTLMScheme;
 import org.apache.http.message.BufferedHeader;
-import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.CharArrayBuffer;
 
-public class NegotiateNTLMSchemaFactory implements AuthSchemeFactory, AuthSchemeProvider {
-
-    public AuthScheme newInstance(HttpParams params) {
-        return new NegotiateNTLM();
-    }
+public class NegotiateNTLMSchemaFactory implements AuthSchemeProvider {
 
     public AuthScheme create(HttpContext context) {
         return new NegotiateNTLM();
@@ -23,14 +18,14 @@ public class NegotiateNTLMSchemaFactory implements AuthSchemeFactory, AuthScheme
     public static class NegotiateNTLM extends NTLMScheme {
         @Override
         public String getSchemeName() {
-            return AuthPolicy.SPNEGO;
+            return AuthSchemes.SPNEGO;
         }
 
         @Override
         public Header authenticate(Credentials credentials, HttpRequest request) throws AuthenticationException {
             Credentials ntCredentials = credentials;
             if (!(credentials instanceof NTCredentials)) {
-                ntCredentials = new NTCredentials(credentials.getUserPrincipal().getName() + ":" + credentials.getPassword());
+                ntCredentials = new NTCredentials(credentials.getUserPrincipal().getName(), credentials.getPassword(), null, null);
             }
             Header header = super.authenticate(ntCredentials, request);
             //need replace NTLM with Negotiate

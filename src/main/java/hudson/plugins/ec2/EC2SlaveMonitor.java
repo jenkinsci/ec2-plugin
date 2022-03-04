@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import jenkins.model.Jenkins;
 
 import com.amazonaws.AmazonClientException;
@@ -24,7 +25,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
     private final Long recurrencePeriod;
 
     public EC2SlaveMonitor() {
-        super("EC2 alive slaves monitor");
+        super("EC2 alive agents monitor");
         recurrencePeriod = Long.getLong("jenkins.ec2.checkAlivePeriod", TimeUnit.MINUTES.toMillis(10));
         LOGGER.log(Level.FINE, "EC2 check alive period is {0}ms", recurrencePeriod);
     }
@@ -36,7 +37,12 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     @Override
     protected void execute(TaskListener listener) throws IOException, InterruptedException {
-        for (Node node : Jenkins.getInstance().getNodes()) {
+        removeDeadNodes();
+        MinimumInstanceChecker.checkForMinimumInstances();
+    }
+
+    private void removeDeadNodes() {
+        for (Node node : Jenkins.get().getNodes()) {
             if (node instanceof EC2AbstractSlave) {
                 final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;
                 try {
@@ -54,7 +60,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     private void removeNode(EC2AbstractSlave ec2Slave) {
         try {
-            Jenkins.getInstance().removeNode(ec2Slave);
+            Jenkins.get().removeNode(ec2Slave);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Slave.getInstanceId());
         }

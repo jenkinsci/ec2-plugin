@@ -18,7 +18,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
   <f:entry title="${%Name}" field="cloudName">
     <f:textbox />
   </f:entry>
@@ -28,19 +28,30 @@ THE SOFTWARE.
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
     <f:checkbox />
   </f:entry>
+  <f:entry title="${%Alternate EC2 Endpoint}" field="altEC2Endpoint" description="Used to populate the available regions dropdown. Only set this if you're using a different EC2 endpoint (i.e. operating in govcloud).">
+    <f:textbox />
+  </f:entry>
   <f:description>The regions will be populated once the keys above are entered.
   </f:description>
   <f:entry title="${%Region}" field="region">
     <f:select/>
   </f:entry>
-  <f:entry title="${%EC2 Key Pair's Private Key}" field="privateKey">
-    <f:textarea />
+  <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
+    <c:select includeUser="false" checkMethod="post"/>
   </f:entry>
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
+    <f:entry title="${%No delay provisioning}" field="noDelayProvisioning">
+      <f:checkbox/>
+    </f:entry>
+    <f:entry title="${%Arn Role}" field="roleArn">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Session Name}" field="roleSessionName">
+      <f:textbox />
+    </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Generate Key}" progress="${%Generate...}" method="generateKey" with="region,useInstanceProfileForCredentials,credentialsId" />
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,privateKey" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />
 </j:jelly>

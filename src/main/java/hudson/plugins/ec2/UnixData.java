@@ -16,13 +16,15 @@ import java.util.concurrent.TimeUnit;
 public class UnixData extends AMITypeData {
     private final String rootCommandPrefix;
     private final String slaveCommandPrefix;
+    private final String slaveCommandSuffix;
     private final String sshPort;
     private final String bootDelay;
 
     @DataBoundConstructor
-    public UnixData(String rootCommandPrefix, String slaveCommandPrefix, String sshPort, String bootDelay) {
+    public UnixData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort, String bootDelay) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
+        this.slaveCommandSuffix = slaveCommandSuffix;
         this.sshPort = sshPort;
         this.bootDelay = bootDelay;
 
@@ -30,7 +32,10 @@ public class UnixData extends AMITypeData {
     }
 
     protected Object readResolve() {
-        Jenkins.getInstance().checkPermission(Jenkins.RUN_SCRIPTS);
+        Jenkins j = Jenkins.getInstanceOrNull();
+        if (j != null) {
+            j.checkPermission(Jenkins.ADMINISTER);
+        }
         return this;
     }
 
@@ -44,6 +49,11 @@ public class UnixData extends AMITypeData {
         return true;
     }
 
+    @Override
+    public boolean isMac() {
+        return false;
+    }
+
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
@@ -53,7 +63,7 @@ public class UnixData extends AMITypeData {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckRootCommandPrefix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -62,7 +72,16 @@ public class UnixData extends AMITypeData {
 
         @Restricted(NoExternalUse.class)
         public FormValidation doCheckSlaveCommandPrefix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.getInstance().hasPermission(Jenkins.RUN_SCRIPTS)){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
+                return FormValidation.ok();
+            }else{
+                return FormValidation.error(Messages.General_MissingPermission());
+            }
+        }
+
+        @Restricted(NoExternalUse.class)
+        public FormValidation doCheckSlaveCommandSuffix(@QueryParameter String value){
+            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
                 return FormValidation.ok();
             }else{
                 return FormValidation.error(Messages.General_MissingPermission());
@@ -78,6 +97,10 @@ public class UnixData extends AMITypeData {
         return slaveCommandPrefix;
     }
 
+    public String getSlaveCommandSuffix() {
+        return slaveCommandSuffix;
+    }
+
     public String getSshPort() {
         return sshPort == null || sshPort.isEmpty() ? "22" : sshPort;
     }
@@ -86,22 +109,13 @@ public class UnixData extends AMITypeData {
         return bootDelay;
     }
 
-    public int getBootDelayInMillis() {
-        if (bootDelay == null)
-            return 0;
-        try {
-            return (int) TimeUnit.SECONDS.toMillis(Integer.parseInt(bootDelay));
-        } catch (NumberFormatException nfe) {
-            return 0;
-        }
-    }
-
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((rootCommandPrefix == null) ? 0 : rootCommandPrefix.hashCode());
         result = prime * result + ((slaveCommandPrefix == null) ? 0 : slaveCommandPrefix.hashCode());
+        result = prime * result + ((slaveCommandSuffix == null) ? 0 : slaveCommandSuffix.hashCode());
         result = prime * result + ((sshPort == null) ? 0 : sshPort.hashCode());
         result = prime * result + ((bootDelay == null) ? 0 : bootDelay.hashCode());
         return result;
@@ -125,6 +139,11 @@ public class UnixData extends AMITypeData {
             if (!StringUtils.isEmpty(other.slaveCommandPrefix))
                 return false;
         } else if (!slaveCommandPrefix.equals(other.slaveCommandPrefix))
+            return false;
+        if (StringUtils.isEmpty(slaveCommandSuffix)) {
+            if (!StringUtils.isEmpty(other.slaveCommandSuffix))
+                return false;
+        } else if (!slaveCommandSuffix.equals(other.slaveCommandSuffix))
             return false;
         if (StringUtils.isEmpty(sshPort)) {
             if (!StringUtils.isEmpty(other.sshPort))

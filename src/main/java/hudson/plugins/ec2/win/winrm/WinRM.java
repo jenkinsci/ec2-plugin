@@ -12,17 +12,24 @@ public class WinRM {
     private final String username;
     private final String password;
     private int timeout = 60;
+    private final boolean allowSelfSignedCertificate;
 
     private boolean useHTTPS;
 
+    @Deprecated
     public WinRM(String host, String username, String password) {
+        this(host, username, password, true);
+    }
+    
+    public WinRM(String host, String username, String password, boolean allowSelfSignedCertificate) {
         this.host = host;
         this.username = username;
         this.password = password;
+        this.allowSelfSignedCertificate = allowSelfSignedCertificate;
     }
 
     public void ping() throws IOException {
-        final WinRMClient client = new WinRMClient(buildURL(), username, password);
+        final WinRMClient client = new WinRMClient(buildURL(), username, password, allowSelfSignedCertificate);
         client.setTimeout(secToDuration(timeout));
         client.setUseHTTPS(isUseHTTPS());
         try {
@@ -36,7 +43,7 @@ public class WinRM {
     }
 
     public WindowsProcess execute(String commandLine) {
-        final WinRMClient client = new WinRMClient(buildURL(), username, password);
+        final WinRMClient client = new WinRMClient(buildURL(), username, password, allowSelfSignedCertificate);
         client.setTimeout(secToDuration(timeout));
         client.setUseHTTPS(isUseHTTPS());
         try {
@@ -95,7 +102,7 @@ public class WinRM {
      * http://tools.ietf.org/html/rfc2445#section-4.3.6 # @param [Fixnum] seconds The amount of seconds for this
      * duration
      * 
-     * @param timeout
+     * @param seconds
      * @return
      */
     private static String secToDuration(int seconds) {

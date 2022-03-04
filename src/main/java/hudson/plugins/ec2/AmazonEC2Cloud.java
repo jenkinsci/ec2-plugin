@@ -27,6 +27,8 @@ import com.amazonaws.SdkClientException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Failure;
+import hudson.model.ItemGroup;
+import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -36,14 +38,18 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import javax.servlet.ServletException;
 
 import jenkins.model.Jenkins;
 
-import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -56,19 +62,28 @@ import com.amazonaws.services.ec2.model.Region;
  * @author Kohsuke Kawaguchi
  */
 public class AmazonEC2Cloud extends EC2Cloud {
+    private final static Logger LOGGER = Logger.getLogger(AmazonEC2Cloud.class.getName());
+    
     /**
      * Represents the region. Can be null for backward compatibility reasons.
      */
     private String region;
 
+    private String altEC2Endpoint;
+
     public static final String CLOUD_ID_PREFIX = "ec2-";
 
-    // Used when running unit tests
-    public static boolean testMode;
+    private boolean noDelayProvisioning;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.region = region;
+    }
+
+    @Deprecated
+    public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 
@@ -97,7 +112,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     public static URL getEc2EndpointUrl(String region) {
         try {
-            return new URL("https://ec2." + region + "." + AWS_URL_HOST + "/");
+            return new URL("https://" + getAwsPartitionHostForService(region, "ec2"));
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
@@ -111,10 +126,33 @@ public class AmazonEC2Cloud extends EC2Cloud {
     @Override
     public URL getS3EndpointUrl() {
         try {
-            return new URL("https://" + getRegion() + ".s3.amazonaws.com/");
+            return new URL("https://" + getAwsPartitionHostForService(getRegion(), "s3") + "/");
         } catch (MalformedURLException e) {
             throw new Error(e); // Impossible
         }
+    }
+
+    public boolean isNoDelayProvisioning() {
+        return noDelayProvisioning;
+    }
+
+    @DataBoundSetter
+    public void setNoDelayProvisioning(boolean noDelayProvisioning) {
+        this.noDelayProvisioning = noDelayProvisioning;
+    }
+
+    public String getAltEC2Endpoint() {
+        return altEC2Endpoint;
+    }
+
+    @DataBoundSetter
+    public void setAltEC2Endpoint(String altEC2Endpoint) {
+        this.altEC2Endpoint = altEC2Endpoint;
+    }
+
+    @Override
+    protected AWSCredentialsProvider createCredentialsProvider() {
+        return createCredentialsProvider(isUseInstanceProfileForCredentials(), getCredentialsId(), getRoleArn(), getRoleSessionName(), getRegion());
     }
 
     @Extension
@@ -134,7 +172,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
             String cloudId = createCloudId(value);
             int found = 0;
-            for (Cloud c : Jenkins.getInstance().clouds) {
+            for (Cloud c : Jenkins.get().clouds) {
                 if (c.name.equals(cloudId)) {
                     found++;
                 }
@@ -145,18 +183,32 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillRegionItems(@QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
-                throws IOException, ServletException {
-            ListBoxModel model = new ListBoxModel();
-            if (testMode) {
-                model.add(DEFAULT_EC2_HOST);
-                return model;
+        public FormValidation doCheckAltEC2Endpoint(@QueryParameter String value) {
+            if (Util.fixEmpty(value) != null) {
+                try {
+                    new URL(value);
+                } catch (MalformedURLException ignored) {
+                    return FormValidation.error(Messages.AmazonEC2Cloud_MalformedUrl());
+                }
             }
+            return FormValidation.ok();
+        }
+        
+        @RequirePOST
+        public ListBoxModel doFillRegionItems(
+                @QueryParameter String altEC2Endpoint,
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId)
+
+                throws IOException, ServletException {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+
+            ListBoxModel model = new ListBoxModel();
 
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
                         credentialsId);
-                AmazonEC2 client = connect(credentialsProvider, new URL("http://ec2.amazonaws.com"));
+                AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
                 DescribeRegionsResult regions = client.describeRegions();
                 List<Region> regionList = regions.getRegions();
                 for (Region r : regionList) {
@@ -169,20 +221,38 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return model;
         }
 
+        // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParameter field), or use the default
+        // value if not specified.
+        //VisibleForTesting
+        URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {
+            if (Util.fixEmpty(altEC2Endpoint) == null) {
+                return new URL(DEFAULT_EC2_ENDPOINT);
+            }
+            try {
+                return new URL(altEC2Endpoint);    
+            } catch (MalformedURLException e) {
+                LOGGER.log(Level.WARNING, "The alternate EC2 endpoint is malformed ({0}). Using the default endpoint ({1})", new Object[]{altEC2Endpoint, DEFAULT_EC2_ENDPOINT});
+                return new URL(DEFAULT_EC2_ENDPOINT);
+            }
+        }
 
-        public FormValidation doTestConnection(@QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
+        @RequirePOST
+        public FormValidation doTestConnection(
+                @AncestorInPath ItemGroup context,
+                @QueryParameter String region,
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId,
+                @QueryParameter String sshKeysCredentialsId,
+                @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName)
+
                 throws IOException, ServletException {
 
             if (Util.fixEmpty(region) == null) {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, privateKey);
-        }
-
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter String region, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
-                throws IOException, ServletException {
-            return super.doGenerateKey(rsp, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId);
+            return super.doTestConnection(context, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

@@ -27,7 +27,6 @@ import com.amazonaws.services.ec2.model.Instance;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.TaskListener;
-import hudson.model.labels.LabelAtom;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
@@ -90,7 +89,7 @@ public class EC2Step extends Step {
         public ListBoxModel doFillCloudItems() {
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
-            Jenkins.CloudList clouds = jenkins.model.Jenkins.getActiveInstance().clouds;
+            Jenkins.CloudList clouds = jenkins.model.Jenkins.get().clouds;
             for (Cloud cList : clouds) {
                 if (cList instanceof AmazonEC2Cloud) {
                     r.add(cList.getDisplayName(), cList.getDisplayName());
@@ -102,7 +101,7 @@ public class EC2Step extends Step {
         public ListBoxModel doFillTemplateItems(@QueryParameter String cloud) {
             cloud = Util.fixEmpty(cloud);
             ListBoxModel r = new ListBoxModel();
-            for (Cloud cList : jenkins.model.Jenkins.getActiveInstance().clouds) {
+            for (Cloud cList : jenkins.model.Jenkins.get().clouds) {
                 if (cList.getDisplayName().equals(cloud)) {
                     List<SlaveTemplate> templates = ((AmazonEC2Cloud) cList).getTemplates();
                     for (SlaveTemplate template : templates) {
@@ -136,7 +135,7 @@ public class EC2Step extends Step {
 
         @Override
         protected Instance run() throws Exception {
-            Cloud cl = getByDisplayName(jenkins.model.Jenkins.getActiveInstance().clouds, this.cloud);
+            Cloud cl = getByDisplayName(jenkins.model.Jenkins.get().clouds, this.cloud);
             if (cl instanceof AmazonEC2Cloud) {
                 SlaveTemplate t;
                 t = ((AmazonEC2Cloud) cl).getTemplate(this.template);
@@ -145,10 +144,13 @@ public class EC2Step extends Step {
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    EC2AbstractSlave node = t.provision(TaskListener.NULL, null, opt);
-                    Jenkins.getInstance().addNode(node);
-                    Instance myInstance = EC2AbstractSlave.getInstance(node.getInstanceId(), node.getCloud());
-                    return myInstance;
+                    List<EC2AbstractSlave> instances = t.provision(1, opt);
+                    if (instances == null) {
+                        throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                    }
+
+                    EC2AbstractSlave slave = instances.get(0);
+                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (AmazonEC2Cloud) cl);
                 } else {
                     throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                 }
@@ -158,15 +160,15 @@ public class EC2Step extends Step {
         }
 
         public Cloud getByDisplayName(Jenkins.CloudList clouds, String name) {
-            Iterator i$ = clouds.iterator();
+            Iterator<Cloud> i$ = clouds.iterator();
             Cloud c;
-            c = (Cloud) i$.next();
+            c = i$.next();
 
             while (!c.getDisplayName().equals(name)) {
                 if (!i$.hasNext()) {
                     return null;
                 }
-                c = (Cloud) i$.next();
+                c = i$.next();
             }
             return c;
         }

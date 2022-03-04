@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
+import hudson.model.ItemGroup;
 import hudson.util.FormValidation;
 
 import java.io.IOException;
@@ -32,9 +33,10 @@ import java.util.List;
 
 import javax.servlet.ServletException;
 
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 /**
  * Eucalyptus.
@@ -42,13 +44,21 @@ import org.kohsuke.stapler.StaplerResponse;
  * @author Kohsuke Kawaguchi
  */
 public class Eucalyptus extends EC2Cloud {
-    public final URL ec2endpoint;
-    public final URL s3endpoint;
+    private final URL ec2endpoint;
+    private final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates)
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
             throws IOException {
-        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates);
+        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.ec2endpoint = ec2endpoint;
+        this.s3endpoint = s3endpoint;
+    }
+
+    @Deprecated
+    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
+            throws IOException {
+        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.ec2endpoint = ec2endpoint;
         this.s3endpoint = s3endpoint;
     }
@@ -71,15 +81,10 @@ public class Eucalyptus extends EC2Cloud {
         }
 
         @Override
-        public FormValidation doTestConnection(@QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String privateKey)
+        @RequirePOST
+        public FormValidation doTestConnection(@AncestorInPath ItemGroup context, @QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
                 throws IOException, ServletException {
-            return super.doTestConnection(ec2endpoint, useInstanceProfileForCredentials, credentialsId, privateKey);
-        }
-
-        @Override
-        public FormValidation doGenerateKey(StaplerResponse rsp, @QueryParameter URL url, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId)
-                throws IOException, ServletException {
-            return super.doGenerateKey(rsp, url, useInstanceProfileForCredentials, credentialsId);
+            return super.doTestConnection(context, ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

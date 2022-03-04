@@ -1,0 +1,12 @@
+---
+configuration-as-code:
+  deprecated: warn
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: "us-east-1"
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+        - associatePublicIp: false
+          connectUsingPublicIp: false
+          usePrivateDnsName: true

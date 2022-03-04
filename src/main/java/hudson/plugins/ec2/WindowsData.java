@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import java.util.concurrent.TimeUnit;
+import java.util.Objects;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
@@ -13,12 +14,30 @@ public class WindowsData extends AMITypeData {
     private final Secret password;
     private final boolean useHTTPS;
     private final String bootDelay;
+    private final boolean specifyPassword;
+    private final Boolean allowSelfSignedCertificate; //Boolean to allow nulls when the saved template doesn't have the field
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate) {
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
+        //Backwards compatibility
+        if (!specifyPassword && !this.password.getPlainText().isEmpty()) {
+            specifyPassword = true;
+        }
+        this.specifyPassword = specifyPassword;
+
+        this.allowSelfSignedCertificate = allowSelfSignedCertificate;
+    }
+    
+    @Deprecated
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword) {
+        this(password, useHTTPS, bootDelay, specifyPassword, true);
+    }
+
+    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
+        this(password, useHTTPS, bootDelay, false);
     }
 
     @Override
@@ -28,6 +47,11 @@ public class WindowsData extends AMITypeData {
 
     @Override
     public boolean isUnix() {
+        return false;
+    }
+
+    @Override
+    public boolean isMac() {
         return false;
     }
 
@@ -43,6 +67,10 @@ public class WindowsData extends AMITypeData {
         return bootDelay;
     }
 
+    public boolean isSpecifyPassword() {
+        return specifyPassword;
+    }
+
     public int getBootDelayInMillis() {
         try {
             return (int) TimeUnit.SECONDS.toMillis(Integer.parseInt(bootDelay));
@@ -51,6 +79,10 @@ public class WindowsData extends AMITypeData {
         }
     }
 
+    public boolean isAllowSelfSignedCertificate(){
+        return allowSelfSignedCertificate == null || allowSelfSignedCertificate;
+    }
+    
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
@@ -61,12 +93,7 @@ public class WindowsData extends AMITypeData {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((bootDelay == null) ? 0 : bootDelay.hashCode());
-        result = prime * result + ((password == null) ? 0 : password.hashCode());
-        result = prime * result + (useHTTPS ? 1231 : 1237);
-        return result;
+        return Objects.hash(password,useHTTPS, bootDelay, specifyPassword);
     }
 
     @Override
@@ -88,6 +115,11 @@ public class WindowsData extends AMITypeData {
                 return false;
         } else if (!password.equals(other.password))
             return false;
-        return useHTTPS == other.useHTTPS;
+        if (allowSelfSignedCertificate == null) {
+            if (other.allowSelfSignedCertificate != null)
+                return false;
+        } else if (!allowSelfSignedCertificate.equals(other.allowSelfSignedCertificate))
+            return false;
+        return useHTTPS == other.useHTTPS && specifyPassword == other.specifyPassword;
     }
 }

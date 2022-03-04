@@ -26,7 +26,7 @@ package hudson.plugins.ec2.ssh;
 import java.util.logging.Logger;
 
 import com.trilead.ssh2.ServerHostKeyVerifier;
-import com.trilead.ssh2.crypto.digest.MD5;
+import java.security.MessageDigest;
 
 public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
     private static final Logger LOGGER = Logger.getLogger(HostKeyVerifierImpl.class.getName());
@@ -37,13 +37,11 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
         this.console = console;
     }
 
-    private String getFingerprint(byte[] serverHostKey) {
-        MD5 md5 = new MD5();
-        md5.update(serverHostKey);
+    private String getFingerprint(byte[] serverHostKey) throws Exception {
+        MessageDigest md5 = MessageDigest.getInstance("MD5");
 
-        byte[] fingerprint = new byte[16];
+        byte[] fingerprint = md5.digest(serverHostKey);
 
-        md5.digest(fingerprint);
         StringBuilder buf = new StringBuilder();
         for (byte b : fingerprint) {
             if (buf.length() > 0)

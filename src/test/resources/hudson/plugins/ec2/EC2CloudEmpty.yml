@@ -1,0 +1,6 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        cloudName: ""
+        privateKey: "${PRIVATE_KEY}"

@@ -1,2 +1,0 @@
-- the uptime should be displayed there
-- cloud configuration page should be moved elsewhere, like how we configure slaves

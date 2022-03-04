@@ -23,13 +23,13 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,24 +37,21 @@ import java.util.logging.Logger;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.Instance;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 public class EC2Computer extends SlaveComputer {
-    private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
 
+    private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
 
     /**
      * Cached description of this EC2 instance. Lazily fetched.
      */
     private volatile Instance ec2InstanceDescription;
+
+    private volatile Boolean isNitro;
 
     public EC2Computer(EC2AbstractSlave slave) {
         super(slave);
@@ -65,40 +62,96 @@ public class EC2Computer extends SlaveComputer {
         return (EC2AbstractSlave) super.getNode();
     }
 
+    @CheckForNull
     public String getInstanceId() {
-        EC2AbstractSlave node = (EC2AbstractSlave) super.getNode();
-        return node.getInstanceId();
+        EC2AbstractSlave node = getNode();
+        return node == null ? null : node.getInstanceId();
     }
 
     public String getEc2Type() {
-        return getNode().getEc2Type();
+        EC2AbstractSlave node = getNode();
+        return node == null ? null : node.getEc2Type();
     }
 
     public String getSpotInstanceRequestId() {
-        if (getNode() instanceof EC2SpotSlave) {
-            return ((EC2SpotSlave) getNode()).getSpotInstanceRequestId();
+        EC2AbstractSlave node = getNode();
+        if (node instanceof EC2SpotSlave) {
+            return ((EC2SpotSlave) node).getSpotInstanceRequestId();
         }
         return "";
     }
 
     public EC2Cloud getCloud() {
         EC2AbstractSlave node = getNode();
-        if (node == null)
-            return null;
-        return node.getCloud();
+        return node == null ? null : node.getCloud();
     }
 
+    @CheckForNull
     public SlaveTemplate getSlaveTemplate() {
-        return getCloud().getTemplate(getNode().templateDescription);
+        EC2AbstractSlave node = getNode();
+        if (node != null) {
+            return node.getCloud().getTemplate(node.templateDescription);
+        }
+        return null;
     }
 
     /**
      * Gets the EC2 console output.
      */
     public String getConsoleOutput() throws AmazonClientException {
+        try {
+            return getDecodedConsoleOutputResponse().getOutput();
+        } catch (InterruptedException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Gets the EC2 decoded console output.
+     * @since TODO
+     */
+    public String getDecodedConsoleOutput() throws AmazonClientException {
+        try {
+            return getDecodedConsoleOutputResponse().getDecodedOutput();
+        } catch (InterruptedException e) {
+            return null;
+        }
+    }
+
+    private GetConsoleOutputResult getDecodedConsoleOutputResponse() throws AmazonClientException, InterruptedException {
         AmazonEC2 ec2 = getCloud().connect();
         GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
-        return ec2.getConsoleOutput(request).getOutput();
+        if (checkIfNitro()) {
+            //Can only be used if instance has hypervisor Nitro
+            request.setLatest(true);
+        }
+        return ec2.getConsoleOutput(request);
+    }
+
+    /**
+     * Check if instance has hypervisor Nitro
+     */
+    private boolean checkIfNitro() throws AmazonClientException, InterruptedException {
+        try {
+            if (isNitro == null) {
+                DescribeInstanceTypesRequest request = new DescribeInstanceTypesRequest();
+                request.setInstanceTypes(Collections.singletonList(describeInstance().getInstanceType()));
+                AmazonEC2 ec2 = getCloud().connect();
+                DescribeInstanceTypesResult result = ec2.describeInstanceTypes(request);
+                if (result.getInstanceTypes().size() == 1) {
+                    String hypervisor = result.getInstanceTypes().get(0).getHypervisor();
+                    isNitro = hypervisor.equals("nitro");
+                } else {
+                    isNitro = false;
+                }
+
+            }
+            return isNitro;
+        } catch (AmazonClientException e) {
+            LOGGER.log(Level.WARNING, "Could not describe-instance-types to check if instance is nitro based", e);
+            isNitro = false;
+            return isNitro;
+        }
     }
 
     /**
@@ -112,7 +165,7 @@ public class EC2Computer extends SlaveComputer {
      */
     public Instance describeInstance() throws AmazonClientException, InterruptedException {
         if (ec2InstanceDescription == null)
-            ec2InstanceDescription = _describeInstance();
+            ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
         return ec2InstanceDescription;
     }
 
@@ -120,7 +173,7 @@ public class EC2Computer extends SlaveComputer {
      * This will flush any cached description held by {@link #describeInstance()}.
      */
     public Instance updateInstanceDescription() throws AmazonClientException, InterruptedException {
-        return ec2InstanceDescription = _describeInstance();
+        return ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
     }
 
     /**
@@ -130,7 +183,7 @@ public class EC2Computer extends SlaveComputer {
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
     public InstanceState getState() throws AmazonClientException, InterruptedException {
-        ec2InstanceDescription = _describeInstance();
+        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
         return InstanceState.find(ec2InstanceDescription.getState().getName());
     }
 
@@ -148,62 +201,24 @@ public class EC2Computer extends SlaveComputer {
         return Util.getTimeSpanString(getUptime());
     }
 
-    private Instance _describeInstance() throws AmazonClientException, InterruptedException {
-        // Sometimes even after a successful RunInstances, DescribeInstances
-        // returns an error for a few seconds. We do a few retries instead of
-        // failing instantly. See [JENKINS-15319].
-        for (int i = 0; i < 5; i++) {
-            try {
-                return _describeInstanceOnce();
-            } catch (AmazonServiceException e) {
-                if (e.getErrorCode().equals("InvalidInstanceID.NotFound")) {
-                    // retry in 5 seconds.
-                    Thread.sleep(5000);
-                    continue;
-                }
-                throw e;
-            }
-        }
-        // Last time, throw on any error.
-        return _describeInstanceOnce();
-    }
-
-    private Instance _describeInstanceOnce() throws AmazonClientException {
-        DescribeInstancesRequest request = new DescribeInstancesRequest();
-        String instanceId = getNode().getInstanceId();
-        request.setInstanceIds(Collections.<String> singletonList(instanceId));
-
-        List<Reservation> reservations = getCloud().connect().describeInstances(request).getReservations();
-        if (reservations.size() != 1) {
-          String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + reservations + ".";
-          if (reservations.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.log(Level.INFO, message);
-          throw new AmazonClientException(message);
-        }
-        Reservation reservation = reservations.get(0);
-
-        List<Instance> instances = reservation.getInstances();
-        if (instances.size() != 1) {
-          String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
-          if (instances.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.log(Level.INFO, message);
-          throw new AmazonClientException(message);
-        }
-        return instances.get(0);
+    /**
+     * Return the time this instance was launched in ms since the epoch.
+     *
+     * @return Time this instance was launched, in ms since the epoch.
+     */
+    public long getLaunchTime() throws InterruptedException {
+        return this.describeInstance().getLaunchTime().getTime();
     }
 
     /**
-     * When the slave is deleted, terminate the instance.
+     * When the agent is deleted, terminate the instance.
      */
     @Override
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
-        if (getNode() != null)
-            getNode().terminate();
+        EC2AbstractSlave node = getNode();
+        if (node != null)
+            node.terminate();
         return new HttpRedirect("..");
     }
 
@@ -219,15 +234,23 @@ public class EC2Computer extends SlaveComputer {
     }
 
     public int getSshPort() {
-        return getNode().getSshPort();
+        EC2AbstractSlave node = getNode();
+        return node == null ? 22 : node.getSshPort();
     }
 
     public String getRootCommandPrefix() {
-        return getNode().getRootCommandPrefix();
+        EC2AbstractSlave node = getNode();
+        return node == null ? "" : node.getRootCommandPrefix();
     }
 
     public String getSlaveCommandPrefix() {
-        return getNode().getSlaveCommandPrefix();
+        EC2AbstractSlave node = getNode();
+        return node == null ? "" : node.getSlaveCommandPrefix();
+    }
+
+    public String getSlaveCommandSuffix() {
+        EC2AbstractSlave node = getNode();
+        return node == null ? "" : node.getSlaveCommandSuffix();
     }
 
     public void onConnected() {

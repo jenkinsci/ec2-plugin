@@ -27,6 +27,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.UnrecoverableKeyException;
+import java.util.Base64;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -34,6 +35,12 @@ import com.amazonaws.services.ec2.model.KeyPairInfo;
 
 import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
+import javax.crypto.Cipher;
+import java.nio.charset.Charset;
+
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -52,6 +59,12 @@ public class EC2PrivateKey {
 
     public String getPrivateKey() {
         return privateKey.getPlainText();
+    }
+
+    @SuppressWarnings("unused") // used by config-entries.jelly
+    @Restricted(NoExternalUse.class)
+    public Secret getPrivateKeySecret() {
+        return privateKey;
     }
 
     /**
@@ -118,6 +131,18 @@ public class EC2PrivateKey {
         return null;
     }
 
+    public String decryptWindowsPassword(String encodedPassword) throws AmazonClientException {
+        try {
+            Cipher cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding");
+            cipher.init(Cipher.DECRYPT_MODE, PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
+            byte[] cipherText = Base64.getDecoder().decode(StringUtils.deleteWhitespace(encodedPassword));
+            byte[] plainText = cipher.doFinal(cipherText);
+            return new String(plainText, Charset.forName("ASCII"));
+        } catch (Exception e) {
+            throw new AmazonClientException("Unable to decode password:\n" + e.toString());
+        }
+    }
+
     @Override
     public int hashCode() {
         return privateKey.hashCode();
@@ -125,7 +150,9 @@ public class EC2PrivateKey {
 
     @Override
     public boolean equals(Object that) {
-        return this.getClass() == that.getClass() && this.privateKey.equals(((EC2PrivateKey) that).privateKey);
+        if (that != null && this.getClass() == that.getClass())
+            return this.privateKey.equals(((EC2PrivateKey) that).privateKey);
+        return false;
     }
 
     @Override
