@@ -19,3 +19,4 @@ jenkins:
                 slaveCommandPrefix: "sudo -u jenkins"
                 slaveCommandSuffix: "-fakeFlag"
                 sshPort: "22"
+                bootDelay: "180"
