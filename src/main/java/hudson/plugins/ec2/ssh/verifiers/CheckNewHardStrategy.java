@@ -29,6 +29,7 @@ import hudson.plugins.ec2.EC2Computer;
 import hudson.slaves.OfflineCause;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -58,8 +59,17 @@ public class CheckNewHardStrategy extends SshHostKeyVerificationStrategy {
                 return false; // waiting for next retry to have the console filled up
             } else if (consoleHostKey.getKey().length == 0) {
                 EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("The SSH key (%s %s) presented by the instance has not been found on the instance console. Cannot check the key. The connection to %s is not allowed", hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
-                // it is the difference with the soft strategy, the key is not accepted 
-                computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed())); // avoid next try
+                // it is the difference with the soft strategy, the key is not accepted
+                boolean stop = false;
+                try {
+                    // Keep trying for at least 2 minutes
+                    stop = computer.getUptime() > TimeUnit.SECONDS.toMillis(120);
+                } catch (Exception ignored) {
+
+                }
+                if (stop) {
+                    computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed())); // avoid next try
+                }
                 return false;
             } else {
                 EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), String.format("The SSH key (%s %s) presented by the instance is different from the one printed out on the instance console (%s %s). The connection to %s is closed to prevent a possible man-in-the-middle attack", 
