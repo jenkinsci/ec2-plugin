@@ -19,8 +19,8 @@ jenkins:
               useBidPrice: true
             amiType:
               unixData:
+                bootDelay: "180"
                 rootCommandPrefix: "sudo"
                 slaveCommandPrefix: "sudo -u jenkins"
                 slaveCommandSuffix: "-fakeFlag"
                 sshPort: "22"
-                bootDelay: "180"
