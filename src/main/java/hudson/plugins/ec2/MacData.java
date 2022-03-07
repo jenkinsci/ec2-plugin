@@ -4,6 +4,9 @@ import hudson.Extension;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
+
+import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -15,13 +18,15 @@ public class MacData extends AMITypeData {
     private final String slaveCommandPrefix;
     private final String slaveCommandSuffix;
     private final String sshPort;
+    private final String bootDelay;
 
     @DataBoundConstructor
-    public MacData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort) {
+    public MacData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort, String bootDelay) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
         this.slaveCommandSuffix = slaveCommandSuffix;
         this.sshPort = sshPort;
+        this.bootDelay = bootDelay;
 
         this.readResolve();
     }
@@ -44,6 +49,10 @@ public class MacData extends AMITypeData {
     @Override
     public boolean isMac() {
         return true;
+    }
+
+    public String getBootDelay() {
+        return bootDelay;
     }
 
     @Extension

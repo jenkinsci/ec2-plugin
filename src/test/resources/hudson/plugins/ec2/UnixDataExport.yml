@@ -6,6 +6,7 @@
     - ami: "ami-12345"
       amiType:
         unixData:
+          bootDelay: "180"
           rootCommandPrefix: "sudo"
           slaveCommandPrefix: "sudo -u jenkins"
           slaveCommandSuffix: "-fakeFlag"

@@ -207,8 +207,7 @@ public class SlaveTemplateTest {
         String ami = "ami1";
         String description = "foo ami";
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", null, null, "22"), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
-
+        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", "", "", "22", ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -415,7 +414,7 @@ public class SlaveTemplateTest {
     @Test
     public void testMacConfig() throws Exception {
         String description = "foo ami";
-        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", new MacData("sudo", null, null, "22"), "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", new MacData("sudo", null, null, "22", null), "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);

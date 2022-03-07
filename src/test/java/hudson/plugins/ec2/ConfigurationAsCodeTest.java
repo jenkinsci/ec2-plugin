@@ -77,6 +77,7 @@ public class ConfigurationAsCodeTest {
         assertEquals("sudo -u jenkins", unixData.getSlaveCommandPrefix());
         assertEquals("-fakeFlag", unixData.getSlaveCommandSuffix());
         assertEquals("22", unixData.getSshPort());
+        assertEquals("180", unixData.getBootDelay());
     }
 
     @Test
@@ -254,6 +255,7 @@ public class ConfigurationAsCodeTest {
         assertEquals("sudo -u jenkins", macData.getSlaveCommandPrefix());
         assertEquals("-fakeFlag", macData.getSlaveCommandSuffix());
         assertEquals("22", macData.getSshPort());
+        assertEquals("180", macData.getBootDelay());
     }
 
     @Test

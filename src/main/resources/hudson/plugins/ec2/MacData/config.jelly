@@ -36,4 +36,7 @@ THE SOFTWARE.
       <f:entry title="${%Remote ssh port}" field="sshPort">
         <f:textbox />
       </f:entry>
+      <f:entry title="${%Boot Delay}" field="bootDelay">
+        <f:textbox />
+      </f:entry>
 </j:jelly>

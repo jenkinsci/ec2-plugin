@@ -216,7 +216,7 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, Integer.toString(sshPort));
+            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, Integer.toString(sshPort), null);
         }
 
         if (maxTotalUses == 0) {
@@ -762,7 +762,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public int getBootDelay() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getBootDelayInMillis() : 0;
+        return amiType.getBootDelayInMillis();
     }
 
     public boolean isSpecifyPassword() {

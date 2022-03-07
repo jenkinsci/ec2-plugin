@@ -164,6 +164,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         try {
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (isBootstrapped) {
+                int bootDelay = node.getBootDelay();
+                if (bootDelay > 0) {
+                    logInfo(computer, listener, "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
+                    Thread.sleep(bootDelay);
+                    logInfo(computer, listener, "SSH service should have stabilized");
+                }
+
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
