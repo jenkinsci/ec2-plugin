@@ -193,7 +193,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 }
 
                 if (!alreadyBooted || node.stopOnTerminate) {
-                    int bootDelay = computer.getNode().getBootDelay();
+                    int bootDelay = node.getBootDelay();
                     if (bootDelay > 0) {
                         logger.println("WinRM service responded. Waiting " + bootDelay + "ms for WinRM service to stabilize on "
                                 + node.getDisplayName());

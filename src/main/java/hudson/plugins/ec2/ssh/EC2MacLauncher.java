@@ -151,7 +151,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         try {
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (isBootstrapped) {
-                int bootDelay = computer.getNode().getBootDelay();
+                int bootDelay = node.getBootDelay();
                 if (bootDelay > 0) {
                     logInfo(computer, listener, "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
                     Thread.sleep(bootDelay);
