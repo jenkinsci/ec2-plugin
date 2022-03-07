@@ -193,11 +193,14 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 }
 
                 if (!alreadyBooted || node.stopOnTerminate) {
-                    logger.println("WinRM service responded. Waiting for WinRM service to stabilize on "
-                            + node.getDisplayName());
-                    Thread.sleep(node.getBootDelay());
+                    int bootDelay = computer.getNode().getBootDelay();
+                    if (bootDelay > 0) {
+                        logger.println("WinRM service responded. Waiting " + bootDelay + "ms for WinRM service to stabilize on "
+                                + node.getDisplayName());
+                        Thread.sleep(bootDelay);
+                        logger.println("WinRM should now be ok on " + node.getDisplayName());
+                    }
                     alreadyBooted = true;
-                    logger.println("WinRM should now be ok on " + node.getDisplayName());
                     if (!connection.pingFailingIfSSHHandShakeError()) {
                         logger.println("WinRM not yet up. Sleeping 10s.");
                         Thread.sleep(sleepBetweenAttempts);
