@@ -397,7 +397,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   SlaveTemplateUsEast1Parameters.userData,
   SlaveTemplateUsEast1Parameters.numExecutors,
   SlaveTemplateUsEast1Parameters.remoteAdmin,
-  new UnixData(null, null, null, null),
+  new UnixData(null, null, null, null, null),
   SlaveTemplateUsEast1Parameters.jvmopts,
   SlaveTemplateUsEast1Parameters.stopOnTerminate,
   SlaveTemplateUsEast1Parameters.subnetId,
