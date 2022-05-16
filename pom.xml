@@ -248,7 +248,7 @@ THE SOFTWARE.
                 <!-- fix upper bound -->
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>2.13.2</version>
+                <version>2.13.3</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
