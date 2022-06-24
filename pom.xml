@@ -121,7 +121,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-ec2</artifactId>
-            <version>1.12.201-326.veb_6ce41104a_e</version>
+            <version>1.12.246-349.v96b_b_f7eb_a_c3c</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
