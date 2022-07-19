@@ -258,6 +258,7 @@ your user is not called ***jenkins***):
                 "ec2:DescribeAvailabilityZones",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSubnets",
+                "iam:CreateServiceLinkedRole",
                 "iam:ListInstanceProfilesForRole",
                 "iam:PassRole",
                 "ec2:GetPasswordData"
