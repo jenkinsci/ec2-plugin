@@ -241,6 +241,7 @@ your user is not called ***jenkins***):
             "Action": [
                 "ec2:DescribeSpotInstanceRequests",
                 "ec2:CancelSpotInstanceRequests",
+                "ec2:DescribeSpotPriceHistory",
                 "ec2:GetConsoleOutput",
                 "ec2:RequestSpotInstances",
                 "ec2:RunInstances",
