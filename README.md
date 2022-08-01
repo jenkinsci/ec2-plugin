@@ -336,7 +336,7 @@ def slaveTemplateUsEast1Parameters = [
   userData:                      '',
   zone:                          '',
   metadataEndpointEnabled:       true,
-  metadataTokensRequired:        true,
+  metadataTokensRequired:        true, // `true` enforces IMDSv2 only (over IMDSv1), an important AWS security best practice
   metadataHopsLimit:             1,
   minimumNumberOfInstances:      0,
   minimumNumberOfSpareInstances: 0,

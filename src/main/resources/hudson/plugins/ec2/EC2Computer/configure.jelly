@@ -137,7 +137,7 @@ THE SOFTWARE.
           <f:checkbox default="true"/>
         </f:entry>
         <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataTokensRequired">
-          <f:checkbox default="false"/>
+          <f:checkbox default="true"/>
         </f:entry>
         <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataHopsLimit">
           <f:textbox default="1" />
