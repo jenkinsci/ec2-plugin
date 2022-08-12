@@ -25,49 +25,7 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsRequest;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.HttpTokensState;
-import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceMarketOptionsRequest;
-import com.amazonaws.services.ec2.model.InstanceMetadataEndpointState;
-import com.amazonaws.services.ec2.model.InstanceMetadataOptionsRequest;
-import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.LaunchSpecification;
-import com.amazonaws.services.ec2.model.MarketType;
-import com.amazonaws.services.ec2.model.Placement;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
-import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.ResourceType;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.ShutdownBehavior;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.SpotMarketOptions;
-import com.amazonaws.services.ec2.model.SpotPlacement;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.StartInstancesResult;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TagSpecification;
+import com.amazonaws.services.ec2.model.*;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
@@ -1446,46 +1404,96 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
 
-            List<SpotInstanceRequest> reqInstances = reqResult.getSpotInstanceRequests();
-            if (reqInstances.isEmpty()) {
+            List<SpotInstanceRequest> spotInstanceRequestResponse = reqResult.getSpotInstanceRequests();
+            if (spotInstanceRequestResponse.isEmpty()) {
                 throw new AmazonClientException("No spot instances found");
             }
 
-            List<EC2AbstractSlave> slaves = new ArrayList<>(reqInstances.size());
-            for(SpotInstanceRequest spotInstReq : reqInstances) {
-                if (spotInstReq == null) {
-                    throw new AmazonClientException("Spot instance request is null");
+            ArrayList<String> spotInstanceRequestIds = new ArrayList<String>();
+
+            // Add all of the request ids to the hashset, so we can determine when they hit the
+            // active state.
+            for (SpotInstanceRequest requestResponse : spotInstanceRequestResponse) {
+                LOGGER.info("Created Spot Request: "+requestResponse.getSpotInstanceRequestId());
+                spotInstanceRequestIds.add(requestResponse.getSpotInstanceRequestId());
+            }
+
+            boolean anyOpen;
+            int maxAttempts = 2;
+            int attempts = 0;
+
+            //We may only get n spot instances. Track how many we actually get and request the rest ondemand.
+
+            //used to remove fulfilled slaves from iteration list
+            ArrayList<String> fulfilledSpotInstanceRequestIds = new ArrayList<String>();
+            //fulfilled slaves
+            List<EC2AbstractSlave> slaves = new ArrayList<EC2AbstractSlave>();
+
+            do {
+                //allow 10 seconds for fulfillment or cancellation
+                try {
+                    Thread.sleep(10*1000);
+                } catch (Exception e) {
+                    //noop
                 }
-                String slaveName = spotInstReq.getSpotInstanceRequestId();
 
-                if (spotConfig.getFallbackToOndemand()) {
-                    for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
-                        LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
-                        Thread.sleep(5000);
-                        LOGGER.info("Fetching info about spot request " + slaveName);
-                        DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(slaveName);
-                        spotInstReq = ec2.describeSpotInstanceRequests(describeRequest).getSpotInstanceRequests().get(0);
-                    }
+                //remove fulfilled ids
+                spotInstanceRequestIds.removeAll(fulfilledSpotInstanceRequestIds);
+                DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest();
+                describeRequest.setSpotInstanceRequestIds(spotInstanceRequestIds);
 
-                    List<String> spotRequestBadCodes = Arrays.asList("capacity-not-available", "capacity-oversubscribed", "price-too-low");
-                    if (spotRequestBadCodes.contains(spotInstReq.getStatus().getCode())) {
-                        LOGGER.info("There is no spot capacity available matching your request, falling back to on-demand instance.");
-                        List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
-                        CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
-                        ec2.cancelSpotInstanceRequests(cancelRequest);
-                        return provisionOndemand(image, number, provisionOptions);
+                // Initialize the anyOpen variable to false - which assumes there
+                // are no requests open unless we find one that is still open.
+                anyOpen=false;
+
+                try {
+                    DescribeSpotInstanceRequestsResult describeResult = ec2.describeSpotInstanceRequests(describeRequest);
+                    List<SpotInstanceRequest> describeResponses = describeResult.getSpotInstanceRequests();
+
+                    // Look through each request and determine if they are all in
+                    // the active state.
+                    for (SpotInstanceRequest describeResponse : describeResponses) {
+                        // If the state is open, it hasn't changed since we attempted
+                        // to request it. There is the potential for it to transition
+                        // almost immediately to closed or cancelled so we compare
+                        // against open instead of active.
+
+                        if(describeResponse.getStatus().getCode().equals("fulfilled")){
+                            fulfilledSpotInstanceRequestIds.add(describeResponse.getSpotInstanceRequestId());
+                            //add it to the list of fulfilled slaves
+                            slaves.add(newSpotSlave(describeResponse));
+                            // Now that we have our Spot request, we can set tags on it
+                            updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", describeResponse.getSpotInstanceRequestId());
+
+                            // That was a remote request - we should also update our local instance data
+                            describeResponse.setTags(instTags);
+
+                            LOGGER.info("Spot instance id in provision: " + describeResponse.getSpotInstanceRequestId());
+                        }
+                        else if (describeResponse.getState().equals(SpotInstanceState.Open.toString())) {
+                            anyOpen = true;
+                            if(attempts > maxAttempts ){
+                                //cancel the instance request
+                                CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(Arrays.asList(describeResponse.getSpotInstanceRequestId()));
+                                ec2.cancelSpotInstanceRequests(cancelRequest);
+                            }
+                        }
                     }
+                } catch (AmazonServiceException e) {
+                    // If we have an exception, ensure we don't break out of
+                    // the loop. This prevents the scenario where there was
+                    // blip on the wire.
+                    anyOpen = true;
                 }
 
-                // Now that we have our Spot request, we can set tags on it
-                updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
+                attempts++;
+            } while (anyOpen);
 
-                // That was a remote request - we should also update our local instance data
-                spotInstReq.setTags(instTags);
-
-                LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
-
-                slaves.add(newSpotSlave(spotInstReq));
+            //if we didn't get enough spot, fill it with ondemand
+            if (spotConfig.getFallbackToOndemand()) {
+                int newInstanceNumber = number - slaves.size();
+                if(newInstanceNumber > 0)
+                    slaves.addAll(provisionOndemand(image,newInstanceNumber,provisionOptions));
             }
 
             return slaves;
