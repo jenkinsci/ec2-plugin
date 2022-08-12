@@ -1304,6 +1304,86 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    //new spot request with a max of 1 ec2 instance
+    private RequestSpotInstancesResult requestSpotInstance(AmazonEC2 ec2, Image image)
+        throws IOException {
+        String imageId = image.getImageId();
+
+
+        LOGGER.info("Launching " + imageId + " for template " + description);
+
+        KeyPair keyPair = getKeyPair(ec2);
+
+        RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
+
+        // Validate spot bid before making the request
+        if (getSpotMaxBidPrice() == null) {
+            throw new AmazonClientException("Invalid Spot price specified: " + getSpotMaxBidPrice());
+        }
+
+        spotRequest.setSpotPrice(getSpotMaxBidPrice());
+        spotRequest.setInstanceCount(1);
+
+        LaunchSpecification launchSpecification = new LaunchSpecification();
+
+        launchSpecification.setImageId(imageId);
+        launchSpecification.setInstanceType(type);
+        launchSpecification.setEbsOptimized(ebsOptimized);
+        launchSpecification.setMonitoringEnabled(monitoring);
+
+        if (StringUtils.isNotBlank(getZone())) {
+            SpotPlacement placement = new SpotPlacement(getZone());
+            launchSpecification.setPlacement(placement);
+        }
+
+        InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
+        String subnetId = chooseSubnetId();
+        if (StringUtils.isNotBlank(subnetId)) {
+            net.setSubnetId(subnetId);
+
+            /*
+             * If we have a subnet ID then we can only use VPC security groups
+             */
+            if (!securityGroupSet.isEmpty()) {
+                List<String> groupIds = getEc2SecurityGroups(ec2);
+                if (!groupIds.isEmpty()) {
+                    net.setGroups(groupIds);
+                }
+            }
+        } else {
+            if (!securityGroupSet.isEmpty()) {
+                List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
+                        .getSecurityGroups()
+                        .stream().map(SecurityGroup::getGroupId)
+                        .collect(Collectors.toList());
+                net.setGroups(groupIds);
+            }
+        }
+
+        String userDataString = Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8));
+
+        launchSpecification.setUserData(userDataString);
+        launchSpecification.setKeyName(keyPair.getKeyName());
+        launchSpecification.setInstanceType(type.toString());
+
+        net.setAssociatePublicIpAddress(getAssociatePublicIp());
+        net.setDeviceIndex(0);
+        launchSpecification.withNetworkInterfaces(net);
+
+        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+        }
+
+        setupBlockDeviceMappings(image, launchSpecification.getBlockDeviceMappings());
+
+        spotRequest.setLaunchSpecification(launchSpecification);
+
+        if (getSpotBlockReservationDuration() != 0) {
+            spotRequest.setBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
+        }
+
+        return ec2.requestSpotInstances(spotRequest);
+    }
     /**
      * Provision a new agent for an EC2 spot instance to call back to Jenkins
      */
@@ -1317,117 +1397,45 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         String imageId = image.getImageId();
 
         try {
-            LOGGER.info("Launching " + imageId + " for template " + description);
-
-            KeyPair keyPair = getKeyPair(ec2);
-
-            RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
-
-            // Validate spot bid before making the request
-            if (getSpotMaxBidPrice() == null) {
-                throw new AmazonClientException("Invalid Spot price specified: " + getSpotMaxBidPrice());
-            }
-
-            spotRequest.setSpotPrice(getSpotMaxBidPrice());
-            spotRequest.setInstanceCount(number);
-
-            LaunchSpecification launchSpecification = new LaunchSpecification();
-
-            launchSpecification.setImageId(imageId);
-            launchSpecification.setInstanceType(type);
-            launchSpecification.setEbsOptimized(ebsOptimized);
-            launchSpecification.setMonitoringEnabled(monitoring);
-
-            if (StringUtils.isNotBlank(getZone())) {
-                SpotPlacement placement = new SpotPlacement(getZone());
-                launchSpecification.setPlacement(placement);
-            }
-
-            InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
-            String subnetId = chooseSubnetId();
-            if (StringUtils.isNotBlank(subnetId)) {
-                net.setSubnetId(subnetId);
-
-                /*
-                 * If we have a subnet ID then we can only use VPC security groups
-                 */
-                if (!securityGroupSet.isEmpty()) {
-                    List<String> groupIds = getEc2SecurityGroups(ec2);
-                    if (!groupIds.isEmpty()) {
-                        net.setGroups(groupIds);
-                    }
-                }
-            } else {
-                if (!securityGroupSet.isEmpty()) {
-                    List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
-                                                    .getSecurityGroups()
-                                                    .stream().map(SecurityGroup::getGroupId)
-                                                    .collect(Collectors.toList());
-                    net.setGroups(groupIds);
-                }
-            }
-
-            String userDataString = Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8));
-
-            launchSpecification.setUserData(userDataString);
-            launchSpecification.setKeyName(keyPair.getKeyName());
-            launchSpecification.setInstanceType(type.toString());
-
-            net.setAssociatePublicIpAddress(getAssociatePublicIp());
-            net.setDeviceIndex(0);
-            launchSpecification.withNetworkInterfaces(net);
-
-            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
-
-            if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-                launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
-            }
-
-            setupBlockDeviceMappings(image, launchSpecification.getBlockDeviceMappings());
-
-            spotRequest.setLaunchSpecification(launchSpecification);
-
-            if (getSpotBlockReservationDuration() != 0) {
-                spotRequest.setBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
-            }
-
-            RequestSpotInstancesResult reqResult;
-            try {
-                // Make the request for a new Spot instance
-                reqResult = ec2.requestSpotInstances(spotRequest);
-            } catch (AmazonEC2Exception e) {
-                if (spotConfig.getFallbackToOndemand() && e.getErrorCode().equals("MaxSpotInstanceCountExceeded")) {
-                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
-                    return provisionOndemand(image, number, provisionOptions);
-                } else {
-                    throw e;
-                }
-            }
-
-            List<SpotInstanceRequest> spotInstanceRequestResponse = reqResult.getSpotInstanceRequests();
-            if (spotInstanceRequestResponse.isEmpty()) {
-                throw new AmazonClientException("No spot instances found");
-            }
-
+            List<RequestSpotInstancesResult> spotRequestResults = new ArrayList<>();
             ArrayList<String> spotInstanceRequestIds = new ArrayList<String>();
 
-            // Add all of the request ids to the hashset, so we can determine when they hit the
-            // active state.
-            for (SpotInstanceRequest requestResponse : spotInstanceRequestResponse) {
-                LOGGER.info("Created Spot Request: "+requestResponse.getSpotInstanceRequestId());
-                spotInstanceRequestIds.add(requestResponse.getSpotInstanceRequestId());
+            //Launch one spot request per instance requested
+            for (int i = 0; i < number; i++) {
+                try{
+                    RequestSpotInstancesResult spotInstancesResult = requestSpotInstance(ec2,image);
+                    List<SpotInstanceRequest> spotInstanceRequestResponse = spotInstancesResult.getSpotInstanceRequests();
+                    if (spotInstanceRequestResponse.isEmpty()) {
+                        LOGGER.info("No spot instance information in spot instance request response.");
+                        continue;
+                    }
+                    // Take note of request ids
+                    for (SpotInstanceRequest requestResponse : spotInstanceRequestResponse) {
+                        LOGGER.info("Created Spot Request: "+requestResponse.getSpotInstanceRequestId());
+                        spotInstanceRequestIds.add(requestResponse.getSpotInstanceRequestId());
+                    }
+                    spotRequestResults.add(spotInstancesResult);
+                }catch (AmazonEC2Exception e) {
+                    LOGGER.info("Error while requesting spot instance " + e.getErrorCode());
+                }
             }
 
+            //monitor launched requests for fulfillment
             boolean anyOpen;
-            int maxAttempts = 2;
-            int attempts = 0;
+            //if no fallback to ondemand wait up to 60 seconds for fulfilment before cancelling
+            int maxAttempts = 5;
+            if (spotConfig.getFallbackToOndemand()) {
+                maxAttempts = 2; //30 seconds for fallback
+            }
 
-            //We may only get n spot instances. Track how many we actually get and request the rest ondemand.
+            int attempts = 0;
 
             //used to remove fulfilled slaves from iteration list
             ArrayList<String> fulfilledSpotInstanceRequestIds = new ArrayList<String>();
             //fulfilled slaves
             List<EC2AbstractSlave> slaves = new ArrayList<EC2AbstractSlave>();
+
+            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
             do {
                 //allow 10 seconds for fulfillment or cancellation
@@ -1437,7 +1445,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     //noop
                 }
 
-                //remove fulfilled ids
+                //remove fulfilled ids, on initial loop this is noop
                 spotInstanceRequestIds.removeAll(fulfilledSpotInstanceRequestIds);
                 DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest();
                 describeRequest.setSpotInstanceRequestIds(spotInstanceRequestIds);
@@ -1458,7 +1466,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         // almost immediately to closed or cancelled so we compare
                         // against open instead of active.
 
-                        if(describeResponse.getStatus().getCode().equals("fulfilled")){
+                        //if the request was filled or was cancelled but filled we can use it for work.
+                        if(describeResponse.getStatus().getCode().equals("fulfilled") || describeResponse.getStatus().getCode().equals("request-canceled-and-instance-running")){
                             fulfilledSpotInstanceRequestIds.add(describeResponse.getSpotInstanceRequestId());
                             //add it to the list of fulfilled slaves
                             slaves.add(newSpotSlave(describeResponse));
@@ -1468,11 +1477,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             // That was a remote request - we should also update our local instance data
                             describeResponse.setTags(instTags);
 
-                            LOGGER.info("Spot instance id in provision: " + describeResponse.getSpotInstanceRequestId());
+                            LOGGER.info("Spot instance fulfilled with instance id: " + describeResponse.getInstanceId());
                         }
                         else if (describeResponse.getState().equals(SpotInstanceState.Open.toString())) {
                             anyOpen = true;
-                            if(attempts > maxAttempts ){
+                            //spot instance requests remain open forever unless cancelled. 
+                            if(attempts >= maxAttempts ){
                                 //cancel the instance request
                                 CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(Arrays.asList(describeResponse.getSpotInstanceRequestId()));
                                 ec2.cancelSpotInstanceRequests(cancelRequest);
@@ -1488,6 +1498,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 attempts++;
             } while (anyOpen);
+            //wait for all spot requests to close
 
             //if we didn't get enough spot, fill it with ondemand
             if (spotConfig.getFallbackToOndemand()) {
@@ -1576,7 +1587,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
-            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
+            .withName(getSlaveName(sir.getInstanceId()))
             .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
             .withDescription(description)
             .withRemoteFS(remoteFS)
