@@ -1395,6 +1395,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         AmazonEC2 ec2 = getParent().connect();
         String imageId = image.getImageId();
+        HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
         try {
             List<RequestSpotInstancesResult> spotRequestResults = new ArrayList<>();
@@ -1413,6 +1414,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     for (SpotInstanceRequest requestResponse : spotInstanceRequestResponse) {
                         LOGGER.info("Created Spot Request: "+requestResponse.getSpotInstanceRequestId());
                         spotInstanceRequestIds.add(requestResponse.getSpotInstanceRequestId());
+                        // Now that we have our Spot request, we can set tags on it
+                        LOGGER.info(" SPOTMOD: Attempting to tag to spot instance request...");
+                        updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", requestResponse.getSpotInstanceRequestId());
+
+                        // That was a remote request - we should also update our local instance data
+                        requestResponse.setTags(instTags);
                     }
                     spotRequestResults.add(spotInstancesResult);
                 }catch (AmazonEC2Exception e) {
@@ -1434,8 +1441,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             ArrayList<String> fulfilledSpotInstanceRequestIds = new ArrayList<String>();
             //fulfilled slaves
             List<EC2AbstractSlave> slaves = new ArrayList<EC2AbstractSlave>();
-
-            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
             do {
                 //allow 10 seconds for fulfillment or cancellation
@@ -1471,21 +1476,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             fulfilledSpotInstanceRequestIds.add(describeResponse.getSpotInstanceRequestId());
                             //add it to the list of fulfilled slaves
                             slaves.add(newSpotSlave(describeResponse));
-                            // Now that we have our Spot request, we can set tags on it
-                            updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", describeResponse.getSpotInstanceRequestId());
+                            LOGGER.info(" SPOTMOD: Attempting to tag to spot instance...");
+                            updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", describeResponse.getInstanceId());
 
-                            // That was a remote request - we should also update our local instance data
-                            describeResponse.setTags(instTags);
-
-                            LOGGER.info("Spot instance fulfilled with instance id: " + describeResponse.getInstanceId());
+                            LOGGER.info(" SPOTMOD: Spot instance fulfilled with instance id: " + describeResponse.getInstanceId() + " with spot request id " + describeResponse.getSpotInstanceRequestId());
                         }
                         else if (describeResponse.getState().equals(SpotInstanceState.Open.toString())) {
                             anyOpen = true;
-                            //spot instance requests remain open forever unless cancelled. 
+                            //spot instance requests remain open forever unless cancelled.
                             if(attempts >= maxAttempts ){
                                 //cancel the instance request
                                 CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(Arrays.asList(describeResponse.getSpotInstanceRequestId()));
                                 ec2.cancelSpotInstanceRequests(cancelRequest);
+                                LOGGER.info(" SPOTMOD: Max attemptes reached cancelling spot request with id " + describeResponse.getSpotInstanceRequestId());
                             }
                         }
                     }
@@ -1499,7 +1502,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 attempts++;
             } while (anyOpen);
             //wait for all spot requests to close
-
+            LOGGER.info(" SPOTMOD: Spot request wait loop finished with " + slaves.size() + " spot instances of " + number + " requested.");
             //if we didn't get enough spot, fill it with ondemand
             if (spotConfig.getFallbackToOndemand()) {
                 int newInstanceNumber = number - slaves.size();
@@ -1587,7 +1590,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
-            .withName(getSlaveName(sir.getInstanceId()))
+            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
             .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
             .withDescription(description)
             .withRemoteFS(remoteFS)
@@ -1642,16 +1645,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             try {
                 CreateTagsRequest tagRequest = new CreateTagsRequest();
                 tagRequest.withResources(params).setTags(instTags);
-                ec2.createTags(tagRequest);
+                CreateTagsResult response = ec2.createTags(tagRequest);
+                LOGGER.info(" SPOTMOD: CreateTagsResult " + response.toString());
                 break;
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals(catchErrorCode)) {
+                    LOGGER.info(" SPOTMOD: updateRemoteTags attempt with error code  " + e.getErrorCode() + " - " + e.getErrorMessage());
                     Thread.sleep(5000);
                     continue;
                 }
+                LOGGER.info(" SPOTMOD: updateRemoteTags failed ");
                 LOGGER.log(Level.SEVERE, e.getErrorMessage(), e);
             }
         }
+        LOGGER.info(" SPOTMOD: updateRemoteTags exited without exceptions");
     }
 
     /**
