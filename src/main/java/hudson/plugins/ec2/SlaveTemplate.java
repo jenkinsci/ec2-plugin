@@ -1484,7 +1484,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         else if (describeResponse.getState().equals(SpotInstanceState.Open.toString())) {
                             anyOpen = true;
                             //spot instance requests remain open forever unless cancelled.
-                            if(attempts >= maxAttempts ){
+                            //however if its already pending, do not cancel until next iteration
+                            if(!describeResponse.getStatus().getCode().startsWith("pending-") && attempts >= maxAttempts ){
                                 //cancel the instance request
                                 CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(Arrays.asList(describeResponse.getSpotInstanceRequestId()));
                                 ec2.cancelSpotInstanceRequests(cancelRequest);
