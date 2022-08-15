@@ -1644,11 +1644,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 CreateTagsRequest tagRequest = new CreateTagsRequest();
                 tagRequest.withResources(params).setTags(instTags);
                 CreateTagsResult response = ec2.createTags(tagRequest);
-                LOGGER.info(" SPOTMOD: CreateTagsResult " + response.toString());
                 break;
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals(catchErrorCode)) {
-                    LOGGER.info(" SPOTMOD: updateRemoteTags attempt with error code  " + e.getErrorCode() + " - " + e.getErrorMessage());
                     Thread.sleep(5000);
                     continue;
                 }
