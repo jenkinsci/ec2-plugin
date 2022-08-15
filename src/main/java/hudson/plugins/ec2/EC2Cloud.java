@@ -513,7 +513,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of EC2 Spot instances that can be used with the specified image and a template. 
+     * Counts the number of EC2 Spot instances that can be used with the specified image and a template.
      *
      * @param template If left null, then all spot instances are counted.
      */
