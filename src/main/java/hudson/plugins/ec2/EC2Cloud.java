@@ -513,8 +513,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Counts the number of EC2 Spot instances that can be used with the specified image and a template. Also removes any
-     * nodes associated with canceled requests.
+     * Counts the number of EC2 Spot instances that can be used with the specified image and a template. 
      *
      * @param template If left null, then all spot instances are counted.
      */
@@ -556,25 +555,6 @@ public abstract class EC2Cloud extends Cloud {
                             n++;
                             if (sir.getInstanceId() != null)
                                 instanceIds.add(sir.getInstanceId());
-                        }
-                    } else {
-                        // Cancelled or otherwise dead
-                        for (Node node : Jenkins.get().getNodes()) {
-                            try {
-                                if (!(node instanceof EC2SpotSlave))
-                                    continue;
-                                EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
-                                if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
-                                    LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
-                                            + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
-                                    Jenkins.get().removeNode(node);
-                                    break;
-                                }
-                            } catch (IOException e) {
-                                LOGGER.log(Level.WARNING, "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
-                                                + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus(),
-                                        e);
-                            }
                         }
                     }
                 }
