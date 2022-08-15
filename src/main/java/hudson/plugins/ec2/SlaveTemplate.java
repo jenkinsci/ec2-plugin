@@ -1429,12 +1429,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             //monitor launched requests for fulfillment
             boolean anyOpen;
-            //if no fallback to ondemand wait up to 60 seconds for fulfilment before cancelling
+            //wait up to 60 seconds for fulfilment before cancelling
             int maxAttempts = 5;
-            if (spotConfig.getFallbackToOndemand()) {
-                maxAttempts = 2; //30 seconds for fallback
-            }
-
             int attempts = 0;
 
             //used to remove fulfilled slaves from iteration list
@@ -1483,6 +1479,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         }
                         else if (describeResponse.getState().equals(SpotInstanceState.Open.toString())) {
                             anyOpen = true;
+                            LOGGER.info(" SPOTMOD: Spot request sill open and in state " + describeResponse.getStatus().getCode() + " with requestId " + describeResponse.getSpotInstanceRequestId());
                             //spot instance requests remain open forever unless cancelled.
                             //however if its already pending, do not cancel until next iteration
                             if(!describeResponse.getStatus().getCode().startsWith("pending-") && attempts >= maxAttempts ){
@@ -1591,7 +1588,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
-            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
+            .withName(getSlaveName(sir.getInstanceId()))
             .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
             .withDescription(description)
             .withRemoteFS(remoteFS)

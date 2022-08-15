@@ -824,11 +824,6 @@ public abstract class EC2Cloud extends Cloud {
                         while (true) {
                             String instanceId = slave.getInstanceId();
                             if (slave instanceof EC2SpotSlave) {
-                                if (((EC2SpotSlave) slave).isSpotRequestDead()) {
-                                    LOGGER.log(Level.WARNING, "{0} Spot request died, can't do anything. Terminate provisioning", t);
-                                    return null;
-                                }
-
                                 // Spot Instance does not have instance id yet.
                                 if (StringUtils.isEmpty(instanceId)) {
                                     Thread.sleep(5000);
