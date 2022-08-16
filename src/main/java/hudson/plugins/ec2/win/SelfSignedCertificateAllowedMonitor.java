@@ -27,7 +27,6 @@ import hudson.Extension;
 import hudson.model.AdministrativeMonitor;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.EC2Cloud;
-import hudson.plugins.ec2.PluginImpl;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.WindowsData;
 import hudson.slaves.Cloud;
@@ -53,6 +52,7 @@ public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
         return Messages.AdminMonitor_DisplayName();
     }
 
+    @SuppressWarnings("unused") // used by message.jelly
     public String getSelfSignedCertAllowedTemplates() {
         return String.join(", ", insecureTemplates);
     }
@@ -105,15 +105,12 @@ public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
     }
     
     @RequirePOST
-    public HttpResponse doAct(@QueryParameter String dismiss, @QueryParameter String dismissAllMessages) throws IOException {
+    @SuppressWarnings("unused") // used by message.jelly
+    public HttpResponse doAct(@QueryParameter String dismiss) throws IOException {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (dismiss != null) {
-            PluginImpl.get().saveDismissInsecureMessages(System.currentTimeMillis());
-        } 
-        
-        if (dismissAllMessages != null) {
             disable(true);
-        }
+        } 
         return HttpResponses.forwardToPreviousPage();
     }
 }
