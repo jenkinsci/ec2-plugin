@@ -18,6 +18,7 @@
       ebsEncryptRootVolume: DEFAULT
       ebsOptimized: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
+      javaPath: "java"
       labelString: "mac metal"
       maxTotalUses: -1
       metadataEndpointEnabled: true
