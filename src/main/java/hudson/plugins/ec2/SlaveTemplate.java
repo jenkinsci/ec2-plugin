@@ -318,7 +318,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
 
-        if (javaPath.isNotBlank()) {
+        if (StringUtils.isNotBlank(javaPath)) {
             this.javaPath = javaPath;
         } else {
             this.javaPath = DEFAULT_JAVA_PATH;
