@@ -337,7 +337,7 @@ public class SshHostKeyVerificationStrategyTest {
 
         // Create a computer
         private static MockEC2Computer createComputer(String suffix) throws Exception {
-            final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+            final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "java", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
                 @Override
                 public void terminate() {
                 }
@@ -368,7 +368,7 @@ public class SshHostKeyVerificationStrategyTest {
 
         @Override
         public SlaveTemplate getSlaveTemplate() {
-            return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+            return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
         }
     } 
     
