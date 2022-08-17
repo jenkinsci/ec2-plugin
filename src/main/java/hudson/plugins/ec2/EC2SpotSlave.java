@@ -37,7 +37,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     @Deprecated
     public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType);
+        this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType);
     }
 
     @Deprecated
