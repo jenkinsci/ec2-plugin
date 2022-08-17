@@ -37,26 +37,26 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
     @Deprecated
     public EC2OndemandSlave(String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout, amiType);
+        this(instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, launchTimeout, amiType);
     }
 
     @Deprecated
     public EC2OndemandSlave(String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, useDedicatedTenancy, launchTimeout, amiType);
+        this(instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, false, useDedicatedTenancy, launchTimeout, amiType);
     }
 
     @Deprecated
     public EC2OndemandSlave(String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(templateDescription + " (" + instanceId + ")", instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.emptyList(), remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
+        this(templateDescription + " (" + instanceId + ")", instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, Collections.emptyList(), remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, useDedicatedTenancy, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @Deprecated
     public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, boolean useDedicatedTenancy, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
