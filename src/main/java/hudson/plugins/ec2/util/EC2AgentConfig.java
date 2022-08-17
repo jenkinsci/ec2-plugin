@@ -102,6 +102,7 @@ public abstract class EC2AgentConfig {
         private String tmpDir;
         private List<? extends NodeProperty<?>> nodeProperties;
         private String remoteAdmin;
+        private String javaPath;
         private String jvmopts;
         private String idleTerminationMinutes;
         private List<EC2Tag> tags;
