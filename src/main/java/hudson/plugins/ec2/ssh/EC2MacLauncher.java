@@ -221,13 +221,13 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            executeRemote(computer, conn, "java -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-8-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-8-x64-macos-jdk.pkg -target /", logger, listener);
+            final String javaPath = node.javaPath;
+            executeRemote(computer, conn, javaPath + " -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-8-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-8-x64-macos-jdk.pkg -target /", logger, listener);
 
             // Always copy so we get the most recent remoting.jar
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
             scp.put(Jenkins.get().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
-            final String javaPath = node.javaPath;
             final String jvmopts = node.jvmopts;
             final String prefix = computer.getSlaveCommandPrefix();
             final String suffix = computer.getSlaveCommandSuffix();
