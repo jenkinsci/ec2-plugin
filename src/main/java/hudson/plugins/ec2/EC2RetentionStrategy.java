@@ -243,7 +243,13 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      * to timing out the slave.
      */
     private boolean itemsInQueueForThisSlave(EC2Computer c) {
-        final Label selfLabel = c.getNode().getSelfLabel();
+        final EC2AbstractSlave selfNode = c.getNode();
+        /* null checking is required here because in the event that a computer
+         * doesn't have a node it will return null. In this case we want to
+         * return false because there's no slave to prevent a timeout of.
+         */
+        if (selfNode == null) return false;
+        final Label selfLabel = selfNode.getSelfLabel();
         Queue.Item[] items = Jenkins.getInstance().getQueue().getItems();
         for (int i = 0; i < items.length; i++) {
             Queue.Item item = items[i];
