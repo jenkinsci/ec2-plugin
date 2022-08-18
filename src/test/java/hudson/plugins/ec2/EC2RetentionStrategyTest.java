@@ -98,8 +98,6 @@ public class EC2RetentionStrategyTest {
         }
     }
 
-    private EC2Computer computerWithUpTime(final int minutes, final int seconds) throws Exception {
-        return computerWithUpTime(minutes, seconds, false, null);
     @Test
     public void testRetentionWhenQueueHasWaitingItemForThisNode() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
@@ -200,8 +198,77 @@ public class EC2RetentionStrategyTest {
             }
         };
     }
+
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds) throws Exception {
         return computerWithIdleTime(minutes, seconds, false, null);
+    }
+
+    /*
+     * Creates a computer with the params passed. If isOnline is null, the computer returns the real value, otherwise,
+     * the computer returns the value established.
+     */
+    private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
+        final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+            @Override
+            public void terminate() {
+            }
+
+            @Override
+            public String getEc2Type() {
+                return null;
+            }
+
+            @Override
+            void idleTimeout() {
+                idleTimeoutCalled.set(true);
+            }
+        };
+        EC2Computer computer = new EC2Computer(slave) {
+
+            private final long launchedAtMs = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds)).toEpochMilli();
+
+            @Override
+            public EC2AbstractSlave getNode() {
+                return slave;
+            }
+
+            @Override
+            public long getUptime() throws AmazonClientException, InterruptedException {
+                return ((minutes * 60L) + seconds) * 1000L;
+            }
+
+            @Override
+            public long getLaunchTime() throws InterruptedException {
+                return this.launchedAtMs;
+            }
+
+            @Override
+            public boolean isOffline() {
+                return isOffline == null ? super.isOffline() : isOffline;
+            }
+
+            @Override
+            public InstanceState getState() {
+                return InstanceState.RUNNING;
+            }
+
+            @Override
+            public SlaveTemplate getSlaveTemplate() {
+                return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+            }
+
+            @Override
+            public boolean isConnecting() {
+                return isConnecting == null ? super.isConnecting() : isConnecting;
+            }
+        };
+        assertTrue(computer.isIdle());
+        assertTrue(isOffline == null || computer.isOffline() == isOffline);
+        return computer;
+    }
+
+    private EC2Computer computerWithUpTime(final int minutes, final int seconds) throws Exception {
+        return computerWithUpTime(minutes, seconds, false, null);
     }
 
     /*
