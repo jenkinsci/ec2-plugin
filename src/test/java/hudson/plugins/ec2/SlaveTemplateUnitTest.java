@@ -11,11 +11,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
-import org.powermock.reflect.Whitebox;
-import org.powermock.reflect.internal.WhiteboxImpl;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -74,8 +75,10 @@ public class SlaveTemplateUnitTest {
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
-        final Object params[] = { ec2, awsTags, "InvalidInstanceRequestID.NotFound", instanceId };
-        Whitebox.invokeMethod(orig, "updateRemoteTags", params);
+        Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod("updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
+        updateRemoteTags.setAccessible(true);
+        final Object params[] = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", new String[]{instanceId}};
+        updateRemoteTags.invoke(orig, params);
         assertEquals(0, handler.getRecords().size());
     }
 
@@ -111,8 +114,10 @@ public class SlaveTemplateUnitTest {
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
-        final Object params[] = { ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", instanceId };
-        Whitebox.invokeMethod(orig, "updateRemoteTags", params);
+        Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod("updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
+        updateRemoteTags.setAccessible(true);
+        final Object params[] = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", new String[]{instanceId}};
+        updateRemoteTags.invoke(orig, params);
 
         assertEquals(5, handler.getRecords().size());
 
@@ -137,12 +142,18 @@ public class SlaveTemplateUnitTest {
         template.setAmiOwners(testOwners);
         template.setAmiUsers(testUsers);
         template.setAmiFilters(testFilters);
+        Method makeDescribeImagesRequest = SlaveTemplate.class.getDeclaredMethod("makeDescribeImagesRequest");
+        makeDescribeImagesRequest.setAccessible(true);
         if (shouldRaise) {
-            assertThrows(AmazonClientException.class, () ->
-                Whitebox.invokeMethod(template, "makeDescribeImagesRequest"));
+            assertThrows(AmazonClientException.class, () -> {
+                try {
+                    makeDescribeImagesRequest.invoke(template);
+                } catch (InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
         } else {
-            DescribeImagesRequest request = Whitebox.invokeMethod(template,
-                                                              "makeDescribeImagesRequest");
+            DescribeImagesRequest request = (DescribeImagesRequest) makeDescribeImagesRequest.invoke(template);
             assertEquals(expectedImageIds, request.getImageIds());
             assertEquals(expectedOwners, request.getOwners());
             assertEquals(expectedUsers, request.getExecutableUsers());
@@ -324,7 +335,9 @@ public class SlaveTemplateUnitTest {
         if (rootVolumeEnum instanceof EbsEncryptRootVolume) {
             template.ebsEncryptRootVolume = rootVolumeEnum;
         };
-        WhiteboxImpl.invokeMethod(template, "setupRootDevice", image, deviceMappings);
+        Method setupRootDevice = SlaveTemplate.class.getDeclaredMethod("setupRootDevice", Image.class, List.class);
+        setupRootDevice.setAccessible(true);
+        setupRootDevice.invoke(template, image, deviceMappings);
         return image.getBlockDeviceMappings().get(0).getEbs().getEncrypted();
     }
 
