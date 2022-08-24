@@ -17,10 +17,6 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -133,6 +129,10 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+
 /**
  * Template of {@link EC2AbstractSlave} to launch.
  *
@@ -141,7 +141,7 @@ import java.util.stream.Stream;
 public class SlaveTemplate implements Describable<SlaveTemplate> {
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 
-    private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
+    static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
 
     public String ami;
 
@@ -253,6 +253,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @CheckForNull
     private List<EC2Filter> amiFilters;
+
 
     /*
      * Necessary to handle reading from old configurations. The UnixData object is created in readResolve()
