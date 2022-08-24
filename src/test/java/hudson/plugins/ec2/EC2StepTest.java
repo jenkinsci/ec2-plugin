@@ -15,9 +15,7 @@ import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mock;
 import org.mockito.internal.stubbing.answers.ThrowsException;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,9 +32,7 @@ import static org.mockito.Mockito.when;
 /**
  * @author Alicia Doblas
  */
-@PowerMockIgnore({"javax.crypto.*", "org.hamcrest.*", "javax.net.ssl.*", "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({EC2AbstractSlave.class, SlaveTemplate.class})
+@RunWith(MockitoJUnitRunner.class)
 public class EC2StepTest {
     @Rule
     public JenkinsRule r = new JenkinsRule();
