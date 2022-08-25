@@ -155,13 +155,13 @@ public class ConfigurationAsCodeTest {
     }
 
     @Test
-    @ConfiguredWithCode("UnixData-withAltEndpoint.yml")
-    public void testConfigAsCodeWithAltEncpointExport() throws Exception {
+    @ConfiguredWithCode("UnixData-withAltEndpointAndJavaPath.yml")
+    public void testConfigAsCodeWithAltEndpointAndJavaPathExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = getJenkinsRoot(context).get("clouds");
         String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpoint.yml");
+        String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpointAndJavaPath.yml");
         assertEquals(expected, exported);
     }
 

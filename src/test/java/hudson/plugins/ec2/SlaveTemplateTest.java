@@ -101,7 +101,7 @@ public class SlaveTemplateTest {
 
         r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
         // For already existing strategies, the default is this one
         assertEquals(HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT, received.getHostKeyVerificationStrategy());
     }
@@ -124,7 +124,7 @@ public class SlaveTemplateTest {
 
         r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
         assertEquals(STRATEGY_TO_CHECK, received.getHostKeyVerificationStrategy());
     }
 
@@ -154,7 +154,7 @@ public class SlaveTemplateTest {
 
         r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     /**
@@ -179,7 +179,7 @@ public class SlaveTemplateTest {
 
         r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     @Test
@@ -446,7 +446,7 @@ public class SlaveTemplateTest {
     @Test
     public void testMetadataV2Config() throws Exception {
         final String slaveDescription = "foobar";
-        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
@@ -455,12 +455,12 @@ public class SlaveTemplateTest {
 
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(slaveDescription);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,metadataEndpointEnabled,metadataTokensRequired,metadataHopsLimit");
+        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,metadataEndpointEnabled,metadataTokensRequired,metadataHopsLimit");
     }
 
     @Test
     public void provisionOnDemandSetsMetadataV2Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -478,7 +478,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, null, null);
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, null, null);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 

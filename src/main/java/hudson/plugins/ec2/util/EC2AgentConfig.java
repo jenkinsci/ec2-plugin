@@ -21,6 +21,7 @@ public abstract class EC2AgentConfig {
     final String tmpDir;
     final List<? extends NodeProperty<?>> nodeProperties;
     final String remoteAdmin;
+    final String javaPath;
     final String jvmopts;
     final String idleTerminationMinutes;
     final List<EC2Tag> tags;
@@ -41,6 +42,7 @@ public abstract class EC2AgentConfig {
         this.tmpDir = builder.tmpDir;
         this.nodeProperties = builder.nodeProperties;
         this.remoteAdmin = builder.remoteAdmin;
+        this.javaPath = builder.javaPath;
         this.jvmopts = builder.jvmopts;
         this.idleTerminationMinutes = builder.idleTerminationMinutes;
         this.tags = builder.tags;
@@ -100,6 +102,7 @@ public abstract class EC2AgentConfig {
         private String tmpDir;
         private List<? extends NodeProperty<?>> nodeProperties;
         private String remoteAdmin;
+        private String javaPath;
         private String jvmopts;
         private String idleTerminationMinutes;
         private List<EC2Tag> tags;
@@ -160,6 +163,11 @@ public abstract class EC2AgentConfig {
 
         public B withRemoteAdmin(String remoteAdmin) {
             this.remoteAdmin = remoteAdmin;
+            return self();
+        }
+
+        public B withJavaPath(String javaPath) {
+            this.javaPath = javaPath;
             return self();
         }
 

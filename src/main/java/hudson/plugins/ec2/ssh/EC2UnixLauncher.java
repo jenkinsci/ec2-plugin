@@ -235,7 +235,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
 
             // TODO: parse the version number. maven-enforcer-plugin might help
-            executeRemote(computer, conn, "java -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
+            final String javaPath = node.javaPath;
+            executeRemote(computer, conn, javaPath + " -fullversion", "sudo yum install -y java-1.8.0-openjdk.x86_64", logger, listener);
             executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
             // Always copy so we get the most recent remoting.jar
@@ -247,7 +248,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             final String suffix = computer.getSlaveCommandSuffix();
             final String remoteFS = node.getRemoteFS();
             final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
-            String launchString = prefix + " java " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + workDir + suffix;
+            String launchString = prefix + " " + javaPath + " " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + workDir + suffix;
            // launchString = launchString.trim();
 
             if (template.isConnectBySSHProcess()) {

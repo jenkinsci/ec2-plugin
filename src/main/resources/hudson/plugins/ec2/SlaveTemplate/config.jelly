@@ -124,6 +124,10 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
+    <f:entry title="${%Java Path}" field="javaPath">
+      <f:textbox/>
+    </f:entry>
+
     <f:entry title="${%JVM Options}" field="jvmopts">
       <f:textbox/>
     </f:entry>

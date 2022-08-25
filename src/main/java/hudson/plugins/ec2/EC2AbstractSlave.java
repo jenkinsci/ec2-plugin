@@ -79,6 +79,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.FALSE;
     public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
+    public static final String DEFAULT_JAVA_PATH = "java";
 
     private static final Logger LOGGER = Logger.getLogger(EC2AbstractSlave.class.getName());
 
@@ -93,6 +94,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public final String templateDescription;
 
+    public final String javaPath;
     public final String jvmopts; // e.g. -Xmx1g
     public final boolean stopOnTerminate;
     public final String idleTerminationMinutes;
@@ -152,7 +154,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
                             Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
         super(name, remoteFS, launcher);
@@ -167,6 +169,7 @@ public abstract class EC2AbstractSlave extends Slave {
         this.initScript = initScript;
         this.tmpDir = tmpDir;
         this.remoteAdmin = remoteAdmin;
+        this.javaPath = javaPath;
         this.jvmopts = jvmopts;
         this.stopOnTerminate = stopOnTerminate;
         this.idleTerminationMinutes = idleTerminationMinutes;
@@ -187,7 +190,7 @@ public abstract class EC2AbstractSlave extends Slave {
     @Deprecated
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
 
     }
 
@@ -555,6 +558,10 @@ public abstract class EC2AbstractSlave extends Slave {
         if (commandSuffix == null || commandSuffix.length() == 0)
             return "";
         return " " + commandSuffix;
+    }
+
+    String getJavaPath() {
+        return Util.fixNull(javaPath);
     }
 
     String getJvmopts() {
