@@ -178,7 +178,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String remoteAdmin;
 
-    public final String javaPath;
+    public String javaPath;
 
     public final String jvmopts;
 
@@ -1773,6 +1773,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
         if (metadataHopsLimit == null) {
             metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+        }
+        if (StringUtils.isBlank(javaPath)) {
+            javaPath = DEFAULT_JAVA_PATH;
         }
 
         return this;
