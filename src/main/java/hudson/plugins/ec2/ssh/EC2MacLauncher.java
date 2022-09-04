@@ -381,6 +381,11 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     throw new IOException("goto sleep");
                 }
 
+                if (StringUtils.isBlank(host)) {
+                    logWarning(computer, listener, "Empty host, your host is most likely waiting for an ip address.");
+                    throw new IOException("goto sleep");
+                }
+
                 if ("0.0.0.0".equals(host)) {
                     logWarning(computer, listener, "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
