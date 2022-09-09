@@ -459,6 +459,24 @@ public class SlaveTemplateTest {
     }
 
     @Test
+    public void provisionOnDemandSetsMetadataV1Options() throws Exception {
+        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, false, 2);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
+        assertEquals(metadataOptionsRequest.getHttpEndpoint(), InstanceMetadataEndpointState.Enabled.toString());
+        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Optional.toString());
+        assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(2));
+    }
+
+    @Test
     public void provisionOnDemandSetsMetadataV2Options() throws Exception {
         SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
 
