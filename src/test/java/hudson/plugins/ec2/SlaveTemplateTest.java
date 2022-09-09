@@ -490,7 +490,7 @@ public class SlaveTemplateTest {
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
         assertEquals(metadataOptionsRequest.getHttpEndpoint(), InstanceMetadataEndpointState.Enabled.toString());
-        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Optional.toString());
+        assertEquals(metadataOptionsRequest.getHttpTokens(), HttpTokensState.Required.toString());
         assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
