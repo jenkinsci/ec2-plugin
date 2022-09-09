@@ -23,7 +23,7 @@
       maxTotalUses: -1
       metadataEndpointEnabled: true
       metadataHopsLimit: 1
-      metadataTokensRequired: false
+      metadataTokensRequired: true
       minimumNumberOfInstances: 0
       minimumNumberOfSpareInstances: 0
       mode: NORMAL

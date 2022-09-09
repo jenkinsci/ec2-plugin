@@ -77,7 +77,7 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 @SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
-    public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.FALSE;
+    public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.TRUE;
     public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
     public static final String DEFAULT_JAVA_PATH = "java";
 
