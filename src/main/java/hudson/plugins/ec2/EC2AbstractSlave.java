@@ -68,6 +68,7 @@ import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * Agent running on EC2.
@@ -810,11 +811,13 @@ public abstract class EC2AbstractSlave extends Slave {
             return false;
         }
 
+        @POST
         public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
                                             @QueryParameter String credentialsId,
                                             @QueryParameter String region,
                                             @QueryParameter String roleArn,
                                             @QueryParameter String roleSessionName) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return fillZoneItems(credentialsProvider, region);
         }

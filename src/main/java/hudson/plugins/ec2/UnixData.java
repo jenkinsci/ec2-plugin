@@ -2,16 +2,9 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
-
-import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-
-import java.util.concurrent.TimeUnit;
 
 public class UnixData extends AMITypeData {
     private final String rootCommandPrefix;
@@ -59,33 +52,6 @@ public class UnixData extends AMITypeData {
         @Override
         public String getDisplayName() {
             return "unix";
-        }
-
-        @Restricted(NoExternalUse.class)
-        public FormValidation doCheckRootCommandPrefix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
-                return FormValidation.ok();
-            }else{
-                return FormValidation.error(Messages.General_MissingPermission());
-            }
-        }
-
-        @Restricted(NoExternalUse.class)
-        public FormValidation doCheckSlaveCommandPrefix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
-                return FormValidation.ok();
-            }else{
-                return FormValidation.error(Messages.General_MissingPermission());
-            }
-        }
-
-        @Restricted(NoExternalUse.class)
-        public FormValidation doCheckSlaveCommandSuffix(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
-                return FormValidation.ok();
-            }else{
-                return FormValidation.error(Messages.General_MissingPermission());
-            }
         }
     }
 

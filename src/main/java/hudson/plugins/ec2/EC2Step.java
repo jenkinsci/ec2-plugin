@@ -33,6 +33,7 @@ import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
 
 import java.util.*;
 
@@ -85,8 +86,9 @@ public class EC2Step extends Step {
             return "Cloud template provisioning";
         }
 
-
+        @POST
         public ListBoxModel doFillCloudItems() {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
             Jenkins.CloudList clouds = jenkins.model.Jenkins.get().clouds;
@@ -98,7 +100,9 @@ public class EC2Step extends Step {
             return r;
         }
 
+        @POST
         public ListBoxModel doFillTemplateItems(@QueryParameter String cloud) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             cloud = Util.fixEmpty(cloud);
             ListBoxModel r = new ListBoxModel();
             for (Cloud cList : jenkins.model.Jenkins.get().clouds) {

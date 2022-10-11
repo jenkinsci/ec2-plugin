@@ -38,6 +38,7 @@ import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -214,6 +215,7 @@ public class EC2Computer extends SlaveComputer {
      * When the agent is deleted, terminate the instance.
      */
     @Override
+    @POST
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
         EC2AbstractSlave node = getNode();
