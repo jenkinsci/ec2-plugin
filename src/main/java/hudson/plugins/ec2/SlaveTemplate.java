@@ -110,6 +110,8 @@ import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import org.kohsuke.stapler.verb.POST;
+
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -1897,6 +1899,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         @Restricted(NoExternalUse.class)
+        @POST
         public FormValidation doCheckDescription(@QueryParameter String value) {
             try {
                 Jenkins.checkGoodName(value);
@@ -1905,34 +1908,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return FormValidation.error(e.getMessage());
             }
         }
-
-        @Restricted(NoExternalUse.class)
-        public FormValidation doCheckRemoteAdmin(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
-                return FormValidation.ok();
-            }else{
-                return FormValidation.error(Messages.General_MissingPermission());
-            }
-        }
-
-        @Restricted(NoExternalUse.class)
-        public FormValidation doCheckTmpDir(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
-                return FormValidation.ok();
-            } else {
-                return FormValidation.error(Messages.General_MissingPermission());
-            }
-        }
-
-        @Restricted(NoExternalUse.class)
-        public FormValidation doCheckJvmopts(@QueryParameter String value){
-            if(StringUtils.isBlank(value) || Jenkins.get().hasPermission(Jenkins.ADMINISTER)){
-                return FormValidation.ok();
-            } else {
-                return FormValidation.error(Messages.General_MissingPermission());
-            }
-        }
-
 
         /***
          * Check that the AMI requested is available in the cloud and can be used.
@@ -1971,6 +1946,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
+        @POST
         public FormValidation doCheckLabelString(@QueryParameter String value, @QueryParameter Node.Mode mode) {
             if (mode == Node.Mode.EXCLUSIVE && (value == null || value.trim().isEmpty())) {
                 return FormValidation.warning("You may want to assign labels to this node;"
@@ -1980,6 +1956,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.ok();
         }
 
+        @POST
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -1992,6 +1969,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Idle Termination time must be a greater than -59 (or null)");
         }
 
+        @POST
         public FormValidation doCheckMaxTotalUses(@QueryParameter String value) {
             try {
                 int val = Integer.parseInt(value);
@@ -2002,6 +1980,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
         }
 
+        @POST
         public FormValidation doCheckMinimumNumberOfInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -2026,6 +2005,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Minimum number of instances must be a non-negative integer (or null)");
         }
 
+        @POST
         public FormValidation doCheckMinimumNoInstancesActiveTimeRangeFrom(@QueryParameter String value) {
             try {
                 MinimumNumberOfInstancesTimeRangeConfig.validateLocalTimeString(value);
@@ -2035,6 +2015,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
+        @POST
         public FormValidation doCheckMinimumNoInstancesActiveTimeRangeTo(@QueryParameter String value) {
             try {
                 MinimumNumberOfInstancesTimeRangeConfig.validateLocalTimeString(value);
@@ -2045,6 +2026,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         // For some reason, all days will validate against this method so no need to repeat for each day.
+        @POST
         public FormValidation doCheckMonday(@QueryParameter boolean monday,
                                             @QueryParameter boolean tuesday,
                                             @QueryParameter boolean wednesday,
@@ -2057,6 +2039,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             return FormValidation.ok();
         }
+
+        @POST
         public FormValidation doCheckMinimumNumberOfSpareInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -2081,6 +2065,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Minimum number of spare instances must be a non-negative integer (or null)");
         }
 
+        @POST
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -2096,6 +2081,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /*
          * Validate the Spot Block Duration to be between 0 & 6 hours as specified in the AWS API
          */
+        @POST
         public FormValidation doCheckSpotBlockReservationDurationStr(@QueryParameter String value) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -2108,6 +2094,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return FormValidation.error("Spot Block Reservation Duration must be an integer between 0 & 6");
         }
 
+        @POST
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
             if (value == null || value.trim().isEmpty())
                 return FormValidation.ok();
@@ -2138,6 +2125,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         /*
          * Validate the Spot Max Bid Price to ensure that it is a floating point number >= .001
          */
+        @POST
         public FormValidation doCheckSpotMaxBidPrice(@QueryParameter String spotMaxBidPrice) {
             if (SpotConfiguration.normalizeBid(spotMaxBidPrice) != null) {
                 return FormValidation.ok();
@@ -2153,6 +2141,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return NodePropertyDescriptor.for_(NodeProperty.all(), EC2AbstractSlave.class);
         }
 
+        @POST
         public ListBoxModel doFillConnectionStrategyItems(@QueryParameter String connectionStrategy) {
             return Stream.of(ConnectionStrategy.values())
                     .map(v -> {
@@ -2165,6 +2154,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .collect(Collectors.toCollection(ListBoxModel::new));
         }
 
+        @POST
         public FormValidation doCheckConnectionStrategy(@QueryParameter String connectionStrategy) {
             return Stream.of(ConnectionStrategy.values())
                     .filter(v -> v.name().equals(connectionStrategy))
@@ -2178,6 +2168,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return HostKeyVerificationStrategyEnum.CHECK_NEW_HARD.name();
         }
 
+        @POST
         public ListBoxModel doFillHostKeyVerificationStrategyItems(@QueryParameter String hostKeyVerificationStrategy) {
             return Stream.of(HostKeyVerificationStrategyEnum.values())
                     .map(v -> {
@@ -2190,6 +2181,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .collect(Collectors.toCollection(ListBoxModel::new));
         }
 
+        @POST
         public FormValidation doCheckHostKeyVerificationStrategy(@QueryParameter String hostKeyVerificationStrategy) {
             Stream<HostKeyVerificationStrategyEnum> stream = Stream.of(HostKeyVerificationStrategyEnum.values());
             Stream<HostKeyVerificationStrategyEnum> filteredStream = stream.filter(v -> v.name().equals(hostKeyVerificationStrategy));
@@ -2198,6 +2190,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
         }
 
+        @POST
         public ListBoxModel doFillTenancyItems(@QueryParameter String tenancy) {
             return Stream.of(Tenancy.values())
                     .map(v -> {
@@ -2213,6 +2206,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return EbsEncryptRootVolume.DEFAULT.getDisplayText();
         }
 
+        @POST
         public ListBoxModel doFillEbsEncryptRootVolumeItems(@QueryParameter String ebsEncryptRootVolume ) {
             return Stream.of(EbsEncryptRootVolume.values())
                     .map(v -> {
@@ -2225,6 +2219,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .collect(Collectors.toCollection(ListBoxModel::new));
         }
 
+        @POST
         public FormValidation doEbsEncryptRootVolume(@QueryParameter String ebsEncryptRootVolume) {
             Stream<EbsEncryptRootVolume> stream = Stream.of(EbsEncryptRootVolume.values());
             Stream<EbsEncryptRootVolume> filteredStream = stream.filter(v -> v.name().equals(ebsEncryptRootVolume));

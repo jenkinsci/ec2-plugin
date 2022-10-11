@@ -55,6 +55,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeRegionsResult;
 import com.amazonaws.services.ec2.model.Region;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * The original implementation of {@link EC2Cloud}.
@@ -163,7 +164,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return "Amazon EC2";
         }
 
+        @POST
         public FormValidation doCheckCloudName(@QueryParameter String value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             try {
                 Jenkins.checkGoodName(value);
             } catch (Failure e) {
@@ -183,6 +186,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             return FormValidation.ok();
         }
 
+        @POST
         public FormValidation doCheckAltEC2Endpoint(@QueryParameter String value) {
             if (Util.fixEmpty(value) != null) {
                 try {

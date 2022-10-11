@@ -106,6 +106,7 @@ import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * Hudson's view of EC2.
@@ -1083,7 +1084,9 @@ public abstract class EC2Cloud extends Cloud {
             return InstanceType.values();
         }
 
+        @POST
         public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (value) {
                 try {
                     new InstanceProfileCredentialsProvider(false).getCredentials();
@@ -1095,6 +1098,7 @@ public abstract class EC2Cloud extends Cloud {
             return FormValidation.ok();
         }
 
+        @POST
         public ListBoxModel doFillSshKeysCredentialsIdItems(@AncestorInPath ItemGroup context, @QueryParameter String sshKeysCredentialsId) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
@@ -1156,6 +1160,7 @@ public abstract class EC2Cloud extends Cloud {
          * @throws IOException
          * @throws ServletException
          */
+        @POST
         protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
