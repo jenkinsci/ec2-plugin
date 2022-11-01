@@ -60,6 +60,7 @@ public abstract class EC2AgentConfig {
         final String publicDNS;
         final String privateDNS;
         final Tenancy tenancy;
+        final String hostResourceGroupArn;
         @Deprecated
         final boolean useDedicatedTenancy;
         final Boolean metadataEndpointEnabled;
@@ -73,6 +74,7 @@ public abstract class EC2AgentConfig {
             this.publicDNS = builder.getPublicDNS();
             this.privateDNS = builder.getPrivateDNS();
             this.tenancy = builder.getTenancyAttribute();
+            this.hostResourceGroupArn = builder.getHostResourceGroupArn();
             this.useDedicatedTenancy = builder.isUseDedicatedTenancy();
             this.metadataHopsLimit = builder.metadataHopsLimit;
             this.metadataEndpointEnabled = builder.metadataEndpointEnabled;
@@ -223,6 +225,7 @@ public abstract class EC2AgentConfig {
         private String publicDNS;
         private String privateDNS;
         private Tenancy tenancy;
+        private String hostResourceGroupArn;
         @Deprecated
         private boolean useDedicatedTenancy;
         private Boolean metadataEndpointEnabled;
@@ -282,6 +285,15 @@ public abstract class EC2AgentConfig {
         }
 
         public Tenancy getTenancyAttribute(){ return tenancy;}
+
+        public OnDemandBuilder withHostResourceGroupArn(String hostResourceGroupArn) {
+            this.hostResourceGroupArn = hostResourceGroupArn;
+            return this;
+        }
+
+        public String getHostResourceGroupArn() {
+            return this.hostResourceGroupArn;
+        }
 
         public OnDemandBuilder withMetadataEndpointEnabled(Boolean metadataEndpointEnabled) {
             this.metadataEndpointEnabled = metadataEndpointEnabled;

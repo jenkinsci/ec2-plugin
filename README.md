@@ -347,6 +347,7 @@ def slaveTemplateUsEast1Parameters = [
   connectionStrategy:            ConnectionStrategy.valueOf('PRIVATE_IP'),
   hostKeyVerificationStrategy:   HostKeyVerificationStrategyEnum.valueOf('CHECK_NEW_HARD'),
   tenancy:                       Tenancy.valueOf('Default'),
+  hostResourceGroupArn:          null,
   ebsEncryptRootVolume:          EbsEncryptRootVolume.valueOf('ENCRYPTED'),
   nodeProperties:                null
 ]
@@ -443,6 +444,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.nodeProperties,
   slaveTemplateUsEast1Parameters.hostKeyVerificationStrategy,
   slaveTemplateUsEast1Parameters.tenancy,
+  slaveTemplateUsEast1Parameters.hostResourceGroupArn,
   slaveTemplateUsEast1Parameters.ebsEncryptRootVolume,
   slaveTemplateUsEast1Parameters.metadataEndpointEnabled,
   slaveTemplateUsEast1Parameters.metadataTokensRequired,

@@ -232,6 +232,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public Tenancy tenancy;
 
+    public String hostResourceGroupArn;
+
     public EbsEncryptRootVolume ebsEncryptRootVolume;
 
     private Boolean metadataEndpointEnabled;
@@ -292,8 +294,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
-                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy,
+                         String hostResourceGroupArn, EbsEncryptRootVolume ebsEncryptRootVolume, Boolean metadataEndpointEnabled,
+                         Boolean metadataTokensRequired, Integer metadataHopsLimit) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
@@ -366,11 +369,35 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
+        this.hostResourceGroupArn = hostResourceGroupArn;
         this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
         this.metadataEndpointEnabled = metadataEndpointEnabled != null ? metadataEndpointEnabled : DEFAULT_METADATA_ENDPOINT_ENABLED;
         this.metadataTokensRequired = metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
         this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String javaPath, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
+                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+                type, ebsOptimized, labelString, mode, description, initScript,
+                tmpDir, userData, numExecutors, remoteAdmin, amiType, DEFAULT_JAVA_PATH, jvmopts,
+                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+                customDeviceMapping, connectBySSHProcess, monitoring,
+                t2Unlimited, connectionStrategy, maxTotalUses,
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null, ebsEncryptRootVolume,
+                metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit);
     }
 
     @Deprecated
@@ -885,6 +912,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return tenancy;
     }
 
+    public String getHostResourceGroupArn() {
+        return hostResourceGroupArn;
+    }
+
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
         return Objects.requireNonNull(nodeProperties);
     }
@@ -1001,6 +1032,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if(getTenancyAttribute().equals(Tenancy.Host)){
             Placement placement = new Placement();
             placement.setTenancy("host");
+            placement.setHostResourceGroupArn(getHostResourceGroupArn());
             riRequest.setPlacement(placement);
             diFilters.add(new Filter("tenancy").withValues(placement.getTenancy()));
         }else if(getTenancyAttribute().equals(Tenancy.Default)){
@@ -1575,6 +1607,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .withTenancyAttribute(tenancy)
+            .withHostResourceGroupArn(hostResourceGroupArn)
             .withMetadataEndpointEnabled(metadataEndpointEnabled)
             .withMetadataTokensRequired(metadataTokensRequired)
             .withMetadataHopsLimit(metadataHopsLimit)
@@ -1753,7 +1786,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (nodeProperties == null) {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
-        
+
         if (tenancy == null) {
             tenancy = Tenancy.Default;
         }
@@ -1762,7 +1795,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (useDedicatedTenancy) {
             tenancy = Tenancy.Dedicated;
         }
-        
+
         if (ebsEncryptRootVolume == null) {
             ebsEncryptRootVolume = EbsEncryptRootVolume.DEFAULT;
         }

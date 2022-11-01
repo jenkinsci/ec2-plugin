@@ -33,6 +33,7 @@
       stopOnTerminate: false
       t2Unlimited: false
       tenancy: Host
+      hostResourceGroupArn: null
       type: Mac1Metal
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true

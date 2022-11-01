@@ -38,6 +38,7 @@
       stopOnTerminate: false
       t2Unlimited: false
       tenancy: Default
+      hostResourceGroupArn: null
       type: T2Micro
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true

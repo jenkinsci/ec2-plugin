@@ -109,6 +109,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public AMITypeData amiType;
     public int maxTotalUses;
     public final Tenancy tenancy;
+    public final String hostResourceGroupArn;
     private String instanceType;
 
     private Boolean metadataEndpointEnabled;
@@ -156,7 +157,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public static final String TEST_ZONE = "testZone";
 
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
-                            Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
+                            String hostResourceGroupArn, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
@@ -182,10 +183,17 @@ public abstract class EC2AbstractSlave extends Slave {
         this.amiType = amiType;
         this.maxTotalUses = maxTotalUses;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
+        this.hostResourceGroupArn = hostResourceGroupArn;
         this.metadataEndpointEnabled = metadataEndpointEnabled;
         this.metadataTokensRequired = metadataTokensRequired;
         this.metadataHopsLimit = metadataHopsLimit;
         readResolve();
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
+            throws FormException, IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, null, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit);
     }
 
     @Deprecated
