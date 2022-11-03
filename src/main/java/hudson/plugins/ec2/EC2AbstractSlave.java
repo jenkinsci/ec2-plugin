@@ -773,6 +773,18 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.getBootDelayInMillis();
     }
 
+    public Boolean getMetadataEndpointEnabled() {
+      return metadataEndpointEnabled;
+    }
+
+    public Boolean getMetadataTokensRequired() {
+        return metadataTokensRequired;
+    }
+
+    public Integer getMetadataHopsLimit() {
+        return metadataHopsLimit;
+    }
+
     public boolean isSpecifyPassword() {
         return amiType.isWindows() && ((WindowsData) amiType).isSpecifyPassword();
     }
