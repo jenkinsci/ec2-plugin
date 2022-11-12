@@ -35,7 +35,7 @@ THE SOFTWARE.
         <p />
 
         <form method="post" action="${rootURL}/${it.url}/act">
-            <f:submit name="dismiss" value="${%Dismiss}"/>
+            <f:submit primary="false" clazz="jenkins-!-destructive-color" name="dismiss" value="${%Dismiss}"/>
         </form>
         <p />
     </div>
