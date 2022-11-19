@@ -47,6 +47,7 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -294,7 +295,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             privateKey = ec2PrivateKey.getPrivateKey();
         }
 
-        File tempFile = File.createTempFile("ec2_", ".pem");
+        File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
 
         try {
             FileOutputStream fileOutputStream = new FileOutputStream(tempFile);

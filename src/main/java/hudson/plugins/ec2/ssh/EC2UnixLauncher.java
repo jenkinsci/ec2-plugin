@@ -45,6 +45,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -316,7 +317,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             privateKey = ec2PrivateKey.getPrivateKey();
         }
 
-        File tempFile = File.createTempFile("ec2_", ".pem");
+        File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
 
         try {
             FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
@@ -344,7 +345,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         if (ec2HostKey == null){
             return null;
         }
-        File tempFile = File.createTempFile("ec2_", "_known_hosts");
+        File tempFile = Files.createTempFile("ec2_", "_known_hosts").toFile();
         String knownHost = "";
         knownHost = String.format("%s %s %s", ec2HostAddress, ec2HostKey.getAlgorithm(), Base64.getEncoder().encodeToString(ec2HostKey.getKey()));
 
