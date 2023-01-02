@@ -39,7 +39,7 @@ THE SOFTWARE.
             <j:if test="${it.showInsecureTemplates()}">
                 <strong>${%Unsafe.Title}</strong>
                 <form method="post" action="${rootURL}/${it.url}/act">
-                    <f:submit primary="false" clazz="jenkins-!-destructive-color" name="dismiss" value="${%Dismiss these messages}"/>
+                    <f:submit name="dismiss" value="${%Dismiss these messages}"/>
                 </form>
                 <p />
                 
@@ -56,7 +56,7 @@ THE SOFTWARE.
             <p />
             ${%DismissAll.Message}
             <form method="post" action="${rootURL}/${it.url}/act">
-                <f:submit primary="false" clazz="jenkins-!-destructive-color" name="dismissAllMessages" value="${%Dismiss all messages}"/>
+                <f:submit name="dismissAllMessages" value="${%Dismiss all messages}"/>
             </form>
         <p />
     </div>
