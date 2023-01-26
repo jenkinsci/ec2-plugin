@@ -27,7 +27,7 @@ THE SOFTWARE.
     <tr>
       <td />
       <td colspan="${monitors.size()+1}">
-        <f:form action="${rootURL}/cloud/${it.name}/provision" method="post" name="provision">
+        <f:form action="${rootURL}/${it.url}/provision" method="post" name="provision">
           <input type="submit" class="ec2-provision-button" value="${%Provision via} ${it.displayName}" />
           <select name="template">
             <j:forEach var="t" items="${it.templates}">
