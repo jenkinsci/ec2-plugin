@@ -227,7 +227,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 Instance nodeInstance = computer.describeInstance();
                 if (nodeInstance.getInstanceType().equals("mac2.metal")) {
                     LOGGER.info("Running Command for mac2.metal");
-                    executeRemote(computer, conn, javaPath + " -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-8-x64-macos-jdk.pkg; sudo softwareupdate --install-rosetta --agree-to-license; sudo installer -pkg amazon-corretto-8-x64-macos-jdk.pkg -target /", logger, listener);
+                    executeRemote(computer, conn, javaPath + " -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-8-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-8-aarch64-macos-jdk.pkg -target /", logger, listener);
                 }
                 else{
                     executeRemote(computer, conn, javaPath + " -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-8-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-8-x64-macos-jdk.pkg -target /", logger, listener);
