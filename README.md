@@ -114,17 +114,7 @@ snapshot.
 
 ## Spot Instances
 
-Spot instances are similar to EC2 instances, except for a few key
-differences. They are generally more affordable, but they have the
-possibility of being terminated if someone has bid more on them than you
-have and can take longer to provision.  To mitigate some of these
-issues, your Jenkins and Agent AMIs will need a bit of configuration to
-convert the Spot agents to register with Jenkins when they spawn up. Due
-to these changes, it may appear that a Spot agent will have failed (with
-a red X), but the message associated with the error will inform you if
-the Spot instance just has not called back yet or not. For more
-information on Spot instances, read the information
-here: <http://aws.amazon.com/ec2/spot-instances/> .
+A Spot Instance is an instance that uses spare EC2 capacity that is available for less than the On-Demand price. Because Spot Instances enable you to request unused EC2 instances at steep discounts, you can lower your Amazon EC2 costs significantly. When Amazon EC2 needs the capacity back, Spot Instances can be terminated with a two minute notice (Spot Instance interruption). To deal with Spot Instance interruptions, your Jenkins and Agent AMIs will need a bit of configuration to convert the Spot agents to register with Jenkins when they spawn up. Due to these changes, it may appear that a Spot agent will have failed (with a red X), but the message associated with the error will inform you if the Spot instance just has not called back yet or not. For more information on Spot instances, read the information here: http://aws.amazon.com/ec2/spot-instances/.
 
 ### Enable Spot Request
 
