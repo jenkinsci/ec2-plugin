@@ -88,30 +88,25 @@ public class EC2Step extends Step {
 
         @POST
         public ListBoxModel doFillCloudItems() {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
-            Jenkins.CloudList clouds = jenkins.model.Jenkins.get().clouds;
-            for (Cloud cList : clouds) {
-                if (cList instanceof AmazonEC2Cloud) {
-                    r.add(cList.getDisplayName(), cList.getDisplayName());
-                }
-            }
+            Jenkins.get().clouds
+                    .getAll(AmazonEC2Cloud.class)
+                    .forEach(c -> r.add(c.getDisplayName(), c.getDisplayName()));
             return r;
         }
 
         @POST
-        public ListBoxModel doFillTemplateItems(@QueryParameter String cloud) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            cloud = Util.fixEmpty(cloud);
+        public ListBoxModel doFillTemplateItems(@QueryParameter String cloudName) {
+            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
-            for (Cloud cList : jenkins.model.Jenkins.get().clouds) {
-                if (cList.getDisplayName().equals(cloud)) {
-                    List<SlaveTemplate> templates = ((AmazonEC2Cloud) cList).getTemplates();
-                    for (SlaveTemplate template : templates) {
-                        for (String labelList : template.labels.split(" ")) {
-                            r.add(labelList + "  (AMI: " + template.getAmi() + ", REGION: " + ((AmazonEC2Cloud) cList).getRegion() + ", TYPE: " + template.type.name() + ")", labelList);
-                        }
+            Cloud cloud = Jenkins.get().getCloud(Util.fixEmpty(cloudName));
+            if (cloud instanceof AmazonEC2Cloud) {
+                AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) cloud;
+                for (SlaveTemplate template : ec2Cloud.getTemplates()) {
+                    for (String labelList : template.labels.split(" ")) {
+                        r.add(labelList + "  (AMI: " + template.getAmi() + ", REGION: " + ec2Cloud.getRegion() + ", TYPE: " + template.type.name() + ")", labelList);
                     }
                 }
             }

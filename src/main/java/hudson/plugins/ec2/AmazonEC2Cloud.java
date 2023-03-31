@@ -166,7 +166,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         @POST
         public FormValidation doCheckCloudName(@QueryParameter String value) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                return FormValidation.ok();
+            }
             try {
                 Jenkins.checkGoodName(value);
             } catch (Failure e) {
@@ -205,9 +207,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String credentialsId)
 
                 throws IOException, ServletException {
-
-            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
-
             ListBoxModel model = new ListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 try {

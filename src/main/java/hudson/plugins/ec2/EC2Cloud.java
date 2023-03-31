@@ -1087,23 +1087,19 @@ public abstract class EC2Cloud extends Cloud {
 
         @POST
         public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
-            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
-            if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-                if (value) {
-                    try {
-                        new InstanceProfileCredentialsProvider(false).getCredentials();
-                    } catch (AmazonClientException e) {
-                        return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
-                    }
-                }
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER) || !value) {
+                return FormValidation.ok();
             }
-
-            return FormValidation.ok();
+            try {
+                new InstanceProfileCredentialsProvider(false).getCredentials();
+                return FormValidation.ok();
+            } catch (AmazonClientException e) {
+                return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
+            }
         }
 
         @POST
         public ListBoxModel doFillSshKeysCredentialsIdItems(@AncestorInPath ItemGroup context, @QueryParameter String sshKeysCredentialsId) {
-            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             AbstractIdCredentialsListBoxModel result = new StandardListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 result = result
@@ -1116,7 +1112,6 @@ public abstract class EC2Cloud extends Cloud {
 
         @RequirePOST
         public FormValidation doCheckSshKeysCredentialsId(@AncestorInPath ItemGroup context, @QueryParameter String value) throws IOException, ServletException {
-            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 // Don't do anything if the user is only reading the configuration
                 return FormValidation.ok();
@@ -1170,50 +1165,46 @@ public abstract class EC2Cloud extends Cloud {
         @POST
         protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
-            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
-            if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-                try {
-                    SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
-                    String privateKey = "";
-                    if (sshCredential != null) {
-                        privateKey = sshCredential.getPrivateKey();
-                    } else {
-                        return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
-                    }
-
-                    AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-                    AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
-                    ec2.describeInstances();
-
-                    if (privateKey.trim().length() > 0) {
-                        // check if this key exists
-                        EC2PrivateKey pk = new EC2PrivateKey(privateKey);
-                        if (pk.find(ec2) == null)
-                            return FormValidation
-                                    .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
-                                            + pk.getFingerprint() + ")");
-                    }
-
-                    return FormValidation.ok(Messages.EC2Cloud_Success());
-                } catch (AmazonClientException e) {
-                    LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
-                    return FormValidation.error(e.getMessage());
-                }
-            } else {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 return FormValidation.ok();
+            }
+            try {
+                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
+                String privateKey = "";
+                if (sshCredential != null) {
+                    privateKey = sshCredential.getPrivateKey();
+                } else {
+                    return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                }
+
+                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+                AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
+                ec2.describeInstances();
+
+                if (privateKey.trim().length() > 0) {
+                    // check if this key exists
+                    EC2PrivateKey pk = new EC2PrivateKey(privateKey);
+                    if (pk.find(ec2) == null)
+                        return FormValidation
+                                .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
+                                        + pk.getFingerprint() + ")");
+                }
+
+                return FormValidation.ok(Messages.EC2Cloud_Success());
+            } catch (AmazonClientException e) {
+                LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
+                return FormValidation.error(e.getMessage());
             }
         }
 
         @RequirePOST
         public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-            Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
-            if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-                return new StandardListBoxModel()
-                        .includeEmptyValue()
-                        .includeMatchingAs(ACL.SYSTEM, context, AmazonWebServicesCredentials.class, Collections.emptyList(), CredentialsMatchers.always());
-            } else {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 return new StandardListBoxModel();
             }
+            return new StandardListBoxModel()
+                    .includeEmptyValue()
+                    .includeMatchingAs(ACL.SYSTEM, context, AmazonWebServicesCredentials.class, Collections.emptyList(), CredentialsMatchers.always());
         }
     }
 
