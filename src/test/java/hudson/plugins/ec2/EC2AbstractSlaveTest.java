@@ -49,9 +49,10 @@ public class EC2AbstractSlaveTest {
         SlaveTemplate orig = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 1, 1, "", "profile", false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        String cloudName = "us-east-1";
+        AmazonEC2Cloud ac = new AmazonEC2Cloud(cloudName, false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
-        EC2AbstractSlave slave = new EC2AbstractSlave("name", "", description, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, "ec2-us-east-1", false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22", null), ConnectionStrategy.PRIVATE_IP, 0)  {
+        EC2AbstractSlave slave = new EC2AbstractSlave("name", "", description, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, cloudName, false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22", null), ConnectionStrategy.PRIVATE_IP, 0)  {
             @Override
             public void terminate() {
             }
