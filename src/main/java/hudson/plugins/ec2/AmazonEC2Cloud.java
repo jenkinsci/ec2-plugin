@@ -29,7 +29,6 @@ import hudson.Util;
 import hudson.model.Failure;
 import hudson.model.ItemGroup;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
-import hudson.slaves.Cloud;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 
@@ -72,33 +71,26 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
     private String altEC2Endpoint;
 
-    public static final String CLOUD_ID_PREFIX = "ec2-";
-
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        super(cloudName, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 
     @Deprecated
     public AmazonEC2Cloud(String cloudName, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(createCloudId(cloudName), useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
+        super(cloudName, useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 
+    /**
+     * @deprecated Use public field "name" instead.
+     */
+    @Deprecated
     public String getCloudName() {
-        return this.name.substring(CLOUD_ID_PREFIX.length());
-    }
-
-    @Override
-    public String getDisplayName() {
-        return getCloudName();
-    }
-
-    private static String createCloudId(String cloudName) {
-        return CLOUD_ID_PREFIX + cloudName.trim();
+        return name;
     }
 
     public String getRegion() {
@@ -173,17 +165,6 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 Jenkins.checkGoodName(value);
             } catch (Failure e) {
                 return FormValidation.error(e.getMessage());
-            }
-
-            String cloudId = createCloudId(value);
-            int found = 0;
-            for (Cloud c : Jenkins.get().clouds) {
-                if (c.name.equals(cloudId)) {
-                    found++;
-                }
-            }
-            if (found > 1) {
-                return FormValidation.error(Messages.AmazonEC2Cloud_NonUniqName());
             }
             return FormValidation.ok();
         }
