@@ -158,7 +158,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
 
         @POST
         public FormValidation doCheckCloudName(@QueryParameter String value) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                return FormValidation.ok();
+            }
             try {
                 Jenkins.checkGoodName(value);
             } catch (Failure e) {
@@ -186,22 +188,21 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String credentialsId)
 
                 throws IOException, ServletException {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-
             ListBoxModel model = new ListBoxModel();
-
-            try {
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
-                        credentialsId);
-                AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
-                DescribeRegionsResult regions = client.describeRegions();
-                List<Region> regionList = regions.getRegions();
-                for (Region r : regionList) {
-                    String name = r.getRegionName();
-                    model.add(name, name);
+            if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                try {
+                    AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
+                            credentialsId);
+                    AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
+                    DescribeRegionsResult regions = client.describeRegions();
+                    List<Region> regionList = regions.getRegions();
+                    for (Region r : regionList) {
+                        String name = r.getRegionName();
+                        model.add(name, name);
+                    }
+                } catch (SdkClientException ex) {
+                    // Ignore, as this may happen before the credentials are specified
                 }
-            } catch (SdkClientException ex) {
-                // Ignore, as this may happen before the credentials are specified
             }
             return model;
         }

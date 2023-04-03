@@ -42,6 +42,7 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.common.AbstractIdCredentialsListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
@@ -1086,34 +1087,35 @@ public abstract class EC2Cloud extends Cloud {
 
         @POST
         public FormValidation doCheckUseInstanceProfileForCredentials(@QueryParameter boolean value) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            if (value) {
-                try {
-                    new InstanceProfileCredentialsProvider(false).getCredentials();
-                } catch (AmazonClientException e) {
-                    return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
-                }
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER) || !value) {
+                return FormValidation.ok();
             }
-
-            return FormValidation.ok();
+            try {
+                new InstanceProfileCredentialsProvider(false).getCredentials();
+                return FormValidation.ok();
+            } catch (AmazonClientException e) {
+                return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
+            }
         }
 
         @POST
         public ListBoxModel doFillSshKeysCredentialsIdItems(@AncestorInPath ItemGroup context, @QueryParameter String sshKeysCredentialsId) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-
-            StandardListBoxModel result = new StandardListBoxModel();
-
-            return result
-                    .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
-                    .includeCurrentValue(sshKeysCredentialsId);
+            AbstractIdCredentialsListBoxModel result = new StandardListBoxModel();
+            if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                result = result
+                        .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                        .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
+                        .includeCurrentValue(sshKeysCredentialsId);
+            }
+            return result;
         }
 
         @RequirePOST
         public FormValidation doCheckSshKeysCredentialsId(@AncestorInPath ItemGroup context, @QueryParameter String value) throws IOException, ServletException {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                // Don't do anything if the user is only reading the configuration
+                return FormValidation.ok();
+            }
             if (value == null || value.isEmpty()){
                 return FormValidation.error("No ssh credentials selected");
             }
@@ -1163,9 +1165,10 @@ public abstract class EC2Cloud extends Cloud {
         @POST
         protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                return FormValidation.ok();
+            }
             try {
-
                 SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                 String privateKey = "";
                 if (sshCredential != null) {
@@ -1196,7 +1199,9 @@ public abstract class EC2Cloud extends Cloud {
 
         @RequirePOST
         public ListBoxModel doFillCredentialsIdItems(@AncestorInPath ItemGroup context) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                return new StandardListBoxModel();
+            }
             return new StandardListBoxModel()
                     .includeEmptyValue()
                     .includeMatchingAs(ACL.SYSTEM, context, AmazonWebServicesCredentials.class, Collections.emptyList(), CredentialsMatchers.always());

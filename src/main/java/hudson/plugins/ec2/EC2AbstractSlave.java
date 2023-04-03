@@ -829,7 +829,9 @@ public abstract class EC2AbstractSlave extends Slave {
                                             @QueryParameter String region,
                                             @QueryParameter String roleArn,
                                             @QueryParameter String roleSessionName) {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                return new ListBoxModel();
+            }
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return fillZoneItems(credentialsProvider, region);
         }
