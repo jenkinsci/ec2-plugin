@@ -49,6 +49,7 @@ import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.ProxyConfiguration;
+import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.ItemGroup;
@@ -176,8 +177,8 @@ public abstract class EC2Cloud extends Cloud {
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
-        this.credentialsId = credentialsId;
-        this.sshKeysCredentialsId = sshKeysCredentialsId;
+        this.credentialsId = Util.fixEmpty(credentialsId);
+        this.sshKeysCredentialsId = Util.fixEmpty(sshKeysCredentialsId);
 
         if (templates == null) {
             this.templates = Collections.emptyList();

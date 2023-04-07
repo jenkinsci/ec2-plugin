@@ -48,19 +48,22 @@ public class Eucalyptus extends EC2Cloud {
     private final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
-            throws IOException {
-        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
-        this.ec2endpoint = ec2endpoint;
-        this.s3endpoint = s3endpoint;
+    public Eucalyptus(String name, URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this.ec2endpoint = ec2EndpointUrl;
+        this.s3endpoint = s3EndpointUrl;
     }
 
     @Deprecated
-    public Eucalyptus(URL ec2endpoint, URL s3endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
+    public Eucalyptus(URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
             throws IOException {
-        super("eucalyptus", useInstanceProfileForCredentials, credentialsId, privateKey, instanceCapStr, templates, roleArn, roleSessionName);
-        this.ec2endpoint = ec2endpoint;
-        this.s3endpoint = s3endpoint;
+        this("eucalyptus", ec2EndpointUrl, s3EndpointUrl, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+    }
+
+    @Deprecated
+    public Eucalyptus(URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
+            throws IOException {
+        this("eucalyptus", ec2EndpointUrl, s3EndpointUrl, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
     @Override
