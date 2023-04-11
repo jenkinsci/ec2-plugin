@@ -237,7 +237,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
             // TODO: parse the version number. maven-enforcer-plugin might help
             final String javaPath = node.javaPath;
-            executeRemote(computer, conn, javaPath + " -fullversion", "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk", logger, listener);
+            executeRemote(computer, conn, javaPath + " -fullversion",
+                    "sudo amazon-linux-extras install java-openjdk11 -y; sudo dnf -y install java-11-amazon-corretto; sudo yum install -y fontconfig java-11-openjdk",
+                    logger, listener);
             executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
 
             // Always copy so we get the most recent remoting.jar
