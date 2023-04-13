@@ -116,14 +116,14 @@ THE SOFTWARE.
             <artifactId>bouncycastle-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
+            <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-ec2</artifactId>
-            <version>1.12.447</version>
+            <version>1.12.447-380.v65b_d0c044a_b_a_</version>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-core</artifactId>
-            <version>1.12.447</version>
+            <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
+            <artifactId>aws-java-sdk-minimal</artifactId>
+            <version>1.12.447-380.v65b_d0c044a_b_a_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
