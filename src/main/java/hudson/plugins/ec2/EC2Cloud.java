@@ -165,7 +165,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     private final int instanceCap;
 
-    private final List<? extends SlaveTemplate> templates;
+    private List<? extends SlaveTemplate> templates;
 
     private transient KeyPair usableKeyPair;
 
@@ -216,7 +216,16 @@ public abstract class EC2Cloud extends Cloud {
 
     public abstract URL getS3EndpointUrl() throws IOException;
 
-    private void migratePrivateSshKeyToCredential(String privateKey){
+    public void addTemplate(SlaveTemplate newTemplate) throws Exception {
+        String newTemplateDescription = newTemplate.description;
+        if (getTemplate(newTemplateDescription) != null) throw new Exception(
+                String.format("A SlaveTemplate with description %s already exists", newTemplateDescription));
+        List<SlaveTemplate> templatesHolder = new ArrayList<>(templates);
+        templatesHolder.add(newTemplate);
+        templates = templatesHolder;
+    }
+
+    private void migratePrivateSshKeyToCredential(String privateKey) {
         // GET matching private key credential from Credential API if exists
         Optional<SSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
                 .stream()
