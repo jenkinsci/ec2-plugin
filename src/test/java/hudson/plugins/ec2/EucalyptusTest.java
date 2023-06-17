@@ -1,7 +1,7 @@
 package hudson.plugins.ec2;
 
-import com.gargoylesoftware.htmlunit.html.HtmlForm;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlPage;
 import java.net.URL;
 import org.junit.Rule;
 import org.junit.Test;
