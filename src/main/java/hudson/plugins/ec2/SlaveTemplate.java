@@ -17,10 +17,10 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_JAVA_PATH;
+import static hudson.plugins.ec2.EC2AbstractAgent.DEFAULT_METADATA_ENDPOINT_ENABLED;
+import static hudson.plugins.ec2.EC2AbstractAgent.DEFAULT_METADATA_TOKENS_REQUIRED;
+import static hudson.plugins.ec2.EC2AbstractAgent.DEFAULT_METADATA_HOPS_LIMIT;
+import static hudson.plugins.ec2.EC2AbstractAgent.DEFAULT_JAVA_PATH;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -91,15 +91,15 @@ import hudson.plugins.ec2.util.EC2AgentFactory;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import hudson.security.Permission;
-import hudson.slaves.NodeProperty;
-import hudson.slaves.NodePropertyDescriptor;
+import hudson.agents.NodeProperty;
+import hudson.agents.NodePropertyDescriptor;
 import hudson.util.DescribableList;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
-import jenkins.slaves.iterators.api.NodeIterator;
+import jenkins.agents.iterators.api.NodeIterator;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -137,12 +137,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Template of {@link EC2AbstractSlave} to launch.
+ * Template of {@link EC2AbstractAgent} to launch.
  *
  * @author Kohsuke Kawaguchi
  */
-public class SlaveTemplate implements Describable<SlaveTemplate> {
-    private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
+public class AgentTemplate implements Describable<AgentTemplate> {
+    private static final Logger LOGGER = Logger.getLogger(AgentTemplate.class.getName());
 
     private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
 
@@ -269,10 +269,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public transient String rootCommandPrefix;
 
     @Deprecated
-    public transient String slaveCommandPrefix;
+    public transient String agentCommandPrefix;
 
     @Deprecated
-    public transient String slaveCommandSuffix;
+    public transient String agentCommandSuffix;
 
     @Deprecated
     public boolean usePrivateDnsName;
@@ -284,7 +284,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public transient boolean useDedicatedTenancy;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String javaPath, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -374,7 +374,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -396,7 +396,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -417,7 +417,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -438,7 +438,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -459,7 +459,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -475,7 +475,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
@@ -491,7 +491,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
                          InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
                          String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
                          boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
@@ -507,7 +507,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
@@ -523,7 +523,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
@@ -538,7 +538,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
@@ -552,7 +552,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
             String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
             boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
@@ -567,21 +567,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Backward compatible constructor for reloading previous version data
      */
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+    public AgentTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
             String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
             String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-            String slaveCommandPrefix, String slaveCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
+            String agentCommandPrefix, String agentCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
             boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
             String launchTimeoutStr) {
         this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, null),
+                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, agentCommandPrefix, agentCommandSuffix, sshPort, null),
                 jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
                 useEphemeralDevices, false, launchTimeoutStr, false, null);
     }
 
     public boolean isConnectBySSHProcess() {
         // See
-        // src/main/resources/hudson/plugins/ec2/SlaveTemplate/help-connectBySSHProcess.html
+        // src/main/resources/hudson/plugins/ec2/AgentTemplate/help-connectBySSHProcess.html
         return connectBySSHProcess;
     }
 
@@ -601,7 +601,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return String.format("EC2 (%s) - %s", parent.getDisplayName(), description);
     }
 
-    public String getSlaveName(String instanceId) {
+    public String getAgentName(String instanceId) {
         final String agentName = String.format("%s (%s)", getDisplayName(), instanceId);
         try {
             Jenkins.checkGoodName(agentName);
@@ -635,7 +635,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             return Integer.parseInt(numExecutors);
         } catch (NumberFormatException e) {
-            return EC2AbstractSlave.toNumExecutors(type);
+            return EC2AbstractAgent.toNumExecutors(type);
         }
     }
 
@@ -662,12 +662,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix():""));
     }
 
-    public String getSlaveCommandPrefix() {
-        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
+    public String getAgentCommandPrefix() {
+        return (amiType.isUnix() ? ((UnixData) amiType).getAgentCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getAgentCommandPrefix() : ""));
     }
 
-    public String getSlaveCommandSuffix() {
-        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
+    public String getAgentCommandSuffix() {
+        return (amiType.isUnix() ? ((UnixData) amiType).getAgentCommandSuffix() : (amiType.isMac() ? ((MacData) amiType).getAgentCommandSuffix() : ""));
     }
 
     public String chooseSubnetId() {
@@ -859,7 +859,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @Override
     public String toString() {
-        return "SlaveTemplate{" +
+        return "AgentTemplate{" +
                 "description='" + description + '\'' +
                 ", labels='" + labels + '\'' +
                 '}';
@@ -897,7 +897,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     @NonNull
-    public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public List<EC2AbstractAgent> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         final Image image = getImage();
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
@@ -911,7 +911,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Safely we can pickup only instance that is not known by Jenkins at all.
      */
     private boolean checkInstance(Instance instance) {
-        for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
+        for (EC2AbstractAgent node : NodeIterator.nodes(EC2AbstractAgent.class)) {
             if ( (node.getInstanceId().equals(instance.getInstanceId())) &&
                     (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
                 ))
@@ -1060,7 +1060,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.withNetworkInterfaces(net);
         }
 
-        HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
+        HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_AGENT_TYPE_DEMAND);
         for (Tag tag : instTags) {
             diFilters.add(new Filter("tag:" + tag.getKey()).withValues(tag.getValue()));
         }
@@ -1078,7 +1078,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         InstanceMetadataOptionsRequest instanceMetadataOptionsRequest = new InstanceMetadataOptionsRequest();
         instanceMetadataOptionsRequest.setHttpEndpoint(metadataEndpointEnabled ? InstanceMetadataEndpointState.Enabled.toString() : InstanceMetadataEndpointState.Disabled.toString());
-        instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
+        instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractAgent.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
         instanceMetadataOptionsRequest.setHttpTokens(
                     metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
         riRequest.setMetadataOptions(instanceMetadataOptionsRequest);
@@ -1096,7 +1096,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
+    private List<EC2AbstractAgent> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         return provisionOndemand(image, number, provisionOptions, false, false);
     }
@@ -1104,7 +1104,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
+    private List<EC2AbstractAgent> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
             throws IOException {
         AmazonEC2 ec2 = getParent().connect();
 
@@ -1131,7 +1131,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
         if (orphansOrStopped.size() == number) {
-            return toSlaves(orphansOrStopped);
+            return toAgents(orphansOrStopped);
         }
 
         riRequest.setMaxCount(number - orphansOrStopped.size());
@@ -1166,7 +1166,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         newInstances.addAll(orphansOrStopped);
 
-        return toSlaves(newInstances);
+        return toAgents(newInstances);
     }
 
     void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
@@ -1190,14 +1190,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     }
 
-    List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
+    List<EC2AbstractAgent> toAgents(List<Instance> newInstances) throws IOException {
         try {
-            List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
+            List<EC2AbstractAgent> agents = new ArrayList<>(newInstances.size());
             for (Instance instance : newInstances) {
-                slaves.add(newOndemandSlave(instance));
+                agents.add(newOndemandAgent(instance));
                 logProvisionInfo("Return instance: " + instance);
             }
-            return slaves;
+            return agents;
         } catch (FormException e) {
             throw new AssertionError(e); // we should have discovered all
             // configuration issues upfront
@@ -1364,7 +1364,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provision a new agent for an EC2 spot instance to call back to Jenkins
      */
-    private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
+    private List<EC2AbstractAgent> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
             return provisionOndemand(image, 1, provisionOptions, true, spotConfig.getFallbackToOndemand());
@@ -1434,7 +1434,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             net.setDeviceIndex(0);
             launchSpecification.withNetworkInterfaces(net);
 
-            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
+            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_AGENT_TYPE_SPOT);
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
@@ -1466,19 +1466,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 throw new AmazonClientException("No spot instances found");
             }
 
-            List<EC2AbstractSlave> slaves = new ArrayList<>(reqInstances.size());
+            List<EC2AbstractAgent> agents = new ArrayList<>(reqInstances.size());
             for(SpotInstanceRequest spotInstReq : reqInstances) {
                 if (spotInstReq == null) {
                     throw new AmazonClientException("Spot instance request is null");
                 }
-                String slaveName = spotInstReq.getSpotInstanceRequestId();
+                String agentName = spotInstReq.getSpotInstanceRequestId();
 
                 if (spotConfig.getFallbackToOndemand()) {
                     for (int i = 0; i < 2 && spotInstReq.getStatus().getCode().equals("pending-evaluation"); i++) {
-                        LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
+                        LOGGER.info("Spot request " + agentName + " is still pending evaluation");
                         Thread.sleep(5000);
-                        LOGGER.info("Fetching info about spot request " + slaveName);
-                        DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(slaveName);
+                        LOGGER.info("Fetching info about spot request " + agentName);
+                        DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(agentName);
                         spotInstReq = ec2.describeSpotInstanceRequests(describeRequest).getSpotInstanceRequests().get(0);
                     }
 
@@ -1500,10 +1500,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
-                slaves.add(newSpotSlave(spotInstReq));
+                agents.add(newSpotAgent(spotInstReq));
             }
 
-            return slaves;
+            return agents;
 
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
@@ -1523,14 +1523,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    private HashSet<Tag> buildTags(String slaveType) {
+    private HashSet<Tag> buildTags(String agentType) {
         boolean hasCustomTypeTag = false;
         boolean hasJenkinsServerUrlTag = false;
         HashSet<Tag> instTags = new HashSet<>();
         if (tags != null && !tags.isEmpty()) {
             for (EC2Tag t : tags) {
                 instTags.add(new Tag(t.getName(), t.getValue()));
-                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE)) {
                     hasCustomTypeTag = true;
                 }
                 if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
@@ -1539,8 +1539,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
         if (!hasCustomTypeTag) {
-            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                    slaveType, description)));
+            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE, EC2Cloud.getAgentTypeTagValue(
+                    agentType, description)));
         }
         JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
         if (!hasJenkinsServerUrlTag && jenkinsLocation.getUrl() != null) {
@@ -1549,9 +1549,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return instTags;
     }
 
-    protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
+    protected EC2OndemandAgent newOndemandAgent(Instance inst) throws FormException, IOException {
         EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
-            .withName(getSlaveName(inst.getInstanceId()))
+            .withName(getAgentName(inst.getInstanceId()))
             .withInstanceId(inst.getInstanceId())
             .withDescription(description)
             .withRemoteFS(remoteFS)
@@ -1582,9 +1582,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
 
-    protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
+    protected EC2SpotAgent newSpotAgent(SpotInstanceRequest sir) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
-            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
+            .withName(getAgentName(sir.getSpotInstanceRequestId()))
             .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
             .withDescription(description)
             .withRemoteFS(remoteFS)
@@ -1697,7 +1697,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions a new EC2 agent based on the currently running instance on EC2, instead of starting a new one.
      */
-    public EC2AbstractSlave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
+    public EC2AbstractAgent attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
         PrintStream logger = listener.getLogger();
         AmazonEC2 ec2 = getParent().connect();
 
@@ -1707,7 +1707,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));
             Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
-            return newOndemandSlave(inst);
+            return newOndemandAgent(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
                                         // configuration issues upfront
@@ -1738,7 +1738,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, null);
+            amiType = new UnixData(rootCommandPrefix, agentCommandPrefix, agentCommandSuffix, sshPort, null);
         }
 
          // 1.43 new parameters
@@ -1768,13 +1768,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (metadataEndpointEnabled == null) {
-            metadataEndpointEnabled = EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+            metadataEndpointEnabled = EC2AbstractAgent.DEFAULT_METADATA_ENDPOINT_ENABLED;
         }
         if (metadataTokensRequired == null) {
-            metadataTokensRequired = EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+            metadataTokensRequired = EC2AbstractAgent.DEFAULT_METADATA_TOKENS_REQUIRED;
         }
         if (metadataHopsLimit == null) {
-            metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+            metadataHopsLimit = EC2AbstractAgent.DEFAULT_METADATA_HOPS_LIMIT;
         }
         if (StringUtils.isBlank(javaPath)) {
             javaPath = DEFAULT_JAVA_PATH;
@@ -1783,7 +1783,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return this;
     }
 
-    public Descriptor<SlaveTemplate> getDescriptor() {
+    public Descriptor<AgentTemplate> getDescriptor() {
         return Jenkins.get().getDescriptor(getClass());
     }
 
@@ -1799,11 +1799,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    public boolean isWindowsSlave() {
+    public boolean isWindowsAgent() {
         return amiType.isWindows();
     }
 
-    public boolean isUnixSlave() {
+    public boolean isUnixAgent() {
         return amiType.isUnix();
     }
 
@@ -1822,8 +1822,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      *
      * @param ec2
-     * @param allSubnets if true, uses all subnets defined for this SlaveTemplate as the filter, else will only use the current subnet
-     * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this SlaveTemplate's configs
+     * @param allSubnets if true, uses all subnets defined for this AgentTemplate as the filter, else will only use the current subnet
+     * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this AgentTemplate's configs
      */
     DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws IOException {
         HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(getImage(), 1, ec2, false);
@@ -1842,7 +1842,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 diFilters.remove(f);
             }
 
-            /* Add filter using all subnets defined for this SlaveTemplate */
+            /* Add filter using all subnets defined for this AgentTemplate */
             Filter subnetFilter = new Filter("subnet-id");
             subnetFilter.setValues(Arrays.asList(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS)));
             diFilters.add(subnetFilter);
@@ -1867,7 +1867,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Extension
-    public static final class DescriptorImpl extends Descriptor<SlaveTemplate> {
+    public static final class DescriptorImpl extends Descriptor<AgentTemplate> {
 
         @Override
         public String getDisplayName() {
@@ -1886,15 +1886,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String p = super.getHelpFile(fieldName);
             if (p != null)
                 return p;
-            Descriptor slaveDescriptor = Jenkins.get().getDescriptor(EC2OndemandSlave.class);
-            if (slaveDescriptor != null) {
-                p = slaveDescriptor.getHelpFile(fieldName);
+            Descriptor agentDescriptor = Jenkins.get().getDescriptor(EC2OndemandAgent.class);
+            if (agentDescriptor != null) {
+                p = agentDescriptor.getHelpFile(fieldName);
                 if (p != null)
                     return p;
             }
-            slaveDescriptor = Jenkins.get().getDescriptor(EC2SpotSlave.class);
-            if (slaveDescriptor != null)
-                return slaveDescriptor.getHelpFile(fieldName);
+            agentDescriptor = Jenkins.get().getDescriptor(EC2SpotAgent.class);
+            if (agentDescriptor != null)
+                return agentDescriptor.getHelpFile(fieldName);
             return null;
         }
 
@@ -2114,7 +2114,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 throws IOException, ServletException {
             checkPermission(EC2Cloud.PROVISION);
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
+            return EC2AbstractAgent.fillZoneItems(credentialsProvider, region);
         }
 
         public String getDefaultTenancy() {
@@ -2138,7 +2138,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         public List<NodePropertyDescriptor> getNodePropertyDescriptors() {
-            return NodePropertyDescriptor.for_(NodeProperty.all(), EC2AbstractSlave.class);
+            return NodePropertyDescriptor.for_(NodeProperty.all(), EC2AbstractAgent.class);
         }
 
         @POST

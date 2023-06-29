@@ -3,8 +3,8 @@ package hudson.plugins.ec2;
 import hudson.Extension;
 import hudson.model.Label;
 import hudson.model.LoadStatistics;
-import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner;
+import hudson.agents.Cloud;
+import hudson.agents.NodeProvisioner;
 import jenkins.model.Jenkins;
 
 import java.util.Collection;

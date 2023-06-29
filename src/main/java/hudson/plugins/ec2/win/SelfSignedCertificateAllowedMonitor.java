@@ -27,9 +27,9 @@ import hudson.Extension;
 import hudson.model.AdministrativeMonitor;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.EC2Cloud;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.AgentTemplate;
 import hudson.plugins.ec2.WindowsData;
-import hudson.slaves.Cloud;
+import hudson.agents.Cloud;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
@@ -82,10 +82,10 @@ public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
     }
 
     private boolean gatherInsecureTemplate(EC2Cloud cloud) {
-        List<SlaveTemplate> templates = cloud.getTemplates();
-        for (SlaveTemplate template : templates) {
+        List<AgentTemplate> templates = cloud.getTemplates();
+        for (AgentTemplate template : templates) {
             // It's only for window templates
-            if (!template.isWindowsSlave()) {
+            if (!template.isWindowsAgent()) {
                 continue;
             }
 

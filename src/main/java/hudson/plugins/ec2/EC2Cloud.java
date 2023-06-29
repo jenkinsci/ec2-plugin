@@ -59,8 +59,8 @@ import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.security.ACL;
-import hudson.slaves.Cloud;
-import hudson.slaves.NodeProvisioner.PlannedNode;
+import hudson.agents.Cloud;
+import hudson.agents.NodeProvisioner.PlannedNode;
 import hudson.util.FormValidation;
 import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
@@ -127,15 +127,15 @@ public abstract class EC2Cloud extends Cloud {
 
     public static final String AWS_CN_URL_HOST = "amazonaws.com.cn";
 
-    public static final String EC2_SLAVE_TYPE_SPOT = "spot";
+    public static final String EC2_AGENT_TYPE_SPOT = "spot";
 
-    public static final String EC2_SLAVE_TYPE_DEMAND = "demand";
+    public static final String EC2_AGENT_TYPE_DEMAND = "demand";
 
     public static final String EC2_REQUEST_EXPIRED_ERROR_CODE = "RequestExpired";
 
     private static final SimpleFormatter sf = new SimpleFormatter();
 
-    private transient ReentrantLock slaveCountingLock = new ReentrantLock();
+    private transient ReentrantLock agentCountingLock = new ReentrantLock();
 
     private final boolean useInstanceProfileForCredentials;
 
@@ -165,14 +165,14 @@ public abstract class EC2Cloud extends Cloud {
      */
     private final int instanceCap;
 
-    private final List<? extends SlaveTemplate> templates;
+    private final List<? extends AgentTemplate> templates;
 
     private transient KeyPair usableKeyPair;
 
     private transient volatile AmazonEC2 connection;
 
     protected EC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId,
-                       String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+                       String instanceCapStr, List<? extends AgentTemplate> templates, String roleArn, String roleSessionName) {
         super(name);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.roleArn = roleArn;
@@ -197,7 +197,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @Deprecated
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
-            String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+            String instanceCapStr, List<? extends AgentTemplate> templates, String roleArn, String roleSessionName) {
         this(id, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
@@ -248,9 +248,9 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     protected Object readResolve() {
-        this.slaveCountingLock = new ReentrantLock();
+        this.agentCountingLock = new ReentrantLock();
 
-        for (SlaveTemplate t : templates)
+        for (AgentTemplate t : templates)
             t.parent = this;
 
         if (this.sshKeysCredentialsId == null && this.privateKey != null ){
@@ -351,13 +351,13 @@ public abstract class EC2Cloud extends Cloud {
         return instanceCap;
     }
 
-    public List<SlaveTemplate> getTemplates() {
+    public List<AgentTemplate> getTemplates() {
         return Collections.unmodifiableList(templates);
     }
 
     @CheckForNull
-    public SlaveTemplate getTemplate(String template) {
-        for (SlaveTemplate t : templates) {
+    public AgentTemplate getTemplate(String template) {
+        for (AgentTemplate t : templates) {
             if (t.description.equals(template)) {
                 return t;
             }
@@ -366,11 +366,11 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Gets {@link SlaveTemplate} that has the matching {@link Label}.
+     * Gets {@link AgentTemplate} that has the matching {@link Label}.
      */
     @Deprecated
-    public SlaveTemplate getTemplate(Label label) {
-        for (SlaveTemplate t : templates) {
+    public AgentTemplate getTemplate(Label label) {
+        for (AgentTemplate t : templates) {
             if (t.getMode() == Node.Mode.NORMAL) {
                 if (label == null || label.matches(t.getLabelSet())) {
                     return t;
@@ -385,11 +385,11 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     /**
-     * Gets list of {@link SlaveTemplate} that matches {@link Label}.
+     * Gets list of {@link AgentTemplate} that matches {@link Label}.
      */
-    public Collection<SlaveTemplate> getTemplates(Label label) {
-        List<SlaveTemplate> matchingTemplates = new ArrayList<>();
-        for (SlaveTemplate t : templates) {
+    public Collection<AgentTemplate> getTemplates(Label label) {
+        List<AgentTemplate> matchingTemplates = new ArrayList<>();
+        for (AgentTemplate t : templates) {
             if (t.getMode() == Node.Mode.NORMAL) {
                 if (label == null || label.matches(t.getLabelSet())) {
                     matchingTemplates.add(t);
@@ -424,11 +424,11 @@ public abstract class EC2Cloud extends Cloud {
     public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id)
             throws ServletException, IOException, AmazonClientException {
         checkPermission(PROVISION);
-        SlaveTemplate t = getTemplates().get(0);
+        AgentTemplate t = getTemplates().get(0);
 
         StringWriter sw = new StringWriter();
         StreamTaskListener listener = new StreamTaskListener(sw);
-        EC2AbstractSlave node = t.attach(id, listener);
+        EC2AbstractAgent node = t.attach(id, listener);
         Jenkins.get().addNode(node);
 
         rsp.sendRedirect2(req.getContextPath() + "/computer/" + node.getNodeName());
@@ -440,7 +440,7 @@ public abstract class EC2Cloud extends Cloud {
         if (template == null) {
             throw HttpResponses.error(SC_BAD_REQUEST, "The 'template' query parameter is missing");
         }
-        SlaveTemplate t = getTemplate(template);
+        AgentTemplate t = getTemplate(template);
         if (t == null) {
             throw HttpResponses.error(SC_BAD_REQUEST, "No such template: " + template);
         }
@@ -453,7 +453,7 @@ public abstract class EC2Cloud extends Cloud {
             throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is terminating");
         }
         try {
-            List<EC2AbstractSlave> nodes = getNewOrExistingAvailableSlave(t, 1, true);
+            List<EC2AbstractAgent> nodes = getNewOrExistingAvailableAgent(t, 1, true);
             if (nodes == null || nodes.isEmpty())
                 throw HttpResponses.error(SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
 
@@ -476,7 +476,7 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all instances are counted.
      */
-    private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
+    private int countCurrentEC2Agents(AgentTemplate template) throws AmazonClientException {
         String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
 
         if (jenkinsServerUrl == null) {
@@ -500,7 +500,7 @@ public abstract class EC2Cloud extends Cloud {
             dir.setNextToken(result.getNextToken());
             for (Reservation r : result.getReservations()) {
                 for (Instance i : r.getInstances()) {
-                    if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
+                    if (isEc2ProvisionedAmiAgent(i.getTags(), description)) {
                         LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
                         n++;
@@ -510,7 +510,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         } while(result.getNextToken() != null);
 
-        n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, instanceIds);
+        n += countCurrentEC2SpotAgents(template, jenkinsServerUrl, instanceIds);
 
         return n;
     }
@@ -521,7 +521,7 @@ public abstract class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all spot instances are counted.
      */
-    private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, Set<String> instanceIds) throws AmazonClientException {
+    private int countCurrentEC2SpotAgents(AgentTemplate template, String jenkinsServerUrl, Set<String> instanceIds) throws AmazonClientException {
         int n = 0;
         String description = template != null ? template.description : null;
         List<SpotInstanceRequest> sirs = null;
@@ -552,7 +552,7 @@ public abstract class EC2Cloud extends Cloud {
                         if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                             continue;
 
-                        if (isEc2ProvisionedAmiSlave(sir.getTags(), description)) {
+                        if (isEc2ProvisionedAmiAgent(sir.getTags(), description)) {
                             LOGGER.log(Level.FINE, "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
                                     + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
 
@@ -564,10 +564,10 @@ public abstract class EC2Cloud extends Cloud {
                         // Cancelled or otherwise dead
                         for (Node node : Jenkins.get().getNodes()) {
                             try {
-                                if (!(node instanceof EC2SpotSlave))
+                                if (!(node instanceof EC2SpotAgent))
                                     continue;
-                                EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
-                                if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
+                                EC2SpotAgent ec2Agent = (EC2SpotAgent) node;
+                                if (ec2Agent.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
                                     LOGGER.log(Level.INFO, "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
                                             + sir.getInstanceId() + " state: " + sir.getState() + " status: " + sir.getStatus());
                                     Jenkins.get().removeNode(node);
@@ -589,16 +589,16 @@ public abstract class EC2Cloud extends Cloud {
 
     // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
     // in the EC2 API)
-    private int countJenkinsNodeSpotInstancesWithoutRequests(SlaveTemplate template, Set<SpotInstanceRequest> sirSet, Set<String> instanceIds) throws AmazonClientException {
+    private int countJenkinsNodeSpotInstancesWithoutRequests(AgentTemplate template, Set<SpotInstanceRequest> sirSet, Set<String> instanceIds) throws AmazonClientException {
         int n = 0;
         for (Node node : Jenkins.get().getNodes()) {
-            if (!(node instanceof EC2SpotSlave))
+            if (!(node instanceof EC2SpotAgent))
                 continue;
-            EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
-            SpotInstanceRequest sir = ec2Slave.getSpotRequest();
+            EC2SpotAgent ec2Agent = (EC2SpotAgent) node;
+            SpotInstanceRequest sir = ec2Agent.getSpotRequest();
 
             if (sir == null) {
-                LOGGER.log(Level.FINE, "Found spot node without request: " + ec2Slave.getSpotInstanceRequestId());
+                LOGGER.log(Level.FINE, "Found spot node without request: " + ec2Agent.getSpotInstanceRequestId());
                 n++;
                 continue;
             }
@@ -612,7 +612,7 @@ public abstract class EC2Cloud extends Cloud {
                 if (template != null) {
                     List<Tag> instanceTags = sir.getTags();
                     for (Tag tag : instanceTags) {
-                        if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE) && StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
+                        if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE) && StringUtils.equals(tag.getValue(), getAgentTypeTagValue(EC2_AGENT_TYPE_SPOT, template.description)) && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
 
                             if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId()))
                                 continue;
@@ -632,9 +632,9 @@ public abstract class EC2Cloud extends Cloud {
     }
 
 
-    private List<Filter> getGenericFilters(String jenkinsServerUrl, SlaveTemplate template) {
+    private List<Filter> getGenericFilters(String jenkinsServerUrl, AgentTemplate template) {
         List<Filter> filters = new ArrayList<>();
-        filters.add(new Filter("tag-key").withValues(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE));
+        filters.add(new Filter("tag-key").withValues(EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE));
         if (jenkinsServerUrl != null) {
             // The instances must match the jenkins server url
             filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL).withValues(jenkinsServerUrl));
@@ -655,17 +655,17 @@ public abstract class EC2Cloud extends Cloud {
         return filters;
     }
 
-    private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
+    private boolean isEc2ProvisionedAmiAgent(List<Tag> tags, String description) {
         for (Tag tag : tags) {
-            if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+            if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE)) {
                 if (description == null) {
                     return true;
-                } else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
-                        || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
+                } else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_AGENT_TYPE_DEMAND)
+                        || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_AGENT_TYPE_SPOT)) {
                     // To handle cases where description is null and also upgrade cases for existing agent nodes.
                     return true;
-                } else if (StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description))
-                        || StringUtils.equals(tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description))) {
+                } else if (StringUtils.equals(tag.getValue(), getAgentTypeTagValue(EC2Cloud.EC2_AGENT_TYPE_DEMAND, description))
+                        || StringUtils.equals(tag.getValue(), getAgentTypeTagValue(EC2Cloud.EC2_AGENT_TYPE_SPOT, description))) {
                     return true;
                 } else {
                     return false;
@@ -678,42 +678,42 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Returns the maximum number of possible agents that can be created.
      */
-    private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
-        int estimatedTotalSlaves = countCurrentEC2Slaves(null);
-        int estimatedAmiSlaves = countCurrentEC2Slaves(template);
+    private int getPossibleNewAgentsCount(AgentTemplate template) throws AmazonClientException {
+        int estimatedTotalAgents = countCurrentEC2Agents(null);
+        int estimatedAmiAgents = countCurrentEC2Agents(template);
 
-        int availableTotalSlaves = instanceCap - estimatedTotalSlaves;
-        int availableAmiSlaves = template.getInstanceCap() - estimatedAmiSlaves;
-        LOGGER.log(Level.FINE, "Available Total Agents: " + availableTotalSlaves + " Available AMI agents: " + availableAmiSlaves
+        int availableTotalAgents = instanceCap - estimatedTotalAgents;
+        int availableAmiAgents = template.getInstanceCap() - estimatedAmiAgents;
+        LOGGER.log(Level.FINE, "Available Total Agents: " + availableTotalAgents + " Available AMI agents: " + availableAmiAgents
                 + " AMI: " + template.getAmi() + " TemplateDesc: " + template.description);
 
-        return Math.min(availableAmiSlaves, availableTotalSlaves);
+        return Math.min(availableAmiAgents, availableTotalAgents);
     }
 
     /**
      * Obtains a agent whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new agent is required. Otherwise, an existing matching agent may be re-used
      */
-    private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
+    private List<EC2AbstractAgent> getNewOrExistingAvailableAgent(AgentTemplate t, int number, boolean forceCreateNew) {
         try {
-            slaveCountingLock.lock();
-            int possibleSlavesCount = getPossibleNewSlavesCount(t);
-            if (possibleSlavesCount <= 0) {
-                LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleSlavesCount, t);
+            agentCountingLock.lock();
+            int possibleAgentsCount = getPossibleNewAgentsCount(t);
+            if (possibleAgentsCount <= 0) {
+                LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleAgentsCount, t);
                 return null;
             }
 
             try {
-                EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
+                EnumSet<AgentTemplate.ProvisionOptions> provisionOptions;
                 if (forceCreateNew)
-                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+                    provisionOptions = EnumSet.of(AgentTemplate.ProvisionOptions.FORCE_CREATE);
                 else
-                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+                    provisionOptions = EnumSet.of(AgentTemplate.ProvisionOptions.ALLOW_CREATE);
 
-                if (number > possibleSlavesCount) {
+                if (number > possibleAgentsCount) {
                     LOGGER.log(Level.INFO, String.format("%d nodes were requested for the template %s, " +
-                            "but because of instance cap only %d can be provisioned", number, t, possibleSlavesCount));
-                    number = possibleSlavesCount;
+                            "but because of instance cap only %d can be provisioned", number, t, possibleAgentsCount));
+                    number = possibleAgentsCount;
                 }
 
                 return t.provision(number, provisionOptions);
@@ -721,12 +721,12 @@ public abstract class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
                 return null;
             }
-        } finally { slaveCountingLock.unlock(); }
+        } finally { agentCountingLock.unlock(); }
     }
 
     @Override
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
-        final Collection<SlaveTemplate> matchingTemplates = getTemplates(label);
+        final Collection<AgentTemplate> matchingTemplates = getTemplates(label);
         List<PlannedNode> plannedNodes = new ArrayList<>();
 
         Jenkins jenkinsInstance = Jenkins.get();
@@ -738,24 +738,24 @@ public abstract class EC2Cloud extends Cloud {
             return Collections.emptyList();
         }
 
-        for (SlaveTemplate t : matchingTemplates) {
+        for (AgentTemplate t : matchingTemplates) {
             try {
                 LOGGER.log(Level.INFO, "{0}. Attempting to provision agent needed by excess workload of " + excessWorkload + " units", t);
                 int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
-                final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
+                final List<EC2AbstractAgent> agents = getNewOrExistingAvailableAgent(t, number, false);
 
-                if (slaves == null || slaves.isEmpty()) {
+                if (agents == null || agents.isEmpty()) {
                     LOGGER.warning("Can't raise nodes for " + t);
                     continue;
                 }
 
-                for (final EC2AbstractSlave slave : slaves) {
-                    if (slave == null) {
+                for (final EC2AbstractAgent agent : agents) {
+                    if (agent == null) {
                         LOGGER.warning("Can't raise node for " + t);
                         continue;
                     }
 
-                    plannedNodes.add(createPlannedNode(t, slave));
+                    plannedNodes.add(createPlannedNode(t, agent));
                     excessWorkload -= t.getNumExecutors();
                 }
 
@@ -770,22 +770,22 @@ public abstract class EC2Cloud extends Cloud {
         return plannedNodes;
     }
 
-    private static void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t) throws IOException {
-        for (final EC2AbstractSlave slave : slaves) {
-            if (slave == null) {
+    private static void attachAgentsToJenkins(Jenkins jenkins, List<EC2AbstractAgent> agents, AgentTemplate t) throws IOException {
+        for (final EC2AbstractAgent agent : agents) {
+            if (agent == null) {
                 LOGGER.warning("Can't raise node for " + t);
                 continue;
             }
 
-            Computer c = slave.toComputer();
-            if (slave.getStopOnTerminate() && c != null) {
+            Computer c = agent.toComputer();
+            if (agent.getStopOnTerminate() && c != null) {
                 c.connect(false);
             }
-            jenkins.addNode(slave);
+            jenkins.addNode(agent);
         }
     }
 
-    public void provision(SlaveTemplate t, int number) {
+    public void provision(AgentTemplate t, int number) {
 
         Jenkins jenkinsInstance = Jenkins.get();
         if (jenkinsInstance.isQuietingDown()) {
@@ -798,14 +798,14 @@ public abstract class EC2Cloud extends Cloud {
 
         try {
             LOGGER.log(Level.INFO, "{0}. Attempting to provision {1} agent(s)", new Object[]{t, number});
-            final List<EC2AbstractSlave> slaves = getNewOrExistingAvailableSlave(t, number, false);
+            final List<EC2AbstractAgent> agents = getNewOrExistingAvailableAgent(t, number, false);
 
-            if (slaves == null || slaves.isEmpty()) {
+            if (agents == null || agents.isEmpty()) {
                 LOGGER.warning("Can't raise nodes for " + t);
                 return;
             }
 
-            attachSlavesToJenkins(jenkinsInstance, slaves, t);
+            attachAgentsToJenkins(jenkinsInstance, agents, t);
 
             LOGGER.log(Level.INFO, "{0}. Attempting provision finished", t);
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
@@ -819,10 +819,10 @@ public abstract class EC2Cloud extends Cloud {
      * Helper method to reattach lost EC2 node agents @Issue("JENKINS-57795")
      *
      * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
-     * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
+     * @param template The corresponding AgentTemplate of the nodes that are to be re-attached
      * @param requestedNum The requested number of nodes to re-attach. We don't go above this in the case its value corresponds to an instance cap.
      */
-    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum) throws IOException {
+    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, AgentTemplate template, int requestedNum) throws IOException {
         LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
         AmazonEC2 ec2 = this.connect();
         DescribeInstancesResult diResult = template.getDescribeInstanceResult(ec2,true);
@@ -832,22 +832,22 @@ public abstract class EC2Cloud extends Cloud {
         while (orphansOrStopped.size() > requestedNum) {
             orphansOrStopped.remove(0);
         }
-        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(orphansOrStopped), template);
+        attachAgentsToJenkins(jenkinsInstance, template.toAgents(orphansOrStopped), template);
         if (orphansOrStopped.size() > 0) {
             LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
         }
     }
 
-    private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
+    private PlannedNode createPlannedNode(final AgentTemplate t, final EC2AbstractAgent agent) {
         return new PlannedNode(t.getDisplayName(),
                 Computer.threadPoolForRemoting.submit(new Callable<Node>() {
                     int retryCount     = 0;
                     private static final int DESCRIBE_LIMIT = 2;
                     public Node call() throws Exception {
                         while (true) {
-                            String instanceId = slave.getInstanceId();
-                            if (slave instanceof EC2SpotSlave) {
-                                if (((EC2SpotSlave) slave).isSpotRequestDead()) {
+                            String instanceId = agent.getInstanceId();
+                            if (agent instanceof EC2SpotAgent) {
+                                if (((EC2SpotAgent) agent).isSpotRequestDead()) {
                                     LOGGER.log(Level.WARNING, "{0} Spot request died, can't do anything. Terminate provisioning", t);
                                     return null;
                                 }
@@ -859,10 +859,10 @@ public abstract class EC2Cloud extends Cloud {
                                 }
                             }
 
-                            Instance instance = CloudHelper.getInstanceWithRetry(instanceId, slave.getCloud());
+                            Instance instance = CloudHelper.getInstanceWithRetry(instanceId, agent.getCloud());
                             if (instance == null) {
                                 LOGGER.log(Level.WARNING, "{0} Can't find instance with instance id `{1}` in cloud {2}. Terminate provisioning ",
-                                        new Object[]{t, instanceId, slave.cloudName});
+                                        new Object[]{t, instanceId, agent.cloudName});
                                 return null;
                             }
 
@@ -870,15 +870,15 @@ public abstract class EC2Cloud extends Cloud {
                             if (state.equals(InstanceStateName.Running))  {
                                 //Spot instance are not reconnected automatically,
                                 // but could be new orphans that has the option enable
-                                Computer c = slave.toComputer();
-                                if (slave.getStopOnTerminate() && (c != null ))  {
+                                Computer c = agent.toComputer();
+                                if (agent.getStopOnTerminate() && (c != null ))  {
                                     c.connect(false);
                                 }
 
                                 long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - instance.getLaunchTime().getTime());
                                 LOGGER.log(Level.INFO, "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
-                                        new Object[]{t, slave.getNodeName(), startTime});
-                                return slave;
+                                        new Object[]{t, agent.getNodeName(), startTime});
+                                return agent;
                             }
 
                             if (!state.equals(InstanceStateName.Pending)) {
@@ -890,7 +890,7 @@ public abstract class EC2Cloud extends Cloud {
                                 }
 
                                 LOGGER.log(Level.INFO, "Attempt {0}: {1}. Node {2} is neither pending, neither running, it''s {3}. Will try again after 5s",
-                                        new Object[]{retryCount, t, slave.getNodeName(), state});
+                                        new Object[]{retryCount, t, agent.getNodeName(), state});
                                 retryCount++;
                             }
 
@@ -911,8 +911,8 @@ public abstract class EC2Cloud extends Cloud {
         return createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
     }
 
-    public static String getSlaveTypeTagValue(String slaveType, String templateDescription) {
-        return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
+    public static String getAgentTypeTagValue(String agentType, String templateDescription) {
+        return templateDescription != null ? agentType + "_" + templateDescription : agentType;
     }
 
     public static AWSCredentialsProvider createCredentialsProvider(final boolean useInstanceProfileForCredentials, final String credentialsId) {

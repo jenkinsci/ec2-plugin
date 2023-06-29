@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Original work from ssh-slaves-plugin Copyright (c) 2016, Michael Clarke
+ * Original work from ssh-agents-plugin Copyright (c) 2016, Michael Clarke
  * Modified work Copyright (c) 2020-, M Ramon Leon, CloudBees, Inc.
  * Modified work:
  * - getHostKeyFromConsole method and called methods

@@ -23,13 +23,13 @@ userdata = response.read()
 
 args = string.split(userdata, "&")
 jenkinsUrl = ""
-slaveName = ""
+agentName = ""
 
 for arg in args:
     if arg.split("=")[0] == "JENKINS_URL":
         jenkinsUrl = arg.split("=")[1]
-    if arg.split("=")[0] == "SLAVE_NAME":
-        slaveName = arg.split("=")[1]
+    if arg.split("=")[0] == "AGENT_NAME":
+        agentName = arg.split("=")[1]
 
-os.system("wget " + jenkinsUrl + "jnlpJars/slave.jar -O slave.jar")
-os.system("java -jar slave.jar -jnlpUrl " + jenkinsUrl + "computer/" + slaveName + "/slave-agent.jnlp")
+os.system("wget " + jenkinsUrl + "jnlpJars/agent.jar -O agent.jar")
+os.system("java -jar agent.jar -jnlpUrl " + jenkinsUrl + "computer/" + agentName + "/agent-agent.jnlp")

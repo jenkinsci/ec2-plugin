@@ -3,7 +3,7 @@ package hudson.plugins.ec2;
 import hudson.Extension;
 import hudson.model.TaskListener;
 import hudson.model.Computer;
-import hudson.slaves.ComputerListener;
+import hudson.agents.ComputerListener;
 
 @Extension
 public class EC2ComputerListener extends ComputerListener {

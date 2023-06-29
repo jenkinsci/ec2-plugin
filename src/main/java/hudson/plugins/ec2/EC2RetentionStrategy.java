@@ -33,7 +33,7 @@ import hudson.model.ExecutorListener;
 import hudson.model.Queue;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.model.Label;
-import hudson.slaves.RetentionStrategy;
+import hudson.agents.RetentionStrategy;
 import jenkins.model.Jenkins;
 
 import java.time.Clock;
@@ -128,12 +128,12 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         /*
         * If we have equal or less number of agents than the template's minimum instance count, don't perform check.
         */
-        SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-        if (slaveTemplate != null) {
-            long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfAgents(slaveTemplate);
-            if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances()) {
+        AgentTemplate agentTemplate = computer.getAgentTemplate();
+        if (agentTemplate != null) {
+            long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfAgents(agentTemplate);
+            if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= agentTemplate.getMinimumNumberOfInstances()) {
                 //Check if we're in an active time-range for keeping minimum number of instances
-                if (MinimumInstanceChecker.minimumInstancesActive(slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
+                if (MinimumInstanceChecker.minimumInstancesActive(agentTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
                     return 1;
                 }
             }
@@ -159,7 +159,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             // * Already Terminated
             // * We use stop-on-terminate and the instance is currently stopped or stopping
             if (InstanceState.TERMINATED.equals(state)
-                  || (slaveTemplate != null && slaveTemplate.stopOnTerminate) && (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state))) {
+                  || (agentTemplate != null && agentTemplate.stopOnTerminate) && (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state))) {
                 if (computer.isOnline()) {
                     LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status" + state.toString());
                     computer.disconnect(null);
@@ -175,7 +175,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 if (computer.isConnecting()) {
                     LOGGER.log(Level.FINE, "Computer {0} connecting and still offline, will check if the launch timeout has expired", computer.getInstanceId());
 
-                    EC2AbstractSlave node = computer.getNode();
+                    EC2AbstractAgent node = computer.getNode();
                     if (Objects.isNull(node)) {
                         return 1;
                     }
@@ -201,14 +201,14 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 // JENKINS-23792
 
                 if (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleTerminationMinutes) &&
-                                        !itemsInQueueForThisSlave(computer)){
+                                        !itemsInQueueForThisAgent(computer)){
 
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) +
                             " idle minutes, instance status"+state.toString());
-                    EC2AbstractSlave slaveNode = computer.getNode();
-                    if (slaveNode != null) {
-                        slaveNode.idleTimeout();
+                    EC2AbstractAgent agentNode = computer.getNode();
+                    if (agentNode != null) {
+                        agentNode.idleTimeout();
                     }
                 }
             } else {
@@ -220,14 +220,14 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 // if we have less "free" (aka already paid for) time left than
                 // our idle time, stop/terminate the instance
                 // See JENKINS-23821
-                if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes)) && !itemsInQueueForThisSlave(computer)) {
+                if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes)) && !itemsInQueueForThisAgent(computer)) {
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
                             + TimeUnit.SECONDS.toMinutes(freeSecondsLeft)
                             + " minutes remaining in billing period");
-                    EC2AbstractSlave slaveNode = computer.getNode();
-                    if (slaveNode != null) {
-                        slaveNode.idleTimeout();
+                    EC2AbstractAgent agentNode = computer.getNode();
+                    if (agentNode != null) {
+                        agentNode.idleTimeout();
                     }
                 }
             }
@@ -240,13 +240,13 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      * This prevents a node from being taken offline while there are Ivy/Maven Modules waiting to build.
      * Need to check entire queue as some modules may be blocked by upstream dependencies.
      * Accessing the queue in this way can block other threads, so only perform this check just prior
-     * to timing out the slave.
+     * to timing out the agent.
      */
-    private boolean itemsInQueueForThisSlave(EC2Computer c) {
-        final EC2AbstractSlave selfNode = c.getNode();
+    private boolean itemsInQueueForThisAgent(EC2Computer c) {
+        final EC2AbstractAgent selfNode = c.getNode();
         /* null checking is required here because in the event that a computer
          * doesn't have a node it will return null. In this case we want to
-         * return false because there's no slave to prevent a timeout of.
+         * return false because there's no agent to prevent a timeout of.
          */
         if (selfNode == null) return false;
         final Label selfLabel = selfNode.getSelfLabel();
@@ -256,7 +256,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             final Label assignedLabel = item.getAssignedLabel();
             if (assignedLabel == selfLabel) {
                 LOGGER.fine("Preventing idle timeout of " + c.getName()
-                        + " as there is at least one item in the queue explicitly waiting for this slave");
+                        + " as there is at least one item in the queue explicitly waiting for this agent");
                 return true;
             }
         }
@@ -311,18 +311,18 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     public void taskAccepted(Executor executor, Queue.Task task) {
         EC2Computer computer = (EC2Computer) executor.getOwner();
         if (computer != null) {
-            EC2AbstractSlave slaveNode = computer.getNode();
-            if (slaveNode != null) {
-                int maxTotalUses = slaveNode.maxTotalUses;
+            EC2AbstractAgent agentNode = computer.getNode();
+            if (agentNode != null) {
+                int maxTotalUses = agentNode.maxTotalUses;
                 if (maxTotalUses <= -1) {
-                    LOGGER.fine("maxTotalUses set to unlimited (" + slaveNode.maxTotalUses + ") for agent " + slaveNode.instanceId);
+                    LOGGER.fine("maxTotalUses set to unlimited (" + agentNode.maxTotalUses + ") for agent " + agentNode.instanceId);
                     return;
                 } else if (maxTotalUses <= 1) {
-                    LOGGER.info("maxTotalUses drained - suspending agent " + slaveNode.instanceId);
+                    LOGGER.info("maxTotalUses drained - suspending agent " + agentNode.instanceId);
                     computer.setAcceptingTasks(false);
                 } else {
-                    slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
-                    LOGGER.info("Agent " + slaveNode.instanceId + " has " + slaveNode.maxTotalUses + " builds left");
+                    agentNode.maxTotalUses = agentNode.maxTotalUses - 1;
+                    LOGGER.info("Agent " + agentNode.instanceId + " has " + agentNode.maxTotalUses + " builds left");
                 }
             }
         }
@@ -339,15 +339,15 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     private void postJobAction(Executor executor) {
         EC2Computer computer = (EC2Computer) executor.getOwner();
         if (computer != null) {
-            EC2AbstractSlave slaveNode = computer.getNode();
-            if (slaveNode != null) {
+            EC2AbstractAgent agentNode = computer.getNode();
+            if (agentNode != null) {
                 // At this point, if agent is in suspended state and has 1 last executer running, it is safe to terminate.
                 if (computer.countBusy() <= 1 && !computer.isAcceptingTasks()) {
-                    LOGGER.info("Agent " + slaveNode.instanceId + " is terminated due to maxTotalUses (" + slaveNode.maxTotalUses + ")");
-                    slaveNode.terminate();
+                    LOGGER.info("Agent " + agentNode.instanceId + " is terminated due to maxTotalUses (" + agentNode.maxTotalUses + ")");
+                    agentNode.terminate();
                 } else {
-                    if (slaveNode.maxTotalUses == 1) {
-                        LOGGER.info("Agent " + slaveNode.instanceId + " is still in use by more than one (" + computer.countBusy() + ") executers.");
+                    if (agentNode.maxTotalUses == 1) {
+                        LOGGER.info("Agent " + agentNode.instanceId + " is still in use by more than one (" + computer.countBusy() + ") executers.");
                     }
                 }
             }

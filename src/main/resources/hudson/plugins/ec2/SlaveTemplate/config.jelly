@@ -47,7 +47,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:entry title="${%AMI Filters}" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/amiFilters">
+  <f:entry title="${%AMI Filters}" help="/descriptor/hudson.plugins.ec2.AgentTemplate/help/amiFilters">
     <f:repeatableProperty field="amiFilters">
       <f:block>
         <div align="right">
@@ -100,7 +100,7 @@ THE SOFTWARE.
     <f:textbox />
   </f:entry>
 
-  <f:slave-mode name="mode" node="${instance}" />
+  <f:agent-mode name="mode" node="${instance}" />
 
   <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
     <f:textbox default="30" />
@@ -156,7 +156,7 @@ THE SOFTWARE.
 
     <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
                      title="${%Only apply minimum number of instances during specific time range}" checked="${instance.minimumNumberOfInstancesTimeRangeConfig != null}"
-        help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >
+        help="/descriptor/hudson.plugins.ec2.AgentTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >
       <f:entry title="${%From/to}" description="${%''13:00'' or ''1:00 PM'' format supported}">
         From: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeFrom" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeFrom}" />
         To: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeTo" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeTo}" />

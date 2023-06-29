@@ -6,7 +6,7 @@ import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
-import hudson.slaves.ComputerLauncher;
+import hudson.agents.ComputerLauncher;
 import hudson.Util;
 import hudson.os.WindowsUtil;
 
@@ -17,7 +17,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
-import hudson.slaves.OfflineCause;
+import hudson.agents.OfflineCause;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import jenkins.model.Jenkins;
@@ -39,12 +39,12 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
             AmazonClientException, InterruptedException {
         final PrintStream logger = listener.getLogger();
-        EC2AbstractSlave node = computer.getNode();
+        EC2AbstractAgent node = computer.getNode();
         if (node == null) {
             logger.println("Unable to fetch node information");
             return;
         }
-        final SlaveTemplate template = computer.getSlaveTemplate();
+        final AgentTemplate template = computer.getAgentTemplate();
         if (template == null) {
             throw new IOException("Could not find corresponding agent template for " + computer.getDisplayName());
         }
@@ -121,7 +121,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     }
 
     @NonNull
-    private WinConnection connectToWinRM(EC2Computer computer, EC2AbstractSlave node, SlaveTemplate template, PrintStream logger) throws AmazonClientException,
+    private WinConnection connectToWinRM(EC2Computer computer, EC2AbstractAgent node, AgentTemplate template, PrintStream logger) throws AmazonClientException,
             InterruptedException {
         final long minTimeout = 3000;
         long timeout = node.getLaunchTimeoutInMillis(); // timeout is less than 0 when jenkins is booting up.

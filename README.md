@@ -214,7 +214,7 @@ started up:
 
 # Read user data for the EC2 instance. It is available from [http://169.254.169.254/latest/user-data]
 
-# Values are passed in with the format of JENKINS_URL=[Jenkins_Url]&SLAVE_NAME=[Agent_Name]&USER_DATA=[other_user_data]
+# Values are passed in with the format of JENKINS_URL=[Jenkins_Url]&AGENT_NAME=[Agent_Name]&USER_DATA=[other_user_data]
 
 # Parse the values to retrieve the Jenkins_Url and Agent_Name
 # Fetch the agent.jar from the Jenkins controller using wget (or something similar)
@@ -222,7 +222,7 @@ started up:
 wget [Jenkins_Url]jnlpJars/agent.jar -O agent.jar
 # Register the agent to the Jenkins controller node
 
-java -jar agent.jar -jnlpUrl [Jenkins_Url]computer/ [Agent_Name] slave-agent.jnlp
+java -jar agent.jar -jnlpUrl [Jenkins_Url]computer/ [Agent_Name] agent-agent.jnlp
 ```
 
 ## IAM setup
@@ -291,7 +291,7 @@ import hudson.model.*
 import hudson.plugins.ec2.AmazonEC2Cloud
 import hudson.plugins.ec2.AMITypeData
 import hudson.plugins.ec2.EC2Tag
-import hudson.plugins.ec2.SlaveTemplate
+import hudson.plugins.ec2.AgentTemplate
 import hudson.plugins.ec2.SpotConfiguration
 import hudson.plugins.ec2.UnixData
 import jenkins.model.Jenkins
@@ -303,7 +303,7 @@ import hudson.plugins.ec2.EbsEncryptRootVolume
 def sshPortToConnectWith = '22'
 
 // store parameters
-def slaveTemplateUsEast1Parameters = [
+def agentTemplateUsEast1Parameters = [
   ami:                           'ami-AAAAAAAA',
   associatePublicIp:             false,
   spotConfig:                    null,
@@ -402,51 +402,51 @@ AWSCredentialsImpl aWSCredentialsImpl = new AWSCredentialsImpl(
   AWSCredentialsImplParameters.description
 )
 
-// https://javadoc.jenkins.io/plugin/ec2/hudson/plugins/ec2/SlaveTemplate.html
-SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
-  slaveTemplateUsEast1Parameters.ami,
-  slaveTemplateUsEast1Parameters.zone,
-  slaveTemplateUsEast1Parameters.spotConfig,
-  slaveTemplateUsEast1Parameters.securityGroups,
-  slaveTemplateUsEast1Parameters.remoteFS,
-  InstanceType.fromValue(slaveTemplateUsEast1Parameters.type),
-  slaveTemplateUsEast1Parameters.ebsOptimized,
-  slaveTemplateUsEast1Parameters.labelString,
+// https://javadoc.jenkins.io/plugin/ec2/hudson/plugins/ec2/AgentTemplate.html
+AgentTemplate agentTemplateUsEast1 = new AgentTemplate(
+  agentTemplateUsEast1Parameters.ami,
+  agentTemplateUsEast1Parameters.zone,
+  agentTemplateUsEast1Parameters.spotConfig,
+  agentTemplateUsEast1Parameters.securityGroups,
+  agentTemplateUsEast1Parameters.remoteFS,
+  InstanceType.fromValue(agentTemplateUsEast1Parameters.type),
+  agentTemplateUsEast1Parameters.ebsOptimized,
+  agentTemplateUsEast1Parameters.labelString,
   Node.Mode.NORMAL,
-  slaveTemplateUsEast1Parameters.description,
-  slaveTemplateUsEast1Parameters.initScript,
-  slaveTemplateUsEast1Parameters.tmpDir,
-  slaveTemplateUsEast1Parameters.userData,
-  slaveTemplateUsEast1Parameters.numExecutors,
-  slaveTemplateUsEast1Parameters.remoteAdmin,
-  slaveTemplateUsEast1Parameters.unixData,
-  slaveTemplateUsEast1Parameters.javaPath,
-  slaveTemplateUsEast1Parameters.jvmopts,
-  slaveTemplateUsEast1Parameters.stopOnTerminate,
-  slaveTemplateUsEast1Parameters.subnetId,
-  [slaveTemplateUsEast1Parameters.tags],
-  slaveTemplateUsEast1Parameters.idleTerminationMinutes,
-  slaveTemplateUsEast1Parameters.minimumNumberOfInstances,
-  slaveTemplateUsEast1Parameters.minimumNumberOfSpareInstances,
-  slaveTemplateUsEast1Parameters.instanceCapStr,
-  slaveTemplateUsEast1Parameters.iamInstanceProfile,
-  slaveTemplateUsEast1Parameters.deleteRootOnTermination,
-  slaveTemplateUsEast1Parameters.useEphemeralDevices,
-  slaveTemplateUsEast1Parameters.launchTimeoutStr,
-  slaveTemplateUsEast1Parameters.associatePublicIp,
-  slaveTemplateUsEast1Parameters.customDeviceMapping,
-  slaveTemplateUsEast1Parameters.connectBySSHProcess,
-  slaveTemplateUsEast1Parameters.monitoring,
-  slaveTemplateUsEast1Parameters.t2Unlimited,
-  slaveTemplateUsEast1Parameters.connectionStrategy,
-  slaveTemplateUsEast1Parameters.maxTotalUses,
-  slaveTemplateUsEast1Parameters.nodeProperties,
-  slaveTemplateUsEast1Parameters.hostKeyVerificationStrategy,
-  slaveTemplateUsEast1Parameters.tenancy,
-  slaveTemplateUsEast1Parameters.ebsEncryptRootVolume,
-  slaveTemplateUsEast1Parameters.metadataEndpointEnabled,
-  slaveTemplateUsEast1Parameters.metadataTokensRequired,
-  slaveTemplateUsEast1Parameters.metadataHopsLimit,
+  agentTemplateUsEast1Parameters.description,
+  agentTemplateUsEast1Parameters.initScript,
+  agentTemplateUsEast1Parameters.tmpDir,
+  agentTemplateUsEast1Parameters.userData,
+  agentTemplateUsEast1Parameters.numExecutors,
+  agentTemplateUsEast1Parameters.remoteAdmin,
+  agentTemplateUsEast1Parameters.unixData,
+  agentTemplateUsEast1Parameters.javaPath,
+  agentTemplateUsEast1Parameters.jvmopts,
+  agentTemplateUsEast1Parameters.stopOnTerminate,
+  agentTemplateUsEast1Parameters.subnetId,
+  [agentTemplateUsEast1Parameters.tags],
+  agentTemplateUsEast1Parameters.idleTerminationMinutes,
+  agentTemplateUsEast1Parameters.minimumNumberOfInstances,
+  agentTemplateUsEast1Parameters.minimumNumberOfSpareInstances,
+  agentTemplateUsEast1Parameters.instanceCapStr,
+  agentTemplateUsEast1Parameters.iamInstanceProfile,
+  agentTemplateUsEast1Parameters.deleteRootOnTermination,
+  agentTemplateUsEast1Parameters.useEphemeralDevices,
+  agentTemplateUsEast1Parameters.launchTimeoutStr,
+  agentTemplateUsEast1Parameters.associatePublicIp,
+  agentTemplateUsEast1Parameters.customDeviceMapping,
+  agentTemplateUsEast1Parameters.connectBySSHProcess,
+  agentTemplateUsEast1Parameters.monitoring,
+  agentTemplateUsEast1Parameters.t2Unlimited,
+  agentTemplateUsEast1Parameters.connectionStrategy,
+  agentTemplateUsEast1Parameters.maxTotalUses,
+  agentTemplateUsEast1Parameters.nodeProperties,
+  agentTemplateUsEast1Parameters.hostKeyVerificationStrategy,
+  agentTemplateUsEast1Parameters.tenancy,
+  agentTemplateUsEast1Parameters.ebsEncryptRootVolume,
+  agentTemplateUsEast1Parameters.metadataEndpointEnabled,
+  agentTemplateUsEast1Parameters.metadataTokensRequired,
+  agentTemplateUsEast1Parameters.metadataHopsLimit,
 )
 
 // https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html
@@ -457,7 +457,7 @@ AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
   AmazonEC2CloudParameters.region,
   AmazonEC2CloudParameters.privateKey,
   AmazonEC2CloudParameters.instanceCapStr,
-  [slaveTemplateUsEast1],
+  [agentTemplateUsEast1],
   '',
   ''
 )
@@ -627,7 +627,7 @@ If you are using a Amazon Linux AMI and encounter exceptions like
 /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.201.b09-0.amzn2.x86\_64/jre/lib/currency.data
 (No such file or directory)*** or ***Remote call on EC2
 \[...\] failed*** then chances are that the Amazon Linux is doing some
-security upgrades in the background and causes the slave to be in an
+security upgrades in the background and causes the agent to be in an
 invalid state.
 
 From the

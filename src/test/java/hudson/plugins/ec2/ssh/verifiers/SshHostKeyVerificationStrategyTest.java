@@ -6,12 +6,12 @@ import com.trilead.ssh2.Connection;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import hudson.model.Node;
 import hudson.plugins.ec2.ConnectionStrategy;
-import hudson.plugins.ec2.EC2AbstractSlave;
+import hudson.plugins.ec2.EC2AbstractAgent;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.InstanceState;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.AgentTemplate;
 import hudson.plugins.ec2.util.ConnectionRule;
-import hudson.slaves.NodeProperty;
+import hudson.agents.NodeProperty;
 import org.hamcrest.core.StringContains;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -328,16 +328,16 @@ public class SshHostKeyVerificationStrategyTest {
     private static class MockEC2Computer extends EC2Computer {
         InstanceState state = InstanceState.PENDING;
         String console = null;
-        EC2AbstractSlave slave;
+        EC2AbstractAgent agent;
         
-        public MockEC2Computer(EC2AbstractSlave slave) {
-            super(slave);
-            this.slave = slave;
+        public MockEC2Computer(EC2AbstractAgent agent) {
+            super(agent);
+            this.agent = agent;
         }
 
         // Create a computer
         private static MockEC2Computer createComputer(String suffix) throws Exception {
-            final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
+            final EC2AbstractAgent agent = new EC2AbstractAgent(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
                 @Override
                 public void terminate() {
                 }
@@ -348,7 +348,7 @@ public class SshHostKeyVerificationStrategyTest {
                 }
             };
 
-            return new MockEC2Computer(slave);
+            return new MockEC2Computer(agent);
         }
 
         @Override
@@ -362,13 +362,13 @@ public class SshHostKeyVerificationStrategyTest {
         }
 
         @Override
-        public EC2AbstractSlave getNode() {
-            return slave;
+        public EC2AbstractAgent getNode() {
+            return agent;
         }
 
         @Override
-        public SlaveTemplate getSlaveTemplate() {
-            return new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+        public AgentTemplate getAgentTemplate() {
+            return new AgentTemplate("ami-123", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
         }
     } 
     

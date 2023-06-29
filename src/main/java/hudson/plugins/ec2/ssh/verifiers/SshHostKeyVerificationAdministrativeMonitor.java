@@ -28,8 +28,8 @@ import hudson.model.AdministrativeMonitor;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.HostKeyVerificationStrategyEnum;
 import hudson.plugins.ec2.PluginImpl;
-import hudson.plugins.ec2.SlaveTemplate;
-import hudson.slaves.Cloud;
+import hudson.plugins.ec2.AgentTemplate;
+import hudson.agents.Cloud;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
@@ -107,10 +107,10 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
     }
 
     private boolean gatherInsecureTemplate(EC2Cloud cloud) {
-        List<SlaveTemplate> templates = cloud.getTemplates();
-        for (SlaveTemplate template : templates) {
+        List<AgentTemplate> templates = cloud.getTemplates();
+        for (AgentTemplate template : templates) {
             // It's only for unix templates
-            if (!template.isUnixSlave() || !template.isMacAgent()) {
+            if (!template.isUnixAgent() || !template.isMacAgent()) {
                 continue;
             }
 

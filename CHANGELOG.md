@@ -41,9 +41,9 @@ Role permission has to be extended with:
 - JENKINS-55203 - Do not log private key material
 
 ### Version 1.43 (May 9, 2019)
-- JENKINS-8618 - Maximum builds on slave
-- JENKINS-54329 - User able to choose slave connection strategy
-#### WARNING: This might imply some changes in the address used to connect to the EC2 slave.
+- JENKINS-8618 - Maximum builds on agent
+- JENKINS-54329 - User able to choose agent connection strategy
+#### WARNING: This might imply some changes in the address used to connect to the EC2 agent.
 - JENKINS-51526 - Clone AMI's Root Block device
 - JENKINS-54536 - Allow all T3 types
 - JENKINS-56443 - Don't provision nodes if Jenkins is shutting down
@@ -70,7 +70,7 @@ Role permission has to be extended with:
 - Add remoting workdir
 - Add M5a instance support and fix M4
 - Reduced call to  internalCheck in EC2RetentionStrategy
-- Rename slave to remoting or agent
+- Rename agent to remoting or agent
 - JENKINS-56907 - Query AMI for platform before checking spot price
 
 ### Version 1.43 (May 9, 2019)
@@ -80,8 +80,8 @@ Role permission has to be extended with:
 - Allow launching spot instances without a bid price
 - Allow alternate ec2 endpoint for API region calls
 - Security FIX
-- JENKINS-8618 - Support maximum builds on slave
-- JENKINS-54329 - Allow user to choose slave connection strategy
+- JENKINS-8618 - Support maximum builds on agent
+- JENKINS-54329 - Allow user to choose agent connection strategy
 - JENKINS-57357 - Fix migration config from old configuration
 - JENKINS-56443 - Fix Don't provision a node if Jenkins is quieting down or terminating
 - JENKINS-54536 - Allow all T3 types
@@ -115,8 +115,8 @@ The existing nodes has to be terminated due a new tag schema
 - JENKINS-54071 - Fix plugin not spooling up stopped nodes
 - JENKINS-49814 - Fix Jenkins trying to stop already stopped agent
 - JENKINS-35708 - Allow users to supply multiple subnets for launching EC2 instances. This is useful for resources that may need to spread across availability zones such as GPUs.
-- JENKINS-52828 - Add slave suffix command.
-- PR-310 - Tag slave instances to their jenkins master (breaking change)
+- JENKINS-52828 - Add agent suffix command.
+- PR-310 - Tag agent instances to their jenkins master (breaking change)
 - PR-309 - Add M5 instance types
 
 ### Version 1.40.1 (Oct 2nd, 2018)
@@ -125,13 +125,13 @@ The existing nodes has to be terminated due a new tag schema
 
 ### Version 1.40 (Oct 1st, 2018)
 - PR-250 - Add support for c5 and m5 instance types.
-- JENKINS-25832 - Launch multiple slaves in parallel for jobs with same node label
+- JENKINS-25832 - Launch multiple agents in parallel for jobs with same node label
 - JENKINS-48979 - Race condition when setting tags
 - PR-259 - Make fetch time configurable via system property
 - PR-263 - Fix intermittent "Pipe closed" exception when communicating with WinRM protocol agent
 - PR-265 - Mark dependencies used only in tests as test scope
 - JENKINS-50105 - EC2 Step provisioning incorrectly specifies a label
-- JENKINS-38311 - Disconnected dynamic ec2 slaves reconnected after jenkins restart
+- JENKINS-38311 - Disconnected dynamic ec2 agents reconnected after jenkins restart
 - PR-272 - Improving debug messaging for WinConnector.
 - PR-275 - Terminate spot instances properly
 - PR-276 - Start agent in cygwin friendly way
@@ -150,7 +150,7 @@ The existing nodes has to be terminated due a new tag schema
 ### Version 1.39 (Mar 11, 2018)
 - JENKINS-47985 EC2 Plugin doesn't store AMITypeData in config.xml
 - JENKINS-46869 Can not register an EC2 instance as a node agent
-- JENKINS-47130 EC2 plugin 1.37 fails to provision previously defined slaves
+- JENKINS-47130 EC2 plugin 1.37 fails to provision previously defined agents
 
 ### Version 1.38 (Dec 6, 2017)
 - This is a bad scary version due to: JENKINS-47130 (see above), please use 1.39 or higher instead
@@ -162,36 +162,36 @@ The existing nodes has to be terminated due a new tag schema
 #### Warning:  This version introduces a bug ( JENKINS-47985 - EC2 Plugin doesn't store AMITypeData in config.xml CLOSED ) which drops stored passwords from Windows AMIs.  The fix has been merged to mainline and should hopefully be available when version 1.39 gets released.
 
 ### Version 1.36 (Oct 2, 2016)
-- JENKINS-38481 AWS method change causes too many slaves to be launched
+- JENKINS-38481 AWS method change causes too many agents to be launched
 
 ### Version 1.33 (May 9, 2016)
-- JENKINS-34667 Provision attempt is made when possible slaves count is zero (backed out)
+- JENKINS-34667 Provision attempt is made when possible agents count is zero (backed out)
 
 ### Version 1.32 (May 8, 2016)
 #### Warning: Please use 1.33 instead, it has a critical fix.
 #### Welcome Johnny Shields as co-maintainer!
 - JENKINS-26371 Ensure instance initiated shutdown behavior is consistent with stopOnTerminate flag
 - JENKINS-27529 Poll for spot instances instead of JNLP launcher
-- JENKINS-32588 Unable to launch linux slaves using ec2 plugin using Eucalyptus
-- JENKINS-32584 ec2-plugin counts every instance (not just Jenkins slave instances) when counting slaves; incorrectly hits slave cap
+- JENKINS-32588 Unable to launch linux agents using ec2 plugin using Eucalyptus
+- JENKINS-32584 ec2-plugin counts every instance (not just Jenkins agent instances) when counting agents; incorrectly hits agent cap
 - JENKINS-32690 Make manually provision really work
 - JENKINS-32915 Spot instance launched one after another until capacity reached for single task in queue
 - JENKINS-33945 can't provision new nodes when a matching node is marked offline
-- JENKINS-34667 Provision attempt is made when possible slaves count is zero
+- JENKINS-34667 Provision attempt is made when possible agents count is zero
 - EC2UnixLauncher can survive Connection IOExceptions
 - Bootstrap retries with fresh connection
 - Many pmd/squid fixes
 - Remove AWS fault instance
 - Increase minimal supported version to 1.625.1 (to enable JDK7)
 - Use AWS credentials to manage the IAM access key
-- Applied logic to create block device mappings for both ondemand and spot slaves
-- With slaves now being fully controlled by Jenkins master, there is no longer a need to be able to set "persistent" spot bids
+- Applied logic to create block device mappings for both ondemand and spot agents
+- With agents now being fully controlled by Jenkins master, there is no longer a need to be able to set "persistent" spot bids
 
 ### Version 1.31 (Jan 25, 2016)
-- JENKINS-32584 ec2-plugin counts every instance (not just Jenkins slave instances) when counting slaves; incorrectly hits slave cap
+- JENKINS-32584 ec2-plugin counts every instance (not just Jenkins agent instances) when counting agents; incorrectly hits agent cap
 
 ### Version 1.30 (Jan 23, 2016)
-- Add config to prefer the public IP to private IP when ssh-ing into slave
+- Add config to prefer the public IP to private IP when ssh-ing into agent
 - Added common method to compute tag value and also created constants for demand and spot
 - JENKINS-27601 instance caps incorrectly calculated
 - JENKINS-23787 EC2-plugin not spooling up stopped nodes
@@ -201,13 +201,13 @@ The existing nodes has to be terminated due a new tag schema
 - JENKINS-27260 SPNEGO for Windows in the EC2 Plugin
 - JENKINS-26493 Use new EC2 API endpoint hostnames
 - JCIFS first tries to resolve a dfs path would timeout causing a long startup delay
-- JENKINS-28754 Jenkins EC2 Plugin should show timestamp in slave logs
+- JENKINS-28754 Jenkins EC2 Plugin should show timestamp in agent logs
 - JENKINS-30284 EC2 plugin too aggressive in timing in contacting new AWS instance over SSH
 - Use AWS4SignerType instead of QueryStringSignerType
 - Add minimum timeout for windows launching
 - Better exception handling in uptime check
 - JENKINS-29851 Global instance cap not calculated for spot instances
-- JENKINS-32439 JENKINS-32439 Incorrect slave template (AMI) found when launching slave
+- JENKINS-32439 JENKINS-32439 Incorrect agent template (AMI) found when launching agent
 - Improve logging to be less verbose
 
 ### Version 1.29 (Aug 2, 2015)
@@ -224,7 +224,7 @@ The existing nodes has to be terminated due a new tag schema
 - Masking BouncyCastle for when the system version is incompatible with the required version
 - Fix java download/install
 - Check more places where passing a null instanceID can do a search of random spot instances
-- WiP - Launch slave agent via ssh client process
+- WiP - Launch agent agent via ssh client process
 - JENKINS-24359 - Overcoming limit of one cloud per region.
 - JENKINS-27260 - SPNEGO for Windows in EC2 Plugin
 
@@ -242,15 +242,15 @@ The existing nodes has to be terminated due a new tag schema
 - Fixing zombie workers
 - Add option to obtain EC2 credentials from instance meta data service
 - Retry updating remote tags also for on-demand instances
-- Support cloud-formation compatible user-data in spot-instance slaves
-- Handle AssociatePublicIp in spot instance slaves
-- Consider only slaves for the requested label when decrementing excess Workload by number of pending spot instance slaves
-- Fix the stopping/pending message when launching a slave
+- Support cloud-formation compatible user-data in spot-instance agents
+- Handle AssociatePublicIp in spot instance agents
+- Consider only agents for the requested label when decrementing excess Workload by number of pending spot instance agents
+- Fix the stopping/pending message when launching a agent
 - Fix bug that caused infinite loop of NullPointerExceptions during provisioning of windows instances.
-- Fix connection to Windows slaves outside us-east-1. (JENKINS-19943)
+- Fix connection to Windows agents outside us-east-1. (JENKINS-19943)
 - Give the user a readable error message when testing the connection instead of stack trace if their credentials are incorrect. (JENKINS-24676)
 - EC2 plugin incorrectly reports current instance count (JENKINS-19845)
-- Fix EC2SpotSlaves from fetching tags from a completely different instance
+- Fix EC2SpotAgents from fetching tags from a completely different instance
 
 ### Version 1.24 (Aug 5, 2014)
  
@@ -271,22 +271,22 @@ The existing nodes has to be terminated due a new tag schema
 - Amazon IAM support (JENKINS-17086)
 - Fixed Eucalyptus connectivity support (JENKINS-18854)
 - Fix: spot instance feature cannot be used within VPC (JENKINS-19301)
-- Remove slave from Jenkins even when instance termination fails (JENKINS-19500)
+- Remove agent from Jenkins even when instance termination fails (JENKINS-19500)
 
 ### Version 1.18 (April 9, 2013)
 - Add m3.xlarge and m3.2xlarge instance types
-- Failure starting slave nodes (JENKINS-15319)
+- Failure starting agent nodes (JENKINS-15319)
 - Tags feature is broken (JENKINS-15239)
 - EC2 Nodes which share an AMI ID get the wrong labels (JENKINS-7690)
 - Sometimes starts the wrong instance (JENKINS-15158)
-- Stopped (as opposed to terminated) slaves are counted against the active instance count for the purpose of launching; can prevent launching of instances (JENKINS-7883)
+- Stopped (as opposed to terminated) agents are counted against the active instance count for the purpose of launching; can prevent launching of instances (JENKINS-7883)
 - Upgrade aws-java-sdk dependency to 1.3.30
 - Explicitly add MIT license to all plugin code
 - Fallback a manual or timeout-based terminate to stop if terminate fails (to avoid charges)
 - Give Jenkins nodes useful names (JENKINS-15078)
 - Keep track of instances being provisioned; use this count when determining total/AMI instance caps (JENKINS-6691)
-- Bring back remoteFS in the slave configuration page
-- Let user configure node.mode for EC2 slaves
+- Bring back remoteFS in the agent configuration page
+- Let user configure node.mode for EC2 agents
 
 ### Version 1.17 (September 12, 2012)
 - Resume stopped EC2 instances (JENKINS-14884)
@@ -298,10 +298,10 @@ The existing nodes has to be terminated due a new tag schema
 - EC2 Userdata not being Base64 encoded (JENKINS-13897)
 
 ### Version 1.15 (May 21, 2012)
-- Stopped (as opposed to terminated) slaves are counted against the active instance count for the purpose of launching; can prevent launching of instance (JENKINS-7883)
+- Stopped (as opposed to terminated) agents are counted against the active instance count for the purpose of launching; can prevent launching of instance (JENKINS-7883)
 - Clarification and updating of help (JENKINS-12789)
 - The init script was called each time instance was connected to (JENKINS-12771)
-- EC2 slaves fail to launch when using versions prior to 1.9 (JENKINS-7219)
+- EC2 agents fail to launch when using versions prior to 1.9 (JENKINS-7219)
 - Force registration of converter (JENKINS-10118)
 - Convert to Amazon EC2 libraries(JENKINS-12539)
 - Allow non-root user name (JENKINS-5867)

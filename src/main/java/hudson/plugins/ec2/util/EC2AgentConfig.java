@@ -5,7 +5,7 @@ import hudson.model.Node;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.ConnectionStrategy;
 import hudson.plugins.ec2.EC2Tag;
-import hudson.slaves.NodeProperty;
+import hudson.agents.NodeProperty;
 
 import java.util.List;
 

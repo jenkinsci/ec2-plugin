@@ -41,15 +41,15 @@ public class EC2StepTest {
     private AmazonEC2Cloud cl;
 
     @Mock
-    private SlaveTemplate st;
+    private AgentTemplate st;
 
     @Mock
-    private EC2AbstractSlave instance;
+    private EC2AbstractAgent instance;
 
     @Before
     public void setup() throws Exception {
         r.jenkins.clouds.clear();
-        List<SlaveTemplate> templates = new ArrayList<>();
+        List<AgentTemplate> templates = new ArrayList<>();
         templates.add(st);
 
         when(cl.getCloudName()).thenReturn("myCloud");
@@ -59,8 +59,8 @@ public class EC2StepTest {
         r.jenkins.clouds.add(cl);
 
         when(instance.getNodeName()).thenReturn("nodeName");
-        List<EC2AbstractSlave> slaves = Collections.singletonList(instance);
-        when(st.provision(anyInt(),any())).thenReturn(slaves);
+        List<EC2AbstractAgent> agents = Collections.singletonList(instance);
+        when(st.provision(anyInt(),any())).thenReturn(agents);
     }
 
     @Test

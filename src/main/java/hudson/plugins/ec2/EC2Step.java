@@ -27,7 +27,7 @@ import com.amazonaws.services.ec2.model.Instance;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.TaskListener;
-import hudson.slaves.Cloud;
+import hudson.agents.Cloud;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.*;
@@ -104,7 +104,7 @@ public class EC2Step extends Step {
             Cloud cloud = Jenkins.get().getCloud(Util.fixEmpty(cloudName));
             if (cloud instanceof AmazonEC2Cloud) {
                 AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) cloud;
-                for (SlaveTemplate template : ec2Cloud.getTemplates()) {
+                for (AgentTemplate template : ec2Cloud.getTemplates()) {
                     for (String labelList : template.labels.split(" ")) {
                         r.add(labelList + "  (AMI: " + template.getAmi() + ", REGION: " + ec2Cloud.getRegion() + ", TYPE: " + template.type.name() + ")", labelList);
                     }
@@ -136,20 +136,20 @@ public class EC2Step extends Step {
         protected Instance run() throws Exception {
             Cloud cl = getByDisplayName(jenkins.model.Jenkins.get().clouds, this.cloud);
             if (cl instanceof AmazonEC2Cloud) {
-                SlaveTemplate t;
+                AgentTemplate t;
                 t = ((AmazonEC2Cloud) cl).getTemplate(this.template);
                 if (t != null) {
-                    SlaveTemplate.ProvisionOptions universe = SlaveTemplate.ProvisionOptions.ALLOW_CREATE;
-                    EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
+                    AgentTemplate.ProvisionOptions universe = AgentTemplate.ProvisionOptions.ALLOW_CREATE;
+                    EnumSet<AgentTemplate.ProvisionOptions> opt = EnumSet.noneOf(AgentTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    List<EC2AbstractSlave> instances = t.provision(1, opt);
+                    List<EC2AbstractAgent> instances = t.provision(1, opt);
                     if (instances == null) {
                         throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                     }
 
-                    EC2AbstractSlave slave = instances.get(0);
-                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (AmazonEC2Cloud) cl);
+                    EC2AbstractAgent agent = instances.get(0);
+                    return CloudHelper.getInstanceWithRetry(agent.getInstanceId(), (AmazonEC2Cloud) cl);
                 } else {
                     throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                 }

@@ -86,8 +86,8 @@ public class ConnectionRule extends ExternalResource {
     @Override
     public void before() {
         try {
-            sshContainer = new GenericContainer("jenkins/ssh-slave")
-                    .withEnv("JENKINS_SLAVE_SSH_PUBKEY", publicKey)
+            sshContainer = new GenericContainer("jenkins/ssh-agent")
+                    .withEnv("JENKINS_AGENT_SSH_PUBKEY", publicKey)
                     .withExposedPorts(SSH_PORT);
 
             sshContainer.start();

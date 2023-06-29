@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 <!--
   This is bit unusual, but so that we can override "name" with "Instance ID", override the config page entirely,
-  instead of just supplying EC2Slave/configure-entries.jelly
+  instead of just supplying EC2Agent/configure-entries.jelly
 -->
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
@@ -71,7 +71,7 @@ THE SOFTWARE.
           <f:readOnlyTextbox />
         </f:entry>
 
-        <f:entry title="${%Description}" help="/help/system-config/master-slave/description.html">
+        <f:entry title="${%Description}" help="/help/system-config/master-agent/description.html">
           <f:textbox field="nodeDescription" />
         </f:entry>
 
@@ -83,7 +83,7 @@ THE SOFTWARE.
           <f:textbox />
         </f:entry>
 
-        <f:slave-mode name="mode" node="${instance}" />
+        <f:agent-mode name="mode" node="${instance}" />
 
         <f:entry title="${%Init Script}" field="initScript">
           <f:textarea />
@@ -133,13 +133,13 @@ THE SOFTWARE.
 
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
-        <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataEndpointEnabled">
+        <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" help="/descriptor/hudson.plugins.ec2.AgentTemplate/help/metadataEndpointEnabled">
           <f:checkbox default="true"/>
         </f:entry>
-        <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataTokensRequired">
+        <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired" help="/descriptor/hudson.plugins.ec2.AgentTemplate/help/metadataTokensRequired">
           <f:checkbox default="true"/>
         </f:entry>
-        <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataHopsLimit">
+        <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit" help="/descriptor/hudson.plugins.ec2.AgentTemplate/help/metadataHopsLimit">
           <f:textbox default="1" />
         </f:entry>
 

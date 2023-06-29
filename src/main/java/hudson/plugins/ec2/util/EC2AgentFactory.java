@@ -20,8 +20,8 @@ public interface EC2AgentFactory {
         return instance;
     }
 
-    EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config) throws Descriptor.FormException, IOException;
+    EC2OndemandAgent createOnDemandAgent(EC2AgentConfig.OnDemand config) throws Descriptor.FormException, IOException;
 
-    EC2SpotSlave createSpotAgent(EC2AgentConfig.Spot config) throws Descriptor.FormException, IOException;
+    EC2SpotAgent createSpotAgent(EC2AgentConfig.Spot config) throws Descriptor.FormException, IOException;
 
 }

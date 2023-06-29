@@ -25,29 +25,29 @@ import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
-import hudson.slaves.NodeProperty;
+import hudson.agents.NodeProperty;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 
-public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
-    private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
+public class EC2SpotAgent extends EC2AbstractAgent implements EC2Readiness {
+    private static final Logger LOGGER = Logger.getLogger(EC2SpotAgent.class.getName());
 
     private final String spotInstanceRequestId;
 
     @Deprecated
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
+    public EC2SpotAgent(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
         this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType);
     }
 
     @Deprecated
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
+    public EC2SpotAgent(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
         this(templateDescription + " (" + name + ")", spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
     @DataBoundConstructor
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+    public EC2SpotAgent(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
         super(name, "", templateDescription, remoteFS, numExecutors, mode, labelString, amiType.isWindows() ? new EC2WindowsLauncher() :
@@ -191,11 +191,11 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     }
 
     @Extension
-    public static final class DescriptorImpl extends EC2AbstractSlave.DescriptorImpl {
+    public static final class DescriptorImpl extends EC2AbstractAgent.DescriptorImpl {
 
         @Override
         public String getDisplayName() {
-            return Messages.EC2SpotSlave_AmazonEC2SpotInstance();
+            return Messages.EC2SpotAgent_AmazonEC2SpotInstance();
         }
     }
 
@@ -204,8 +204,8 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
         SpotInstanceRequest spotRequest = getSpotRequest();
         if (spotRequest != null) {
             String spotMaxBidPrice = spotRequest.getSpotPrice();
-            return Messages.EC2SpotSlave_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
-                    + Messages.EC2SpotSlave_Spot2();
+            return Messages.EC2SpotAgent_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
+                    + Messages.EC2SpotAgent_Spot2();
         }
         return null;
     }

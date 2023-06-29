@@ -23,6 +23,6 @@ jenkins:
             amiType:
               unixData:
                 rootCommandPrefix: "sudo"
-                slaveCommandPrefix: "sudo -u jenkins"
-                slaveCommandSuffix: "-fakeFlag"
+                agentCommandPrefix: "sudo -u jenkins"
+                agentCommandSuffix: "-fakeFlag"
                 sshPort: "22"

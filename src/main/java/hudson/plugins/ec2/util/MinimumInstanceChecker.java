@@ -3,7 +3,7 @@ package hudson.plugins.ec2.util;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.AgentTemplate;
 import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.Queue;
@@ -25,28 +25,28 @@ public class MinimumInstanceChecker {
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Needs to be overridden from tests")
     public static Clock clock = Clock.systemDefaultZone();
 
-    private static Stream<Computer> agentsForTemplate(@NonNull SlaveTemplate agentTemplate) {
+    private static Stream<Computer> agentsForTemplate(@NonNull AgentTemplate agentTemplate) {
         return (Stream<Computer>) Arrays.stream(Jenkins.get().getComputers())
                 .filter(computer -> computer instanceof EC2Computer)
                 .filter(computer -> {
-                    SlaveTemplate computerTemplate = ((EC2Computer) computer).getSlaveTemplate();
+                    AgentTemplate computerTemplate = ((EC2Computer) computer).getAgentTemplate();
                     return computerTemplate != null
                             && Objects.equals(computerTemplate.description, agentTemplate.description);
                 });
     }
 
-    public static int countCurrentNumberOfAgents(@NonNull SlaveTemplate agentTemplate) {
+    public static int countCurrentNumberOfAgents(@NonNull AgentTemplate agentTemplate) {
         return (int) agentsForTemplate(agentTemplate).count();
     }
 
-    public static int countCurrentNumberOfSpareAgents(@NonNull SlaveTemplate agentTemplate) {
+    public static int countCurrentNumberOfSpareAgents(@NonNull AgentTemplate agentTemplate) {
         return (int) agentsForTemplate(agentTemplate)
             .filter(computer -> computer.countBusy() == 0)
             .filter(computer -> computer.isOnline())
             .count();
     }
 
-    public static int countCurrentNumberOfProvisioningAgents(@NonNull SlaveTemplate agentTemplate) {
+    public static int countCurrentNumberOfProvisioningAgents(@NonNull AgentTemplate agentTemplate) {
         return (int) agentsForTemplate(agentTemplate)
             .filter(computer -> computer.countBusy() == 0)
             .filter(computer -> computer.isOffline())
@@ -57,7 +57,7 @@ public class MinimumInstanceChecker {
     /*
         Get the number of queued builds that match an AMI (agentTemplate)
     */
-    public static int countQueueItemsForAgentTemplate(@NonNull SlaveTemplate agentTemplate) {
+    public static int countQueueItemsForAgentTemplate(@NonNull AgentTemplate agentTemplate) {
         return (int)
             Queue
             .getInstance()

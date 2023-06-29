@@ -49,19 +49,19 @@ public class ConfigurationAsCodeTest {
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-12345", slaveTemplate.getAmi());
-        assertEquals("/home/ec2-user", slaveTemplate.remoteFS);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals("ami-12345", agentTemplate.getAmi());
+        assertEquals("/home/ec2-user", agentTemplate.remoteFS);
 
-        assertEquals("linux ubuntu", slaveTemplate.getLabelString());
-        assertEquals(2, slaveTemplate.getLabelSet().size());
+        assertEquals("linux ubuntu", agentTemplate.getLabelString());
+        assertEquals(2, agentTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
 
-        final SpotConfiguration spotConfig = slaveTemplate.spotConfig;
+        final SpotConfiguration spotConfig = agentTemplate.spotConfig;
         assertNotEquals(null, spotConfig);
         assertTrue(spotConfig.getFallbackToOndemand());
         assertEquals(3, spotConfig.getSpotBlockReservationDuration());
@@ -69,13 +69,13 @@ public class ConfigurationAsCodeTest {
         assertTrue(spotConfig.useBidPrice);
 
 
-        final AMITypeData amiType = slaveTemplate.getAmiType();
+        final AMITypeData amiType = agentTemplate.getAmiType();
         assertTrue(amiType.isUnix());
         assertTrue(amiType instanceof UnixData);
         final UnixData unixData = (UnixData) amiType;
         assertEquals("sudo", unixData.getRootCommandPrefix());
-        assertEquals("sudo -u jenkins", unixData.getSlaveCommandPrefix());
-        assertEquals("-fakeFlag", unixData.getSlaveCommandSuffix());
+        assertEquals("sudo -u jenkins", unixData.getAgentCommandPrefix());
+        assertEquals("-fakeFlag", unixData.getAgentCommandSuffix());
         assertEquals("22", unixData.getSshPort());
         assertEquals("180", unixData.getBootDelay());
     }
@@ -87,19 +87,19 @@ public class ConfigurationAsCodeTest {
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-5678", slaveTemplate.getAmi());
-        assertEquals("/mnt/jenkins", slaveTemplate.remoteFS);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals("ami-5678", agentTemplate.getAmi());
+        assertEquals("/mnt/jenkins", agentTemplate.remoteFS);
 
-        assertEquals("linux clear", slaveTemplate.getLabelString());
-        assertEquals(2, slaveTemplate.getLabelSet().size());
+        assertEquals("linux clear", agentTemplate.getLabelString());
+        assertEquals(2, agentTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
 
-        assertNull(slaveTemplate.spotConfig);
+        assertNull(agentTemplate.spotConfig);
     }
 
     @Test
@@ -109,19 +109,19 @@ public class ConfigurationAsCodeTest {
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-abc123", slaveTemplate.getAmi());
-        assertEquals("C:/jenkins", slaveTemplate.remoteFS);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals("ami-abc123", agentTemplate.getAmi());
+        assertEquals("C:/jenkins", agentTemplate.remoteFS);
 
-        assertEquals("windows vs2019", slaveTemplate.getLabelString());
-        assertEquals(2, slaveTemplate.getLabelSet().size());
+        assertEquals("windows vs2019", agentTemplate.getLabelString());
+        assertEquals(2, agentTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("windows")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("vs2019")));
 
-        final AMITypeData amiType = slaveTemplate.getAmiType();
+        final AMITypeData amiType = agentTemplate.getAmiType();
         assertFalse(amiType.isUnix());
         assertTrue(amiType.isWindows());
         assertTrue(amiType instanceof WindowsData);
@@ -137,10 +137,10 @@ public class ConfigurationAsCodeTest {
         final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("us-east-1");
         assertNotNull(ec2Cloud);
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals(ConnectionStrategy.PRIVATE_DNS,slaveTemplate.connectionStrategy);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals(ConnectionStrategy.PRIVATE_DNS,agentTemplate.connectionStrategy);
     }
 
     @Test
@@ -172,16 +172,16 @@ public class ConfigurationAsCodeTest {
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-123456", slaveTemplate.getAmi());
-        assertEquals("/home/ec2-user", slaveTemplate.remoteFS);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals("ami-123456", agentTemplate.getAmi());
+        assertEquals("/home/ec2-user", agentTemplate.remoteFS);
 
-        assertEquals("linux ubuntu", slaveTemplate.getLabelString());
-        assertEquals(2, slaveTemplate.getLabelSet().size());
+        assertEquals("linux ubuntu", agentTemplate.getLabelString());
+        assertEquals(2, agentTemplate.getLabelSet().size());
 
-        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig = slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
+        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig = agentTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
         assertNotNull(timeRangeConfig);
         assertEquals(LocalTime.parse("01:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeFromAsTime());
         assertEquals(LocalTime.parse("13:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeToAsTime());
@@ -200,32 +200,32 @@ public class ConfigurationAsCodeTest {
         final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("test");
         assertNotNull(ec2Cloud);
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(3, templates.size());
 
-        SlaveTemplate slaveTemplate;
+        AgentTemplate agentTemplate;
         List<EC2Filter> expectedFilters;
 
-        slaveTemplate = templates.get(0);
-        assertEquals("ami-0123456789abcdefg", slaveTemplate.ami);
-        assertNull(slaveTemplate.getAmiOwners());
-        assertNull(slaveTemplate.getAmiUsers());
-        assertNull(slaveTemplate.getAmiFilters());
+        agentTemplate = templates.get(0);
+        assertEquals("ami-0123456789abcdefg", agentTemplate.ami);
+        assertNull(agentTemplate.getAmiOwners());
+        assertNull(agentTemplate.getAmiUsers());
+        assertNull(agentTemplate.getAmiFilters());
 
-        slaveTemplate = templates.get(1);
-        assertNull(slaveTemplate.ami);
-        assertEquals("self", slaveTemplate.getAmiOwners());
-        assertEquals("self", slaveTemplate.getAmiUsers());
+        agentTemplate = templates.get(1);
+        assertNull(agentTemplate.ami);
+        assertEquals("self", agentTemplate.getAmiOwners());
+        assertEquals("self", agentTemplate.getAmiUsers());
         expectedFilters = Arrays.asList(new EC2Filter("name", "foo-*"),
                                         new EC2Filter("architecture", "x86_64"));
-        assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
+        assertEquals(expectedFilters, agentTemplate.getAmiFilters());
 
-        slaveTemplate = templates.get(2);
-        assertNull(slaveTemplate.ami);
-        assertNull(slaveTemplate.getAmiOwners());
-        assertNull(slaveTemplate.getAmiUsers());
+        agentTemplate = templates.get(2);
+        assertNull(agentTemplate.ami);
+        assertNull(agentTemplate.getAmiOwners());
+        assertNull(agentTemplate.getAmiUsers());
         expectedFilters = Collections.emptyList();
-        assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
+        assertEquals(expectedFilters, agentTemplate.getAmiFilters());
     }
 
     @Test
@@ -235,25 +235,25 @@ public class ConfigurationAsCodeTest {
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-12345", slaveTemplate.getAmi());
-        assertEquals("/Users/ec2-user", slaveTemplate.remoteFS);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals("ami-12345", agentTemplate.getAmi());
+        assertEquals("/Users/ec2-user", agentTemplate.remoteFS);
 
-        assertEquals("mac metal", slaveTemplate.getLabelString());
-        assertEquals(2, slaveTemplate.getLabelSet().size());
+        assertEquals("mac metal", agentTemplate.getLabelString());
+        assertEquals(2, agentTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("metal")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
 
-        final AMITypeData amiType = slaveTemplate.getAmiType();
+        final AMITypeData amiType = agentTemplate.getAmiType();
         assertTrue(amiType.isMac());
         assertTrue(amiType instanceof MacData);
         final MacData macData = (MacData) amiType;
         assertEquals("sudo", macData.getRootCommandPrefix());
-        assertEquals("sudo -u jenkins", macData.getSlaveCommandPrefix());
-        assertEquals("-fakeFlag", macData.getSlaveCommandSuffix());
+        assertEquals("sudo -u jenkins", macData.getAgentCommandPrefix());
+        assertEquals("-fakeFlag", macData.getAgentCommandSuffix());
         assertEquals("22", macData.getSshPort());
         assertEquals("180", macData.getBootDelay());
     }
@@ -265,19 +265,19 @@ public class ConfigurationAsCodeTest {
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
-        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        final List<AgentTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
-        final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals("ami-5678", slaveTemplate.getAmi());
-        assertEquals("/Users/jenkins", slaveTemplate.remoteFS);
+        final AgentTemplate agentTemplate = templates.get(0);
+        assertEquals("ami-5678", agentTemplate.getAmi());
+        assertEquals("/Users/jenkins", agentTemplate.remoteFS);
 
-        assertEquals("mac clear", slaveTemplate.getLabelString());
-        assertEquals(2, slaveTemplate.getLabelSet().size());
+        assertEquals("mac clear", agentTemplate.getLabelString());
+        assertEquals(2, agentTemplate.getLabelSet().size());
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("clear")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("mac")));
 
-        assertNull(slaveTemplate.spotConfig);
+        assertNull(agentTemplate.spotConfig);
     }
 
     @Test

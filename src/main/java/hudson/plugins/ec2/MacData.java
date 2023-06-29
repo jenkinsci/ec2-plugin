@@ -8,16 +8,16 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 public class MacData extends AMITypeData {
     private final String rootCommandPrefix;
-    private final String slaveCommandPrefix;
-    private final String slaveCommandSuffix;
+    private final String agentCommandPrefix;
+    private final String agentCommandSuffix;
     private final String sshPort;
     private final String bootDelay;
 
     @DataBoundConstructor
-    public MacData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort, String bootDelay) {
+    public MacData(String rootCommandPrefix, String agentCommandPrefix, String agentCommandSuffix, String sshPort, String bootDelay) {
         this.rootCommandPrefix = rootCommandPrefix;
-        this.slaveCommandPrefix = slaveCommandPrefix;
-        this.slaveCommandSuffix = slaveCommandSuffix;
+        this.agentCommandPrefix = agentCommandPrefix;
+        this.agentCommandSuffix = agentCommandSuffix;
         this.sshPort = sshPort;
         this.bootDelay = bootDelay;
 
@@ -60,12 +60,12 @@ public class MacData extends AMITypeData {
         return rootCommandPrefix;
     }
 
-    public String getSlaveCommandPrefix() {
-        return slaveCommandPrefix;
+    public String getAgentCommandPrefix() {
+        return agentCommandPrefix;
     }
 
-    public String getSlaveCommandSuffix() {
-        return slaveCommandSuffix;
+    public String getAgentCommandSuffix() {
+        return agentCommandSuffix;
     }
 
     public String getSshPort() {
@@ -77,8 +77,8 @@ public class MacData extends AMITypeData {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((rootCommandPrefix == null) ? 0 : rootCommandPrefix.hashCode());
-        result = prime * result + ((slaveCommandPrefix == null) ? 0 : slaveCommandPrefix.hashCode());
-        result = prime * result + ((slaveCommandSuffix == null) ? 0 : slaveCommandSuffix.hashCode());
+        result = prime * result + ((agentCommandPrefix == null) ? 0 : agentCommandPrefix.hashCode());
+        result = prime * result + ((agentCommandSuffix == null) ? 0 : agentCommandSuffix.hashCode());
         result = prime * result + ((sshPort == null) ? 0 : sshPort.hashCode());
         return result;
     }
@@ -97,15 +97,15 @@ public class MacData extends AMITypeData {
                 return false;
         } else if (!rootCommandPrefix.equals(other.rootCommandPrefix))
             return false;
-        if (StringUtils.isEmpty(slaveCommandPrefix)) {
-            if (!StringUtils.isEmpty(other.slaveCommandPrefix))
+        if (StringUtils.isEmpty(agentCommandPrefix)) {
+            if (!StringUtils.isEmpty(other.agentCommandPrefix))
                 return false;
-        } else if (!slaveCommandPrefix.equals(other.slaveCommandPrefix))
+        } else if (!agentCommandPrefix.equals(other.agentCommandPrefix))
             return false;
-        if (StringUtils.isEmpty(slaveCommandSuffix)) {
-            if (!StringUtils.isEmpty(other.slaveCommandSuffix))
+        if (StringUtils.isEmpty(agentCommandSuffix)) {
+            if (!StringUtils.isEmpty(other.agentCommandSuffix))
                 return false;
-        } else if (!slaveCommandSuffix.equals(other.slaveCommandSuffix))
+        } else if (!agentCommandSuffix.equals(other.agentCommandSuffix))
             return false;
         if (StringUtils.isEmpty(sshPort)) {
             if (!StringUtils.isEmpty(other.sshPort))

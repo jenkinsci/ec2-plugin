@@ -33,7 +33,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-public class SlaveTemplateUnitTest {
+public class AgentTemplateUnitTest {
 
     private Logger logger;
     private TestHandler handler;
@@ -41,7 +41,7 @@ public class SlaveTemplateUnitTest {
     @Before
     public void setUp() throws Exception {
         handler = new TestHandler();
-        logger = Logger.getLogger(SlaveTemplate.class.getName());
+        logger = Logger.getLogger(AgentTemplate.class.getName());
         logger.addHandler(handler);
     }
 
@@ -64,7 +64,7 @@ public class SlaveTemplateUnitTest {
         tags.add(tag2);
         String instanceId = "123";
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "") {
+        AgentTemplate orig = new AgentTemplate(ami, EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "") {
             @Override
             protected Object readResolve() {
                 return null;
@@ -72,10 +72,10 @@ public class SlaveTemplateUnitTest {
         };
 
         ArrayList<Tag> awsTags = new ArrayList<Tag>();
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
+        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE, "value1"));
+        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE, "value2"));
 
-        Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod("updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
+        Method updateRemoteTags = AgentTemplate.class.getDeclaredMethod("updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
         updateRemoteTags.setAccessible(true);
         final Object params[] = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", new String[]{instanceId}};
         updateRemoteTags.invoke(orig, params);
@@ -103,7 +103,7 @@ public class SlaveTemplateUnitTest {
         tags.add(tag2);
         String instanceId = "123";
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "") {
+        AgentTemplate orig = new AgentTemplate(ami, EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, false, null, "", true, false, "", false, "") {
             @Override
             protected Object readResolve() {
                 return null;
@@ -111,10 +111,10 @@ public class SlaveTemplateUnitTest {
         };
 
         ArrayList<Tag> awsTags = new ArrayList<Tag>();
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
+        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE, "value1"));
+        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_AGENT_TYPE, "value2"));
 
-        Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod("updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
+        Method updateRemoteTags = AgentTemplate.class.getDeclaredMethod("updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
         updateRemoteTags.setAccessible(true);
         final Object params[] = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", new String[]{instanceId}};
         updateRemoteTags.invoke(orig, params);
@@ -127,7 +127,7 @@ public class SlaveTemplateUnitTest {
         }
     }
 
-    private void doTestMakeDescribeImagesRequest(SlaveTemplate template,
+    private void doTestMakeDescribeImagesRequest(AgentTemplate template,
                                                  String testImageId,
                                                  String testOwners,
                                                  String testUsers,
@@ -142,7 +142,7 @@ public class SlaveTemplateUnitTest {
         template.setAmiOwners(testOwners);
         template.setAmiUsers(testUsers);
         template.setAmiFilters(testFilters);
-        Method makeDescribeImagesRequest = SlaveTemplate.class.getDeclaredMethod("makeDescribeImagesRequest");
+        Method makeDescribeImagesRequest = AgentTemplate.class.getDeclaredMethod("makeDescribeImagesRequest");
         makeDescribeImagesRequest.setAccessible(true);
         if (shouldRaise) {
             assertThrows(AmazonClientException.class, () -> {
@@ -163,7 +163,7 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testMakeDescribeImagesRequest() throws Exception {
-        SlaveTemplate template = new SlaveTemplate(null, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
+        AgentTemplate template = new AgentTemplate(null, EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
             @Override
             protected Object readResolve() {
                 return null;
@@ -318,7 +318,7 @@ public class SlaveTemplateUnitTest {
     }
 
     private Boolean checkEncryptedForSetupRootDevice(EbsEncryptRootVolume rootVolumeEnum) throws Exception {
-        SlaveTemplate template = new SlaveTemplate(null, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
+        AgentTemplate template = new AgentTemplate(null, EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "") {
             @Override
             protected Object readResolve() {
                 return null;
@@ -335,7 +335,7 @@ public class SlaveTemplateUnitTest {
         if (rootVolumeEnum instanceof EbsEncryptRootVolume) {
             template.ebsEncryptRootVolume = rootVolumeEnum;
         };
-        Method setupRootDevice = SlaveTemplate.class.getDeclaredMethod("setupRootDevice", Image.class, List.class);
+        Method setupRootDevice = AgentTemplate.class.getDeclaredMethod("setupRootDevice", Image.class, List.class);
         setupRootDevice.setAccessible(true);
         setupRootDevice.invoke(template, image, deviceMappings);
         return image.getBlockDeviceMappings().get(0).getEbs().getEncrypted();
@@ -367,13 +367,13 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testNullTimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
     public void testUpdateAmi() {
-        SlaveTemplate st = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        AgentTemplate st = new AgentTemplate("ami1", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
         assertEquals("ami1", st.getAmi());
         st.setAmi("ami2");
         assertEquals("ami2", st.getAmi());
@@ -383,55 +383,55 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void test0TimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "0", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
     public void testNegativeTimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "-1", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
     public void testNonNumericTimeoutShouldReturnMaxInt() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, "NotANumber", false, "");
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
     public void testAssociatePublicIpSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
         assertEquals(true, st.getAssociatePublicIp());
     }
 
     @Test
     public void testConnectUsingPublicIpSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, false, null, true, "", false, true);
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, false, null, true, "", false, true);
         assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
     }
 
     @Test
     public void testConnectUsingPublicIpSettingWithDefaultSetting() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, false, null, true, "");
         assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
     }
 
     @Test
     public void testBackwardCompatibleUnixData() {
-        SlaveTemplate st = new SlaveTemplate("", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", null, null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
-        assertFalse(st.isWindowsSlave());
+        AgentTemplate st = new AgentTemplate("", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", "22", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "rrr", "sudo", null, null, "-Xmx1g", false, "subnet 456", null, null, false, null, "iamInstanceProfile", false, "NotANumber");
+        assertFalse(st.isWindowsAgent());
         assertEquals(22, st.getSshPort());
         assertEquals("sudo", st.getRootCommandPrefix());
     }
 
     @Test
     public void testChooseSpaceDelimitedSubnetId() throws Exception {
-        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
+        AgentTemplate agentTemplate = new AgentTemplate("ami-123", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123 subnet-456", null, null, true, null, "", false, false, "", false, "");
 
-        String subnet1 = slaveTemplate.chooseSubnetId();
-        String subnet2 = slaveTemplate.chooseSubnetId();
-        String subnet3 = slaveTemplate.chooseSubnetId();
+        String subnet1 = agentTemplate.chooseSubnetId();
+        String subnet2 = agentTemplate.chooseSubnetId();
+        String subnet3 = agentTemplate.chooseSubnetId();
 
         assertEquals(subnet1, "subnet-123");
         assertEquals(subnet2, "subnet-456");
@@ -440,11 +440,11 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testChooseCommaDelimitedSubnetId() throws Exception {
-        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123,subnet-456", null, null, true, null, "", false, false, "", false, "");
+        AgentTemplate agentTemplate = new AgentTemplate("ami-123", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123,subnet-456", null, null, true, null, "", false, false, "", false, "");
 
-        String subnet1 = slaveTemplate.chooseSubnetId();
-        String subnet2 = slaveTemplate.chooseSubnetId();
-        String subnet3 = slaveTemplate.chooseSubnetId();
+        String subnet1 = agentTemplate.chooseSubnetId();
+        String subnet2 = agentTemplate.chooseSubnetId();
+        String subnet3 = agentTemplate.chooseSubnetId();
 
         assertEquals(subnet1, "subnet-123");
         assertEquals(subnet2, "subnet-456");
@@ -453,11 +453,11 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testChooseSemicolonDelimitedSubnetId() throws Exception {
-        SlaveTemplate slaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123;subnet-456", null, null, true, null, "", false, false, "", false, "");
+        AgentTemplate agentTemplate = new AgentTemplate("ami-123", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "AMI description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet-123;subnet-456", null, null, true, null, "", false, false, "", false, "");
 
-        String subnet1 = slaveTemplate.chooseSubnetId();
-        String subnet2 = slaveTemplate.chooseSubnetId();
-        String subnet3 = slaveTemplate.chooseSubnetId();
+        String subnet1 = agentTemplate.chooseSubnetId();
+        String subnet2 = agentTemplate.chooseSubnetId();
+        String subnet3 = agentTemplate.chooseSubnetId();
 
         assertEquals(subnet1, "subnet-123");
         assertEquals(subnet2, "subnet-456");
@@ -467,7 +467,7 @@ public class SlaveTemplateUnitTest {
     @Issue("JENKINS-59460")
     @Test
     public void testConnectionStrategyDeprecatedFieldsAreExported() {
-        SlaveTemplate template = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
+        AgentTemplate template = new AgentTemplate("ami1", EC2AbstractAgent.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", Collections.singletonList(new EC2Tag("name1", "value1")), null, false, null, "", true, false, "", false, "");
 
         String exported = Jenkins.XSTREAM.toXML(template);
         assertThat(exported, containsString("usePrivateDnsName"));

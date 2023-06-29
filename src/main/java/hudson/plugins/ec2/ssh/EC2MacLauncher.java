@@ -37,8 +37,8 @@ import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
-import hudson.slaves.CommandLauncher;
-import hudson.slaves.ComputerLauncher;
+import hudson.agents.CommandLauncher;
+import hudson.agents.ComputerLauncher;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
@@ -118,8 +118,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                                        // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
-        EC2AbstractSlave node = computer.getNode();
-        SlaveTemplate template = computer.getSlaveTemplate();
+        EC2AbstractAgent node = computer.getNode();
+        AgentTemplate template = computer.getAgentTemplate();
 
         if(node == null) {
             throw new IllegalStateException();
@@ -241,22 +241,22 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             scp.put(Jenkins.get().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
 
             final String jvmopts = node.jvmopts;
-            final String prefix = computer.getSlaveCommandPrefix();
-            final String suffix = computer.getSlaveCommandSuffix();
+            final String prefix = computer.getAgentCommandPrefix();
+            final String suffix = computer.getAgentCommandSuffix();
             final String remoteFS = node.getRemoteFS();
             final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
             String launchString = prefix + " " + javaPath + " " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + workDir + suffix;
            // launchString = launchString.trim();
 
-            SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
+            AgentTemplate agentTemplate = computer.getAgentTemplate();
 
-            if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
+            if (agentTemplate != null && agentTemplate.isConnectBySSHProcess()) {
                 File identityKeyFile = createIdentityKeyFile(computer);
 
                 try {
                     // Obviously the controller must have an installed ssh client.
                     // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", agentTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
 
                     logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
@@ -329,7 +329,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
+    private boolean bootstrap(EC2Computer computer, TaskListener listener, AgentTemplate template) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
@@ -371,9 +371,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         return true;
     }
 
-    private Connection connectToSsh(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws AmazonClientException,
+    private Connection connectToSsh(EC2Computer computer, TaskListener listener, AgentTemplate template) throws AmazonClientException,
             InterruptedException {
-        final EC2AbstractSlave node = computer.getNode();
+        final EC2AbstractAgent node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
         while (true) {
@@ -386,10 +386,10 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 }
                 String host = getEC2HostAddress(computer, template);
 
-                if ((node instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
-                     // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
+                if ((node instanceof EC2SpotAgent) && computer.getInstanceId() == null) {
+                     // getInstanceId() on EC2SpotAgent can return null if the spot request doesn't yet know
                      // the instance id that it is starting. Continue to wait until the instanceId is set.
-                    logInfo(computer, listener, "empty instanceId for Spot Slave.");
+                    logInfo(computer, listener, "empty instanceId for Spot Agent.");
                     throw new IOException("goto sleep");
                 }
 
@@ -404,8 +404,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 }
 
                 int port = computer.getSshPort();
-                Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", 10000);
-                logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
+                Integer agentConnectTimeout = Integer.getInteger("jenkins.ec2.agentConnectTimeout", 10000);
+                logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + agentConnectTimeout
                         + ".");
                 Connection conn = new Connection(host, port);
                 ProxyConfiguration proxyConfig = Jenkins.get().proxy;
@@ -422,7 +422,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     logInfo(computer, listener, "Using HTTP Proxy Configuration");
                 }
 
-                conn.connect(new ServerHostKeyVerifierImpl(computer, listener), slaveConnectTimeout, slaveConnectTimeout);
+                conn.connect(new ServerHostKeyVerifierImpl(computer, listener), agentConnectTimeout, agentConnectTimeout);
                 logInfo(computer, listener, "Connected via SSH.");
                 return conn; // successfully connected
             } catch (IOException e) {
@@ -456,12 +456,12 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
         @Override
         public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
-            SlaveTemplate template = computer.getSlaveTemplate();
+            AgentTemplate template = computer.getAgentTemplate();
             return template != null && template.getHostKeyVerificationStrategy().getStrategy().verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
         }
     }
 
-    private static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
+    private static String getEC2HostAddress(EC2Computer computer, AgentTemplate template) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
         return EC2HostAddressProvider.unix(instance, strategy);

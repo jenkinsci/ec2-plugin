@@ -24,8 +24,8 @@
 package hudson.plugins.ec2;
 
 import hudson.model.TaskListener;
-import hudson.slaves.ComputerLauncher;
-import hudson.slaves.SlaveComputer;
+import hudson.agents.ComputerLauncher;
+import hudson.agents.AgentComputer;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -42,27 +42,27 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     private static final Logger LOGGER = Logger.getLogger(EC2ComputerLauncher.class.getName());
 
     @Override
-    public void launch(SlaveComputer slaveComputer, TaskListener listener) {
+    public void launch(AgentComputer agentComputer, TaskListener listener) {
         try {
-            EC2Computer computer = (EC2Computer) slaveComputer;
+            EC2Computer computer = (EC2Computer) agentComputer;
             launchScript(computer, listener);
         } catch (AmazonClientException | IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
-            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
-                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
-                EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
-                if (ec2AbstractSlave != null) {
-                    ec2AbstractSlave.terminate();
+            if (agentComputer.getNode() instanceof  EC2AbstractAgent) {
+                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", agentComputer.getName()), e);
+                EC2AbstractAgent ec2AbstractAgent = (EC2AbstractAgent) agentComputer.getNode();
+                if (ec2AbstractAgent != null) {
+                    ec2AbstractAgent.terminate();
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             e.printStackTrace(listener.error(e.getMessage()));
-            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
-                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
-                EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
-                if (ec2AbstractSlave != null) {
-                    ec2AbstractSlave.terminate();
+            if (agentComputer.getNode() instanceof  EC2AbstractAgent) {
+                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", agentComputer.getName()), e);
+                EC2AbstractAgent ec2AbstractAgent = (EC2AbstractAgent) agentComputer.getNode();
+                if (ec2AbstractAgent != null) {
+                    ec2AbstractAgent.terminate();
                 }
             }
         }

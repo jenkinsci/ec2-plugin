@@ -91,26 +91,26 @@ public class AmazonEC2CloudUnitTest {
                                                     null, "key", null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName"));
         Jenkins jenkinsMock = mock(Jenkins.class);
-        EC2SpotSlave spotSlaveMock = mock(EC2SpotSlave.class);
+        EC2SpotAgent spotAgentMock = mock(EC2SpotAgent.class);
         try (MockedStatic<Jenkins> mocked = Mockito.mockStatic(Jenkins.class)) {
         mocked.when(Jenkins::get).thenReturn(jenkinsMock);
-        Mockito.when(jenkinsMock.getNodes()).thenReturn(Collections.singletonList(spotSlaveMock));
-        when(spotSlaveMock.getSpotRequest()).thenReturn(null);
-        when(spotSlaveMock.getSpotInstanceRequestId()).thenReturn("sir-id");
+        Mockito.when(jenkinsMock.getNodes()).thenReturn(Collections.singletonList(spotAgentMock));
+        when(spotAgentMock.getSpotRequest()).thenReturn(null);
+        when(spotAgentMock.getSpotInstanceRequestId()).thenReturn("sir-id");
 
         List<Instance> instances = new ArrayList<Instance>();
         for(int i=0; i<=numberOfSpotInstanceRequests; i++) {
-            instances.add(new Instance().withInstanceId("id"+i).withTags(new Tag().withKey("jenkins_slave_type").withValue("spot")));
+            instances.add(new Instance().withInstanceId("id"+i).withTags(new Tag().withKey("jenkins_agent_type").withValue("spot")));
         }
         
         AmazonEC2FactoryMockImpl.instances = instances;
         
         Mockito.doReturn(AmazonEC2FactoryMockImpl.createAmazonEC2Mock(null)).when(cloud).connect();
 
-        Method countCurrentEC2SpotSlaves = EC2Cloud.class.getDeclaredMethod("countCurrentEC2SpotSlaves", SlaveTemplate.class, String.class, Set.class);
-        countCurrentEC2SpotSlaves.setAccessible(true);
+        Method countCurrentEC2SpotAgents = EC2Cloud.class.getDeclaredMethod("countCurrentEC2SpotAgents", AgentTemplate.class, String.class, Set.class);
+        countCurrentEC2SpotAgents.setAccessible(true);
         Object[] params = {null, "jenkinsurl", new HashSet<String>()};
-        int n = (int) countCurrentEC2SpotSlaves.invoke(cloud, params);
+        int n = (int) countCurrentEC2SpotAgents.invoke(cloud, params);
         
         // Should equal number of spot instance requests + 1 for spot nodes not having a spot instance request
         assertEquals(numberOfSpotInstanceRequests+1, n);

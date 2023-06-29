@@ -16,7 +16,7 @@ jenkins:
             amiType:
               macData:
                 rootCommandPrefix: "sudo"
-                slaveCommandPrefix: "sudo -u jenkins"
-                slaveCommandSuffix: "-fakeFlag"
+                agentCommandPrefix: "sudo -u jenkins"
+                agentCommandSuffix: "-fakeFlag"
                 sshPort: "22"
                 bootDelay: "180"

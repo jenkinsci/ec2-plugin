@@ -22,12 +22,12 @@ import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
  * @author Bruno Meneguello
  */
 @Extension
-public class EC2SlaveMonitor extends AsyncPeriodicWork {
-    private static final Logger LOGGER = Logger.getLogger(EC2SlaveMonitor.class.getName());
+public class EC2AgentMonitor extends AsyncPeriodicWork {
+    private static final Logger LOGGER = Logger.getLogger(EC2AgentMonitor.class.getName());
 
     private final Long recurrencePeriod;
 
-    public EC2SlaveMonitor() {
+    public EC2AgentMonitor() {
         super("EC2 alive agents monitor");
         recurrencePeriod = Long.getLong("jenkins.ec2.checkAlivePeriod", TimeUnit.MINUTES.toMillis(10));
         LOGGER.log(Level.FINE, "EC2 check alive period is {0}ms", recurrencePeriod);
@@ -46,31 +46,31 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     private void removeDeadNodes() {
         for (Node node : Jenkins.get().getNodes()) {
-            if (node instanceof EC2AbstractSlave) {
-                final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;
+            if (node instanceof EC2AbstractAgent) {
+                final EC2AbstractAgent ec2Agent = (EC2AbstractAgent) node;
                 try {
-                    if (!ec2Slave.isAlive(true)) {
-                        LOGGER.info("EC2 instance is dead: " + ec2Slave.getInstanceId());
-                        ec2Slave.terminate();
+                    if (!ec2Agent.isAlive(true)) {
+                        LOGGER.info("EC2 instance is dead: " + ec2Agent.getInstanceId());
+                        ec2Agent.terminate();
                     }
                 } catch (AmazonClientException e) {
                     if (e instanceof AmazonEC2Exception &&
                             EC2_REQUEST_EXPIRED_ERROR_CODE.equals(((AmazonEC2Exception) e).getErrorCode())) {
-                        LOGGER.info("EC2 request expired, skipping consideration of " + ec2Slave.getInstanceId() + " due to unknown state.");
+                        LOGGER.info("EC2 request expired, skipping consideration of " + ec2Agent.getInstanceId() + " due to unknown state.");
                     } else {
-                        LOGGER.info("EC2 instance is dead and failed to terminate: " + ec2Slave.getInstanceId());
-                        removeNode(ec2Slave);
+                        LOGGER.info("EC2 instance is dead and failed to terminate: " + ec2Agent.getInstanceId());
+                        removeNode(ec2Agent);
                     }
                 }
             }
         }
     }
 
-    private void removeNode(EC2AbstractSlave ec2Slave) {
+    private void removeNode(EC2AbstractAgent ec2Agent) {
         try {
-            Jenkins.get().removeNode(ec2Slave);
+            Jenkins.get().removeNode(ec2Agent);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Slave.getInstanceId());
+            LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Agent.getInstanceId());
         }
     }
 

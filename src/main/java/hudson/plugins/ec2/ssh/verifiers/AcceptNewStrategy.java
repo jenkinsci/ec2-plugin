@@ -26,7 +26,7 @@ package hudson.plugins.ec2.ssh.verifiers;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
-import hudson.slaves.OfflineCause;
+import hudson.agents.OfflineCause;
 
 import java.io.IOException;
 import java.util.logging.Level;

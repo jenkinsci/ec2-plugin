@@ -27,7 +27,7 @@ import com.amazonaws.services.ec2.model.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;
-import hudson.slaves.SlaveComputer;
+import hudson.agents.AgentComputer;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.logging.Level;
@@ -43,7 +43,7 @@ import org.kohsuke.stapler.verb.POST;
 /**
  * @author Kohsuke Kawaguchi
  */
-public class EC2Computer extends SlaveComputer {
+public class EC2Computer extends AgentComputer {
 
     private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
 
@@ -54,42 +54,42 @@ public class EC2Computer extends SlaveComputer {
 
     private volatile Boolean isNitro;
 
-    public EC2Computer(EC2AbstractSlave slave) {
-        super(slave);
+    public EC2Computer(EC2AbstractAgent agent) {
+        super(agent);
     }
 
     @Override
-    public EC2AbstractSlave getNode() {
-        return (EC2AbstractSlave) super.getNode();
+    public EC2AbstractAgent getNode() {
+        return (EC2AbstractAgent) super.getNode();
     }
 
     @CheckForNull
     public String getInstanceId() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         return node == null ? null : node.getInstanceId();
     }
 
     public String getEc2Type() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         return node == null ? null : node.getEc2Type();
     }
 
     public String getSpotInstanceRequestId() {
-        EC2AbstractSlave node = getNode();
-        if (node instanceof EC2SpotSlave) {
-            return ((EC2SpotSlave) node).getSpotInstanceRequestId();
+        EC2AbstractAgent node = getNode();
+        if (node instanceof EC2SpotAgent) {
+            return ((EC2SpotAgent) node).getSpotInstanceRequestId();
         }
         return "";
     }
 
     public EC2Cloud getCloud() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         return node == null ? null : node.getCloud();
     }
 
     @CheckForNull
-    public SlaveTemplate getSlaveTemplate() {
-        EC2AbstractSlave node = getNode();
+    public AgentTemplate getAgentTemplate() {
+        EC2AbstractAgent node = getNode();
         if (node != null) {
             return node.getCloud().getTemplate(node.templateDescription);
         }
@@ -218,7 +218,7 @@ public class EC2Computer extends SlaveComputer {
     @POST
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         if (node != null)
             node.terminate();
         return new HttpRedirect("..");
@@ -231,32 +231,32 @@ public class EC2Computer extends SlaveComputer {
      */
     @CheckForNull
     public String getRemoteAdmin() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         return node == null ? null : node.getRemoteAdmin();
     }
 
     public int getSshPort() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         return node == null ? 22 : node.getSshPort();
     }
 
     public String getRootCommandPrefix() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         return node == null ? "" : node.getRootCommandPrefix();
     }
 
-    public String getSlaveCommandPrefix() {
-        EC2AbstractSlave node = getNode();
-        return node == null ? "" : node.getSlaveCommandPrefix();
+    public String getAgentCommandPrefix() {
+        EC2AbstractAgent node = getNode();
+        return node == null ? "" : node.getAgentCommandPrefix();
     }
 
-    public String getSlaveCommandSuffix() {
-        EC2AbstractSlave node = getNode();
-        return node == null ? "" : node.getSlaveCommandSuffix();
+    public String getAgentCommandSuffix() {
+        EC2AbstractAgent node = getNode();
+        return node == null ? "" : node.getAgentCommandSuffix();
     }
 
     public void onConnected() {
-        EC2AbstractSlave node = getNode();
+        EC2AbstractAgent node = getNode();
         if (node != null) {
             node.onConnected();
         }
