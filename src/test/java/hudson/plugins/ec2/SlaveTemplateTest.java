@@ -471,7 +471,7 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
-        assertNull(metadataOptionsRequest);
+        assertEquals(metadataOptionsRequest, null);
     }
 
     @Test
