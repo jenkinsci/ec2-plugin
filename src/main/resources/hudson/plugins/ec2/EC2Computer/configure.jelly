@@ -54,11 +54,11 @@ THE SOFTWARE.
         <f:entry title="${%Instance ID}" field="instanceId">
           <f:readOnlyTextbox />
         </f:entry>
-        
+
         <f:entry title="${%EC2 Type}" field="ec2Type">
           <f:readOnlyTextbox />
         </f:entry>
-        
+
         <f:entry title="${%Uptime}">
           <f:readOnlyTextbox value="${it.uptimeString}"/>
         </f:entry>
@@ -78,7 +78,7 @@ THE SOFTWARE.
         <f:entry title="${%# of executors}" field="numExecutors">
           <f:textbox />
         </f:entry>
-                
+
         <f:entry title="${%Labels}" field="labelString">
           <f:textbox />
         </f:entry>
@@ -96,7 +96,7 @@ THE SOFTWARE.
         <f:entry title="${%Remote user}" field="remoteAdmin">
           <f:textbox />
         </f:entry>
-        
+
 	    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
     	  <f:checkbox />
     	</f:entry>
@@ -115,7 +115,7 @@ THE SOFTWARE.
 	    <f:entry title="${%Use private DNS}" field="usePrivateDnsName">
     	  <f:checkbox />
     	</f:entry>
-    	
+
     	<f:entry title="${%Tenancy}" field="tenancy">
             <f:enum>${it.name()}</f:enum>
         </f:entry>
@@ -133,6 +133,9 @@ THE SOFTWARE.
 
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
+        <f:entry title="${%Metadata HTTP Supported}" field="metadataSupported" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataSupported">
+          <f:checkbox default="true"/>
+        </f:entry>
         <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataEndpointEnabled">
           <f:checkbox default="true"/>
         </f:entry>

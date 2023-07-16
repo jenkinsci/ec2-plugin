@@ -77,6 +77,7 @@ import org.kohsuke.stapler.verb.POST;
  */
 @SuppressWarnings("serial")
 public abstract class EC2AbstractSlave extends Slave {
+    public static final Boolean DEFAULT_METADATA_SUPPORTED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.TRUE;
     public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
@@ -111,6 +112,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public final Tenancy tenancy;
     private String instanceType;
 
+    private Boolean metadataSupported;
     private Boolean metadataEndpointEnabled;
     private Boolean metadataTokensRequired;
     private Integer metadataHopsLimit;
@@ -156,7 +158,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public static final String TEST_ZONE = "testZone";
 
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
-                            Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
+                            Boolean metadataSupported, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
@@ -191,7 +193,7 @@ public abstract class EC2AbstractSlave extends Slave {
     @Deprecated
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_SUPPORTED, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
 
     }
 
@@ -771,6 +773,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public int getBootDelay() {
         return amiType.getBootDelayInMillis();
+    }
+
+    public Boolean getMetadataSupported() {
+      return metadataSupported;
     }
 
     public Boolean getMetadataEndpointEnabled() {

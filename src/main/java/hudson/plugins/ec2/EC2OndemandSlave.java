@@ -62,16 +62,16 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
     @Deprecated
     public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy)
             throws FormException, IOException {
-         this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+         this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, DEFAULT_METADATA_SUPPORTED, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
     }
 
     @DataBoundConstructor
     public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy,
-                            Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
+                            Boolean metadataSupported, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
 
         super(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, (amiType.isWindows() ? new EC2WindowsLauncher() : (amiType.isMac() ? new EC2MacLauncher():
-                new EC2UnixLauncher())), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit);
+                new EC2UnixLauncher())), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataSupported, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit);
 
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;

@@ -79,6 +79,14 @@ import static org.mockito.Mockito.when;
  * Basic test to validate SlaveTemplate.
  */
 public class SlaveTemplateTest {
+    private final String TEST_AMI = "ami-123";
+    private final String TEST_ZONE = EC2AbstractSlave.TEST_ZONE;
+    private final SpotConfiguration TEST_SPOT_CFG = null;
+    private final String TEST_SEC_GROUPS = "default";
+    private final String TEST_REMOTE_FS = "foo";
+    private final InstanceType TEST_INSTANCE_TYPE = InstanceType.M1Large;
+    private final boolean TEST_EBSO = false;
+    private final String TEST_LABEL = "ttt";
 
     @Rule public JenkinsRule r = new JenkinsRule();
 
@@ -91,7 +99,7 @@ public class SlaveTemplateTest {
         List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
-        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -108,13 +116,12 @@ public class SlaveTemplateTest {
 
     @Test
     public void testConfigRoundtripWithCustomSSHHostKeyVerificationStrategy() throws Exception {
-        String ami = "ami1";
         String description = "foo ami";
 
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -137,7 +144,6 @@ public class SlaveTemplateTest {
      */
     @Test
     public void testConfigWithSpotBidPrice() throws Exception {
-        String ami = "ami1";
         String description = "foo ami";
 
         SpotConfiguration spotConfig = new SpotConfiguration(true);
@@ -145,7 +151,7 @@ public class SlaveTemplateTest {
         spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(0);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -165,12 +171,11 @@ public class SlaveTemplateTest {
      */
     @Test
     public void testSpotConfigWithoutBidPrice() throws Exception {
-        String ami = "ami1";
         String description = "foo ami";
 
         SpotConfiguration spotConfig = new SpotConfiguration(false);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -184,10 +189,9 @@ public class SlaveTemplateTest {
 
     @Test
     public void testWindowsConfigRoundTrip() throws Exception {
-        String ami = "ami1";
         String description = "foo ami";
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new WindowsData("password", false, ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, null, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new WindowsData("password", false, ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -204,10 +208,9 @@ public class SlaveTemplateTest {
 
     @Test
     public void testUnixConfigRoundTrip() throws Exception {
-        String ami = "ami1";
         String description = "foo ami";
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", "", "", "22", ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", "", "", "22", ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -230,7 +233,7 @@ public class SlaveTemplateTest {
         spotConfig.setSpotMaxBidPrice("22");
         spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(1);
-        SlaveTemplate slaveTemplate = new SlaveTemplate("ami1", EC2AbstractSlave.TEST_ZONE, spotConfig, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
+        SlaveTemplate slaveTemplate = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         List<SlaveTemplate> templates = new ArrayList<>();
@@ -252,14 +255,13 @@ public class SlaveTemplateTest {
     @Test
     public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
         boolean associatePublicIp = false;
-        String ami = "ami1";
         String description = "foo ami";
         String subnetId = "some-subnet";
         String securityGroups = "some security group";
         String iamInstanceProfile = "some instance profile";
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
-        SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate noSubnet = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -289,7 +291,6 @@ public class SlaveTemplateTest {
     @Test
     public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
         boolean associatePublicIp = true;
-        String ami = "ami1";
         String description = "foo ami";
         String subnetId = "some-subnet";
         String securityGroups = "some security group";
@@ -301,8 +302,8 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate orig = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
-        SlaveTemplate noSubnet = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, null, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate noSubnet = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -330,7 +331,6 @@ public class SlaveTemplateTest {
     @Test
     public void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
         boolean associatePublicIp = true;
-        String ami = "ami1";
         String description = "foo ami";
         String subnetId = "some-subnet";
         String securityGroups = "some security group";
@@ -341,7 +341,7 @@ public class SlaveTemplateTest {
         spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(0);
 
-        SlaveTemplate template = new SlaveTemplate(ami, EC2AbstractSlave.TEST_ZONE, spotConfig, securityGroups, "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate template = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -414,7 +414,7 @@ public class SlaveTemplateTest {
     @Test
     public void testMacConfig() throws Exception {
         String description = "foo ami";
-        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.Mac1Metal, false, "ttt", Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", new MacData("sudo", null, null, "22", null), "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate orig = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, "foo", InstanceType.Mac1Metal, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", new MacData("sudo", null, null, "22", null), "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -430,8 +430,8 @@ public class SlaveTemplateTest {
     @Issue("JENKINS-65569")
     @Test
     public void testAgentName() {
-        SlaveTemplate broken = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "broken/description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
-        SlaveTemplate working = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "working", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate broken = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "broken/description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate working = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "working", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(broken);
         templates.add(working);
@@ -446,7 +446,7 @@ public class SlaveTemplateTest {
     @Test
     public void testMetadataV2Config() throws Exception {
         final String slaveDescription = "foobar";
-        SlaveTemplate orig = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+        SlaveTemplate orig = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, true, 2);
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
@@ -459,8 +459,24 @@ public class SlaveTemplateTest {
     }
 
     @Test
+    public void provisionOnDemandWithUnsupportedInstanceMetadata() throws Exception {
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, false, true, false, 2);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
+        assertNotNull(metadataOptionsRequest);
+    }
+
+    @Test
     public void provisionOnDemandSetsMetadataV1Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, false, 2);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, false, 2);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -478,7 +494,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataV2Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, true, 2);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -496,7 +512,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, true, null);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, null, true, null);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 

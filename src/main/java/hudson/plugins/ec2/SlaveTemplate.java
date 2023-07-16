@@ -17,6 +17,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
+import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED;
 import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
 import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
 import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
@@ -234,6 +235,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public EbsEncryptRootVolume ebsEncryptRootVolume;
 
+    private Boolean metadataSupported;
+
     private Boolean metadataEndpointEnabled;
 
     private Boolean metadataTokensRequired;
@@ -293,7 +296,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
                          List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
-                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
+                         Boolean metadataSupported, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
@@ -367,6 +370,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
+        this.metadataSupported = metadataSupported != null ? metadataSupported : DEFAULT_METADATA_SUPPORTED;
         this.metadataEndpointEnabled = metadataEndpointEnabled != null ? metadataEndpointEnabled : DEFAULT_METADATA_ENDPOINT_ENABLED;
         this.metadataTokensRequired = metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
         this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
@@ -391,7 +395,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 useEphemeralDevices, launchTimeoutStr, associatePublicIp,
                 customDeviceMapping, connectBySSHProcess, monitoring,
                 t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_ENDPOINT_ENABLED,
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_SUPPORTED, DEFAULT_METADATA_ENDPOINT_ENABLED,
                 DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
     }
 
@@ -1076,12 +1080,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
         riRequest.setTagSpecifications(tagList);
 
-        InstanceMetadataOptionsRequest instanceMetadataOptionsRequest = new InstanceMetadataOptionsRequest();
-        instanceMetadataOptionsRequest.setHttpEndpoint(metadataEndpointEnabled ? InstanceMetadataEndpointState.Enabled.toString() : InstanceMetadataEndpointState.Disabled.toString());
-        instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
-        instanceMetadataOptionsRequest.setHttpTokens(
-                    metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
-        riRequest.setMetadataOptions(instanceMetadataOptionsRequest);
+        if (metadataSupported) {
+            InstanceMetadataOptionsRequest instanceMetadataOptionsRequest = new InstanceMetadataOptionsRequest();
+            instanceMetadataOptionsRequest.setHttpEndpoint(metadataEndpointEnabled ? InstanceMetadataEndpointState.Enabled.toString() : InstanceMetadataEndpointState.Disabled.toString());
+            instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
+            instanceMetadataOptionsRequest.setHttpTokens(
+                metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
+            riRequest.setMetadataOptions(instanceMetadataOptionsRequest);
+        }
 
         HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
         ret.put(riRequest, diFilters);
@@ -1575,6 +1581,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
             .withTenancyAttribute(tenancy)
+            .withMetadataSupported(metadataSupported)
             .withMetadataEndpointEnabled(metadataEndpointEnabled)
             .withMetadataTokensRequired(metadataTokensRequired)
             .withMetadataHopsLimit(metadataHopsLimit)
@@ -1753,7 +1760,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (nodeProperties == null) {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
         }
-        
+
         if (tenancy == null) {
             tenancy = Tenancy.Default;
         }
@@ -1762,11 +1769,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (useDedicatedTenancy) {
             tenancy = Tenancy.Dedicated;
         }
-        
+
         if (ebsEncryptRootVolume == null) {
             ebsEncryptRootVolume = EbsEncryptRootVolume.DEFAULT;
         }
 
+        if (metadataSupported == null) {
+            metadataSupported = EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+        }
         if (metadataEndpointEnabled == null) {
             metadataEndpointEnabled = EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
         }
