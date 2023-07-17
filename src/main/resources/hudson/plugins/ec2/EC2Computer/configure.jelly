@@ -133,7 +133,7 @@ THE SOFTWARE.
 
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
-        <f:entry title="${%Metadata HTTP Supported}" field="metadataSupported" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataSupported">
+        <f:entry title="${%Instance Metadata Supported}" field="metadataSupported" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataSupported">
           <f:checkbox default="true"/>
         </f:entry>
         <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataEndpointEnabled">

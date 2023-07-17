@@ -227,7 +227,7 @@ THE SOFTWARE.
 
     <f:descriptorList title="${%Node Properties}" field="nodeProperties" descriptors="${descriptor.nodePropertyDescriptors}" />
 
-    <f:optionalBlock name="metadataSupported" title="${%Metadata HTTP Supported}" inline="true" checked="${instance.metadataSupported}">
+    <f:optionalBlock name="metadataSupported" title="${%Instance Metadata Supported}" inline="true" checked="${instance.metadataSupported}">
       <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" >
         <f:checkbox default="true"/>
       </f:entry>
