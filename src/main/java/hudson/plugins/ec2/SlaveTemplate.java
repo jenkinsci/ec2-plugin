@@ -296,7 +296,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                          String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
                          boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
                          List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
-                         Boolean metadataSupported, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
+                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported) {
 
         if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
             LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
@@ -375,6 +375,29 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.metadataTokensRequired = metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
         this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
+                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
+                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String javaPath, String jvmopts,
+                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
+                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
+                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
+                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
+                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
+                         Boolean metadataSupported, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
+        this(ami, zone, spotConfig, securityGroups, remoteFS,
+               type, ebsOptimized, labelString, mode, description, initScript,
+               tmpDir, userData, numExecutors, remoteAdmin, amiType, DEFAULT_JAVA_PATH, jvmopts,
+               stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
+               minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
+               useEphemeralDevices, launchTimeoutStr, associatePublicIp,
+               customDeviceMapping, connectBySSHProcess, monitoring,
+               t2Unlimited, connectionStrategy, maxTotalUses,
+               nodeProperties, hostKeyVerificationStrategy, tenancy, null, metadataEndpointEnabled,
+               metadataTokensRequired, metadataHopsLimit, DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
@@ -871,6 +894,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMaxTotalUses() {
         return maxTotalUses;
+    }
+
+    public Boolean getMetadataSupported() {
+      return metadataSupported;
     }
 
     public Boolean getMetadataEndpointEnabled() {

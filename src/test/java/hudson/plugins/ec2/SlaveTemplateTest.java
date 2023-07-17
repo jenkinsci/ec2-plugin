@@ -446,7 +446,7 @@ public class SlaveTemplateTest {
     @Test
     public void testMetadataV2Config() throws Exception {
         final String slaveDescription = "foobar";
-        SlaveTemplate orig = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, true, 2);
+        SlaveTemplate orig = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2, true);
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
@@ -460,7 +460,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandWithUnsupportedInstanceMetadata() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, false, true, false, 2);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, false, 2, false);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -476,7 +476,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataV1Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, false, 2);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, false, 2, true);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -494,7 +494,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataV2Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, true, 2);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2, true);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -512,7 +512,7 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, null, true, null);
+        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, true, null, true);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
