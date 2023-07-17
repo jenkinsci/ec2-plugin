@@ -133,18 +133,17 @@ THE SOFTWARE.
 
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
-        <f:entry title="${%Instance Metadata Supported}" field="metadataSupported" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataSupported">
-          <f:checkbox default="true"/>
-        </f:entry>
-        <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataEndpointEnabled">
-          <f:checkbox default="true"/>
-        </f:entry>
-        <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataTokensRequired">
-          <f:checkbox default="true"/>
-        </f:entry>
-        <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataHopsLimit">
-          <f:textbox default="1" />
-        </f:entry>
+        <f:optionalBlock field="metadataSupported" title="${%Instance Metadata Supported}" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataSupported">
+          <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataEndpointEnabled">
+            <f:checkbox default="true"/>
+          </f:entry>
+          <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataTokensRequired">
+            <f:checkbox default="false"/>
+          </f:entry>
+          <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataHopsLimit">
+            <f:number default="1" max="64" min="1" />
+          </f:entry>
+        </f:optionalBlock>
 
         <f:block>
           <f:submit value="${%Save}"/>
