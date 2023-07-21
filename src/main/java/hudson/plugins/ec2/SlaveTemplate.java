@@ -418,8 +418,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 useEphemeralDevices, launchTimeoutStr, associatePublicIp,
                 customDeviceMapping, connectBySSHProcess, monitoring,
                 t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_SUPPORTED, DEFAULT_METADATA_ENDPOINT_ENABLED,
-                DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT);
+                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_ENDPOINT_ENABLED,
+                DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT, DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
