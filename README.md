@@ -29,7 +29,7 @@
       * [Amazon Linux build/connectivity issues](#amazon-linux-buildconnectivity-issues)
       * [Downgrade from 1.50.2, 1.49.2, 1.46.3 to a previous version](#downgrade-from-1502-1492-1463-to-a-previous-version)
    * [Change Log](#change-log)
-   
+
 # Introduction
 
 Allow Jenkins to start agents on
@@ -336,6 +336,7 @@ def slaveTemplateUsEast1Parameters = [
   usePrivateDnsName:             false,
   userData:                      '',
   zone:                          '',
+  metadataSupported:             true,
   metadataEndpointEnabled:       true,
   metadataTokensRequired:        true, // `true` enforces IMDSv2 only (over IMDSv1), an important AWS security best practice
   metadataHopsLimit:             1,
@@ -444,6 +445,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.hostKeyVerificationStrategy,
   slaveTemplateUsEast1Parameters.tenancy,
   slaveTemplateUsEast1Parameters.ebsEncryptRootVolume,
+  slaveTemplateUsEast1Parameters.metadataSupported,
   slaveTemplateUsEast1Parameters.metadataEndpointEnabled,
   slaveTemplateUsEast1Parameters.metadataTokensRequired,
   slaveTemplateUsEast1Parameters.metadataHopsLimit,
@@ -484,11 +486,11 @@ jenkins.save()
 # Security
 ## Securing the connection to Unix AMIs
 When you set up a template for a *Unix* instance (`Type AMI` field), you can select the strategy used to guarantee the
-instance you're connecting to is the expected one. You should use a strong strategy to guarantee that a 
+instance you're connecting to is the expected one. You should use a strong strategy to guarantee that a
 _[man-in-the-middle attack](https://en.wikipedia.org/wiki/Man-in-the-middle_attack)_ cannot be performed.
 
-You can select your strategy under the _Advanced..._ configuration, on the _Host Key Verification Strategy_ field of 
-every configured AMI. 
+You can select your strategy under the _Advanced..._ configuration, on the _Host Key Verification Strategy_ field of
+every configured AMI.
 
 The plugin provides several strategies because each one has its own requirements. So providing more than one allows
  administrators to use the one best fits to their environment. These strategies are:
@@ -496,13 +498,13 @@ The plugin provides several strategies because each one has its own requirements
 ### Strategies
 #### Check New Hard
 This strategy checks the SSH host key provided by the instance with the key printed out in the instance console during
-the instance initialization. If the key is not found, the plugin **doesn't allow** the connection to the instance to 
+the instance initialization. If the key is not found, the plugin **doesn't allow** the connection to the instance to
 guarantee the instance is the right one. If the key is found and it is the same as the one presented by the instance,
 then it's saved to be used on future connections, so the console is only checked once.
 
 Requirements:
 
-* The AMI used should print the key used. It's a common behaviour, for example the _Amazon Linux 2_ AMI prints it 
+* The AMI used should print the key used. It's a common behaviour, for example the _Amazon Linux 2_ AMI prints it
 out. You can consult the AMI documentation to figure it out.
 * The launch timeout should be long enough to allow the plugin to check the instance console. With this strategy, the
 plugin waits for the console to be available, which can take a few minutes. The _Launch Timeout in seconds_ field should
@@ -510,19 +512,19 @@ have a number to allow that, for example 600 (10 minutes). By default there is n
 
 The expected format on the instance console is `algorithm base64-public-key` at the beginning of a line. For example:
 ```
-ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNFNGfKpPS/UT2jAEa0+9aZneku2a7TVwN+MjGesm65DDGnXPcM9TM9BsiOE+s4Vo6aCT9L/TVrtDFa0hqbnqc8= 
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHm0sVqkjSuaPg8e7zfaKXt3b1hE1tBwFsB18NOWv5ow 
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDNTngsAxOCpZwt+IBqJSQ9MU2qVNYzP4D5i1OHfIRXCrnAuJ54GtFzZEZqqo4e1e/JqBQOX3ZPsaegbkzl2uq5FzfFcFoYYXg5gL7htlZ1I2k6/2iIBv7CHAjbpXMkH8WoF2C3vZFRMWLs20ikQpED+9m11VejE19+kqJwLMopyAtq+/mCgiv4nw5QWh3rrrEcbgzuxYoMD0t9daqBq1V0lzRqL36ALVySy7oDjr3YzCN+wMXe1I36kv3lSeCHXnhc53ubrBIsRakWLBndHhPqyyAOMEjdby/O/EQ2PR7vBpH5MaseaJwvRRDPQ6qt4sV8lk0tEt9qbdb1prFRB4W1 
+ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNFNGfKpPS/UT2jAEa0+9aZneku2a7TVwN+MjGesm65DDGnXPcM9TM9BsiOE+s4Vo6aCT9L/TVrtDFa0hqbnqc8=
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHm0sVqkjSuaPg8e7zfaKXt3b1hE1tBwFsB18NOWv5ow
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDNTngsAxOCpZwt+IBqJSQ9MU2qVNYzP4D5i1OHfIRXCrnAuJ54GtFzZEZqqo4e1e/JqBQOX3ZPsaegbkzl2uq5FzfFcFoYYXg5gL7htlZ1I2k6/2iIBv7CHAjbpXMkH8WoF2C3vZFRMWLs20ikQpED+9m11VejE19+kqJwLMopyAtq+/mCgiv4nw5QWh3rrrEcbgzuxYoMD0t9daqBq1V0lzRqL36ALVySy7oDjr3YzCN+wMXe1I36kv3lSeCHXnhc53ubrBIsRakWLBndHhPqyyAOMEjdby/O/EQ2PR7vBpH5MaseaJwvRRDPQ6qt4sV8lk0tEt9qbdb1prFRB4W1
 ```
 Recommended for:
 
 This strategy is the most secure. It's recommended for every instance if you can meet the requirements. We recommend,
 whenever possible, configuring each AMI with _Stop/Disconnect on Idle Timeout_ to take advantage of the ssh host key
-cache allowing next connections to be done faster. 
+cache allowing next connections to be done faster.
 
 #### Check New Soft
 This strategy checks the SSH host key provided by the instance with the key printed out in the instance console during
-the instance initialization. If the key is not found, the plugin **allows** the connection to the instance in order to 
+the instance initialization. If the key is not found, the plugin **allows** the connection to the instance in order to
 guarantee the instance is the right one. If the key is found and it is the same as the one presented by the instance,
 then it's saved to be used on future connections, so the console is only checked once.
 
@@ -536,9 +538,9 @@ expires, the connection is not done.
 
 The expected format on the instance console is `algorithm base64-public-key` at the beginning of a line. For example:
 ```
-ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNFNGfKpPS/UT2jAEa0+9aZneku2a7TVwN+MjGesm65DDGnXPcM9TM9BsiOE+s4Vo6aCT9L/TVrtDFa0hqbnqc8= 
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHm0sVqkjSuaPg8e7zfaKXt3b1hE1tBwFsB18NOWv5ow 
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDNTngsAxOCpZwt+IBqJSQ9MU2qVNYzP4D5i1OHfIRXCrnAuJ54GtFzZEZqqo4e1e/JqBQOX3ZPsaegbkzl2uq5FzfFcFoYYXg5gL7htlZ1I2k6/2iIBv7CHAjbpXMkH8WoF2C3vZFRMWLs20ikQpED+9m11VejE19+kqJwLMopyAtq+/mCgiv4nw5QWh3rrrEcbgzuxYoMD0t9daqBq1V0lzRqL36ALVySy7oDjr3YzCN+wMXe1I36kv3lSeCHXnhc53ubrBIsRakWLBndHhPqyyAOMEjdby/O/EQ2PR7vBpH5MaseaJwvRRDPQ6qt4sV8lk0tEt9qbdb1prFRB4W1 
+ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNFNGfKpPS/UT2jAEa0+9aZneku2a7TVwN+MjGesm65DDGnXPcM9TM9BsiOE+s4Vo6aCT9L/TVrtDFa0hqbnqc8=
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHm0sVqkjSuaPg8e7zfaKXt3b1hE1tBwFsB18NOWv5ow
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDNTngsAxOCpZwt+IBqJSQ9MU2qVNYzP4D5i1OHfIRXCrnAuJ54GtFzZEZqqo4e1e/JqBQOX3ZPsaegbkzl2uq5FzfFcFoYYXg5gL7htlZ1I2k6/2iIBv7CHAjbpXMkH8WoF2C3vZFRMWLs20ikQpED+9m11VejE19+kqJwLMopyAtq+/mCgiv4nw5QWh3rrrEcbgzuxYoMD0t9daqBq1V0lzRqL36ALVySy7oDjr3YzCN+wMXe1I36kv3lSeCHXnhc53ubrBIsRakWLBndHhPqyyAOMEjdby/O/EQ2PR7vBpH5MaseaJwvRRDPQ6qt4sV8lk0tEt9qbdb1prFRB4W1
 ```
 Recommended for:
 
@@ -573,33 +575,33 @@ Requirements:
 Recommended for:
 
 This strategy is not recommended because of its lack of security. It is the strategy used for prior versions of the plugin.
- 
+
 ### New AMIs
-The default strategy for every new instance is the _Check New Hard_ one. You can select a strategy per AMI. It's under 
-the _Advanced..._ configuration, on the _Host Key Verification Strategy_ field. 
+The default strategy for every new instance is the _Check New Hard_ one. You can select a strategy per AMI. It's under
+the _Advanced..._ configuration, on the _Host Key Verification Strategy_ field.
 
 ### Upgrade - Existing AMIs
 You may upgrade from a Jenkins installation with a former plugin version without this security mechanism. The default
  strategy for every existing instance is the _Check New Soft_ strategy. This guarantees your jobs are not going to stop
  working and improves the situation. We recommend, if possible, upgrading to the _Check New Hard_ strategy to be safer
- against a _Man in the Middle attack_. 
+ against a _Man in the Middle attack_.
 
 ## Securing the connection to Windows AMIs
-When you configure a template for a *Windows* instance (`Type AMI` field), you can use HTTPS and disallow 
-self-signed certificates. This guarantees the instance you're connecting to is the expected one and a 
+When you configure a template for a *Windows* instance (`Type AMI` field), you can use HTTPS and disallow
+self-signed certificates. This guarantees the instance you're connecting to is the expected one and a
 [man-in-the-middle attack](https://en.wikipedia.org/wiki/Man-in-the-middle_attack) cannot be performed.
 
 ### AMI Set Up
-Before securely connecting to the instance, you need to 1) configure the AMI, 2)install the 
-certificate, 3) configure WinRM properly and 4) set the firewall rules to allow the connection. You can find some 
+Before securely connecting to the instance, you need to 1) configure the AMI, 2)install the
+certificate, 3) configure WinRM properly and 4) set the firewall rules to allow the connection. You can find some
 guidance at the `AMI Type` field help, under the template configuration on your Jenkins instance.
 
 Tips:
-* When the `Allow Self Signed Certificate` field is checked, the plugin allows self-signed certificates. It means that 
-the plugin neither checks the CA which issued the certificate, nor verifies the host it is connecting to is present on 
+* When the `Allow Self Signed Certificate` field is checked, the plugin allows self-signed certificates. It means that
+the plugin neither checks the CA which issued the certificate, nor verifies the host it is connecting to is present on
 the certificate. If the field is not checked, this kind of certificates are not allowed and both verifications are performed.
-* The EC2 plugin connects to the instance using either an IP address. It does not use the DNS name. You must configure WinRM with a certificate which includes 
-the **IP** of the instance. Something like: 
+* The EC2 plugin connects to the instance using either an IP address. It does not use the DNS name. You must configure WinRM with a certificate which includes
+the **IP** of the instance. Something like:
 ```
 #3: ObjectId: 2.5.29.17 Criticality=false
 SubjectAlternativeName [
@@ -649,19 +651,19 @@ This issue can be solved in different ways:
     [documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-linux-ami-basics.html#security-updates))
 3.  Force security upgrade through the "init-script" in the Cloud
     configuration  
-      
+
     ![](docs/images/init-scripts.png)
 
 ## Downgrade from 1.50.2, 1.49.2, 1.46.3 to a previous version
 If you updated to 1.50.2, or 1.49.2 or 1.46.3 and you need to downgrade back to the previous version, be sure to **remove** the
-file `JENKINS_HOME/ec2.xml` before doing that. This file is created if you click on the button *Dismiss these messages* of 
-the monitor that warns you when there are some template with a weak  strategy. If you don't do that, Jenkins will start and 
+file `JENKINS_HOME/ec2.xml` before doing that. This file is created if you click on the button *Dismiss these messages* of
+the monitor that warns you when there are some template with a weak  strategy. If you don't do that, Jenkins will start and
 will overwrite its config.xml file **losing your cloud configuration**.
 
-At this moment, it seems related with a race-condition between the plugin and the `OldDataMonitor` class of Jenkins Core. 
+At this moment, it seems related with a race-condition between the plugin and the `OldDataMonitor` class of Jenkins Core.
 See https://issues.jenkins-ci.org/browse/JENKINS-62231
 
 # Change Log
 
-Newer changelogs are posted [here](https://github.com/jenkinsci/ec2-plugin/releases), 
+Newer changelogs are posted [here](https://github.com/jenkinsci/ec2-plugin/releases),
 1.45 and older releases can be found [here](https://github.com/jenkinsci/ec2-plugin/blob/master/CHANGELOG.md)

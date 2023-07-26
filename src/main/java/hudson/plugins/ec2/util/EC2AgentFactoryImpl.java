@@ -12,7 +12,7 @@ public class EC2AgentFactoryImpl implements EC2AgentFactory {
     @Override
     public EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config)
             throws Descriptor.FormException, IOException {
-        return new EC2OndemandSlave(config.name, config.instanceId, config.description, config.remoteFS, config.numExecutors, config.labelString, config.mode, config.initScript, config.tmpDir, config.nodeProperties, config.remoteAdmin, config.javaPath, config.jvmopts, config.stopOnTerminate, config.idleTerminationMinutes, config.publicDNS, config.privateDNS, config.tags, config.cloudName, config.launchTimeout, config.amiType, config.connectionStrategy, config.maxTotalUses, config.tenancy, config.metadataEndpointEnabled, config.metadataTokensRequired, config.metadataHopsLimit);
+        return new EC2OndemandSlave(config.name, config.instanceId, config.description, config.remoteFS, config.numExecutors, config.labelString, config.mode, config.initScript, config.tmpDir, config.nodeProperties, config.remoteAdmin, config.javaPath, config.jvmopts, config.stopOnTerminate, config.idleTerminationMinutes, config.publicDNS, config.privateDNS, config.tags, config.cloudName, config.launchTimeout, config.amiType, config.connectionStrategy, config.maxTotalUses, config.tenancy, config.metadataEndpointEnabled, config.metadataTokensRequired, config.metadataHopsLimit, config.metadataSupported);
     }
 
     @Override
