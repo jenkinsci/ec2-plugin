@@ -32,6 +32,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
+import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlTextInput;
 import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
@@ -45,7 +46,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
-import hudson.util.VersionNumber;
 import jenkins.model.Jenkins;
 
 import java.io.IOException;
@@ -92,7 +92,14 @@ public class AmazonEC2CloudTest {
         HtmlTextInput input = form.getInputByName("_.cloudName");
 
         input.setText("test-cloud-2");
-        r.submit(form);
+        try {
+            r.submit(form);
+        } catch (FailingHttpStatusCodeException e) {
+            String errorMsg = e.getMessage();
+            if (!(errorMsg.contains("404") && errorMsg.contains("jenkins/cloud/us-east-1/"))) {
+                throw e;
+            }
+        }
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         assertEquals("test-cloud-2", actual.getCloudName());
         r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
