@@ -34,13 +34,14 @@ public class ConfigurationAsCodeTest {
     @Rule
     public JenkinsConfiguredWithCodeRule j = new JenkinsConfiguredWithCodeRule();
 
-    @Test
-    @ConfiguredWithCode("EC2CloudEmpty.yml")
-    public void testEmptyConfig() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("");
-        assertNotNull(ec2Cloud);
-        assertEquals(0, ec2Cloud.getTemplates().size());
-    }
+    // Jenkins 2.403: Cloud Nodes cannot be created with an empty name
+//    @Test
+//    @ConfiguredWithCode("EC2CloudEmpty.yml")
+//    public void testEmptyConfig() throws Exception {
+//        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("");
+//        assertNotNull(ec2Cloud);
+//        assertEquals(0, ec2Cloud.getTemplates().size());
+//    }
 
     @Test
     @ConfiguredWithCode("UnixData.yml")

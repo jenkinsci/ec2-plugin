@@ -163,7 +163,7 @@ public class AmazonEC2CloudTest {
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        return r.createWebClient().goTo("configureClouds").getFormByName("config");
+        return r.createWebClient().goTo(cloud.getUrl() + "configure").getFormByName("config");
     }
 
 }
