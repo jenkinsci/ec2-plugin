@@ -2,5 +2,5 @@
 jenkins:
   clouds:
     - amazonEC2:
-        cloudName: ""
+        cloudName: "empty"
         privateKey: "${PRIVATE_KEY}"

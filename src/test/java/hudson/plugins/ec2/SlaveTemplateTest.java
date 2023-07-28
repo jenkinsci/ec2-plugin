@@ -221,7 +221,6 @@ public class SlaveTemplateTest {
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
-        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "amiType");
     }
