@@ -92,14 +92,7 @@ public class AmazonEC2CloudTest {
         HtmlTextInput input = form.getInputByName("_.cloudName");
 
         input.setText("test-cloud-2");
-        try {
-            r.submit(form);
-        } catch (FailingHttpStatusCodeException e) {
-            String errorMsg = e.getMessage();
-            if (!(errorMsg.contains("404") && errorMsg.contains("jenkins/cloud/us-east-1/"))) {
-                throw e;
-            }
-        }
+        r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         assertEquals("test-cloud-2", actual.getCloudName());
         r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
