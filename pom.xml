@@ -78,7 +78,7 @@ THE SOFTWARE.
     <properties>
         <revision>2.0.8</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.417-rc34023.1741953fb_474</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
+        <jenkins.version>2.420-rc34091.108b_c22ede78</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
 
