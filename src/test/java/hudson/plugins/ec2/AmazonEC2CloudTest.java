@@ -32,13 +32,13 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlTextInput;
 import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
 import hudson.util.ListBoxModel;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -87,6 +87,7 @@ public class AmazonEC2CloudTest {
     }
 
     @Test
+    @Ignore("JENKINS-71737") // TODO: remove ignore when https://github.com/jenkinsci/jenkins/pull/8310 has been merged
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
         HtmlTextInput input = form.getInputByName("_.cloudName");
