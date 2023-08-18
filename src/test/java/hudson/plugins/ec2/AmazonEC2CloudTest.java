@@ -38,7 +38,6 @@ import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
 import hudson.util.ListBoxModel;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -87,16 +86,15 @@ public class AmazonEC2CloudTest {
     }
 
     @Test
-    @Ignore("JENKINS-71737") // TODO: remove ignore when https://github.com/jenkinsci/jenkins/pull/8310 has been merged
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
-        HtmlTextInput input = form.getInputByName("_.cloudName");
-
-        input.setText("test-cloud-2");
+        // TODO: Changing cloud name causes 404. Create new name change test when https://issues.jenkins.io/browse/JENKINS-71737 has been resolved
+        HtmlTextInput input = form.getInputByName("_.roleSessionName");
+        input.setText("updatedSessionName");
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
-        assertEquals("test-cloud-2", actual.getCloudName());
-        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
+        assertEquals("updatedSessionName", actual.getRoleSessionName());
+        r.assertEqualBeans(cloud, actual, "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
