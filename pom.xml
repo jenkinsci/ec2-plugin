@@ -30,12 +30,12 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.66</version>
+        <version>4.73</version>
         <relativePath />
     </parent>
 
     <artifactId>ec2</artifactId>
-    <version>${revision}${changelist}</version>
+    <version>${changelist}</version>
     <packaging>hpi</packaging>
 
     <name>Amazon EC2 plugin</name>
@@ -76,8 +76,7 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>2.0.8</revision>
-        <changelist>-SNAPSHOT</changelist>
+        <changelist>999999-SNAPSHOT</changelist>
         <jenkins.version>2.414</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
@@ -195,7 +194,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.17.6</version>
+            <version>1.19.0</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>

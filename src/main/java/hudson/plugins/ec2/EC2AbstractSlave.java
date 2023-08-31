@@ -217,26 +217,27 @@ public abstract class EC2AbstractSlave extends Slave {
 
     @Override
     protected Object readResolve() {
+        var o = (EC2AbstractSlave) super.readResolve();
         /*
          * If instanceId is null, this object was deserialized from an old version of the plugin, where this field did
          * not exist (prior to version 1.18). In those versions, the node name *was* the instance ID, so we can get it
          * from there.
          */
-        if (instanceId == null) {
-            instanceId = getNodeName();
+        if (o.instanceId == null) {
+            o.instanceId = getNodeName();
         }
 
-        if (amiType == null) {
-            amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, Integer.toString(sshPort), null);
+        if (o.amiType == null) {
+            o.amiType = new UnixData(o.rootCommandPrefix, o.slaveCommandPrefix, o.slaveCommandSuffix, Integer.toString(o.sshPort), null);
         }
 
-        if (maxTotalUses == 0) {
+        if (o.maxTotalUses == 0) {
             EC2Cloud cloud = getCloud();
             if (cloud != null) {
-                SlaveTemplate template = cloud.getTemplate(templateDescription);
+                SlaveTemplate template = cloud.getTemplate(o.templateDescription);
                 if (template != null) {
                     if (template.getMaxTotalUses() == -1) {
-                        maxTotalUses = -1;
+                        o.maxTotalUses = -1;
                     }
                 }
             }
@@ -248,11 +249,11 @@ public abstract class EC2AbstractSlave extends Slave {
          * made Jenkins entirely unusable for some in the 1.50 release:
          * https://issues.jenkins-ci.org/browse/JENKINS-62043
          */
-        if (terminateScheduled == null) {
-            terminateScheduled = new ResettableCountDownLatch(1, false);
+        if (o.terminateScheduled == null) {
+            o.terminateScheduled = new ResettableCountDownLatch(1, false);
         }
 
-        return this;
+        return o;
     }
 
     public EC2Cloud getCloud() {
