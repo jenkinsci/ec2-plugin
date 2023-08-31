@@ -35,7 +35,7 @@ THE SOFTWARE.
     </parent>
 
     <artifactId>ec2</artifactId>
-    <version>${revision}${changelist}</version>
+    <version>${changelist}</version>
     <packaging>hpi</packaging>
 
     <name>Amazon EC2 plugin</name>
@@ -76,8 +76,7 @@ THE SOFTWARE.
     </scm>
 
     <properties>
-        <revision>2.0.8</revision>
-        <changelist>-SNAPSHOT</changelist>
+        <changelist>999999-SNAPSHOT</changelist>
         <jenkins.version>2.361.4</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
