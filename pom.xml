@@ -78,7 +78,7 @@ THE SOFTWARE.
     <properties>
         <revision>2.0.8</revision>
         <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.414</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
+        <jenkins.version>2.420-rc34097.d5b_6dcd38356</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
 
@@ -219,7 +219,7 @@ THE SOFTWARE.
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.414.x</artifactId>
+                <artifactId>bom-2.414.x</artifactId> <!-- TODO update with correct bom version when it is released -->
                 <version>2329.v078520e55c19</version>
                 <scope>import</scope>
                 <type>pom</type>

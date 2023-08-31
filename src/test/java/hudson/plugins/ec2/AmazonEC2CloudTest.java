@@ -33,6 +33,7 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlPage;
 import org.htmlunit.html.HtmlTextInput;
 import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
 import hudson.util.ListBoxModel;
@@ -88,7 +89,6 @@ public class AmazonEC2CloudTest {
     @Test
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
-        // TODO: Changing cloud name causes 404. Create new name change test when https://issues.jenkins.io/browse/JENKINS-71737 has been resolved
         HtmlTextInput input = form.getInputByName("_.roleSessionName");
         input.setText("updatedSessionName");
         r.submit(form);
@@ -159,6 +159,19 @@ public class AmazonEC2CloudTest {
         assertThat(m.size(), is(2));
         //Ensure that the cloud can resolve the new key
         assertThat(actual.resolvePrivateKey(), notNullValue());
+    }
+
+    @Test
+    @Issue("JENKINS-71737")
+    public void testNameChange() throws Exception {
+        HtmlPage page = r.createWebClient().goTo(cloud.getUrl() + "confirm-rename");
+        HtmlForm form = page.getFormByName("config");
+        HtmlTextInput input = form.getInputByName("newName");
+        input.setText("test-cloud-2");
+        r.submit(form);
+        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        assertEquals("test-cloud-2", actual.getCloudName());
+        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
