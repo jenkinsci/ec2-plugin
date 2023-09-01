@@ -77,7 +77,7 @@ THE SOFTWARE.
 
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
-        <jenkins.version>2.420-rc34097.d5b_6dcd38356</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
+        <jenkins.version>2.420-rc34098.a_57343cb_77ef</jenkins.version> <!-- TODO: https://github.com/jenkinsci/jenkins/pull/8310 -->
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
 
