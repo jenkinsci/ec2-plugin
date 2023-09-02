@@ -122,7 +122,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-minimal</artifactId>
-            <version>1.12.406-374.v4cdf53953691</version>
+            <version>1.12.529-406.vdeff15e5817d</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
