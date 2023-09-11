@@ -19,6 +19,7 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -165,7 +166,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     private final int instanceCap;
 
-    private final List<? extends SlaveTemplate> templates;
+    private List<? extends SlaveTemplate> templates;
 
     private transient KeyPair usableKeyPair;
 
@@ -216,7 +217,16 @@ public abstract class EC2Cloud extends Cloud {
 
     public abstract URL getS3EndpointUrl() throws IOException;
 
-    private void migratePrivateSshKeyToCredential(String privateKey){
+    public void addTemplate(SlaveTemplate newTemplate) throws Exception {
+        String newTemplateDescription = newTemplate.description;
+        if (getTemplate(newTemplateDescription) != null) throw new Exception(
+                String.format("A SlaveTemplate with description %s already exists", newTemplateDescription));
+        List<SlaveTemplate> templatesHolder = new ArrayList<>(templates);
+        templatesHolder.add(newTemplate);
+        templates = templatesHolder;
+    }
+
+    private void migratePrivateSshKeyToCredential(String privateKey) {
         // GET matching private key credential from Credential API if exists
         Optional<SSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
                 .stream()
@@ -694,7 +704,7 @@ public abstract class EC2Cloud extends Cloud {
      * Obtains a agent whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new agent is required. Otherwise, an existing matching agent may be re-used
      */
-    private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) {
+    private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) throws IOException {
         try {
             slaveCountingLock.lock();
             int possibleSlavesCount = getPossibleNewSlavesCount(t);
@@ -703,24 +713,19 @@ public abstract class EC2Cloud extends Cloud {
                 return null;
             }
 
-            try {
-                EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
-                if (forceCreateNew)
-                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
-                else
-                    provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+            EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
+            if (forceCreateNew)
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
+            else
+                provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
 
-                if (number > possibleSlavesCount) {
-                    LOGGER.log(Level.INFO, String.format("%d nodes were requested for the template %s, " +
-                            "but because of instance cap only %d can be provisioned", number, t, possibleSlavesCount));
-                    number = possibleSlavesCount;
-                }
-
-                return t.provision(number, provisionOptions);
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-                return null;
+            if (number > possibleSlavesCount) {
+                LOGGER.log(Level.INFO, String.format("%d nodes were requested for the template %s, " +
+                        "but because of instance cap only %d can be provisioned", number, t, possibleSlavesCount));
+                number = possibleSlavesCount;
             }
+
+            return t.provision(number, provisionOptions);
         } finally { slaveCountingLock.unlock(); }
     }
 
@@ -761,7 +766,18 @@ public abstract class EC2Cloud extends Cloud {
 
                 LOGGER.log(Level.INFO, "{0}. Attempting provision finished, excess workload: " + excessWorkload, t);
                 if (excessWorkload == 0) break;
-            } catch (AmazonClientException e) {
+            } catch (AmazonServiceException e) {
+                LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+                if (e.getErrorCode().equals("RequestExpired")) {
+                    // JENKINS-71554: A RequestExpired error can indicate that credentials have expired so reconnect
+                    LOGGER.log(Level.INFO, "[JENKINS-71554] Reconnecting to EC2 due to RequestExpired error");
+                    try {
+                        reconnectToEc2();
+                    } catch (IOException e2) {
+                        LOGGER.log(Level.WARNING, "Failed to reconnect ec2", e2);
+                    }
+                }
+            } catch (AmazonClientException | IOException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
             }
         }
