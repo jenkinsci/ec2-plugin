@@ -89,13 +89,13 @@ public class AmazonEC2CloudTest {
     @Test
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
-        HtmlTextInput input = form.getInputByName("_.cloudName");
+        HtmlTextInput input = form.getInputByName("_.roleSessionName");
 
-        input.setText("test-cloud-2");
+        input.setText("updatedSessionName");
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
-        assertEquals("test-cloud-2", actual.getCloudName());
-        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
+        assertEquals("updatedSessionName", actual.getRoleSessionName());
+        r.assertEqualBeans(cloud, actual, "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
