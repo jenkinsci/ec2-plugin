@@ -117,12 +117,18 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-ec2</artifactId>
-            <version>1.12.406-374.v4cdf53953691</version>
+            <version>1.12.529-406.vdeff15e5817d</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-minimal</artifactId>
-            <version>1.12.406-374.v4cdf53953691</version>
+            <version>1.12.529-406.vdeff15e5817d</version>
+        </dependency>
+        <!-- Fixes upper bound deps issue with aws sdk plugins -->
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>jackson2-api</artifactId>
+            <version>2.15.2-350.v0c2f3f8fc595</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
