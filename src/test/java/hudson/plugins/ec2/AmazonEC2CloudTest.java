@@ -88,8 +88,8 @@ public class AmazonEC2CloudTest {
     @Test
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
-        // TODO: Changing cloud name causes 404. Create new name change test when https://issues.jenkins.io/browse/JENKINS-71737 has been resolved
         HtmlTextInput input = form.getInputByName("_.roleSessionName");
+
         input.setText("updatedSessionName");
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
