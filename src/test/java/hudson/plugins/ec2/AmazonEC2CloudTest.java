@@ -73,8 +73,8 @@ public class AmazonEC2CloudTest {
 
     @Test
     public void testConfigRoundtrip() throws Exception {
-        r.submit(getConfigForm());
-        r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "cloudName,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+        r.submit(getConfigForm(cloud));
+        r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
     @Test
@@ -87,14 +87,14 @@ public class AmazonEC2CloudTest {
 
     @Test
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
-        HtmlForm form = getConfigForm();
+        HtmlForm form = getConfigForm(cloud);
         HtmlTextInput input = form.getInputByName("_.roleSessionName");
 
         input.setText("updatedSessionName");
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         assertEquals("updatedSessionName", actual.getRoleSessionName());
-        r.assertEqualBeans(cloud, actual, "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
+        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
@@ -161,7 +161,7 @@ public class AmazonEC2CloudTest {
         assertThat(actual.resolvePrivateKey(), notNullValue());
     }
 
-    private HtmlForm getConfigForm() throws IOException, SAXException {
+    private HtmlForm getConfigForm(AmazonEC2Cloud cloud) throws IOException, SAXException {
         return r.createWebClient().goTo(cloud.getUrl() + "configure").getFormByName("config");
     }
 
