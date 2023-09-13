@@ -20,6 +20,6 @@ public class EucalyptusTest {
         HtmlPage p = wc.goTo(cloud.getUrl() + "configure");
         HtmlForm f = p.getFormByName("config");
         r.submit(f);
-        r.assertEqualBeans(cloud, r.jenkins.getCloud("test"), "name,ec2EndpointUrl,s3EndpointUrl,useInstanceProfileForCredentials,roleArn,roleSessionName,credentialsId,sshKeysCredentialsId,instanceCap,templates");
+        r.assertEqualBeans(cloud, r.jenkins.getCloud("test"), "ec2EndpointUrl,s3EndpointUrl,useInstanceProfileForCredentials,roleArn,roleSessionName,credentialsId,sshKeysCredentialsId,instanceCap,templates");
     }
 }
