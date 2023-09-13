@@ -104,7 +104,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>191.vcb_f183ce58b_9</version>
+            <version>218.v1b_e9466ec5da_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
