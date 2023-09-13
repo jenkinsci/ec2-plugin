@@ -2,7 +2,7 @@
 jenkins:
   clouds:
     - amazonEC2:
-        cloudName: "production"
+        name: "production"
         useInstanceProfileForCredentials: true
         sshKeysCredentialsId: "random credentials id"
         templates:
