@@ -45,7 +45,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
-import hudson.util.VersionNumber;
 import jenkins.model.Jenkins;
 
 import java.io.IOException;
@@ -89,13 +88,13 @@ public class AmazonEC2CloudTest {
     @Test
     public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
-        HtmlTextInput input = form.getInputByName("_.cloudName");
+        HtmlTextInput input = form.getInputByName("_.roleSessionName");
 
-        input.setText("test-cloud-2");
+        input.setText("updatedSessionName");
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
-        assertEquals("test-cloud-2", actual.getCloudName());
-        r.assertEqualBeans(cloud, actual, "region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn,roleSessionName");
+        assertEquals("updatedSessionName", actual.getRoleSessionName());
+        r.assertEqualBeans(cloud, actual, "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
@@ -163,7 +162,7 @@ public class AmazonEC2CloudTest {
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
-        return r.createWebClient().goTo("configureClouds").getFormByName("config");
+        return r.createWebClient().goTo(cloud.getUrl() + "configure").getFormByName("config");
     }
 
 }

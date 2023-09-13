@@ -37,7 +37,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("EC2CloudEmpty.yml")
     public void testEmptyConfig() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("");
+        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("empty");
         assertNotNull(ec2Cloud);
         assertEquals(0, ec2Cloud.getTemplates().size());
     }

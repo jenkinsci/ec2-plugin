@@ -53,13 +53,16 @@ import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import org.htmlunit.html.HtmlForm;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.ArgumentCaptor;
+import org.xml.sax.SAXException;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -107,7 +110,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
         // For already existing strategies, the default is this one
@@ -129,7 +132,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
         assertEquals(STRATEGY_TO_CHECK, received.getHostKeyVerificationStrategy());
@@ -158,7 +161,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
@@ -182,7 +185,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
@@ -199,7 +202,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         assertEquals(orig.getAdminPassword(), received.getAdminPassword());
         assertEquals(orig.amiType, received.amiType);
@@ -217,7 +220,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "amiType");
     }
@@ -422,7 +425,7 @@ public class SlaveTemplateTest {
         AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
-        r.submit(r.createWebClient().goTo("configureClouds").getFormByName("config"));
+        r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "type,amiType");
     }
@@ -528,4 +531,7 @@ public class SlaveTemplateTest {
         assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
+    private HtmlForm getConfigForm(AmazonEC2Cloud ac) throws IOException, SAXException {
+        return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
+    }
 }

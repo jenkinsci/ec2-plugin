@@ -17,7 +17,7 @@ public class EucalyptusTest {
         r.jenkins.clouds.add(cloud);
         r.jenkins.save();
         JenkinsRule.WebClient wc = r.createWebClient();
-        HtmlPage p = wc.goTo("configureClouds/");
+        HtmlPage p = wc.goTo(cloud.getUrl() + "configure");
         HtmlForm f = p.getFormByName("config");
         r.submit(f);
         r.assertEqualBeans(cloud, r.jenkins.getCloud("test"), "name,ec2EndpointUrl,s3EndpointUrl,useInstanceProfileForCredentials,roleArn,roleSessionName,credentialsId,sshKeysCredentialsId,instanceCap,templates");
