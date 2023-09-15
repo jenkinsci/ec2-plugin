@@ -74,7 +74,7 @@ public class AmazonEC2CloudTest {
     @Test
     public void testConfigRoundtrip() throws Exception {
         r.submit(getConfigForm());
-        r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "cloudName,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+        r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "name,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
     @Test
@@ -94,7 +94,7 @@ public class AmazonEC2CloudTest {
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         assertEquals("updatedSessionName", actual.getRoleSessionName());
-        r.assertEqualBeans(cloud, actual, "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
+        r.assertEqualBeans(cloud, actual, "name,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
