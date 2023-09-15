@@ -2,7 +2,7 @@
 jenkins:
   clouds:
     - amazonEC2:
-        cloudName: "development"
+        name: "development"
         useInstanceProfileForCredentials: true
         privateKey: "${PRIVATE_KEY}"
         templates:

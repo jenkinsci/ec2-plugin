@@ -353,7 +353,7 @@ def slaveTemplateUsEast1Parameters = [
 ]
 
 def AmazonEC2CloudParameters = [
-  cloudName:      'MyCompany',
+  name:      'MyCompany',
   credentialsId:  'jenkins-aws-key',
   instanceCapStr: '2',
   privateKey:     '''-----BEGIN RSA PRIVATE KEY-----
@@ -453,7 +453,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
 
 // https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html
 AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
-  AmazonEC2CloudParameters.cloudName,
+  AmazonEC2CloudParameters.name,
   AmazonEC2CloudParameters.useInstanceProfileForCredentials,
   AmazonEC2CloudParameters.credentialsId,
   AmazonEC2CloudParameters.region,
