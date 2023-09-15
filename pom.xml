@@ -79,6 +79,7 @@ THE SOFTWARE.
         <changelist>999999-SNAPSHOT</changelist>
         <jenkins.version>2.414</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
+        <hpi.compatibleSinceVersion>1626</hpi.compatibleSinceVersion>
     </properties>
 
     <dependencies>
