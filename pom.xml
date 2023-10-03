@@ -201,7 +201,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.19.0</version>
+            <version>1.19.1</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
