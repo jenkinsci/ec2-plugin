@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.73</version>
+        <version>4.74</version>
         <relativePath />
     </parent>
 
@@ -86,7 +86,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>com.hierynomus</groupId>
             <artifactId>smbj</artifactId>
-            <version>0.11.5</version>
+            <version>0.12.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.bouncycastle</groupId>
@@ -105,7 +105,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>191.vcb_f183ce58b_9</version>
+            <version>218.v1b_e9466ec5da_</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -129,7 +129,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>jackson2-api</artifactId>
-            <version>2.15.2-350.v0c2f3f8fc595</version>
+            <version>2.15.3-366.vfe8d1fa_f8c87</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -201,7 +201,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.19.0</version>
+            <version>1.19.1</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -226,7 +226,7 @@ THE SOFTWARE.
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.414.x</artifactId>
-                <version>2423.vce598171d115</version>
+                <version>2516.v113cb_3d00317</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
