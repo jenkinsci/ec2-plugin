@@ -129,7 +129,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>jackson2-api</artifactId>
-            <version>2.15.2-350.v0c2f3f8fc595</version>
+            <version>2.15.3-372.v309620682326</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
