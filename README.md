@@ -629,8 +629,16 @@ If you are using a Amazon Linux AMI and encounter exceptions like
 /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.201.b09-0.amzn2.x86\_64/jre/lib/currency.data
 (No such file or directory)*** or ***Remote call on EC2
 \[...\] failed*** then chances are that the Amazon Linux is doing some
-security upgrades in the background and causes the slave to be in an
+security upgrades in the background and causes the agent to be in an
 invalid state.
+
+Another symptom of the same problem if you run Docker on your agents can be
+either docker containers randomly exiting with ExitCode 137 or getting error
+messages with "EOF" part way through trying to pull or run images - this can occur
+if there is a security patch for Docker itself because applying this update stops
+Docker. These upgrades are asynchronous on Amazon Linux 2 (whereas on the older
+Amazon Linux the docs stated that the SSH service was not started until they complete)
+so your Jenkins job may have already started using Docker, causing this issue.
 
 From the
 [documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-linux-ami-basics.html#security-updates)
@@ -642,15 +650,22 @@ of the Amazon Linux it's stated:
 > default, Amazon Linux performs the security upgrades at launch for any
 > packages installed at that time
 
+You can check by looking for `repo_upgrade:` in "cloud-init" settings `/etc/cloud/cloud.cfg`.
+
 This issue can be solved in different ways:
 
-1.  Update your AMI and execute the security fixes =\> this will mean
-    however that the issue could eventually come back
-2.  Update your AMI and disable auto update of security fixes (see
-    amazon
-    [documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-linux-ami-basics.html#security-updates))
-3.  Force security upgrade through the "init-script" in the Cloud
-    configuration  
+1.  Rebuild your AMI so the latest security fixes are baked in =\> this will mean
+    however that the issue could eventually come back if further patches are published.
+2.  Update the Jenkins config for launching your AMI, so it disables automatic installation of security fixes
+    (see amazon [documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-linux-ami-basics.html#security-updates))
+    by adding the following in 'User Data' under 'Advanced' for the AMI in Jenkins Clouds config:
+        
+        #cloud-config
+        repo_upgrade: none
+
+3.  If you disable repo_upgrade per the previous point, you can optionally still ensure patches are
+    applied by adding your own yum command in the 'Init script' for the AMI in Jenkins Clouds config,
+    the advantage being that Jenkins will not start using the agent until this init script has finished
 
     ![](docs/images/init-scripts.png)
 
