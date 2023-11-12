@@ -30,7 +30,7 @@ THE SOFTWARE.
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.73</version>
+        <version>4.75</version>
         <relativePath />
     </parent>
 
@@ -77,7 +77,7 @@ THE SOFTWARE.
 
     <properties>
         <changelist>999999-SNAPSHOT</changelist>
-        <jenkins.version>2.414</jenkins.version>
+        <jenkins.version>2.414.1</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <hpi.compatibleSinceVersion>1626</hpi.compatibleSinceVersion>
     </properties>
@@ -86,7 +86,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>com.hierynomus</groupId>
             <artifactId>smbj</artifactId>
-            <version>0.11.5</version>
+            <version>0.12.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.bouncycastle</groupId>
@@ -105,7 +105,6 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>aws-credentials</artifactId>
-            <version>191.vcb_f183ce58b_9</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -118,18 +117,12 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-ec2</artifactId>
-            <version>1.12.529-406.vdeff15e5817d</version>
+            <version>1.12.586-413.v6a_6c3a_420126</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
             <artifactId>aws-java-sdk-minimal</artifactId>
-            <version>1.12.529-406.vdeff15e5817d</version>
-        </dependency>
-        <!-- Fixes upper bound deps issue with aws sdk plugins -->
-        <dependency>
-            <groupId>org.jenkins-ci.plugins</groupId>
-            <artifactId>jackson2-api</artifactId>
-            <version>2.15.2-350.v0c2f3f8fc595</version>
+            <version>1.12.586-413.v6a_6c3a_420126</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -191,29 +184,12 @@ THE SOFTWARE.
             <groupId>io.jenkins.configuration-as-code</groupId>
             <artifactId>test-harness</artifactId>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>joda-time</groupId>
-                    <artifactId>joda-time</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.19.0</version>
+            <version>1.19.1</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <!-- Use common-compress from core -->
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-compress</artifactId>
-                </exclusion>
-                <exclusion>
-                  <groupId>org.slf4j</groupId>
-                  <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.kohsuke</groupId>
@@ -226,7 +202,7 @@ THE SOFTWARE.
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.414.x</artifactId>
-                <version>2423.vce598171d115</version>
+                <version>2555.v3190a_8a_c60c6</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
