@@ -127,7 +127,7 @@ THE SOFTWARE.
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>node-iterator-api</artifactId>
-            <version>49.v58a_8b_35f8363</version>
+            <version>55.v3b_77d4032326</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
