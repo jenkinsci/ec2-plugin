@@ -131,9 +131,14 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
         if (slaveTemplate != null) {
             long numberOfCurrentInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfAgents(slaveTemplate);
-            if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances()) {
-                //Check if we're in an active time-range for keeping minimum number of instances
+            long numberOfCurrentSpareInstancesForTemplate = MinimumInstanceChecker.countCurrentNumberOfSpareAgents(slaveTemplate);
+            boolean atOrBelowMinInstances = numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances();
+            boolean atOrBelowMinSpareInstances = numberOfCurrentSpareInstancesForTemplate > 0 && numberOfCurrentSpareInstancesForTemplate <= slaveTemplate.getMinimumNumberOfSpareInstances();
+            if (atOrBelowMinInstances || atOrBelowMinSpareInstances) {
+                // Check if we're in an active time-range for keeping minimum number of instances
                 if (MinimumInstanceChecker.minimumInstancesActive(slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
+                    // Time range is active and we are at (or below) one of the "minimum number" settings, so return here
+                    // to avoid terminating any instances seeing as MinimumInstanceChecker will immediately re-provision
                     return 1;
                 }
             }
