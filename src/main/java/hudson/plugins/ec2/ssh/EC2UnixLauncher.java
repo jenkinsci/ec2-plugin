@@ -211,7 +211,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 if (exitStatus != 0) {
                     logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
                     sess.close();
-                    throw new IOException("Init script exited with an error");
+                    throw new IOException("Init script exited with an error: exit code=" + exitStatus);
                 }
 
                 logInfo(computer, listener, "Creating ~/.hudson-run-init");
