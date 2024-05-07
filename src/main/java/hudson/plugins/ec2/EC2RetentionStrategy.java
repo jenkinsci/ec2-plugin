@@ -68,6 +68,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     private transient ReentrantLock checkLock;
     private static final int STARTUP_TIME_DEFAULT_VALUE = 30;
 
+    private static final Integer CHECK_INTERVAL_MINUTES = Integer.getInteger("jenkins.ec2.checkIntervalMinutes", 1);
+
     @DataBoundConstructor
     public EC2RetentionStrategy(String idleTerminationMinutes) {
         readResolve();
@@ -99,7 +101,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     @Override
     public long check(EC2Computer c) {
         if (!checkLock.tryLock()) {
-            return 1;
+            return CHECK_INTERVAL_MINUTES;
         } else {
             try {
                 long currentTime = this.clock.millis();
@@ -109,7 +111,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
                     return intervalMins;
                 } else {
-                    return 1;
+                    return CHECK_INTERVAL_MINUTES;
                 }
             } finally {
                 checkLock.unlock();
@@ -122,7 +124,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         * If we've been told never to terminate, or node is null(deleted), no checks to perform
         */
         if (idleTerminationMinutes == 0 || computer.getNode() == null) {
-            return 1;
+            return CHECK_INTERVAL_MINUTES;
         }
 
         /*
@@ -134,7 +136,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             if (numberOfCurrentInstancesForTemplate > 0 && numberOfCurrentInstancesForTemplate <= slaveTemplate.getMinimumNumberOfInstances()) {
                 //Check if we're in an active time-range for keeping minimum number of instances
                 if (MinimumInstanceChecker.minimumInstancesActive(slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
-                    return 1;
+                    return CHECK_INTERVAL_MINUTES;
                 }
             }
         }
@@ -152,7 +154,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 // We'll just retry next time we test for idleness.
                 LOGGER.fine("Exception while checking host uptime for " + computer.getName()
                         + ", will retry next check. Exception: " + e);
-                return 1;
+                return CHECK_INTERVAL_MINUTES;
             }
 
             //Don't bother checking anything else if the instance is already in the desired state:
@@ -164,7 +166,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status" + state.toString());
                     computer.disconnect(null);
                 }
-                return 1;
+                return CHECK_INTERVAL_MINUTES;
             }
 
             //on rare occasions, AWS may return fault instance which shows running in AWS console but can not be connected.
@@ -177,7 +179,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
                     EC2AbstractSlave node = computer.getNode();
                     if (Objects.isNull(node)) {
-                        return 1;
+                        return CHECK_INTERVAL_MINUTES;
                     }
                     long launchTimeout = node.getLaunchTimeoutInMillis();
                     if (launchTimeout > 0 && uptime > launchTimeout) {
@@ -187,7 +189,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                                 " milliseconds (timeout: " + launchTimeout + " milliseconds), instance status: " + state.toString());
                         node.launchTimeout();
                     }
-                    return 1;
+                    return CHECK_INTERVAL_MINUTES;
                 } else {
                     LOGGER.log(Level.FINE, "Computer {0} offline but not connecting, will check if it should be terminated because of the idle time configured", computer.getInstanceId());
                 }
@@ -232,7 +234,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
             }
         }
-        return 1;
+        return CHECK_INTERVAL_MINUTES;
     }
 
     /*
