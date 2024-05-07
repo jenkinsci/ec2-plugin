@@ -232,10 +232,6 @@ THE SOFTWARE.
                     <compatibleSinceVersion>1.45</compatibleSinceVersion>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
 </project>
