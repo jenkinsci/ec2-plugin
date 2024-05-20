@@ -2,6 +2,7 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.InstanceType;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Executor;
 import hudson.model.Node;
 import hudson.model.Label;
@@ -30,7 +31,6 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.testcontainers.shaded.org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jvnet.hudson.test.LoggerRule;
 
-import javax.annotation.Nonnull;
 import java.security.Security;
 import java.time.Clock;
 import java.time.Duration;
@@ -141,10 +141,10 @@ public class EC2RetentionStrategyTest {
             }
         } : null;
         return new AccessControlledTask() {
-            @Nonnull
+            @NonNull
             public ACL getACL() {
                 return new ACL() {
-                    public boolean hasPermission(@Nonnull Authentication a, @Nonnull Permission permission) {
+                    public boolean hasPermission(@NonNull Authentication a, @NonNull Permission permission) {
                         return true;
                     }
                 };
