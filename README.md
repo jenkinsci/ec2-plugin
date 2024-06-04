@@ -258,7 +258,6 @@ your user is not called ***jenkins***):
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSubnets",
                 "iam:ListInstanceProfilesForRole",
-                "iam:PassRole",
                 "ec2:GetPasswordData"
             ],
             "Effect": "Allow",
@@ -269,10 +268,32 @@ your user is not called ***jenkins***):
 ```
 
 If you want to launch agents with an IAM Instance Profile, "iam:PassRole"
-permission is required.
+permission is required. In this case, it is recommended to constraint
+the statement to only the instance profiles you require, following
+[AWS best practices](https://aws.amazon.com/blogs/security/how-to-use-the-passrole-permission-with-iam-roles/).
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowPassRole",
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:iam::123456789012:role/YOUR_INSTANCE_PROFILE_NAME"
+            ]
+        }
+    ]
+}
+```
 
 If you want to launch Windows agents and use the generated Administrator
 password, the "ec2:GetPasswordData" permission is also required.
+
+
 
 # Configure plugin via Groovy script
 
