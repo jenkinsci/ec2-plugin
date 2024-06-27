@@ -41,6 +41,11 @@ public class WindowsData extends AMITypeData {
     }
 
     @Override
+    public boolean isWindowsSSH() {
+        return false;
+    }
+
+    @Override
     public boolean isWindows() {
         return true;
     }

@@ -1,20 +1,16 @@
 package hudson.plugins.ec2;
 
-import hudson.Extension;
-import hudson.model.Descriptor;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
 
-public class MacData extends AMITypeData {
-    private final String rootCommandPrefix;
-    private final String slaveCommandPrefix;
-    private final String slaveCommandSuffix;
-    private final String sshPort;
-    private final String bootDelay;
+public abstract class SSHData extends AMITypeData {
+    protected final String rootCommandPrefix;
+    protected final String slaveCommandPrefix;
+    protected final String slaveCommandSuffix;
+    protected final String sshPort;
+    protected final String bootDelay;
 
-    @DataBoundConstructor
-    public MacData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort, String bootDelay) {
+    protected SSHData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort, String bootDelay) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
         this.slaveCommandSuffix = slaveCommandSuffix;
@@ -25,7 +21,10 @@ public class MacData extends AMITypeData {
     }
 
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins j = Jenkins.getInstanceOrNull();
+        if (j != null) {
+            j.checkPermission(Jenkins.ADMINISTER);
+        }
         return this;
     }
 
@@ -46,19 +45,7 @@ public class MacData extends AMITypeData {
 
     @Override
     public boolean isMac() {
-        return true;
-    }
-
-    public String getBootDelay() {
-        return bootDelay;
-    }
-
-    @Extension
-    public static class DescriptorImpl extends Descriptor<AMITypeData> {
-        @Override
-        public String getDisplayName() {
-            return "mac";
-        }
+        return false;
     }
 
     public String getRootCommandPrefix() {
@@ -77,6 +64,10 @@ public class MacData extends AMITypeData {
         return sshPort == null || sshPort.isEmpty() ? "22" : sshPort;
     }
 
+    public String getBootDelay() {
+        return bootDelay;
+    }
+
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -85,6 +76,7 @@ public class MacData extends AMITypeData {
         result = prime * result + ((slaveCommandPrefix == null) ? 0 : slaveCommandPrefix.hashCode());
         result = prime * result + ((slaveCommandSuffix == null) ? 0 : slaveCommandSuffix.hashCode());
         result = prime * result + ((sshPort == null) ? 0 : sshPort.hashCode());
+        result = prime * result + ((bootDelay == null) ? 0 : bootDelay.hashCode());
         return result;
     }
 
@@ -96,7 +88,7 @@ public class MacData extends AMITypeData {
             return false;
         if (this.getClass() != obj.getClass())
             return false;
-        final MacData other = (MacData) obj;
+        final SSHData other = (SSHData) obj;
         if (StringUtils.isEmpty(rootCommandPrefix)) {
             if (!StringUtils.isEmpty(other.rootCommandPrefix))
                 return false;
@@ -116,6 +108,11 @@ public class MacData extends AMITypeData {
             if (!StringUtils.isEmpty(other.sshPort))
                 return false;
         } else if (!sshPort.equals(other.sshPort))
+            return false;
+        if (bootDelay == null) {
+            if (other.bootDelay != null)
+                return false;
+        } else if (!bootDelay.equals(other.bootDelay))
             return false;
         return true;
     }
