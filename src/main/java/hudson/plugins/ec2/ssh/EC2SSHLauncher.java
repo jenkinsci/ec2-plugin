@@ -64,9 +64,9 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     protected static final String AGENT_JAR = "remoting.jar";
 
     protected static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
-    protected static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
+    protected static final String BOOTSTRAP_AUTH_TRIES = "jenkins.ec2.bootstrapAuthTries";
     protected static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
-    protected static final String READINESS_TRIES= "jenkins.ec2.readinessTries";
+    protected static final String READINESS_TRIES = "jenkins.ec2.readinessTries";
 
     private static int bootstrapAuthSleepMs = 30000;
     private static int bootstrapAuthTries = 30;
@@ -74,7 +74,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     private static int readinessSleepMs = 1000;
     private static int readinessTries = 120;
 
-    static  {
+    static {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
         if (prop != null)
             bootstrapAuthSleepMs = Integer.parseInt(prop);
@@ -113,7 +113,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         return command;
     }
 
-    public abstract void instanceLaunchScript(EC2Computer computer, String javaPath, final Connection conn, PrintStream logger, TaskListener listener) throws IOException, AmazonClientException, InterruptedException;
+    protected abstract void runAmiTypeSpecificLaunchScript(EC2Computer computer, String javaPath, final Connection conn, PrintStream logger, TaskListener listener) throws IOException, AmazonClientException, InterruptedException;
 
 
     @Override
@@ -127,7 +127,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         EC2AbstractSlave node = computer.getNode();
         SlaveTemplate template = computer.getSlaveTemplate();
 
-        if(node == null) {
+        if (node == null) {
             throw new IllegalStateException();
         }
 
@@ -190,7 +190,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
             // TODO: parse the version number. maven-enforcer-plugin might help
             final String javaPath = node.javaPath;
-            instanceLaunchScript(computer, javaPath, conn, logger, listener);
+            runAmiTypeSpecificLaunchScript(computer, javaPath, conn, logger, listener);
             // Always copy so we get the most recent remoting.jar
             logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
             scp.put(Jenkins.get().getJnlpJars(AGENT_JAR).readFully(), AGENT_JAR, tmpDir);
@@ -213,32 +213,9 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     }
 
 
-    protected void checkIfConnectBySSHProcess(EC2Computer computer, TaskListener listener, SlaveTemplate template, EC2AbstractSlave node, String launchString, Connection conn, PrintStream logger) throws IOException, InterruptedException {
-        if (template.isConnectBySSHProcess()) {
-            File identityKeyFile = createIdentityKeyFile(computer);
-            String ec2HostAddress = getEC2HostAddress(computer, template);
-            File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);
-            String userKnownHostsFileFlag = "";
-            if (hostKeyFile != null) {
-                userKnownHostsFileFlag = String.format(" -o \"UserKnownHostsFile=%s\"", hostKeyFile.getAbsolutePath());
-            }
-
-            try {
-                // Obviously the controller must have an installed ssh client.
-                // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s", template.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), userKnownHostsFileFlag, getEC2HostKeyAlgorithmFlag(computer), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
-
-                logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
-                CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
-                commandLauncher.launch(computer, listener);
-            } finally {
-                if(!identityKeyFile.delete()) {
-                    LOGGER.log(Level.WARNING, "Failed to delete identity key file");
-                }
-                if(hostKeyFile != null && !hostKeyFile.delete()) {
-                    LOGGER.log(Level.WARNING, "Failed to delete host key file");
-                }
-            }
+    protected void checkIfConnectBySSHProcess(EC2Computer computer, TaskListener listener, SlaveTemplate slaveTemplate, EC2AbstractSlave node, String launchString, Connection conn, PrintStream logger) throws IOException, InterruptedException {
+        if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
+            configureConnectBySSHProcess(computer, listener, slaveTemplate, node, launchString);
         } else {
             logInfo(computer, listener, "Launching remoting agent (via Trilead SSH2 Connection): " + launchString);
             final Session sess = conn.openSession();
@@ -252,6 +229,29 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             });
         }
     }
+
+    protected void configureConnectBySSHProcess(EC2Computer computer, TaskListener listener, SlaveTemplate slaveTemplate, EC2AbstractSlave node, String launchString) throws IOException, InterruptedException {
+        File identityKeyFile = createIdentityKeyFile(computer);
+        String ec2HostAddress = getEC2HostAddress(computer, slaveTemplate);
+        File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);;
+        try {
+            // Obviously the controller must have an installed ssh client.
+            // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
+            String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, ec2HostAddress, node.getSshPort(), launchString);
+
+            logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
+            CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
+            commandLauncher.launch(computer, listener);
+        } finally {
+            if (!identityKeyFile.delete()) {
+                LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+            }
+            if (hostKeyFile != null && !hostKeyFile.delete()) {
+                LOGGER.log(Level.WARNING, "Failed to delete host key file");
+            }
+        }
+    }
+
 
     protected boolean runInitScript(EC2Computer computer, TaskListener listener, String initScript, Connection conn, PrintStream logger, SCPClient scp, String tmpDir) throws IOException, InterruptedException {
         if (initScript != null && initScript.trim().length() > 0
@@ -298,9 +298,9 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         return false;
     }
 
-    protected boolean executeRemote(EC2Computer computer, Connection conn, String checkCommand,  String command, PrintStream logger, TaskListener listener)
+    protected boolean executeRemote(EC2Computer computer, Connection conn, String checkCommand, String command, PrintStream logger, TaskListener listener)
             throws IOException, InterruptedException {
-        logInfo(computer, listener,"Verifying: " + checkCommand);
+        logInfo(computer, listener, "Verifying: " + checkCommand);
         if (conn.exec(checkCommand, logger) != 0) {
             logInfo(computer, listener, "Installing: " + command);
             if (conn.exec(command, logger) != 0) {
@@ -314,7 +314,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     protected File createIdentityKeyFile(EC2Computer computer) throws IOException {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
-        if (ec2PrivateKey != null){
+        if (ec2PrivateKey != null) {
             privateKey = ec2PrivateKey.getPrivateKey();
         }
 
@@ -343,7 +343,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
     protected File createHostKeyFile(EC2Computer computer, String ec2HostAddress, TaskListener listener) throws IOException {
         HostKey ec2HostKey = HostKeyHelper.getInstance().getHostKey(computer);
-        if (ec2HostKey == null){
+        if (ec2HostKey == null) {
             return null;
         }
         File tempFile = Files.createTempFile("ec2_", "_known_hosts").toFile();
@@ -374,18 +374,18 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
             KeyPair key = computer.getCloud().getKeyPair();
-            if (key == null){
+            if (key == null) {
                 logWarning(computer, listener, "Could not retrieve a valid key pair.");
                 return false;
             }
             logInfo(computer, listener,
-                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
+                    String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapConn = connectToSsh(computer, listener, template);
                     isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
-                } catch(IOException e) {
+                } catch (IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
                     bootstrapConn.close();
                 }
@@ -423,8 +423,8 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                 String host = getEC2HostAddress(computer, template);
 
                 if ((node instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
-                     // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
-                     // the instance id that it is starting. Continue to wait until the instanceId is set.
+                    // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
+                    // the instance id that it is starting. Continue to wait until the instanceId is set.
                     logInfo(computer, listener, "empty instanceId for Spot Slave.");
                     throw new IOException("goto sleep");
                 }
@@ -501,15 +501,17 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     protected static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
-        if(template.amiType.isWindowsSSH())
+        if (template.amiType.isWindowsSSH())
             return EC2HostAddressProvider.windows(instance, strategy);
+        else if (template.amiType.isMac())
+            return EC2HostAddressProvider.mac(instance, strategy);
         else
             return EC2HostAddressProvider.unix(instance, strategy);
     }
 
     protected static String getEC2HostKeyAlgorithmFlag(EC2Computer computer) throws IOException {
         HostKey ec2HostKey = HostKeyHelper.getInstance().getHostKey(computer);
-        if (ec2HostKey != null){
+        if (ec2HostKey != null) {
             return String.format(" -o \"HostKeyAlgorithms=%s\"", ec2HostKey.getAlgorithm());
         }
         return "";

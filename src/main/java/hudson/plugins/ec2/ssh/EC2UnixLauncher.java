@@ -40,7 +40,7 @@ import java.io.PrintStream;
 public class EC2UnixLauncher extends EC2SSHLauncher {
 
     @Override
-    public void instanceLaunchScript(EC2Computer computer, String javaPath, Connection conn, PrintStream logger, TaskListener listener) throws IOException, AmazonClientException, InterruptedException {
+    protected void runAmiTypeSpecificLaunchScript(EC2Computer computer, String javaPath, Connection conn, PrintStream logger, TaskListener listener) throws IOException, AmazonClientException, InterruptedException {
         executeRemote(computer, conn, javaPath + " -fullversion", "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk", logger, listener);
         executeRemote(computer, conn, "which scp", "sudo yum install -y openssh-clients", logger, listener);
     }

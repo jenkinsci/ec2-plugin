@@ -14,7 +14,7 @@ import java.io.PrintStream;
 public class EC2WindowsSSHLauncher extends EC2SSHLauncher {
 
     @Override
-    public void instanceLaunchScript(EC2Computer computer, String javaPath, Connection conn, PrintStream logger, TaskListener listener) throws IOException, AmazonClientException, InterruptedException {
+    protected void runAmiTypeSpecificLaunchScript(EC2Computer computer, String javaPath, Connection conn, PrintStream logger, TaskListener listener) throws IOException, AmazonClientException, InterruptedException {
         executeRemote(computer, conn, javaPath + " -fullversion", "choco install temurin17 -y;", logger, listener);
     }
 
