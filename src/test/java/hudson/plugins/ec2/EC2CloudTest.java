@@ -6,6 +6,7 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
 import jenkins.model.Jenkins;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.MockedStatic;
@@ -42,11 +43,16 @@ public class EC2CloudTest {
                 "abc", "us-east-1", null, "ghi",
                 "3", Collections.emptyList(), "roleArn", "roleSessionName");
         SlaveTemplate oldSlaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "OldSlaveDescription", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
+        SlaveTemplate secondSlaveTemplate = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "SecondSlaveDescription", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
         cloud.addTemplate(oldSlaveTemplate);
+        cloud.addTemplate(secondSlaveTemplate);
         SlaveTemplate newSlaveTemplate = new SlaveTemplate("ami-456", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "NewSlaveDescription", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
+        int index = cloud.getTemplates().indexOf(oldSlaveTemplate);
+
         cloud.updateTemplate(newSlaveTemplate, "OldSlaveDescription");
         assertNull(cloud.getTemplate("OldSlaveDescription"));
         assertNotNull(cloud.getTemplate("NewSlaveDescription"));
+        Assert.assertEquals(index, cloud.getTemplates().indexOf(newSlaveTemplate)); // assert order of templates is kept
     }
 
     @Test
