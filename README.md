@@ -483,6 +483,28 @@ jenkins.clouds.add(amazonEC2Cloud)
 jenkins.save()
 ```
 
+## Programmatically adding/updating CloudTemplates
+
+The plugin supports programmatic addition and update of `CloudTemplates` in an already existing `Cloud` - 
+both can be accomplished via the Jenkins script console [Jenkins script console](https://wiki.jenkins.io/display/JENKINS/Jenkins+Script+Console).
+
+Example:
+
+```java
+ // Assuming on the Jenkins instance, there exists an EC2Cloud with the name "AwsCloud"
+
+ AmazonEC2Cloud cloud = (AmazonEC2Cloud) Jenkins.get().clouds.stream().filter(cloud1 -> Objects.equals(cloud.getDisplayName(), "AwsCloud")).findFirst().get();
+ 
+ SlaveTemplate template = new SlaveTemplate(/*constructor*/); // View available constructors at https://github.com/jenkinsci/ec2-plugin/blob/master/src/main/java/hudson/plugins/ec2/SlaveTemplate.java
+ 
+ // Adding a template
+ cloud.addTemplate(template);
+    
+ SlaveTemplate template2 = new SlaveTemplate(/*constructor*/);
+ // Updating a template. Note the description of an existing SlaveTemplate needs to passed in order for there to be a successful update, otherwise an Exception is thrown
+ cloud.updateTemplate(template2, template.description);
+```
+
 # Security
 ## Securing the connection to Unix AMIs
 When you set up a template for a *Unix* instance (`Type AMI` field), you can select the strategy used to guarantee the
