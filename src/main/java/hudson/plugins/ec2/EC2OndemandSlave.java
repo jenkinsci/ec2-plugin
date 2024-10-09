@@ -7,12 +7,12 @@ import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.plugins.ec2.ssh.EC2MacLauncher;
+import hudson.plugins.ec2.ssh.EC2WindowsSSHLauncher;
 import hudson.slaves.NodeProperty;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -73,8 +73,8 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
     @DataBoundConstructor
     public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported)
             throws FormException, IOException {
-        super(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, (amiType.isWindows() ? new EC2WindowsLauncher() : (amiType.isMac() ? new EC2MacLauncher():
-                new EC2UnixLauncher())), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, metadataSupported);
+        super(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, (amiType.isWindows() ? new EC2WindowsLauncher() : (amiType.isMac() ? new EC2MacLauncher(): (amiType.isWindowsSSH() ? new EC2WindowsSSHLauncher() :
+                new EC2UnixLauncher()))), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, metadataSupported);
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
     }
