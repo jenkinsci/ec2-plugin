@@ -87,16 +87,7 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -223,6 +214,17 @@ public abstract class EC2Cloud extends Cloud {
                 String.format("A SlaveTemplate with description %s already exists", newTemplateDescription));
         List<SlaveTemplate> templatesHolder = new ArrayList<>(templates);
         templatesHolder.add(newTemplate);
+        templates = templatesHolder;
+    }
+
+    public void updateTemplate(SlaveTemplate newTemplate, String oldTemplateDescription) throws Exception{
+        Optional<? extends SlaveTemplate> optionalOldTemplate = templates.stream().filter(template ->
+                Objects.equals(template.description, oldTemplateDescription)).findFirst();
+        if (!optionalOldTemplate.isPresent())
+            throw new Exception(String.format("A SlaveTemplate with description %s does not exist", oldTemplateDescription));
+        int oldTemplateIndex = templates.indexOf(optionalOldTemplate.get());
+        List<SlaveTemplate> templatesHolder = new ArrayList<>(templates);
+        templatesHolder.set(oldTemplateIndex, newTemplate);
         templates = templatesHolder;
     }
 
