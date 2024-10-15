@@ -180,7 +180,7 @@ public class EC2PrivateKey {
     }
 
     public static KeyPair createKeyPair(AmazonEC2 ec2) {
-        return ec2.createKeyPair(new CreateKeyPairRequest("jaas-ec2-" +System.currentTimeMillis())).getKeyPair();
+        return ec2.createKeyPair(new CreateKeyPairRequest("jenkins-ec2-" +System.currentTimeMillis())).getKeyPair();
     }
 
     public String decryptWindowsPassword(String encodedPassword) throws AmazonClientException {

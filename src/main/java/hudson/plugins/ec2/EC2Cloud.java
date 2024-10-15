@@ -282,7 +282,6 @@ public abstract class EC2Cloud extends Cloud {
         templates = templatesHolder;
     }
 
-    //TODO: remove
     private void migratePrivateSshKeyToCredential(String privateKey) {
         // GET matching private key credential from Credential API if exists
         Optional<SSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
