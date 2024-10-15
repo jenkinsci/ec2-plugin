@@ -241,7 +241,7 @@ public abstract class EC2Cloud extends Cloud {
             keyPair = EC2PrivateKey.createKeyPair(ec2);
             sshPrivateKeySecret = Secret.fromString(keyPair.getKeyMaterial());
             PluginImpl.get().save();
-        } else if (sshPrivateKeySecret != null) {
+        } else {
             // should we check that the id's match?
             keyPair =  new EC2PrivateKey(sshPrivateKeySecret.getPlainText()).find(ec2);
         }
