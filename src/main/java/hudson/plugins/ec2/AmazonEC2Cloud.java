@@ -42,6 +42,7 @@ import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import javax.servlet.ServletException;
 
+import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.AncestorInPath;
@@ -74,8 +75,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
     private boolean noDelayProvisioning;
 
     @DataBoundConstructor
-    public AmazonEC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+    public AmazonEC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String region, String privateKey, Secret sshPrivateKeySecret, String sshKeysCredentialsId, String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshPrivateKeySecret, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
         this.region = region;
     }
 
@@ -230,7 +231,8 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String credentialsId,
                 @QueryParameter String sshKeysCredentialsId,
                 @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName)
+                @QueryParameter String roleSessionName,
+                @QueryParameter Secret sshPrivateKeySecret)
 
                 throws IOException, ServletException {
 
@@ -238,7 +240,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 region = DEFAULT_EC2_HOST;
             }
 
-            return super.doTestConnection(context, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
+            return super.doTestConnection(context, getEc2EndpointUrl(region), useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region, sshPrivateKeySecret);
         }
     }
 }

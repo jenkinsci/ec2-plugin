@@ -69,7 +69,7 @@ public class AmazonEC2CloudUnitTest {
 
     @Test
     public void testInstaceCap() throws Exception {
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",null,
                                                     null, "key", null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName");
         assertEquals(cloud.getInstanceCap(), Integer.MAX_VALUE);
@@ -77,7 +77,7 @@ public class AmazonEC2CloudUnitTest {
 
         final int cap = 3;
         final String capStr = String.valueOf(cap);
-        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
+        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",null,
                                     null, "key", capStr, Collections.emptyList(),
                                     "roleArn", "roleSessionName");
         assertEquals(cloud.getInstanceCap(), cap);
@@ -87,7 +87,7 @@ public class AmazonEC2CloudUnitTest {
     @Test
     public void testSpotInstanceCount() throws Exception {
         final int numberOfSpotInstanceRequests = 105;
-        AmazonEC2Cloud cloud = Mockito.spy(new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",
+        AmazonEC2Cloud cloud = Mockito.spy(new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null,
                                                     null, "key", null, Collections.emptyList(),
                                                     "roleArn", "roleSessionName"));
         Jenkins jenkinsMock = mock(Jenkins.class);

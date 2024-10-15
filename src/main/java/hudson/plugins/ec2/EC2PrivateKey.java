@@ -31,12 +31,16 @@ import java.util.Base64;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.KeyPairInfo;
 
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.DescribeKeyPairsRequest;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
 import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
 import javax.crypto.Cipher;
 import java.nio.charset.Charset;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -74,23 +78,11 @@ public class EC2PrivateKey {
      *    (password protected private keys are not yet supported)
      */
     public String getFingerprint() throws IOException {
-        String pemData = privateKey.getPlainText();
-        if (pemData == null || pemData.isEmpty()) {
-            throw new IOException("This private key cannot be empty");
-        }
-        try {
-            return PEMEncodable.decode(pemData).getPrivateKeyFingerprint();
-        } catch (UnrecoverableKeyException e) {
-            throw new IOException("This private key is password protected, which isn't supported yet");
-        }
+        return getFingerPrint(privateKey.getPlainText());
     }
 
     public String getPublicFingerprint() throws IOException {
-        try {
-            return PEMEncodable.decode(privateKey.getPlainText()).getPublicKeyFingerprint();
-        } catch (UnrecoverableKeyException e) {
-            throw new IOException("This private key is password protected, which isn't supported yet");
-        }
+        return getPublicFingerPrint(privateKey.getPlainText());
     }
 
     /**
@@ -106,22 +98,23 @@ public class EC2PrivateKey {
         return false;
     }
 
+
     /**
      * Finds the {@link KeyPairInfo} that corresponds to this key in EC2.
      */
-    public com.amazonaws.services.ec2.model.KeyPair find(AmazonEC2 ec2) throws IOException, AmazonClientException {
+    public KeyPair find(AmazonEC2 ec2) throws IOException, AmazonClientException {
         String fp = getFingerprint();
         String pfp = getPublicFingerprint();
         for (KeyPairInfo kp : ec2.describeKeyPairs().getKeyPairs()) {
             if (kp.getKeyFingerprint().equalsIgnoreCase(fp)) {
-                com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
+                KeyPair keyPair = new KeyPair();
                 keyPair.setKeyName(kp.getKeyName());
                 keyPair.setKeyFingerprint(fp);
                 keyPair.setKeyMaterial(Secret.toString(privateKey));
                 return keyPair;
             }
             if (kp.getKeyFingerprint().equalsIgnoreCase(pfp)) {
-                com.amazonaws.services.ec2.model.KeyPair keyPair = new com.amazonaws.services.ec2.model.KeyPair();
+                KeyPair keyPair = new KeyPair();
                 keyPair.setKeyName(kp.getKeyName());
                 keyPair.setKeyFingerprint(pfp);
                 keyPair.setKeyMaterial(Secret.toString(privateKey));
@@ -129,6 +122,65 @@ public class EC2PrivateKey {
             }
         }
         return null;
+    }
+
+    /**
+     * Given a keyPairId and a private key, returns a KeyPair if the matching key is found in ec2
+     *
+     * @param ec2
+     * @param keyPairId
+     * @param privateKey
+     * @return
+     * @throws IOException
+     */
+    public KeyPair find(AmazonEC2 ec2, String keyPairId, Secret privateKey) throws IOException {
+        String fingerPrint = getFingerPrint(privateKey.getPlainText());
+        String publicFingerPrint = getPublicFingerPrint(privateKey.getPlainText());
+        DescribeKeyPairsRequest request = new DescribeKeyPairsRequest();
+        request.setKeyPairIds(List.of(keyPairId));
+
+        for (KeyPairInfo kp : ec2.describeKeyPairs(request).getKeyPairs()) {
+            if (kp.getKeyFingerprint().equalsIgnoreCase(fingerPrint)) {
+                KeyPair keyPair = new KeyPair();
+                keyPair.setKeyName(kp.getKeyName());
+                keyPair.setKeyFingerprint(fingerPrint);
+                keyPair.setKeyMaterial(Secret.toString(privateKey));
+                return keyPair;
+            }
+            if (kp.getKeyFingerprint().equalsIgnoreCase(publicFingerPrint)) {
+                KeyPair keyPair = new KeyPair();
+                keyPair.setKeyName(kp.getKeyName());
+                keyPair.setKeyFingerprint(publicFingerPrint);
+                keyPair.setKeyMaterial(Secret.toString(privateKey));
+                return keyPair;
+            }
+        }
+
+        return null;
+    }
+
+    public String getFingerPrint(String key) throws IOException {
+        if (key == null || key.isEmpty()) {
+            throw new IOException("This private key cannot be empty");
+        }
+        try {
+            return PEMEncodable.decode(key).getPrivateKeyFingerprint();
+        } catch (UnrecoverableKeyException e) {
+            throw new IOException("This private key is password protected, which isn't supported yet");
+        }
+    }
+
+    public String getPublicFingerPrint(String key) throws IOException {
+        try {
+            return PEMEncodable.decode(key).getPublicKeyFingerprint();
+        } catch (UnrecoverableKeyException e) {
+            throw new IOException("This private key is password protected, which isn't supported yet");
+        }
+
+    }
+
+    public static KeyPair createKeyPair(AmazonEC2 ec2) {
+        return ec2.createKeyPair(new CreateKeyPairRequest("jaas-ec2-" +System.currentTimeMillis())).getKeyPair();
     }
 
     public String decryptWindowsPassword(String encodedPassword) throws AmazonClientException {
@@ -142,6 +194,7 @@ public class EC2PrivateKey {
             throw new AmazonClientException("Unable to decode password:\n" + e.toString());
         }
     }
+
 
     @Override
     public int hashCode() {

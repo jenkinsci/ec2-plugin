@@ -28,7 +28,19 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -70,11 +82,6 @@ import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.AncestorInPath;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import javax.servlet.ServletException;
@@ -108,6 +115,12 @@ import java.util.logging.SimpleFormatter;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
+import org.kohsuke.stapler.AncestorInPath;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
 
@@ -149,6 +162,10 @@ public abstract class EC2Cloud extends Cloud {
      */
     @CheckForNull
     private String credentialsId;
+
+    // if no user defined credential is supplied we will generate a key to use
+    private Secret sshPrivateKeySecret;
+
     @CheckForNull
     @Deprecated
     private transient String accessId;
@@ -172,7 +189,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private transient volatile AmazonEC2 connection;
 
-    protected EC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId,
+    protected EC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String sshPrivateKey, Secret sshPrivateKeySecret, String sshKeysCredentialsId,
                        String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(name);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
@@ -180,6 +197,12 @@ public abstract class EC2Cloud extends Cloud {
         this.roleSessionName = roleSessionName;
         this.credentialsId = Util.fixEmpty(credentialsId);
         this.sshKeysCredentialsId = Util.fixEmpty(sshKeysCredentialsId);
+
+        if (sshPrivateKey == null) {
+            this.sshPrivateKeySecret = null;
+        } else {
+            this.sshPrivateKeySecret = Secret.fromString(sshPrivateKey);
+        }
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -199,16 +222,41 @@ public abstract class EC2Cloud extends Cloud {
     @Deprecated
     protected EC2Cloud(String id, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey,
             String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        this(id, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
+        this(id, useInstanceProfileForCredentials, credentialsId, privateKey,null, null, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
     @CheckForNull
-    public EC2PrivateKey resolvePrivateKey(){
+    public KeyPair resolveKeyPair(AmazonEC2 ec2) throws IOException {
+        KeyPair keyPair = null;
+
+        if (sshKeysCredentialsId != null) {
+            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
+            if (privateKeyCredential != null) {
+                EC2PrivateKey ec2PrivateKey = new  EC2PrivateKey(privateKeyCredential.getPrivateKey());
+                keyPair = ec2PrivateKey.find(ec2);
+            }
+        } else if (sshPrivateKeySecret == null)  {
+            // we don't have an existing Secret we can use, so create a new key pair and persist
+            // the private key as a Secret
+            keyPair = EC2PrivateKey.createKeyPair(ec2);
+            sshPrivateKeySecret = Secret.fromString(keyPair.getKeyMaterial());
+            PluginImpl.get().save();
+        } else if (sshPrivateKeySecret != null) {
+            // should we check that the id's match?
+            keyPair =  new EC2PrivateKey(sshPrivateKeySecret.getPlainText()).find(ec2);
+        }
+        return keyPair;
+    }
+
+    @CheckForNull
+    public EC2PrivateKey resolvePrivateKey() throws IOException {
         if (sshKeysCredentialsId != null) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
+        } else if (sshPrivateKeySecret != null ) {
+            return new EC2PrivateKey(sshPrivateKeySecret.getPlainText());
         }
         return null;
     }
@@ -217,6 +265,14 @@ public abstract class EC2Cloud extends Cloud {
 
     public abstract URL getS3EndpointUrl() throws IOException;
 
+    @DataBoundSetter
+    public void setSshPrivateKeySecret(Secret sshPrivateKeySecret) {
+        this.sshPrivateKeySecret = sshPrivateKeySecret;
+    }
+
+    public Secret getSshPrivateKeySecret() {
+        return this.sshPrivateKeySecret;
+    };
     public void addTemplate(SlaveTemplate newTemplate) throws Exception {
         String newTemplateDescription = newTemplate.description;
         if (getTemplate(newTemplateDescription) != null) throw new Exception(
@@ -226,6 +282,7 @@ public abstract class EC2Cloud extends Cloud {
         templates = templatesHolder;
     }
 
+    //TODO: remove
     private void migratePrivateSshKeyToCredential(String privateKey) {
         // GET matching private key credential from Credential API if exists
         Optional<SSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
@@ -419,10 +476,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
         if (usableKeyPair == null) {
-            EC2PrivateKey ec2PrivateKey = this.resolvePrivateKey();
-            if (ec2PrivateKey != null) {
-                usableKeyPair = ec2PrivateKey.find(connect());
-            }
+            this.usableKeyPair = resolveKeyPair(connect());
         }
         return usableKeyPair;
     }
@@ -1180,23 +1234,25 @@ public abstract class EC2Cloud extends Cloud {
          * @throws ServletException
          */
         @POST
-        protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
+        protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region, Secret sshPrivateKeySecret)
                 throws IOException, ServletException {
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 return FormValidation.ok();
             }
             try {
-                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
-                String privateKey = "";
-                if (sshCredential != null) {
-                    privateKey = sshCredential.getPrivateKey();
-                } else {
-                    return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
-                }
 
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
+
+                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
+                String privateKey = "";
+                if (sshCredential != null) {
+                    privateKey = sshCredential.getPrivateKey();
+                } else if (sshPrivateKeySecret != null && !sshPrivateKeySecret.getPlainText().isEmpty())  {
+                    // we have an auto-generated secret
+                    privateKey = sshPrivateKeySecret.getPlainText();
+                }
 
                 if (privateKey.trim().length() > 0) {
                     // check if this key exists

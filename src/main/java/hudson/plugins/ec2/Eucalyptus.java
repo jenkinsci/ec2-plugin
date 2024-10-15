@@ -33,6 +33,7 @@ import java.util.List;
 
 import javax.servlet.ServletException;
 
+import hudson.util.Secret;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
@@ -48,8 +49,8 @@ public class Eucalyptus extends EC2Cloud {
     private final URL s3endpoint;
 
     @DataBoundConstructor
-    public Eucalyptus(String name, URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+    public Eucalyptus(String name, URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, Secret sshPrivateKeySecret, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName) {
+        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshPrivateKeySecret, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
         this.ec2endpoint = ec2EndpointUrl;
         this.s3endpoint = s3EndpointUrl;
     }
@@ -57,13 +58,12 @@ public class Eucalyptus extends EC2Cloud {
     @Deprecated
     public Eucalyptus(URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
             throws IOException {
-        this("eucalyptus", ec2EndpointUrl, s3EndpointUrl, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        this("eucalyptus", ec2EndpointUrl, s3EndpointUrl, useInstanceProfileForCredentials, credentialsId, privateKey, null, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
     @Deprecated
-    public Eucalyptus(URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)
-            throws IOException {
-        this("eucalyptus", ec2EndpointUrl, s3EndpointUrl, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
+    public Eucalyptus(URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName)            throws IOException {
+        this("eucalyptus", ec2EndpointUrl, s3EndpointUrl, useInstanceProfileForCredentials, credentialsId, privateKey, null,null, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
     @Override
@@ -85,9 +85,9 @@ public class Eucalyptus extends EC2Cloud {
 
         @Override
         @RequirePOST
-        public FormValidation doTestConnection(@AncestorInPath ItemGroup context, @QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
+        public FormValidation doTestConnection(@AncestorInPath ItemGroup context, @QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region, @QueryParameter Secret sshPrivateKeySecret)
                 throws IOException, ServletException {
-            return super.doTestConnection(context, ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
+            return super.doTestConnection(context, ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region, sshPrivateKeySecret);
         }
     }
 }

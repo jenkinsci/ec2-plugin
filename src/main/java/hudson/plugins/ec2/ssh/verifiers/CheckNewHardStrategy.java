@@ -65,7 +65,7 @@ public class CheckNewHardStrategy extends SshHostKeyVerificationStrategy {
                     // Keep trying for at least 2 minutes
                     stop = computer.getUptime() > TimeUnit.SECONDS.toMillis(120);
                 } catch (Exception ignored) {
-
+                    stop = true;
                 }
                 if (stop) {
                     computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed())); // avoid next try

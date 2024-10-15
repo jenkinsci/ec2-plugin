@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import hudson.util.Secret;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlPage;
 import java.net.URL;
@@ -13,7 +14,7 @@ public class EucalyptusTest {
 
     @Test
     public void configRoundTrip() throws Exception {
-        Eucalyptus cloud = new Eucalyptus("test", new URL("https://ec2"), new URL("https://s3"), false, null, "test", null, "0", null, null, null);
+        Eucalyptus cloud = new Eucalyptus("test", new URL("https://ec2"), new URL("https://s3"), false, null, "test", null,null, "0", null, null, null);
         r.jenkins.clouds.add(cloud);
         r.jenkins.save();
         JenkinsRule.WebClient wc = r.createWebClient();
