@@ -161,8 +161,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
-                KeyPair key = computer.getCloud().getKeyPair();
-                if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+                KeyPair keyPair = node.getInstanceSshKeyPair();
+
+                if (keyPair == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }

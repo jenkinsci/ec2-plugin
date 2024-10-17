@@ -1011,13 +1011,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
         KeyPair keyPair = getKeyPair(ec2);
-        if (keyPair == null) {
-            logProvisionInfo("Could not retrieve a valid key pair.");
-            return null;
+        if (keyPair != null) {
+            riRequest.setKeyName(keyPair.getKeyName());
+            diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+        } else {
+            logProvisionInfo("Static ssh key was not configured, keys will be manage dynamically");
         }
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
-        riRequest.setKeyName(keyPair.getKeyName());
-        diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
+
 
         if (StringUtils.isNotBlank(getZone())) {
             Placement placement = new Placement(getZone());
@@ -1460,7 +1461,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String userDataString = Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8));
 
             launchSpecification.setUserData(userDataString);
-            launchSpecification.setKeyName(keyPair.getKeyName());
+            if (keyPair != null) {
+                // there is a global/static ssh keypair configured, so use that
+                launchSpecification.setKeyName(keyPair.getKeyName());
+            }
             launchSpecification.setInstanceType(type.toString());
 
             net.setAssociatePublicIpAddress(getAssociatePublicIp());
@@ -1644,19 +1648,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Get a KeyPair from the configured information for the agent template
+     *
+     * returns null if no global private key has been configured
      */
     @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
         EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
 
-        if (ec2PrivateKey == null) {
-            throw new AmazonClientException("No keypair credential found. Please configure a credential in the Jenkins configuration.");
+        if (ec2PrivateKey != null) {
+            // there is a static ssh key configured, make sure it is valid
+            KeyPair keyPair = ec2PrivateKey.find(ec2);
+            if (keyPair == null) {
+                throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+            }
+            return keyPair;
         }
-        KeyPair keyPair = ec2PrivateKey.find(ec2);
-        if (keyPair == null) {
-            throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
-        }
-        return keyPair;
+        return null;
     }
 
     /**

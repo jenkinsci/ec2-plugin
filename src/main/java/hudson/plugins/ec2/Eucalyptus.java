@@ -50,7 +50,7 @@ public class Eucalyptus extends EC2Cloud {
 
     @DataBoundConstructor
     public Eucalyptus(String name, URL ec2EndpointUrl, URL s3EndpointUrl, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, Secret sshPrivateKeySecret, String sshKeysCredentialsId, String instanceCapStr, List<SlaveTemplate> templates, String roleArn, String roleSessionName) {
-        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshPrivateKeySecret, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
+        super(name, useInstanceProfileForCredentials, credentialsId, privateKey, sshKeysCredentialsId, instanceCapStr, templates, roleArn, roleSessionName);
         this.ec2endpoint = ec2EndpointUrl;
         this.s3endpoint = s3EndpointUrl;
     }
@@ -85,9 +85,9 @@ public class Eucalyptus extends EC2Cloud {
 
         @Override
         @RequirePOST
-        public FormValidation doTestConnection(@AncestorInPath ItemGroup context, @QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region, @QueryParameter Secret sshPrivateKeySecret)
+        public FormValidation doTestConnection(@AncestorInPath ItemGroup context, @QueryParameter URL ec2endpoint, @QueryParameter boolean useInstanceProfileForCredentials, @QueryParameter String credentialsId, @QueryParameter String sshKeysCredentialsId, @QueryParameter String roleArn, @QueryParameter String roleSessionName, @QueryParameter String region)
                 throws IOException, ServletException {
-            return super.doTestConnection(context, ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region, sshPrivateKeySecret);
+            return super.doTestConnection(context, ec2endpoint, useInstanceProfileForCredentials, credentialsId, sshKeysCredentialsId, roleArn, roleSessionName, region);
         }
     }
 }

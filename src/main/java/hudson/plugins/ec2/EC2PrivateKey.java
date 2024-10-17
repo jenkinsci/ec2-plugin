@@ -57,7 +57,7 @@ public class EC2PrivateKey {
 
     private final Secret privateKey;
 
-    EC2PrivateKey(String privateKey) {
+    public EC2PrivateKey(String privateKey) {
         this.privateKey = Secret.fromString(privateKey.trim());
     }
 
@@ -177,10 +177,6 @@ public class EC2PrivateKey {
             throw new IOException("This private key is password protected, which isn't supported yet");
         }
 
-    }
-
-    public static KeyPair createKeyPair(AmazonEC2 ec2) {
-        return ec2.createKeyPair(new CreateKeyPairRequest("jenkins-ec2-" +System.currentTimeMillis())).getKeyPair();
     }
 
     public String decryptWindowsPassword(String encodedPassword) throws AmazonClientException {

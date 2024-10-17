@@ -32,7 +32,7 @@ public class CloudHelperTest {
     @Before
     public void init() throws Exception {
         cloud = new AmazonEC2Cloud("us-east-1", true,
-                "abc", "us-east-1", null, null, "ghi",
+                "abc", "us-east-1", null, "ghi",
                 "3", Collections.emptyList(), "roleArn", "roleSessionName");
     }
 

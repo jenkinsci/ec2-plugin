@@ -23,6 +23,25 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.services.ec2.AmazonEC2;
+
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
+import com.amazonaws.services.ec2.model.DeleteTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.ImportKeyPairRequest;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.StopInstancesRequest;
+import com.amazonaws.services.ec2.model.Tag;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -35,6 +54,7 @@ import hudson.slaves.NodeProperty;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
+import hudson.util.Secret;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,28 +66,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.DeleteTagsRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.StopInstancesRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import org.kohsuke.stapler.verb.POST;
 
 /**
@@ -111,6 +115,8 @@ public abstract class EC2AbstractSlave extends Slave {
     public int maxTotalUses;
     public final Tenancy tenancy;
     private String instanceType;
+
+    private KeyPair instanceSshKeyPair;
 
     private Boolean metadataSupported;
     private Boolean metadataEndpointEnabled;
@@ -254,6 +260,24 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         return o;
+    }
+
+    public KeyPair getInstanceSshKeyPair() throws IOException {
+        KeyPair keyPair = getCloud().resolveKeyPair();
+        if (keyPair != null) {
+            return keyPair;
+        } else {
+            //this cloud is not using a static key
+            if (this.instanceSshKeyPair == null) {
+                //create a keypair
+                this.instanceSshKeyPair = getCloud().connect().createKeyPair(new CreateKeyPairRequest("jenkins-ec2-" + getInstanceId())).getKeyPair();
+                //import this keypair into the instance
+                ImportKeyPairRequest iKpr = new ImportKeyPairRequest().withKeyName(this.instanceSshKeyPair.getKeyName());
+                getCloud().connect().importKeyPair(iKpr);
+                this.save();
+            }
+            return this.instanceSshKeyPair;
+        }
     }
 
     public EC2Cloud getCloud() {
@@ -492,8 +516,13 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.fine("Sending terminate request for " + getInstanceId());
             ec2.terminateInstances(request);
             LOGGER.info("EC2 instance terminate request sent for " + getInstanceId());
+            if (getCloud().resolveKeyPair() == null) {
+                //this instance is ysing dynamic ssh keys, so clean up
+                LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPair().getKeyPairId());
+                ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyPairId(this.getInstanceSshKeyPair().getKeyPairId()));
+            }
             return true;
-        } catch (AmazonClientException e) {
+        } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
             return false;
         }

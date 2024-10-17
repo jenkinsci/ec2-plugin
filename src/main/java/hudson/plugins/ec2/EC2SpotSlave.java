@@ -7,18 +7,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.SpotInstanceState;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.SpotInstanceState;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 import hudson.Extension;
 import hudson.model.Computer;
@@ -98,6 +99,11 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                     try {
                                         ec2.terminateInstances(request);
                                         LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
+                                        if (getCloud().resolveKeyPair() == null) {
+                                            //this instance is ysing dynamic ssh keys, so clean up
+                                            LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPair().getKeyPairId());
+                                            ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyPairId(this.getInstanceSshKeyPair().getKeyPairId()));
+                                        }
                                     } catch (AmazonClientException e) {
                                         // Spot request is no longer valid
                                         LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);

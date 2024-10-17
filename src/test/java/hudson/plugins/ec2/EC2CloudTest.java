@@ -30,7 +30,7 @@ public class EC2CloudTest {
     @Test
     public void testSlaveTemplateAddition() throws Exception {
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true,
-                "abc", "us-east-1", null,null, "ghi",
+                "abc", "us-east-1",null, "ghi",
                 "3", Collections.emptyList(), "roleArn", "roleSessionName");
         SlaveTemplate orig = new SlaveTemplate("ami-123", EC2AbstractSlave.TEST_ZONE, null, "default", "foo", InstanceType.M1Large, false, "ttt", Node.Mode.NORMAL, "description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
         cloud.addTemplate(orig);
@@ -41,7 +41,7 @@ public class EC2CloudTest {
     public void testReattachOrphanStoppedNodes() throws Exception {
         /* Mocked items */
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true,
-                "abc", "us-east-1", null, null, "ghi",
+                "abc", "us-east-1", null, "ghi",
                 "3", Collections.emptyList(), "roleArn", "roleSessionName");
         EC2Cloud spyCloud = Mockito.spy(cloud);
         AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);

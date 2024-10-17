@@ -105,6 +105,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                                 TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
                                 ec2.terminateInstances(request);
                                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
+                                if (getCloud().resolveKeyPair() == null) {
+                                    //this instance is ysing dynamic ssh keys, so clean up
+                                    LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPair().getKeyPairId());
+                                    ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyPairId(this.getInstanceSshKeyPair().getKeyPairId()));
+                                }
                             }
                             Jenkins.get().removeNode(this);
                             LOGGER.info("Removed EC2 instance from jenkins controller: " + getInstanceId());

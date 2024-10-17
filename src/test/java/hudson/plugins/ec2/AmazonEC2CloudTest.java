@@ -67,7 +67,7 @@ public class AmazonEC2CloudTest {
 
     @Before
     public void setUp() throws Exception {
-        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, null, "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
+        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
     }
 

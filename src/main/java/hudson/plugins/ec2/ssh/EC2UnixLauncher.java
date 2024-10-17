@@ -23,6 +23,8 @@
  */
 package hudson.plugins.ec2.ssh;
 
+import com.amazonaws.services.ec2.model.ImportKeyPairRequest;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.FilePath;
 import hudson.Util;
 import hudson.ProxyConfiguration;
@@ -50,6 +52,7 @@ import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
 import org.apache.commons.io.IOUtils;
@@ -175,8 +178,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
-                KeyPair key = computer.getCloud().getKeyPair();
-                if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+                KeyPair keyPair = node.getInstanceSshKeyPair();
+
+                if (keyPair == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
@@ -364,38 +368,46 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
+    private boolean bootstrap(@NonNull EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
             InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
+            //TODO: mikec this will need to be adapted
             logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
-            if (key == null){
-                logWarning(computer, listener, "Could not retrieve a valid key pair.");
-                return false;
-            }
-            logInfo(computer, listener,
-                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
-            while (tries-- > 0) {
-                logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
-                try {
-                    bootstrapConn = connectToSsh(computer, listener, template);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
-                } catch(IOException e) {
-                    logException(computer, listener, "Exception trying to authenticate", e);
-                    bootstrapConn.close();
+            EC2AbstractSlave node = computer.getNode();
+            if (node != null) {
+                KeyPair keyPair = node.getInstanceSshKeyPair();
+                if (keyPair == null) {
+                    logWarning(computer, listener, "Could not retrieve a valid key pair.");
+                    return false;
                 }
-                if (isAuthenticated) {
-                    break;
+
+                logInfo(computer, listener,
+                        String.format("Using private key %s (SHA-1 fingerprint %s)", keyPair.getKeyName(), keyPair.getKeyFingerprint()));
+                while (tries-- > 0) {
+                    logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
+                    try {
+                        bootstrapConn = connectToSsh(computer, listener, template);
+                        isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.getKeyMaterial().toCharArray(), "");
+                    } catch (IOException e) {
+                        logException(computer, listener, "Exception trying to authenticate", e);
+                        bootstrapConn.close();
+                    }
+                    if (isAuthenticated) {
+                        break;
+                    }
+                    logWarning(computer, listener, "Authentication failed. Trying again...");
+                    Thread.sleep(bootstrapAuthSleepMs);
                 }
-                logWarning(computer, listener, "Authentication failed. Trying again...");
-                Thread.sleep(bootstrapAuthSleepMs);
-            }
-            if (!isAuthenticated) {
-                logWarning(computer, listener, "Authentication failed");
+                if (!isAuthenticated) {
+                    logWarning(computer, listener, "Authentication failed");
+                    return false;
+                }
+            } else {
+                logWarning(computer, listener, "node was null, unable to bootstrap!");
                 return false;
             }
         } finally {

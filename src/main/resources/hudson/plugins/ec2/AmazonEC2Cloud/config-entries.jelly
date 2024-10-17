@@ -53,11 +53,5 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:invisibleEntry>
-    <f:secretTextarea field="sshPrivateKeySecret"></f:secretTextarea>
-    <f:entry field="sshKeyPairId">
-      <f:textbox />
-    </f:entry>
-  </f:invisibleEntry>
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName,sshPrivateKeySecret,sshKeyPairId" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />
 </j:jelly>

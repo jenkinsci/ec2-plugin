@@ -525,7 +525,7 @@ public class EC2RetentionStrategyTest {
           "-Xmx1g", false, "subnet 456", null, null, 2, 0, "10", null, true, true, false, "", false, "", false, false,
           true, ConnectionStrategy.PRIVATE_IP, 0, Collections.emptyList());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, null,"ghi", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null,"ghi", "3",
           Collections
             .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
@@ -597,7 +597,7 @@ public class EC2RetentionStrategyTest {
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",null,null, "ghi", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1",null, "ghi", "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
@@ -680,7 +680,7 @@ public class EC2RetentionStrategyTest {
         //Set fixed clock to be able to test properly
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null,null, "ghi", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
@@ -728,7 +728,7 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock = Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, null, "ghi", "3",
+        AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3",
             Collections
                 .singletonList(template), "roleArn", "roleSessionName");
         r.jenkins.clouds.add(cloud);
