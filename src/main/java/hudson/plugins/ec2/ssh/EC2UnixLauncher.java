@@ -326,7 +326,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if (node != null) {
                 Secret sshPrivatekey = node.getInstanceSshPrivateKey();
                 if (sshPrivatekey != null) {
-                    LOGGER.log(Level.INFO, () -> "using dynamic ssh key -> " + computer.getNode().getInstanceSshPrivateKey().getPlainText());
+                    LOGGER.log(Level.FINE, () -> "using dynamic ssh key -> " + computer.getNode().getInstanceSshKeyPairName());
                     privateKey = sshPrivatekey.getPlainText();
                 } else {
                     throw new IOException("unable to determine private ssh key!!");
