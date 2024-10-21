@@ -25,6 +25,8 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
@@ -40,6 +42,7 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceMetadataEndpointState;
 import com.amazonaws.services.ec2.model.InstanceMetadataOptionsRequest;
 import com.amazonaws.services.ec2.model.InstanceNetworkInterfaceSpecification;
+import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.KeyPair;
@@ -60,6 +63,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
@@ -70,6 +74,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.ibm.icu.impl.locale.KeyTypeData.ValueType.any;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -367,6 +372,7 @@ public class SlaveTemplateTest {
         KeyPair mockedKeyPair = new KeyPair();
         mockedKeyPair.setKeyName("some-key-name");
         when(mockedPrivateKey.find(mockedEC2)).thenReturn(mockedKeyPair);
+        when(mockedEC2.createKeyPair(Mockito.isA(CreateKeyPairRequest.class))).thenReturn(new CreateKeyPairResult().withKeyPair(mockedKeyPair));
         when(mockedCloud.connect()).thenReturn(mockedEC2);
         when(mockedCloud.resolvePrivateKey()).thenReturn(mockedPrivateKey);
 
