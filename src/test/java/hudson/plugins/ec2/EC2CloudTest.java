@@ -57,7 +57,7 @@ public class EC2CloudTest {
         try (MockedStatic<Jenkins> mocked = Mockito.mockStatic(Jenkins.class)) {
         mocked.when(Jenkins::getInstanceOrNull).thenReturn(mockJenkins);
         EC2AbstractSlave[] orphanNodes = {mockOrphanNode};
-        Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(eq(listOfMockedInstances));
+        Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(eq(InstanceInfo.fromInstances(listOfMockedInstances)));
         List<Node> listOfJenkinsNodes = new ArrayList<>();
 
         Mockito.doAnswer(new Answer<Void>() {

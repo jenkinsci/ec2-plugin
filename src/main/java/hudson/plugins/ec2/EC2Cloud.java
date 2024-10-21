@@ -873,7 +873,7 @@ public abstract class EC2Cloud extends Cloud {
         while (orphansOrStopped.size() > requestedNum) {
             orphansOrStopped.remove(0);
         }
-        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(orphansOrStopped), template);
+        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(InstanceInfo.fromInstances(orphansOrStopped)), template);
         if (orphansOrStopped.size() > 0) {
             LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
         }
@@ -1210,12 +1210,10 @@ public abstract class EC2Cloud extends Cloud {
         @POST
         protected FormValidation doTestConnection(@AncestorInPath ItemGroup context, URL ec2endpoint, boolean useInstanceProfileForCredentials, String credentialsId, String sshKeysCredentialsId, String roleArn, String roleSessionName, String region)
                 throws IOException, ServletException {
-            System.out.println("A");
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 return FormValidation.ok();
             }
             try {
-                System.out.println("B");
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();

@@ -30,6 +30,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
@@ -931,8 +932,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
         final Image image = getImage();
         if (this.spotConfig != null) {
-            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
+            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
                 return provisionSpot(image, number, provisionOptions);
+            }
             return Collections.emptyList();
         }
         return provisionOndemand(image, number, provisionOptions);
@@ -1164,12 +1166,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
         if (orphansOrStopped.size() == number) {
-            return toSlaves(orphansOrStopped);
+            return toSlaves(InstanceInfo.fromInstances(orphansOrStopped));
         }
 
         riRequest.setMaxCount(number - orphansOrStopped.size());
 
-        List<Instance> newInstances;
+        List<InstanceInfo> newInstances;
         if (spotWithoutBidPrice) {
             InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
             if (getSpotBlockReservationDuration() != 0) {
@@ -1179,18 +1181,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
 
             try {
-                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+                newInstances = createNewInstances(ec2, riRequest);
             } catch (AmazonEC2Exception e) {
                 if (fallbackSpotToOndemand && e.getErrorCode().equals("InsufficientInstanceCapacity")) {
                     logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
                     riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
-                    newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+                    newInstances = createNewInstances(ec2, riRequest);
                 } else {
                     throw e;
                 }
             }
         } else {
-            newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            newInstances = createNewInstances(ec2, riRequest);
         }
         // Have to create a new instance
 
@@ -1198,9 +1200,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logProvisionInfo("No new instances were created");
         }
 
-        newInstances.addAll(orphansOrStopped);
+        newInstances.addAll(InstanceInfo.fromInstances(orphansOrStopped));
 
         return toSlaves(newInstances);
+    }
+
+    List<InstanceInfo> createNewInstances(AmazonEC2 ec2, RunInstancesRequest riRequest) {
+        if (isUsingDynamicSshKeys()) {
+            // no static ssh key defined, so submit riRequest.maxCount requests
+            // each with a unique keypair (instead of a single request for multiple identical instances)
+            List<InstanceInfo> instances = new ArrayList<>();
+            int maxRequested = riRequest.getMaxCount();
+            riRequest.setMaxCount(1);
+            for (int i=0;i < maxRequested; i++) {
+                String keyName = "jenkins-ec2-" + System.currentTimeMillis();
+                KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
+                riRequest.setKeyName(keyName);
+                Instance instance = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
+                instances.add(new InstanceInfo(instance, keyPair));
+            }
+            return instances;
+        } else {
+            // using a static ssh key
+            return InstanceInfo.fromInstances(ec2.runInstances(riRequest).getReservation().getInstances());
+        }
     }
 
     void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
@@ -1224,12 +1247,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     }
 
-    List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
+    List<EC2AbstractSlave> toSlaves(List<InstanceInfo> newInstances) throws IOException {
         try {
             List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
-            for (Instance instance : newInstances) {
-                slaves.add(newOndemandSlave(instance));
-                logProvisionInfo("Return instance: " + instance);
+            for (InstanceInfo info : newInstances) {
+                slaves.add(newOndemandSlave(info));
+                logProvisionInfo("Return instance: " + info.getInstance());
             }
             return slaves;
         } catch (FormException e) {
@@ -1395,6 +1418,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
+    private boolean isUsingDynamicSshKeys() {
+        if (parent != null) {
+            String id = parent.getSshKeysCredentialsId();
+            if ((id == null) || (id.isEmpty())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Provision a new agent for an EC2 spot instance to call back to Jenkins
      */
@@ -1409,8 +1442,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         try {
             LOGGER.info("Launching " + imageId + " for template " + description);
-
-            KeyPair keyPair = getKeyPair(ec2);
 
             RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
 
@@ -1461,9 +1492,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String userDataString = Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8));
 
             launchSpecification.setUserData(userDataString);
-            if (keyPair != null) {
+
+
+            if (!isUsingDynamicSshKeys()) {
                 // there is a global/static ssh keypair configured, so use that
-                launchSpecification.setKeyName(keyPair.getKeyName());
+                KeyPair kp = getParent().resolveKeyPair();
+                if (kp != null) {
+                    launchSpecification.setKeyName(kp.getKeyName());
+                }
             }
             launchSpecification.setInstanceType(type.toString());
 
@@ -1586,7 +1622,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return instTags;
     }
 
-    protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
+    protected EC2OndemandSlave newOndemandSlave(InstanceInfo info) throws FormException, IOException {
+        Instance inst = info.getInstance();
         EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
             .withName(getSlaveName(inst.getInstanceId()))
             .withInstanceId(inst.getInstanceId())
@@ -1616,6 +1653,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withMetadataEndpointEnabled(metadataEndpointEnabled)
             .withMetadataTokensRequired(metadataTokensRequired)
             .withMetadataHopsLimit(metadataHopsLimit)
+            .withKeyPair(info.getKeypair())
             .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
@@ -1749,7 +1787,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));
             Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
-            return newOndemandSlave(inst);
+            return newOndemandSlave(new InstanceInfo(inst, null));
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
                                         // configuration issues upfront
@@ -1891,6 +1929,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Filter subnetFilter = new Filter("subnet-id");
             subnetFilter.setValues(Arrays.asList(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS)));
             diFilters.add(subnetFilter);
+        }
+
+        //check to see if we need to create ssh keys
+        if (isUsingDynamicSshKeys()){
+            /* remove any existing keypair-id filters */
+            List<Filter> rmvFilters = new ArrayList<>();
+            for (Filter f : diFilters) {
+                if (f.getName().equals("keypair-id")) {
+                    rmvFilters.add(f);
+                }
+            }
+            for (Filter f : rmvFilters) {
+                diFilters.remove(f);
+            }
         }
 
         DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);

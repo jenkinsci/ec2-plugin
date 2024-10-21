@@ -26,7 +26,7 @@ public class EC2AbstractSlaveTest {
     @Test
     public void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {
         EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "java", "jvm", false, "idle", null, "cloud", Integer.MAX_VALUE, new UnixData("remote", null, null, "22", null), ConnectionStrategy.PRIVATE_IP, -1, Tenancy.Default,
-            DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT, DEFAULT_METADATA_SUPPORTED) {
+            DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT, DEFAULT_METADATA_SUPPORTED, null) {
 
             @Override
             public void terminate() {

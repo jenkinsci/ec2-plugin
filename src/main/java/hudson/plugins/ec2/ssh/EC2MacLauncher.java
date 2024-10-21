@@ -39,6 +39,7 @@ import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
+import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
@@ -161,9 +162,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
-                KeyPair keyPair = node.getInstanceSshKeyPair();
+                Secret sshPrivateKey = node.getInstanceSshPrivateKey();
 
-                if (keyPair == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.getKeyMaterial().toCharArray(), "")) {
+                if (sshPrivateKey == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }

@@ -29,6 +29,7 @@ import hudson.FilePath;
 import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
+import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
@@ -178,14 +179,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
-                KeyPair keyPair = node.getInstanceSshKeyPair();
+                Secret sshPrivateKey = node.getInstanceSshPrivateKey();
 
-                if (keyPair == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.getKeyMaterial().toCharArray(), "")) {
+                if (sshPrivateKey == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
             } else {
-                logWarning(computer, listener, "bootstrapresult failed");
+                logWarning(computer, listener, "bootstrap result failed");
                 return; // bootstrap closed for us.
             }
             conn = cleanupConn;
@@ -318,7 +319,21 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
         if (ec2PrivateKey != null){
+            LOGGER.log(Level.INFO, () -> "using global private key");
             privateKey = ec2PrivateKey.getPrivateKey();
+        } else {
+            EC2AbstractSlave node = computer.getNode();
+            if (node != null) {
+                Secret sshPrivatekey = node.getInstanceSshPrivateKey();
+                if (sshPrivatekey != null) {
+                    LOGGER.log(Level.INFO, () -> "using dynamic ssh key -> " + computer.getNode().getInstanceSshPrivateKey().getPlainText());
+                    privateKey = sshPrivatekey.getPlainText();
+                } else {
+                    throw new IOException("unable to determine private ssh key!!");
+                }
+            } else {
+                throw new IOException("unable to determine private ssh key!!");
+            }
         }
 
         File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
@@ -379,19 +394,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             logInfo(computer, listener, "Getting keypair...");
             EC2AbstractSlave node = computer.getNode();
             if (node != null) {
-                KeyPair keyPair = node.getInstanceSshKeyPair();
-                if (keyPair == null) {
-                    logWarning(computer, listener, "Could not retrieve a valid key pair.");
+                Secret sshPrivateKey = node.getInstanceSshPrivateKey();
+                if (sshPrivateKey == null) {
+                    logWarning(computer, listener, "Could not retrieve a valid private key.");
                     return false;
                 }
 
                 logInfo(computer, listener,
-                        String.format("Using private key %s (SHA-1 fingerprint %s)", keyPair.getKeyName(), keyPair.getKeyFingerprint()));
+                        String.format("Using private key %s ", node.getInstanceSshKeyPairName()));
                 while (tries-- > 0) {
                     logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                     try {
                         bootstrapConn = connectToSsh(computer, listener, template);
-                        isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), keyPair.getKeyMaterial().toCharArray(), "");
+                        isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "");
                     } catch (IOException e) {
                         logException(computer, listener, "Exception trying to authenticate", e);
                         bootstrapConn.close();

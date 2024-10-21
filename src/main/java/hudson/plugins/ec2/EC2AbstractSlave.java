@@ -28,12 +28,12 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 
 import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DeleteTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.ImportKeyPairRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
 import com.amazonaws.services.ec2.model.InstanceStateName;
@@ -42,6 +42,7 @@ import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.StopInstancesRequest;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -117,6 +118,8 @@ public abstract class EC2AbstractSlave extends Slave {
     private String instanceType;
 
     private KeyPair instanceSshKeyPair;
+    private Secret instanceSshPrivateKey;
+    private String instanceSshKeyPairName;
 
     private Boolean metadataSupported;
     private Boolean metadataEndpointEnabled;
@@ -163,7 +166,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported, KeyPair keypair)
             throws FormException, IOException {
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
@@ -193,13 +196,20 @@ public abstract class EC2AbstractSlave extends Slave {
         this.metadataTokensRequired = metadataTokensRequired;
         this.metadataHopsLimit = metadataHopsLimit;
         this.metadataSupported = metadataSupported;
+        if (keypair != null) {
+            this.instanceSshKeyPairName = keypair.getKeyName();
+            this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
+        } else {
+            this.instanceSshKeyPairName = null;
+            this.instanceSshPrivateKey = null;
+        }
         readResolve();
     }
 
     @Deprecated
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, DEFAULT_METADATA_SUPPORTED);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, DEFAULT_METADATA_SUPPORTED, null);
     }
 
     @Deprecated
@@ -262,22 +272,12 @@ public abstract class EC2AbstractSlave extends Slave {
         return o;
     }
 
-    public KeyPair getInstanceSshKeyPair() throws IOException {
-        KeyPair keyPair = getCloud().resolveKeyPair();
-        if (keyPair != null) {
-            return keyPair;
-        } else {
-            //this cloud is not using a static key
-            if (this.instanceSshKeyPair == null) {
-                //create a keypair
-                this.instanceSshKeyPair = getCloud().connect().createKeyPair(new CreateKeyPairRequest("jenkins-ec2-" + getInstanceId())).getKeyPair();
-                //import this keypair into the instance
-                ImportKeyPairRequest iKpr = new ImportKeyPairRequest().withKeyName(this.instanceSshKeyPair.getKeyName());
-                getCloud().connect().importKeyPair(iKpr);
-                this.save();
-            }
-            return this.instanceSshKeyPair;
-        }
+    public String getInstanceSshKeyPairName() {
+        return instanceSshKeyPairName;
+    }
+
+    public Secret getInstanceSshPrivateKey() {
+        return instanceSshPrivateKey;
     }
 
     public EC2Cloud getCloud() {
@@ -509,20 +509,67 @@ public abstract class EC2AbstractSlave extends Slave {
 
     }
 
+    private boolean isUsingDynamicSshKeys() {
+        EC2Cloud cloud = getCloud();
+        if (cloud != null) {
+            String id = cloud.getSshKeysCredentialsId();
+            if ((id == null) || (id.isEmpty())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected void cleanupSshKeyPairIfNeeded() {
+        AmazonEC2 ec2 = getCloud().connect();
+
+        if (isUsingDynamicSshKeys()) {
+            //this instance is using dynamic ssh keys
+            if (getInstanceSshKeyPairName() != null) {
+                // we already know what keypair to delete
+                LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPairName());
+                ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
+            } else {
+                LOGGER.warning("I didn't think you should be able to get here");
+                LOGGER.info(() ->"Looking up keypair name for instance  " + getInstanceId());
+                DescribeInstancesResult diResult = ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(getInstanceId()));
+                // there can be only one
+                String keyName = diResult.getReservations().get(0).getInstances().get(0).getKeyName();
+                LOGGER.info("EC2 instance delete key pair request sent for " + keyName);
+                ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(keyName));
+            }
+        }
+    }
+
     boolean terminateInstance() {
         try {
             AmazonEC2 ec2 = getCloud().connect();
+
+            // check to see if there is a dynamic keypair associated with this instance,
+            // and if so, clean it up
+            if (isUsingDynamicSshKeys()) {
+                //this instance is ysing dynamic ssh keys
+                if (this.instanceSshKeyPair != null) {
+                    // we already know what keypair to delete
+                    LOGGER.info("EC2 instance delete key pair request sent for " + this.instanceSshKeyPair.getKeyName());
+                    ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.instanceSshKeyPair.getKeyName()));
+                } else {
+                    LOGGER.info(() ->"Looking up keypair name for instance  " + getInstanceId());
+                    DescribeInstancesResult diResult = ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(getInstanceId()));
+                    // there can be only one
+                    String keyName = diResult.getReservations().get(0).getInstances().get(0).getKeyName();
+                    LOGGER.info("EC2 instance delete key pair request sent for " + keyName);
+                    ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(keyName));
+                }
+            }
+
             TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
             LOGGER.fine("Sending terminate request for " + getInstanceId());
             ec2.terminateInstances(request);
             LOGGER.info("EC2 instance terminate request sent for " + getInstanceId());
-            if (getCloud().resolveKeyPair() == null) {
-                //this instance is ysing dynamic ssh keys, so clean up
-                LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPair().getKeyPairId());
-                ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyPairId(this.getInstanceSshKeyPair().getKeyPairId()));
-            }
+
             return true;
-        } catch (AmazonClientException | IOException e) {
+        } catch (AmazonClientException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
             return false;
         }

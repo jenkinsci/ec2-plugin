@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.util;
 
+import com.amazonaws.services.ec2.model.KeyPair;
 import hudson.plugins.ec2.Tenancy;
 import hudson.model.Node;
 import hudson.plugins.ec2.AMITypeData;
@@ -30,6 +31,7 @@ public abstract class EC2AgentConfig {
     final AMITypeData amiType;
     final ConnectionStrategy connectionStrategy;
     final int maxTotalUses;
+    final KeyPair keyPair;
 
     private EC2AgentConfig(Builder<? extends Builder, ? extends EC2AgentConfig> builder) {
         this.name = builder.name;
@@ -51,6 +53,7 @@ public abstract class EC2AgentConfig {
         this.amiType = builder.amiType;
         this.connectionStrategy = builder.connectionStrategy;
         this.maxTotalUses = builder.maxTotalUses;
+        this.keyPair = builder.keyPair;
     }
 
     public static class OnDemand extends EC2AgentConfig {
@@ -113,6 +116,12 @@ public abstract class EC2AgentConfig {
         private AMITypeData amiType;
         private ConnectionStrategy connectionStrategy;
         private int maxTotalUses;
+        private KeyPair keyPair;
+
+        public B withKeyPair(KeyPair keypair) {
+            this.keyPair = keypair;
+            return self();
+        }
 
         public B withName(String name) {
             this.name = name;
