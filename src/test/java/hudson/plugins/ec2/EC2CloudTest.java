@@ -52,36 +52,39 @@ public class EC2CloudTest {
         Instance mockedInstance = Mockito.mock(Instance.class);
         List<Instance> listOfMockedInstances = new ArrayList<>();
         listOfMockedInstances.add(mockedInstance);
+        List<Node> listOfJenkinsNodes = new ArrayList<>();
 
 
         try (MockedStatic<Jenkins> mocked = Mockito.mockStatic(Jenkins.class)) {
-        mocked.when(Jenkins::getInstanceOrNull).thenReturn(mockJenkins);
-        EC2AbstractSlave[] orphanNodes = {mockOrphanNode};
-        Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(eq(InstanceInfo.fromInstances(listOfMockedInstances)));
-        List<Node> listOfJenkinsNodes = new ArrayList<>();
+            mocked.when(Jenkins::getInstanceOrNull).thenReturn(mockJenkins);
+            EC2AbstractSlave[] orphanNodes = {mockOrphanNode};
+            Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(eq(InstanceInfo.fromInstances(listOfMockedInstances)));
 
-        Mockito.doAnswer(new Answer<Void>() {
-            public Void answer(InvocationOnMock invocation) {
-                Node n = (Node) invocation.getArguments()[0];
-                listOfJenkinsNodes.add(n);
-                return null;
-            }
-        }).when(mockJenkins).addNode(Mockito.any(Node.class));
+            Mockito.doAnswer(new Answer<Void>() {
+                public Void answer(InvocationOnMock invocation) {
+                    System.out.println("FOOOOO 1");
+                    Node n = (Node) invocation.getArguments()[0];
+                    System.out.println("FOOOOO 2");
+                    listOfJenkinsNodes.add(n);
+                    System.out.println("FOOOOO 3");
+                    return null;
+                }
+            }).when(mockJenkins).addNode(Mockito.any(Node.class));
 
-        Mockito.doReturn(null).when(mockOrphanNode).toComputer();
-        Mockito.doReturn(false).when(mockOrphanNode).getStopOnTerminate();
-        Mockito.doReturn(mockEc2).when(spyCloud).connect();
-        Mockito.doReturn(mockedDIResult).when(mockSlaveTemplate).getDescribeInstanceResult(Mockito.any(AmazonEC2.class), eq(true));
-        Mockito.doReturn(listOfMockedInstances).when(mockSlaveTemplate).findOrphansOrStopped(eq(mockedDIResult), Mockito.anyInt());
-        Mockito.doNothing().when(mockSlaveTemplate).wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
+            Mockito.doReturn(null).when(mockOrphanNode).toComputer();
+            Mockito.doReturn(false).when(mockOrphanNode).getStopOnTerminate();
+            Mockito.doReturn(mockEc2).when(spyCloud).connect();
+            Mockito.doReturn(mockedDIResult).when(mockSlaveTemplate).getDescribeInstanceResult(Mockito.any(AmazonEC2.class), eq(true));
+            Mockito.doReturn(listOfMockedInstances).when(mockSlaveTemplate).findOrphansOrStopped(eq(mockedDIResult), Mockito.anyInt());
+            Mockito.doNothing().when(mockSlaveTemplate).wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
 
-        /* Actual call to test*/
-        spyCloud.attemptReattachOrphanOrStoppedNodes(mockJenkins, mockSlaveTemplate, 1);
+            /* Actual call to test*/
+            spyCloud.attemptReattachOrphanOrStoppedNodes(mockJenkins, mockSlaveTemplate, 1);
 
-        /* Checks */
-        Mockito.verify(mockSlaveTemplate, times(1)).wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
-        Node[] expectedNodes = {mockOrphanNode};
-        assertArrayEquals(expectedNodes, listOfJenkinsNodes.toArray());
+            /* Checks */
+            Mockito.verify(mockSlaveTemplate, times(1)).wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
+            Node[] expectedNodes = {mockOrphanNode};
+            assertArrayEquals(expectedNodes, listOfJenkinsNodes.toArray());
         }
     }
 }
