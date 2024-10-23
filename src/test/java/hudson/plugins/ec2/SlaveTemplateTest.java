@@ -360,7 +360,6 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
 
-        InstanceNetworkInterfaceSpecification actualNet = actualRequest.getNetworkInterfaces().get(0);
         assertEquals(actualRequest.getKeyName(), SSH_KEY_PAIR_NAME);
     }
 
