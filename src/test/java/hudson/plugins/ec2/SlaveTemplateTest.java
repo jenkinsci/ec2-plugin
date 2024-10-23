@@ -87,6 +87,7 @@ import static org.mockito.Mockito.when;
  * Basic test to validate SlaveTemplate.
  */
 public class SlaveTemplateTest {
+    public static final String SSH_KEY_PAIR_NAME = "some-key-name";
     private final String TEST_AMI = "ami-123";
     private final String TEST_ZONE = EC2AbstractSlave.TEST_ZONE;
     private final SpotConfiguration TEST_SPOT_CFG = null;
@@ -335,6 +336,34 @@ public class SlaveTemplateTest {
         }
     }
 
+    @Test
+    public void testUsingDynamicSshKeys() throws Exception {
+        boolean associatePublicIp = true;
+        String description = "foo ami";
+        String subnetId = "some-subnet";
+        String securityGroups = "some security group";
+        String iamInstanceProfile = "some instance profile";
+
+        EC2Tag tag1 = new EC2Tag("name1", "value1");
+        EC2Tag tag2 = new EC2Tag("name2", "value2");
+        List<EC2Tag> tags = new ArrayList<>();
+        tags.add(tag1);
+        tags.add(tag2);
+
+        SlaveTemplate slaveTemplate = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(slaveTemplate, true);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        slaveTemplate.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+
+        InstanceNetworkInterfaceSpecification actualNet = actualRequest.getNetworkInterfaces().get(0);
+        assertEquals(actualRequest.getKeyName(), SSH_KEY_PAIR_NAME);
+    }
+
     @Issue("JENKINS-64571")
     @Test
     public void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
@@ -366,15 +395,22 @@ public class SlaveTemplateTest {
     }
 
     private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
+        return setupTestForProvisioning(template, false);
+    }
+    private AmazonEC2 setupTestForProvisioning(SlaveTemplate template, boolean dynamicSshKeys) throws Exception {
         AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
         KeyPair mockedKeyPair = new KeyPair();
-        mockedKeyPair.setKeyName("some-key-name");
+        mockedKeyPair.setKeyName(SSH_KEY_PAIR_NAME);
         when(mockedPrivateKey.find(mockedEC2)).thenReturn(mockedKeyPair);
         when(mockedEC2.createKeyPair(Mockito.isA(CreateKeyPairRequest.class))).thenReturn(new CreateKeyPairResult().withKeyPair(mockedKeyPair));
         when(mockedCloud.connect()).thenReturn(mockedEC2);
-        when(mockedCloud.resolvePrivateKey()).thenReturn(mockedPrivateKey);
+        if (dynamicSshKeys) {
+            when(mockedCloud.resolvePrivateKey()).thenReturn(null);
+        } else {
+            when(mockedCloud.resolvePrivateKey()).thenReturn(mockedPrivateKey);
+        }
 
         template.parent = mockedCloud;
 
