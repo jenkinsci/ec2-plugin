@@ -56,7 +56,9 @@ Access Key which act like a username/password (see IAM section). Because
 of the way EC2 works, you also need to have an RSA private key that the
 cloud has the other half for, to permit sshing into the instances that
 are started. Please use the AWS console or any other tool of your choice
-to generate the private key to interactively log in to EC2 instances.
+to generate the private key to interactively log in to EC2 instances. 
+Alternatively you may select `None` for the ssh credential and the plugin
+will dynmically managed the ssh key pairs used by each instance.
 
 Once you have put in your Access Key and Secret Access Key, select a
 region for the cloud (not shown in screenshot). You may define only one
@@ -64,7 +66,8 @@ cloud for each region, and the regions offered in the UI will show only
 the regions that you don't already have clouds defined for them.
 
 Use "Test Connection" button to verify that Jenkins can successfully
-talk to EC2. If you are using UEC you need to click on Advanced and fill
+talk to EC2. If you have defined a static SSH private key credential it
+will also be validated.  If you are using UEC you need to click on Advanced and fill
 out the endpoint details for your cluster.
 
 ![](docs/images/cloud.png)
