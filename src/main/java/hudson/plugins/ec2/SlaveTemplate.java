@@ -1215,7 +1215,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             for (int i=0;i < maxRequested; i++) {
                 String keyName = "jenkins-ec2-" + System.currentTimeMillis();
                 KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
-                riRequest.setKeyName(keyName);
+                riRequest.setKeyName(keyPair.getKeyName());
                 Instance instance = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
                 instances.add(new InstanceInfo(instance, keyPair));
             }
