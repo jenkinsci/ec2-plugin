@@ -126,12 +126,6 @@ public class EC2PrivateKey {
 
     /**
      * Given a keyPairId and a private key, returns a KeyPair if the matching key is found in ec2
-     *
-     * @param ec2
-     * @param keyPairId
-     * @param privateKey
-     * @return
-     * @throws IOException
      */
     public KeyPair find(AmazonEC2 ec2, String keyPairId, Secret privateKey) throws IOException {
         String fingerPrint = getFingerPrint(privateKey.getPlainText());

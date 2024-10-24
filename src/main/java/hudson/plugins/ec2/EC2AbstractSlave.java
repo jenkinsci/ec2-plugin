@@ -521,60 +521,19 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     protected void cleanupSshKeyPairIfNeeded() {
-        AmazonEC2 ec2 = getCloud().connect();
-
         if (isUsingDynamicSshKeys()) {
             //this instance is using dynamic ssh keys
             if (getInstanceSshKeyPairName() != null) {
                 // we already know what keypair to delete
                 LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPairName());
+                AmazonEC2 ec2 = getCloud().connect();
                 ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
             } else {
                 // should not be possible to reach this code
                 LOGGER.warning("Unable to determine keypair name to delete for this instance");
-//                LOGGER.info(() ->"Looking up keypair name for instance  " + getInstanceId());
-//                DescribeInstancesResult diResult = ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(getInstanceId()));
-//                // there can be only one
-//                String keyName = diResult.getReservations().get(0).getInstances().get(0).getKeyName();
-//                LOGGER.info("EC2 instance delete key pair request sent for " + keyName);
-//                ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(keyName));
             }
         }
     }
-
-//    boolean terminateInstance() {
-//        try {
-//            AmazonEC2 ec2 = getCloud().connect();
-//
-//            // check to see if there is a dynamic keypair associated with this instance,
-//            // and if so, clean it up
-//            if (isUsingDynamicSshKeys()) {
-//                //this instance is ysing dynamic ssh keys
-//                if (this.instanceSshKeyPair != null) {
-//                    // we already know what keypair to delete
-//                    LOGGER.info("EC2 instance delete key pair request sent for " + this.instanceSshKeyPair.getKeyName());
-//                    ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.instanceSshKeyPair.getKeyName()));
-//                } else {
-//                    LOGGER.info(() ->"Looking up keypair name for instance  " + getInstanceId());
-//                    DescribeInstancesResult diResult = ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(getInstanceId()));
-//                    // there can be only one
-//                    String keyName = diResult.getReservations().get(0).getInstances().get(0).getKeyName();
-//                    LOGGER.info("EC2 instance delete key pair request sent for " + keyName);
-//                    ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(keyName));
-//                }
-//            }
-//
-//            TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
-//            LOGGER.fine("Sending terminate request for " + getInstanceId());
-//            ec2.terminateInstances(request);
-//            LOGGER.info("EC2 instance terminate request sent for " + getInstanceId());
-//
-//            return true;
-//        } catch (AmazonClientException e) {
-//            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
-//            return false;
-//        }
-//    }
 
     @Override
     public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {

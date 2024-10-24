@@ -24,8 +24,6 @@ public class InstanceInfo {
     }
 
     public static List<InstanceInfo> fromInstances(List<Instance> instances) {
-        List<InstanceInfo> result = new ArrayList<>();
-        instances.stream().forEach(obj -> { result.add(new InstanceInfo(obj, null));});
-        return result;
+        return instances.stream().map(obj -> new InstanceInfo(obj, null)).collect(Collectors.toList());
     }
 }

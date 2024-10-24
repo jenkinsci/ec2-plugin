@@ -1162,7 +1162,7 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
             if (value == null || value.isEmpty()){
-                return FormValidation.ok("No ssh credentials selected, ssh key management will be handled dynamically by the plugin");
+                return FormValidation.ok("No SSH credentials selected, so SSH key management will be handled dynamically by Jenkins");
             }
 
             SSHUserPrivateKey sshCredential = getSshCredential(value, context);

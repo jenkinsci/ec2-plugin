@@ -319,7 +319,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
         if (ec2PrivateKey != null){
-            LOGGER.log(Level.INFO, () -> "using global private key");
+            LOGGER.fine(() -> "using global private key for " + computer.getName());
             privateKey = ec2PrivateKey.getPrivateKey();
         } else {
             EC2AbstractSlave node = computer.getNode();

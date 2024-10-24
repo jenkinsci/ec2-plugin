@@ -1017,7 +1017,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setKeyName(keyPair.getKeyName());
             diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
         } else {
-            logProvisionInfo("Static ssh key was not configured, keys will be manage dynamically");
+            logProvisionInfo("Static SSH key was not configured; keys will be managed dynamically");
         }
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
 
