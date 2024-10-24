@@ -57,7 +57,7 @@ of the way EC2 works, you also need to have an RSA private key that the
 cloud has the other half for, to permit sshing into the instances that
 are started. Please use the AWS console or any other tool of your choice
 to generate the private key to interactively log in to EC2 instances. 
-Alternatively you may select `None` for the ssh credential and the plugin
+Alternatively you may select **None** for the SSH credentials and the plugin
 will dynamically manage the SSH key pair used by each instance.
 
 Once you have put in your Access Key and Secret Access Key, select a
