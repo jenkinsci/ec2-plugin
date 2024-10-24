@@ -58,7 +58,7 @@ cloud has the other half for, to permit sshing into the instances that
 are started. Please use the AWS console or any other tool of your choice
 to generate the private key to interactively log in to EC2 instances. 
 Alternatively you may select `None` for the ssh credential and the plugin
-will dynmically managed the ssh key pairs used by each instance.
+will dynamically manage the SSH key pair used by each instance.
 
 Once you have put in your Access Key and Secret Access Key, select a
 region for the cloud (not shown in screenshot). You may define only one
