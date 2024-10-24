@@ -390,7 +390,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
-            //TODO: mikec this will need to be adapted
             logInfo(computer, listener, "Getting keypair...");
             EC2AbstractSlave node = computer.getNode();
             if (node != null) {

@@ -117,7 +117,6 @@ public abstract class EC2AbstractSlave extends Slave {
     public final Tenancy tenancy;
     private String instanceType;
 
-    private KeyPair instanceSshKeyPair;
     private Secret instanceSshPrivateKey;
     private String instanceSshKeyPairName;
 
@@ -521,17 +520,14 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     protected void cleanupSshKeyPairIfNeeded() {
-        if (isUsingDynamicSshKeys()) {
+        if (getInstanceSshKeyPairName() != null) {
             //this instance is using dynamic ssh keys
-            if (getInstanceSshKeyPairName() != null) {
-                // we already know what keypair to delete
-                LOGGER.info("EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPairName());
-                AmazonEC2 ec2 = getCloud().connect();
-                ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
-            } else {
-                // should not be possible to reach this code
-                LOGGER.warning("Unable to determine keypair name to delete for this instance");
-            }
+            LOGGER.fine(() -> "EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPairName());
+            AmazonEC2 ec2 = getCloud().connect();
+            ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
+        } else {
+            // should not be possible to reach this code
+            LOGGER.warning(() -> "Unable to determine keypair name to delete for this instance");
         }
     }
 

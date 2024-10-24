@@ -231,8 +231,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 @QueryParameter String credentialsId,
                 @QueryParameter String sshKeysCredentialsId,
                 @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName,
-                @QueryParameter Secret sshPrivateKeySecret)
+                @QueryParameter String roleSessionName)
 
                 throws IOException, ServletException {
 
