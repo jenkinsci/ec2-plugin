@@ -22,28 +22,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler"
+         xmlns:l="/lib/layout" xmlns:dd="/lib/layout/dropdowns" xmlns:f="/lib/form">
   <j:if test="${it.hasPermission(it.PROVISION)}">
     <tr>
       <td />
       <td colspan="${monitors.size()+1}">
+        <l:overflowButton icon="symbol-add"
+                          text="${%Provision via} ${it.displayName}"
+                          tooltip="${null}"
+                          clazz="jenkins-!-margin-top-2">
+          <j:forEach var="t" items="${it.templates}">
+            <dd:custom>
+              <button class="jenkins-dropdown__item"
+                      data-type="ec2-provision"
+                      data-url="${t.description}">
+                ${t.displayName}
+              </button>
+            </dd:custom>
+          </j:forEach>
+        </l:overflowButton>
         <f:form action="${rootURL}/${it.url}/provision" method="post" name="provision">
-          <input type="submit" class="ec2-provision-button" value="${%Provision via} ${it.displayName}" />
-          <select name="template">
-            <j:forEach var="t" items="${it.templates}">
-              <option value="${t.description}">${t.displayName}</option>
-            </j:forEach>
-          </select>
-          <st:once>
-            <script>
-              Behaviour.register({
-                ".ec2-provision-button" : function (e) {
-                  new YAHOO.widget.Button(e, { type: "menu", menu: e.nextSibling });
-                }
-              });
-            </script>
-          </st:once>
+          <input name="template" type="hidden"/>
         </f:form>
+        <st:adjunct includes="hudson.plugins.ec2.EC2Cloud.provision"/>
       </td>
     </tr>
   </j:if>
