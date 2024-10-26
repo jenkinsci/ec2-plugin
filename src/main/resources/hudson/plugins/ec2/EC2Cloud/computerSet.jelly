@@ -27,7 +27,7 @@ THE SOFTWARE.
   <j:if test="${it.hasPermission(it.PROVISION)}">
     <tr>
       <td />
-      <td colspan="${monitors.size()+1}">
+      <td colspan="${monitors.size()+2}">
         <l:overflowButton icon="symbol-add"
                           text="${%Provision via} ${it.displayName}"
                           tooltip="${null}"
