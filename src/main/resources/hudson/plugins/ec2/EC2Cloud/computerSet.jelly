@@ -25,6 +25,7 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler"
          xmlns:l="/lib/layout" xmlns:dd="/lib/layout/dropdowns" xmlns:f="/lib/form">
   <j:if test="${it.hasPermission(it.PROVISION)}">
+    <j:set var="formId" value="${h.generateId()}"/>
     <tr>
       <td />
       <td colspan="${monitors.size()+2}">
@@ -36,13 +37,14 @@ THE SOFTWARE.
             <dd:custom>
               <button class="jenkins-dropdown__item"
                       data-type="ec2-provision"
+                      data-form="${formId}"
                       data-url="${t.description}">
                 ${t.displayName}
               </button>
             </dd:custom>
           </j:forEach>
         </l:overflowButton>
-        <f:form action="${rootURL}/${it.url}/provision" method="post" name="provision">
+        <f:form action="${rootURL}/${it.url}/provision" method="post" name="provision" id="${formId}">
           <input name="template" type="hidden"/>
         </f:form>
         <st:adjunct includes="hudson.plugins.ec2.EC2Cloud.provision"/>
