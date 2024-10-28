@@ -70,6 +70,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
     }
 
     @DataBoundConstructor
+    public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported) throws hudson.model.Descriptor.FormException, java.io.IOException {
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, labelString, mode, initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, stopOnTerminate, idleTerminationMinutes, publicDNS, privateDNS, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, metadataSupported,null);
+    }
+
+    @DataBoundConstructor
     public EC2OndemandSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, String labelString, Mode mode, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, String publicDNS, String privateDNS, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported, KeyPair keypair)
             throws FormException, IOException {
         super(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, (amiType.isWindows() ? new EC2WindowsLauncher() : (amiType.isMac() ? new EC2MacLauncher():
