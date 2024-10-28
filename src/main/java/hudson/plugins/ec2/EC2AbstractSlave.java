@@ -526,8 +526,7 @@ public abstract class EC2AbstractSlave extends Slave {
             AmazonEC2 ec2 = getCloud().connect();
             ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
         } else {
-            // should not be possible to reach this code
-            LOGGER.warning(() -> "Unable to determine keypair name to delete for this instance");
+            LOGGER.fine(() -> "No dynamic keypair to delete for " + getNodeName());
         }
     }
 
