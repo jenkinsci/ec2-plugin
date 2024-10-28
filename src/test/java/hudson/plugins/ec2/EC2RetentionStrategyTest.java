@@ -8,6 +8,7 @@ import hudson.model.Node;
 import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.ResourceList;
+import hudson.model.TaskListener;
 import hudson.model.Queue.Executable;
 import hudson.model.Queue.Task;
 import hudson.model.queue.CauseOfBlockage;
@@ -210,7 +211,8 @@ public class EC2RetentionStrategyTest {
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+                return;
             }
 
             @Override
@@ -279,7 +281,8 @@ public class EC2RetentionStrategyTest {
         idleTimeoutCalled.set(false);
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+                return;
             }
 
             @Override
@@ -368,7 +371,7 @@ public class EC2RetentionStrategyTest {
     private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
                 terminateCalled.set(true);
             }
 

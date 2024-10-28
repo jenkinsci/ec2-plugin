@@ -5,6 +5,7 @@ import com.amazonaws.services.ec2.model.InstanceType;
 import com.trilead.ssh2.Connection;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import hudson.model.Node;
+import hudson.model.TaskListener;
 import hudson.plugins.ec2.ConnectionStrategy;
 import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
@@ -339,7 +340,8 @@ public class SshHostKeyVerificationStrategyTest {
         private static MockEC2Computer createComputer(String suffix) throws Exception {
             final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
                 @Override
-                public void terminate() {
+                protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+                    return;
                 }
 
                 @Override

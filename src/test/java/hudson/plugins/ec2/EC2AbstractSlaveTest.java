@@ -7,6 +7,9 @@ import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
 
 import hudson.slaves.NodeProperty;
 import hudson.model.Node;
+import hudson.model.TaskListener;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -29,9 +32,8 @@ public class EC2AbstractSlaveTest {
             DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT, DEFAULT_METADATA_SUPPORTED) {
 
             @Override
-            public void terminate() {
-                // To change body of implemented methods use File | Settings |
-                // File Templates.
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+                return;
             }
 
             @Override
@@ -56,7 +58,8 @@ public class EC2AbstractSlaveTest {
         r.jenkins.clouds.add(ac);
         EC2AbstractSlave slave = new EC2AbstractSlave("name", "", description, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, cloudName, false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22", null), ConnectionStrategy.PRIVATE_IP, 0)  {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
+                return;
             }
 
             @Override

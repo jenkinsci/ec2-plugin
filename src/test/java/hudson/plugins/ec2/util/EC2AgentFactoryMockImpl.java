@@ -53,7 +53,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         }
 
         @Override
-        public Computer createComputer() {
+        public EC2Computer createComputer() {
             return new MockEC2Computer(this);
         }
     }
@@ -67,7 +67,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         }
 
         @Override
-        public Computer createComputer() {
+        public EC2Computer createComputer() {
             return new MockEC2Computer(this);
         }
     }
