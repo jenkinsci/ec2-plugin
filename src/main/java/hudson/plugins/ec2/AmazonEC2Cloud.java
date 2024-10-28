@@ -42,7 +42,6 @@ import java.util.logging.Logger;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import javax.servlet.ServletException;
 
-import hudson.util.Secret;
 import jenkins.model.Jenkins;
 
 import org.kohsuke.stapler.AncestorInPath;
