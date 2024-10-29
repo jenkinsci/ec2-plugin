@@ -1216,6 +1216,8 @@ public abstract class EC2Cloud extends Cloud {
             try {
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
+                ec2.describeInstances();
+
                 if (!sshKeysCredentialsId.isEmpty()) {
                     SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                     String privateKey = "";
