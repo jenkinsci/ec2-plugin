@@ -100,11 +100,20 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                     LOGGER.info("EC2 instance already terminated: " + instanceId);
                                 } else {
                                     // check to see if there is a dynamic keypair associated with this instance, and if so, clean it up
-                                    cleanupSshKeyPairIfNeeded();
+                                    try {
+                                        cleanupSshKeyPairIfNeeded();
+                                    } catch (AmazonClientException e) {
+                                        LOGGER.info(() -> "unable to remove instance keypair for : " + instanceId);
+                                    }
                                     // send request to terminate instance
                                     TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
-                                    ec2.terminateInstances(request);
-                                    LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
+                                    try {
+                                        ec2.terminateInstances(request);
+                                        LOGGER.info("Terminated EC2 spot instance (terminated): " + instanceId);
+                                    } catch (AmazonClientException e) {
+                                        // Spot request is no longer valid
+                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                                    }
                                 }
                             }
                         } catch (AmazonClientException e) {

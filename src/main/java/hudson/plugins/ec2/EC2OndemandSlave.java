@@ -102,7 +102,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                             } else {
                                 AmazonEC2 ec2 = getCloud().connect();
                                 // check to see if there is a dynamic keypair associated with this instance, and if so, clean it up
-                                cleanupSshKeyPairIfNeeded();
+                                try {
+                                    cleanupSshKeyPairIfNeeded();
+                                } catch (AmazonClientException e) {
+                                    LOGGER.info(() -> "unable to remove instance keypair for : " + instanceId);
+                                }
                                 // send request to terminate instance
                                 TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
                                 ec2.terminateInstances(request);
