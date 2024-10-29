@@ -137,6 +137,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.UUID;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -1213,7 +1214,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             int maxRequested = riRequest.getMaxCount();
             riRequest.setMaxCount(1);
             for (int i=0;i < maxRequested; i++) {
-                String keyName = "jenkins-ec2-" + System.currentTimeMillis();
+                String keyName = "cloudbees-" + UUID.randomUUID();
                 KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
                 riRequest.setKeyName(keyPair.getKeyName());
                 Instance instance = ec2.runInstances(riRequest).getReservation().getInstances().get(0);

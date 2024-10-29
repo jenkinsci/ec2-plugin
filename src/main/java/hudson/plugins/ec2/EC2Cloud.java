@@ -186,7 +186,7 @@ public abstract class EC2Cloud extends Cloud {
 
     private transient volatile AmazonEC2 connection;
 
-    protected EC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String sshPrivateKey, String sshKeysCredentialsId,
+    protected EC2Cloud(String name, boolean useInstanceProfileForCredentials, String credentialsId, String privateKey, String sshKeysCredentialsId,
                        String instanceCapStr, List<? extends SlaveTemplate> templates, String roleArn, String roleSessionName) {
         super(name);
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;

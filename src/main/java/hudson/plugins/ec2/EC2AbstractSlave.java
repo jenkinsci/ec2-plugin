@@ -165,7 +165,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public static final String TEST_ZONE = "testZone";
 
-    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported, KeyPair keypair)
+    public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported)
             throws FormException, IOException {
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
@@ -195,20 +195,16 @@ public abstract class EC2AbstractSlave extends Slave {
         this.metadataTokensRequired = metadataTokensRequired;
         this.metadataHopsLimit = metadataHopsLimit;
         this.metadataSupported = metadataSupported;
-        if (keypair != null) {
-            this.instanceSshKeyPairName = keypair.getKeyName();
-            this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
-        } else {
-            this.instanceSshKeyPairName = null;
-            this.instanceSshPrivateKey = null;
-        }
+        this.instanceSshKeyPairName = null;
+        this.instanceSshPrivateKey = null;
+
         readResolve();
     }
 
     @Deprecated
     public EC2AbstractSlave(String name, String instanceId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String labelString, ComputerLauncher launcher, RetentionStrategy<EC2Computer> retentionStrategy, String initScript, String tmpDir, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, boolean stopOnTerminate, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, Tenancy tenancy, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit)
             throws FormException, IOException {
-        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, DEFAULT_METADATA_SUPPORTED, null);
+        this(name, instanceId, templateDescription, remoteFS, numExecutors, mode, labelString, launcher, retentionStrategy, initScript, tmpDir, nodeProperties, remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, stopOnTerminate, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, tenancy, metadataEndpointEnabled, metadataTokensRequired, metadataHopsLimit, DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
@@ -269,6 +265,13 @@ public abstract class EC2AbstractSlave extends Slave {
         }
 
         return o;
+    }
+
+    protected void setInstanceKeypair(KeyPair keypair) {
+        if (keypair != null) {
+            this.instanceSshKeyPairName = keypair.getKeyName();
+            this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
+        }
     }
 
     public String getInstanceSshKeyPairName() {
@@ -506,17 +509,6 @@ public abstract class EC2AbstractSlave extends Slave {
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
         }
 
-    }
-
-    private boolean isUsingDynamicSshKeys() {
-        EC2Cloud cloud = getCloud();
-        if (cloud != null) {
-            String id = cloud.getSshKeysCredentialsId();
-            if ((id == null) || (id.isEmpty())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     protected void cleanupSshKeyPairIfNeeded() {
