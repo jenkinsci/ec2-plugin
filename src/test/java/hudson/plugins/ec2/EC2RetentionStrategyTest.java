@@ -19,20 +19,17 @@ import hudson.plugins.ec2.util.PrivateKeyHelper;
 import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
-import hudson.security.Permission;import hudson.model.Executor;
+import hudson.security.Permission;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import jenkins.util.NonLocalizable;
 import jenkins.model.Jenkins;
-import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.testcontainers.shaded.org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jvnet.hudson.test.LoggerRule;
 
-import java.security.Security;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -48,7 +45,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import jenkins.util.NonLocalizable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -56,10 +52,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
 
 public class EC2RetentionStrategyTest {
 
