@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class InstanceInfo {
-    private Instance instance;
-    private KeyPair keypair;
+    private final Instance instance;
+    private final KeyPair keypair;
 
     public InstanceInfo(Instance instance, KeyPair keypair) {
         this.instance = instance;
