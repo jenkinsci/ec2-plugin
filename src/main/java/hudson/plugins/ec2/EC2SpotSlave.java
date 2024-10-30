@@ -102,7 +102,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                     // check to see if there is a dynamic keypair associated with this instance, and if so, clean it up
                                     try {
                                         cleanupSshKeyPairIfNeeded();
-                                    } catch (AmazonClientException e) {
+                                    } catch (AmazonClientException | IOException e) {
                                         LOGGER.info(() -> "unable to remove instance keypair for : " + instanceId);
                                     }
                                     // send request to terminate instance

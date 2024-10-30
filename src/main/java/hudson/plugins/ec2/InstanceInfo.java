@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 public class InstanceInfo {
     private final Instance instance;
-    private final KeyPair keypair;
+    private KeyPair keypair;
 
     public InstanceInfo(Instance instance, KeyPair keypair) {
         this.instance = instance;
@@ -19,9 +19,14 @@ public class InstanceInfo {
         return instance;
     }
 
+    public void setKeypair(KeyPair keypair) {
+        this.keypair = keypair;
+    }
+
     public KeyPair getKeypair() {
         return keypair;
     }
+
 
     public static List<InstanceInfo> fromInstances(List<Instance> instances) {
         return instances.stream().map(obj -> new InstanceInfo(obj, null)).collect(Collectors.toList());

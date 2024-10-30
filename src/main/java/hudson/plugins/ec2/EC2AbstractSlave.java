@@ -497,7 +497,7 @@ public abstract class EC2AbstractSlave extends Slave {
             StopInstancesRequest request = new StopInstancesRequest(Collections.singletonList(getInstanceId()));
             LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
-            LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
+            LOGGER.fine("EC2 instance stop request sent for " + getInstanceId());
             Computer computer = toComputer();
             if (computer != null) {
                 computer.disconnect(null);
@@ -508,14 +508,14 @@ public abstract class EC2AbstractSlave extends Slave {
 
     }
 
-    protected void cleanupSshKeyPairIfNeeded() {
-        if (getInstanceSshKeyPairName() != null) {
+    protected void cleanupSshKeyPairIfNeeded() throws java.io.IOException {
+        if (getCloud().resolveKeyPair() == null) {
             //this instance is using dynamic ssh keys
             LOGGER.fine(() -> "EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPairName());
             AmazonEC2 ec2 = getCloud().connect();
             ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
         } else {
-            LOGGER.fine(() -> "No dynamic keypair to delete for " + getNodeName());
+            LOGGER.fine(() -> "No dynamic keypair to delete for " + getNodeName() + " because a static key has been configured");
         }
     }
 

@@ -1210,12 +1210,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (isUsingDynamicSshKeys()) {
             // no static ssh key defined, so submit riRequest.maxCount requests
             // each with a unique keypair (instead of a single request for multiple identical instances)
+            LOGGER.fine(() -> "no static ssh credential configured, will use dynamic ssh keys instead");
             List<InstanceInfo> instances = new ArrayList<>();
             int maxRequested = riRequest.getMaxCount();
             riRequest.setMaxCount(1);
             for (int i=0;i < maxRequested; i++) {
                 String keyName = "cloudbees-" + UUID.randomUUID();
                 KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
+                LOGGER.fine("created new dynamic keypair " + keyPair.getKeyName());
                 riRequest.setKeyName(keyPair.getKeyName());
                 Instance instance = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
                 instances.add(new InstanceInfo(instance, keyPair));
@@ -1223,7 +1225,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return instances;
         } else {
             // using a static ssh key
-            return InstanceInfo.fromInstances(ec2.runInstances(riRequest).getReservation().getInstances());
+            List<InstanceInfo> instances = InstanceInfo.fromInstances(ec2.runInstances(riRequest).getReservation().getInstances());
+            instances.stream().forEach(instance -> {
+                try {
+                    LOGGER.fine(() -> "static ssh credential configured, retrieving keypair and setting it in instance");
+                    instance.setKeypair(getParent().resolveKeyPair());
+                } catch (java.io.IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return instances;
         }
     }
 
@@ -1696,9 +1707,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (ec2PrivateKey != null) {
             // there is a static ssh key configured, make sure it is valid
+            LOGGER.fine("using static ssh key from configuration with fingerprint " + ec2PrivateKey.getFingerprint());
             KeyPair keyPair = ec2PrivateKey.find(ec2);
             if (keyPair == null) {
-                throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
+                throw new AmazonClientException("No matching keypair found on EC2 for key " + ec2PrivateKey.getFingerprint() + ". Is the EC2 private key a valid one?");
             }
             return keyPair;
         }

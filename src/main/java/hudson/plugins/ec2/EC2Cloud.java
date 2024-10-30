@@ -220,11 +220,15 @@ public abstract class EC2Cloud extends Cloud {
     public KeyPair resolveKeyPair() throws IOException {
         KeyPair keyPair = null;
 
-        if (sshKeysCredentialsId != null) {
+        if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
+            LOGGER.fine(() -> "static keypair credential is configured, getting key");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 EC2PrivateKey ec2PrivateKey = new  EC2PrivateKey(privateKeyCredential.getPrivateKey());
                 keyPair = ec2PrivateKey.find(connect());
+                LOGGER.fine("found matching keypair " + keyPair.getKeyName());
+            } else {
+                LOGGER.warning(() ->"unable to resolve keypair!");
             }
         }
         return keyPair;
@@ -235,9 +239,11 @@ public abstract class EC2Cloud extends Cloud {
         if (sshKeysCredentialsId != null) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
+                LOGGER.fine("private key resolved from sshCredential");
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
         }
+        LOGGER.info("unable to resolve private key");
         return null;
     }
 
@@ -446,9 +452,12 @@ public abstract class EC2Cloud extends Cloud {
      */
     @CheckForNull
     public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
+
         if (usableKeyPair == null) {
+            LOGGER.fine("no usable keypair found, will attempt to resolve");
             this.usableKeyPair = resolveKeyPair();
         }
+        LOGGER.fine(() -> "usable keypair already present -> " + usableKeyPair);
         return usableKeyPair;
     }
 
@@ -1219,6 +1228,7 @@ public abstract class EC2Cloud extends Cloud {
                 ec2.describeInstances();
 
                 if (!sshKeysCredentialsId.isEmpty()) {
+                    LOGGER.info("Static ssh credential is defined, validating....");
                     SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                     String privateKey = "";
                     if (sshCredential != null) {
@@ -1232,6 +1242,10 @@ public abstract class EC2Cloud extends Cloud {
                                         .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
                                                 + pk.getFingerprint() + ")");
                         }
+                    } else {
+                        LOGGER.warning(() -> "SSH credential was invalid");
+                        return FormValidation.error("SSH Credential was invalid");
+
                     }
                 }
             } catch(AmazonClientException e){
