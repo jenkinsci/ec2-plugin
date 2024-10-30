@@ -195,9 +195,6 @@ public abstract class EC2AbstractSlave extends Slave {
         this.metadataTokensRequired = metadataTokensRequired;
         this.metadataHopsLimit = metadataHopsLimit;
         this.metadataSupported = metadataSupported;
-        this.instanceSshKeyPairName = null;
-        this.instanceSshPrivateKey = null;
-
         readResolve();
     }
 
