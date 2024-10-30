@@ -1228,7 +1228,7 @@ public abstract class EC2Cloud extends Cloud {
                 ec2.describeInstances();
 
                 if (!sshKeysCredentialsId.isEmpty()) {
-                    LOGGER.info("Static ssh credential is defined, validating....");
+                    LOGGER.fine("Static ssh credential is defined, validating....");
                     SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                     String privateKey = "";
                     if (sshCredential != null) {
