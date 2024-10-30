@@ -43,16 +43,12 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     @Deprecated
     public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
             throws FormException, IOException {
-        this(templateDescription + " (" + name + ")", spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1, null);
+        this(templateDescription + " (" + name + ")", spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
     }
 
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
-            throws FormException, IOException {
-        this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir,labelString, nodeProperties, remoteAdmin, javaPath, jvmopts,idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, null);
-    }
 
     @DataBoundConstructor
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses, KeyPair keyPair)
+    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
             throws FormException, IOException {
 
         super(name, "", templateDescription, remoteFS, numExecutors, mode, labelString, amiType.isWindows() ? new EC2WindowsLauncher() :

@@ -63,7 +63,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
 
         private MockEC2SpotSlave(String name, String spotInstanceRequestId, String description, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
                 throws Descriptor.FormException, IOException {
-            super(name, spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, nodeProperties, remoteAdmin, javaPath, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses, null);
+            super(name, spotInstanceRequestId, description, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, nodeProperties, remoteAdmin, javaPath, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses);
         }
 
         @Override

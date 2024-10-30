@@ -28,7 +28,12 @@ public class InstanceInfo {
     }
 
 
-    public static List<InstanceInfo> fromInstances(List<Instance> instances) {
-        return instances.stream().map(obj -> new InstanceInfo(obj, null)).collect(Collectors.toList());
+    public static List<InstanceInfo> fromInstances(List<Instance> instances, EC2Cloud cloud) {
+        try {
+            KeyPair keyPair = cloud.resolveKeyPair();
+            return instances.stream().map(obj -> new InstanceInfo(obj, keyPair)).collect(Collectors.toList());
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

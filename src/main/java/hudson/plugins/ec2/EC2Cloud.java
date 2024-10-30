@@ -219,7 +219,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public KeyPair resolveKeyPair() throws IOException {
         KeyPair keyPair = null;
-
+        LOGGER.fine(() -> "attempting to resolve static keypair");
         if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
             LOGGER.fine(() -> "static keypair credential is configured, getting key");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
@@ -227,24 +227,26 @@ public abstract class EC2Cloud extends Cloud {
                 EC2PrivateKey ec2PrivateKey = new  EC2PrivateKey(privateKeyCredential.getPrivateKey());
                 keyPair = ec2PrivateKey.find(connect());
                 LOGGER.fine("found matching keypair " + keyPair.getKeyName());
-            } else {
-                LOGGER.warning(() ->"unable to resolve keypair!");
             }
+        } else {
+            LOGGER.fine(() -> "no ssh credential is configured, controller will use dynamic ssh keys");
         }
         return keyPair;
     }
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey() throws IOException {
-        if (sshKeysCredentialsId != null) {
+        if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 LOGGER.fine("private key resolved from sshCredential");
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
+            return null;
+        } else {
+            LOGGER.fine("controller is using dynamic ssh keys, nothing to resolve");
+            return null;
         }
-        LOGGER.info("unable to resolve private key");
-        return null;
     }
 
     public abstract URL getEc2EndpointUrl() throws IOException;
@@ -882,7 +884,7 @@ public abstract class EC2Cloud extends Cloud {
         while (orphansOrStopped.size() > requestedNum) {
             orphansOrStopped.remove(0);
         }
-        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(InstanceInfo.fromInstances(orphansOrStopped)), template);
+        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(InstanceInfo.fromInstances(orphansOrStopped, this)), template);
         if (orphansOrStopped.size() > 0) {
             LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
         }
@@ -1242,10 +1244,6 @@ public abstract class EC2Cloud extends Cloud {
                                         .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
                                                 + pk.getFingerprint() + ")");
                         }
-                    } else {
-                        LOGGER.warning(() -> "SSH credential was invalid");
-                        return FormValidation.error("SSH Credential was invalid");
-
                     }
                 }
             } catch(AmazonClientException e){

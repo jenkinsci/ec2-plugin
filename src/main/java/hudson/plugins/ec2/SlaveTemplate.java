@@ -1167,7 +1167,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
         if (orphansOrStopped.size() == number) {
-            return toSlaves(InstanceInfo.fromInstances(orphansOrStopped));
+            return toSlaves(InstanceInfo.fromInstances(orphansOrStopped, getParent()));
         }
 
         riRequest.setMaxCount(number - orphansOrStopped.size());
@@ -1201,7 +1201,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logProvisionInfo("No new instances were created");
         }
 
-        newInstances.addAll(InstanceInfo.fromInstances(orphansOrStopped));
+        newInstances.addAll(InstanceInfo.fromInstances(orphansOrStopped, getParent()));
 
         return toSlaves(newInstances);
     }
@@ -1225,7 +1225,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return instances;
         } else {
             // using a static ssh key
-            List<InstanceInfo> instances = InstanceInfo.fromInstances(ec2.runInstances(riRequest).getReservation().getInstances());
+            List<InstanceInfo> instances = InstanceInfo.fromInstances(ec2.runInstances(riRequest).getReservation().getInstances(), getParent());
             instances.stream().forEach(instance -> {
                 try {
                     LOGGER.fine(() -> "static ssh credential configured, retrieving keypair and setting it in instance");
