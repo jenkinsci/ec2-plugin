@@ -60,12 +60,10 @@ to generate the private key to interactively log in to EC2 instances.
 Alternatively you may select **None** for the SSH credentials and the plugin
 will dynamically manage the SSH key pair used by each instance.
 
-```
 If you decide to switch from dynamic key management to using a static SSH
 credential it is advisable that you terminate and restart any running agent
 instances, otherwise the controller will not be able to re-attach to them
 if they are disconnected.
-```
 
 Once you have put in your Access Key and Secret Access Key, select a
 region for the cloud (not shown in screenshot). You may define only one
