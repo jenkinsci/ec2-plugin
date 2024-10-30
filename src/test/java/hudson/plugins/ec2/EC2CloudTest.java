@@ -4,10 +4,13 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.InstanceType;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsScope;
 import hudson.model.Node;
 import jenkins.model.Jenkins;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -56,6 +59,7 @@ public class EC2CloudTest {
 
         try (MockedStatic<Jenkins> mocked = Mockito.mockStatic(Jenkins.class)) {
             mocked.when(Jenkins::getInstanceOrNull).thenReturn(mockJenkins);
+            Mockito.doReturn(null).when(spyCloud).resolveKeyPair();
             EC2AbstractSlave[] orphanNodes = {mockOrphanNode};
             Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(Mockito.any(List.class));
 
