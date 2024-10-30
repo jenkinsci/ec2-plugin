@@ -184,7 +184,6 @@ public class EC2PrivateKey {
         }
     }
 
-
     @Override
     public int hashCode() {
         return privateKey.hashCode();
