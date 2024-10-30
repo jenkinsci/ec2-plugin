@@ -1226,6 +1226,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } else {
             // using a static ssh key
             List<InstanceInfo> instances = InstanceInfo.fromInstances(ec2.runInstances(riRequest).getReservation().getInstances(), getParent());
+            instances.stream().forEach(instance -> {
+                try {
+                    LOGGER.fine(() -> "static ssh credential configured, retrieving keypair and setting it in instance");
+                    instance.setKeypair(getParent().resolveKeyPair());
+                } catch (java.io.IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
             return instances;
         }
     }
