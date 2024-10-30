@@ -264,7 +264,7 @@ public abstract class EC2AbstractSlave extends Slave {
         return o;
     }
 
-    protected void setInstanceKeypair(KeyPair keypair) {
+    public void setInstanceKeypair(KeyPair keypair) {
         if (keypair != null) {
             this.instanceSshKeyPairName = keypair.getKeyName();
             this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
