@@ -816,7 +816,7 @@ public abstract class EC2Cloud extends Cloud {
             }
         }
         LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
-            new Object[]{jenkinsInstance.getComputers().length, plannedNodes.size()});
+            new Object[]{jenkinsInstance.getComputers().length, plannedNodes.size() - jenkinsInstance.getComputers().length});
         return plannedNodes;
     }
 
@@ -859,7 +859,7 @@ public abstract class EC2Cloud extends Cloud {
 
             LOGGER.log(Level.INFO, "{0}. Attempting provision finished", t);
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
-              new Object[]{Jenkins.get().getComputers().length, number});
+              new Object[]{Jenkins.get().getComputers().length, number - jenkinsInstance.getComputers().length});
         } catch (AmazonClientException | IOException e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
         }
