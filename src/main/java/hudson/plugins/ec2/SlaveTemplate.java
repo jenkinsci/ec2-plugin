@@ -1182,18 +1182,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
 
             try {
-                newInstances = createNewInstances(ec2, riRequest);
+                newInstances = createNewOnDemandInstances(ec2, riRequest);
             } catch (AmazonEC2Exception e) {
                 if (fallbackSpotToOndemand && e.getErrorCode().equals("InsufficientInstanceCapacity")) {
                     logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
                     riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
-                    newInstances = createNewInstances(ec2, riRequest);
+                    newInstances = createNewOnDemandInstances(ec2, riRequest);
                 } else {
                     throw e;
                 }
             }
         } else {
-            newInstances = createNewInstances(ec2, riRequest);
+            newInstances = createNewOnDemandInstances(ec2, riRequest);
         }
         // Have to create a new instance
 
@@ -1206,7 +1206,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return toSlaves(newInstances);
     }
 
-    List<InstanceInfo> createNewInstances(AmazonEC2 ec2, RunInstancesRequest riRequest) throws IOException {
+    List<InstanceInfo> createNewOnDemandInstances(AmazonEC2 ec2, RunInstancesRequest riRequest) throws IOException {
         if (isUsingDynamicSshKeys()) {
             // no static ssh key defined, so submit riRequest.maxCount requests
             // each with a unique keypair (instead of a single request for multiple identical instances)
@@ -1250,6 +1250,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     }
 
+    /* this method is only used by onDemand provisioning */
     List<EC2AbstractSlave> toSlaves(List<InstanceInfo> newInstances) throws IOException {
         try {
             List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
