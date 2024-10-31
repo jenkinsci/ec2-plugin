@@ -222,16 +222,17 @@ public abstract class EC2Cloud extends Cloud {
         KeyPair keyPair = null;
         LOGGER.fine(() -> "attempting to resolve static keypair for cloud " + this.getDisplayName());
 
-        if (sshKeysCredentialsId != null) {
-            LOGGER.fine(() -> "static keypair credential is configured, getting key");
-            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
+        if (sshKeysCredentialsId == null) {
+            LOGGER.fine(() -> "no static ssh credential is configured, controller will use dynamic ssh keys");
+        } else {
+            String id = sshKeysCredentialsId;
+            LOGGER.fine(() -> "static keypair credential is configured, getting key for cloud " + this.getDisplayName());
+            SSHUserPrivateKey privateKeyCredential = getSshCredential(id, Jenkins.get());
             if (privateKeyCredential != null) {
                 EC2PrivateKey ec2PrivateKey = new  EC2PrivateKey(privateKeyCredential.getPrivateKey());
                 keyPair = ec2PrivateKey.find(connect());
                 LOGGER.fine("found matching keypair " + keyPair.getKeyName());
             }
-        } else {
-            LOGGER.fine(() -> "no ssh credential is configured, controller will use dynamic ssh keys");
         }
         return keyPair;
     }
