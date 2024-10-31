@@ -29,7 +29,6 @@ import hudson.FilePath;
 import hudson.Util;
 import hudson.ProxyConfiguration;
 import hudson.model.Descriptor;
-import hudson.model.Node;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
