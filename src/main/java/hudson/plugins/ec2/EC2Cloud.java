@@ -1174,7 +1174,7 @@ public abstract class EC2Cloud extends Cloud {
                 // Don't do anything if the user is only reading the configuration
                 return FormValidation.ok();
             }
-            if (value == null || value.isEmpty()){
+            if (value.isEmpty()){
                 return FormValidation.ok("No SSH credentials selected, so SSH key management will be handled dynamically by Jenkins");
             }
 
