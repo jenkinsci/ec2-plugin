@@ -236,7 +236,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey() throws IOException {
-        if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
+        if (sshKeysCredentialsId != null) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 LOGGER.fine("private key resolved from sshCredential");
