@@ -1424,7 +1424,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private boolean isUsingDynamicSshKeys() {
         if (parent != null) {
             String id = parent.getSshKeysCredentialsId();
-            if ((id == null) || (id.isEmpty())) {
+            if (id == null) {
                 return true;
             }
         }

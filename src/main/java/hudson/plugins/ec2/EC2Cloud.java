@@ -28,6 +28,8 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
@@ -193,6 +195,9 @@ public abstract class EC2Cloud extends Cloud {
         this.roleSessionName = roleSessionName;
         this.credentialsId = Util.fixEmpty(credentialsId);
         this.sshKeysCredentialsId = Util.fixEmpty(sshKeysCredentialsId);
+        if (this.sshKeysCredentialsId == null) {
+            this.sshKeysCredentialsId = null;
+        }
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -219,7 +224,8 @@ public abstract class EC2Cloud extends Cloud {
     public KeyPair resolveKeyPair() throws IOException {
         KeyPair keyPair = null;
         LOGGER.fine(() -> "attempting to resolve static keypair");
-        if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
+
+        if (sshKeysCredentialsId != null) {
             LOGGER.fine(() -> "static keypair credential is configured, getting key");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
