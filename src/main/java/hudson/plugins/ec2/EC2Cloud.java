@@ -195,7 +195,7 @@ public abstract class EC2Cloud extends Cloud {
         this.roleSessionName = roleSessionName;
         this.credentialsId = Util.fixEmpty(credentialsId);
         this.sshKeysCredentialsId = Util.fixEmpty(sshKeysCredentialsId);
-        if (this.sshKeysCredentialsId == null) {
+        if (this.sshKeysCredentialsId != null && this.sshKeysCredentialsId.isBlank()) {
             this.sshKeysCredentialsId = null;
         }
 
@@ -1120,7 +1120,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @CheckForNull
-    private static SSHUserPrivateKey getSshCredential(String id, ItemGroup context){
+    private static SSHUserPrivateKey getSshCredential(@NonNull String id, ItemGroup context){
 
         if (!id.isEmpty()) {
             SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
