@@ -220,7 +220,7 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     public KeyPair resolveKeyPair() throws IOException {
         KeyPair keyPair = null;
-        LOGGER.fine(() -> "attempting to resolve static keypair");
+        LOGGER.fine(() -> "attempting to resolve static keypair for cloud " + this.getDisplayName());
 
         if (sshKeysCredentialsId != null) {
             LOGGER.fine(() -> "static keypair credential is configured, getting key");

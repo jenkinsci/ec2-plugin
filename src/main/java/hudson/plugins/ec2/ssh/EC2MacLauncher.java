@@ -338,10 +338,10 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
-            logInfo(computer, listener, "Getting keypair...");
+            logInfo(computer, listener, "Getting private key...");
             KeyPair key = computer.getCloud().getKeyPair();
             if (key == null){
-                logWarning(computer, listener, "Could not retrieve a valid key pair.");
+                logWarning(computer, listener, "Could not retrieve a valid key pair");
                 return false;
             }
             logInfo(computer, listener,

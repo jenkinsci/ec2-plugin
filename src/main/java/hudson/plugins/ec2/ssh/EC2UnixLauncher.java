@@ -103,19 +103,19 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     protected void log(Level level, EC2Computer computer, TaskListener listener, String message) {
-        EC2Cloud.log(LOGGER, level, listener, message);
+        EC2Cloud.log(LOGGER, level, listener, message.concat(" [" + computer.getInstanceId() + "]"));
     }
 
     protected void logException(EC2Computer computer, TaskListener listener, String message, Throwable exception) {
-        EC2Cloud.log(LOGGER, Level.WARNING, listener, message, exception);
+        EC2Cloud.log(LOGGER, Level.WARNING, listener, message.concat(" [" + computer.getInstanceId() + "]"), exception);
     }
 
     protected void logInfo(EC2Computer computer, TaskListener listener, String message) {
-        log(Level.INFO, computer, listener, message);
+        log(Level.INFO, computer, listener, message.concat(" [" + computer.getInstanceId() + "]"));
     }
 
     protected void logWarning(EC2Computer computer, TaskListener listener, String message) {
-        log(Level.WARNING, computer, listener, message);
+        log(Level.WARNING, computer, listener, message.concat(" [" + computer.getInstanceId() + "]"));
     }
 
     protected String buildUpCommand(EC2Computer computer, String command) {
@@ -163,7 +163,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
         }
 
-        logInfo(computer, listener, "Launching instance: " + node.getInstanceId());
+        logInfo(computer, listener, "Launching instance");
 
         try {
             boolean isBootstrapped = bootstrap(computer, listener, template);
@@ -325,13 +325,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if (node != null) {
                 Secret sshPrivatekey = node.getInstanceSshPrivateKey();
                 if (sshPrivatekey != null) {
-                    LOGGER.log(Level.FINE, () -> "using dynamic ssh key -> " + computer.getNode().getInstanceSshKeyPairName());
+                    LOGGER.log(Level.FINE, () -> "using dynamic ssh key -> " + computer.getNode().getInstanceSshKeyPairName() + "[" + computer.getInstanceId() + "]");
                     privateKey = sshPrivatekey.getPlainText();
                 } else {
-                    throw new IOException("unable to determine private ssh key!!");
+                    throw new IOException("unable to determine private ssh key!! [" + computer.getInstanceId() + "]");
                 }
             } else {
-                throw new IOException("unable to determine private ssh key!!");
+                throw new IOException("unable to determine private ssh key!![" + computer.getInstanceId() + "]");
             }
         }
 
@@ -352,9 +352,9 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             return tempFile;
         } catch (Exception e) {
             if (!tempFile.delete()) {
-                LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+                LOGGER.log(Level.WARNING, "Failed to delete identity key file [" + computer.getInstanceId() + "]");
             }
-            throw new IOException("Error creating temporary identity key file for connecting to EC2 agent.", e);
+            throw new IOException("Error creating temporary identity key file for connecting to EC2 agent. [" + computer.getInstanceId() + "]", e);
         }
     }
 
@@ -376,20 +376,20 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             return tempFile;
         } catch (Exception e) {
             if (!tempFile.delete()) {
-                LOGGER.log(Level.WARNING, "Failed to delete known hosts key file");
+                LOGGER.log(Level.WARNING, "Failed to delete known hosts key file [" + computer.getInstanceId() + "]");
             }
-            throw new IOException("Error creating temporary known hosts file for connecting to EC2 agent.", e);
+            throw new IOException("Error creating temporary known hosts file for connecting to EC2 agent. [" + computer.getInstanceId() + "]", e);
         }
     }
 
     private boolean bootstrap(@NonNull EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
             InterruptedException, AmazonClientException {
-        logInfo(computer, listener, "bootstrap()");
+        logInfo(computer, listener, "bootstrap() for " + computer.getInstanceId());
         Connection bootstrapConn = null;
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
-            logInfo(computer, listener, "Getting keypair...");
+            logInfo(computer, listener, "Getting private key...");
             EC2AbstractSlave node = computer.getNode();
             if (node != null) {
                 Secret sshPrivateKey = node.getInstanceSshPrivateKey();
@@ -420,7 +420,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     return false;
                 }
             } else {
-                logWarning(computer, listener, "node was null, unable to bootstrap!");
+                logWarning(computer, listener, "node was null, unable to bootstrap");
                 return false;
             }
         } finally {

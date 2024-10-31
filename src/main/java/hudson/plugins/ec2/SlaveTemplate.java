@@ -1499,10 +1499,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             if (!isUsingDynamicSshKeys()) {
                 // there is a global/static ssh keypair configured, so use that
+                LOGGER.fine(() -> "static ssh credential is configured, resolving keyname to use in spot launch request");
                 KeyPair kp = getParent().resolveKeyPair();
                 if (kp != null) {
                     launchSpecification.setKeyName(kp.getKeyName());
                 }
+                LOGGER.fine("created new dynamic keypair " + keypair.getKeyName() + " for to use in spot launch request");
             }
             launchSpecification.setInstanceType(type.toString());
 

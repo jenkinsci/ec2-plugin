@@ -268,7 +268,9 @@ public abstract class EC2AbstractSlave extends Slave {
         if (keypair != null) {
             this.instanceSshKeyPairName = keypair.getKeyName();
             this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
+            LOGGER.fine(() -> "Setting instance ec2keypair to " + keypair.getKeyName() + " [" + this.instanceId + "]");
         }
+        LOGGER.fine(() -> "null passed for keypair, instance keypair not set [" + this.instanceId + "]");
     }
 
     public String getInstanceSshKeyPairName() {
@@ -495,15 +497,15 @@ public abstract class EC2AbstractSlave extends Slave {
         try {
             AmazonEC2 ec2 = getCloud().connect();
             StopInstancesRequest request = new StopInstancesRequest(Collections.singletonList(getInstanceId()));
-            LOGGER.fine("Sending stop request for " + getInstanceId());
+            LOGGER.fine("Sending stop request [" + getInstanceId() + "]");
             ec2.stopInstances(request);
-            LOGGER.fine("EC2 instance stop request sent for " + getInstanceId());
+            LOGGER.fine("EC2 instance stop request sent [" + getInstanceId() + "]");
             Computer computer = toComputer();
             if (computer != null) {
                 computer.disconnect(null);
             }
         } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
+            LOGGER.log(Level.WARNING, "Failed to stop EC2 instance [" + getInstanceId() + "]", e);
         }
 
     }
@@ -511,11 +513,11 @@ public abstract class EC2AbstractSlave extends Slave {
     protected void cleanupSshKeyPairIfNeeded() throws java.io.IOException {
         if (getCloud().resolveKeyPair() == null) {
             //this instance is using dynamic ssh keys
-            LOGGER.fine(() -> "EC2 instance delete key pair request sent for " + this.getInstanceSshKeyPairName());
+            LOGGER.fine(() -> "EC2 instance delete key pair request sent for keypair " + this.getInstanceSshKeyPairName() + "[ " + getInstanceId() + "]");
             AmazonEC2 ec2 = getCloud().connect();
             ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
         } else {
-            LOGGER.fine(() -> "No dynamic keypair to delete for " + getNodeName() + " because a static key has been configured");
+            LOGGER.fine(() -> "No dynamic keypair to delete for  because a static key has been configured [" + getInstanceId() + "]");
         }
     }
 
@@ -544,7 +546,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     void idleTimeout() {
-        LOGGER.info("EC2 instance idle time expired: " + getInstanceId());
+        LOGGER.info("EC2 instance idle time expired [" + getInstanceId() + "]");
         if (!stopOnTerminate) {
             terminate();
         } else {
@@ -553,7 +555,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     void launchTimeout(){
-        LOGGER.info("EC2 instance failed to launch: " + getInstanceId());
+        LOGGER.info("EC2 instance failed to launch: [" + getInstanceId() + "]");
         terminate();
     }
 
