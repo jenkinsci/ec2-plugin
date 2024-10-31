@@ -28,6 +28,9 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.CreateKeyPairResult;
+import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
@@ -171,7 +174,6 @@ public abstract class EC2Cloud extends Cloud {
     @CheckForNull
     @Deprecated
     private transient EC2PrivateKey privateKey;
-    @CheckForNull
     private String sshKeysCredentialsId;
 
     /**
@@ -219,7 +221,7 @@ public abstract class EC2Cloud extends Cloud {
     public KeyPair resolveKeyPair() throws IOException {
         KeyPair keyPair = null;
         LOGGER.fine(() -> "attempting to resolve static keypair");
-        if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
+        if (!sshKeysCredentialsId.isEmpty()) {
             LOGGER.fine(() -> "static keypair credential is configured, getting key");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
@@ -235,7 +237,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey() throws IOException {
-        if (sshKeysCredentialsId != null) {
+        if (!sshKeysCredentialsId.isEmpty()) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 LOGGER.fine("private key resolved from sshCredential");
