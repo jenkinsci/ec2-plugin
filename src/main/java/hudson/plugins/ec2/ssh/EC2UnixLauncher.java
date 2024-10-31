@@ -107,15 +107,15 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     protected void logException(EC2Computer computer, TaskListener listener, String message, Throwable exception) {
-        EC2Cloud.log(LOGGER, Level.WARNING, listener, message.concat(" [" + computer.getInstanceId() + "]"), exception);
+        EC2Cloud.log(LOGGER, Level.WARNING, listener, message, exception);
     }
 
     protected void logInfo(EC2Computer computer, TaskListener listener, String message) {
-        log(Level.INFO, computer, listener, message.concat(" [" + computer.getInstanceId() + "]"));
+        log(Level.INFO, computer, listener, message);
     }
 
     protected void logWarning(EC2Computer computer, TaskListener listener, String message) {
-        log(Level.WARNING, computer, listener, message.concat(" [" + computer.getInstanceId() + "]"));
+        log(Level.WARNING, computer, listener, message);
     }
 
     protected String buildUpCommand(EC2Computer computer, String command) {
