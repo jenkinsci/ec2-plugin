@@ -204,7 +204,6 @@ public class EC2RetentionStrategyTest {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-                return;
             }
 
             @Override
@@ -274,7 +273,6 @@ public class EC2RetentionStrategyTest {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
             protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-                return;
             }
 
             @Override

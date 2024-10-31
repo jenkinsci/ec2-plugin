@@ -84,8 +84,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                 LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId);
                             } catch (AmazonClientException e) {
                                 // Spot request is no longer valid
-                                listener.error("Failed to cancel Spot request: " + spotInstanceRequestId);
-                                LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
+                                e.printStackTrace(listener.error("Failed to cancel Spot request: " + spotInstanceRequestId));
                             }
 
                             // Terminate the agent if it is running
@@ -102,8 +101,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                         LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
                                     } catch (AmazonClientException e) {
                                         // Spot request is no longer valid
-                                        listener.error("Failed to terminate the Spot instance: " + instanceId);
-                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                                        e.printStackTrace(listener.error("Failed to terminate the Spot instance: " + instanceId));
                                     }
                                 }
                             }
@@ -117,8 +115,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             try {
                                 Jenkins.get().removeNode(this);
                             } catch (IOException e) {
-                                listener.error("Failed to remove agent");
-                                LOGGER.log(Level.WARNING, "Failed to remove agent: " + name, e);
+                                e.printStackTrace(listener.error("Failed to remove agent"));
                             }
                             synchronized(terminateScheduled) {
                                 terminateScheduled.countDown();

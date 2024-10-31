@@ -341,7 +341,6 @@ public class SshHostKeyVerificationStrategyTest {
             final EC2AbstractSlave slave = new EC2AbstractSlave(COMPUTER_NAME + suffix, "id" + suffix, "description" + suffix, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
                 @Override
                 protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-                    return;
                 }
 
                 @Override

@@ -33,7 +33,6 @@ public class EC2AbstractSlaveTest {
 
             @Override
             protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-                return;
             }
 
             @Override
@@ -59,7 +58,6 @@ public class EC2AbstractSlaveTest {
         EC2AbstractSlave slave = new EC2AbstractSlave("name", "", description, "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "root", "jvm", false, "idle", null, cloudName, false, Integer.MAX_VALUE, new UnixData("remote", null, null, "22", null), ConnectionStrategy.PRIVATE_IP, 0)  {
             @Override
             protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
-                return;
             }
 
             @Override
