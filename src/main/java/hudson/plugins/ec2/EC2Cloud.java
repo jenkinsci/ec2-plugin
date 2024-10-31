@@ -195,9 +195,6 @@ public abstract class EC2Cloud extends Cloud {
         this.roleSessionName = roleSessionName;
         this.credentialsId = Util.fixEmpty(credentialsId);
         this.sshKeysCredentialsId = Util.fixEmpty(sshKeysCredentialsId);
-        if (this.sshKeysCredentialsId != null && this.sshKeysCredentialsId.isBlank()) {
-            this.sshKeysCredentialsId = null;
-        }
 
         if (templates == null) {
             this.templates = Collections.emptyList();
@@ -303,6 +300,10 @@ public abstract class EC2Cloud extends Cloud {
 
         for (SlaveTemplate t : templates)
             t.parent = this;
+
+        if (this.sshKeysCredentialsId != null && this.sshKeysCredentialsId.isBlank()) {
+            this.sshKeysCredentialsId = null;
+        }
 
         if (this.sshKeysCredentialsId == null && this.privateKey != null ){
             migratePrivateSshKeyToCredential(this.privateKey.getPrivateKey());
