@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 public class InstanceInfo {
     private final Instance instance;
-    private KeyPair keypair;
+    private final KeyPair keypair;
 
     public InstanceInfo(Instance instance, KeyPair keypair) {
         this.instance = instance;
@@ -17,10 +17,6 @@ public class InstanceInfo {
 
     public Instance getInstance() {
         return instance;
-    }
-
-    public void setKeypair(KeyPair keypair) {
-        this.keypair = keypair;
     }
 
     public KeyPair getKeypair() {

@@ -112,7 +112,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                     }
                                 }
                             }
-                        } catch (AmazonClientException e) {
+                        } catch (Exception e) {
                             LOGGER.log(Level.WARNING,"Failed to remove agent: ", e);
                         } finally {
                             // Remove the instance even if deletion failed, otherwise it will hang around forever in

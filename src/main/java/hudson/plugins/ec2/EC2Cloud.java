@@ -162,7 +162,6 @@ public abstract class EC2Cloud extends Cloud {
      */
     @CheckForNull
     private String credentialsId;
-
     @CheckForNull
     @Deprecated
     private transient String accessId;
