@@ -1634,10 +1634,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     protected EC2OndemandSlave newOndemandSlave(InstanceInfo info) throws FormException, IOException {
-        Instance inst = info.getInstance();
+        Instance instance = info.getInstance();
         EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
-            .withName(getSlaveName(inst.getInstanceId()))
-            .withInstanceId(inst.getInstanceId())
+            .withName(getSlaveName(instance.getInstanceId()))
+            .withInstanceId(instance.getInstanceId())
             .withDescription(description)
             .withRemoteFS(remoteFS)
             .withNumExecutors(getNumExecutors())
@@ -1651,9 +1651,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withJvmopts(jvmopts)
             .withStopOnTerminate(stopOnTerminate)
             .withIdleTerminationMinutes(idleTerminationMinutes)
-            .withPublicDNS(inst.getPublicDnsName())
-            .withPrivateDNS(inst.getPrivateDnsName())
-            .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
+            .withPublicDNS(instance.getPublicDnsName())
+            .withPrivateDNS(instance.getPrivateDnsName())
+            .withTags(EC2Tag.fromAmazonTags(instance.getTags()))
             .withCloudName(parent.name)
             .withLaunchTimeout(getLaunchTimeout())
             .withAmiType(amiType)
@@ -1691,6 +1691,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             .withAmiType(amiType)
             .withConnectionStrategy(connectionStrategy)
             .withMaxTotalUses(maxTotalUses)
+            .withKeyPair(keyPair)
             .build();
         return EC2AgentFactory.getInstance().createSpotAgent(config);
     }
