@@ -1497,15 +1497,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             launchSpecification.setUserData(userDataString);
 
+            KeyPair keypair = null;
 
             if (!isUsingDynamicSshKeys()) {
                 // there is a global/static ssh keypair configured, so use that
                 LOGGER.fine(() -> "static ssh credential is configured, resolving keyname to use in spot launch request");
-                KeyPair kp = getParent().resolveKeyPair();
-                if (kp != null) {
-                    launchSpecification.setKeyName(kp.getKeyName());
+                keypair = getParent().resolveKeyPair();
+                if (keypair != null) {
+                    launchSpecification.setKeyName(keypair.getKeyName());
                 }
+            } else {
+                String keyName = "dev-1-" + UUID.randomUUID();
+                keypair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
                 LOGGER.fine("created new dynamic keypair " + keypair.getKeyName() + " for to use in spot launch request");
+                launchSpecification.setKeyName(keypair.getKeyName());
             }
             launchSpecification.setInstanceType(type.toString());
 
@@ -1579,7 +1584,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
-                slaves.add(newSpotSlave(spotInstReq));
+                slaves.add(newSpotSlave(spotInstReq, keypair));
             }
 
             return slaves;
@@ -1664,7 +1669,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
 
-    protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
+    protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir, KeyPair keyPair) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
             .withName(getSlaveName(sir.getSpotInstanceRequestId()))
             .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
