@@ -1215,7 +1215,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             int maxRequested = riRequest.getMaxCount();
             riRequest.setMaxCount(1);
             for (int i=0;i < maxRequested; i++) {
-                String keyName = "cloudbees-" + UUID.randomUUID();
+                String keyName = "jenkins-" + UUID.randomUUID();
                 KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
                 LOGGER.fine("created new dynamic keypair " + keyPair.getKeyName());
                 riRequest.setKeyName(keyPair.getKeyName());
