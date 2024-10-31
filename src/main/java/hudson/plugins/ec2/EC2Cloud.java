@@ -1159,6 +1159,7 @@ public abstract class EC2Cloud extends Cloud {
             AbstractIdCredentialsListBoxModel result = new StandardListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 result = result
+                        .includeEmptyValue()
                         .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeCurrentValue(sshKeysCredentialsId);
