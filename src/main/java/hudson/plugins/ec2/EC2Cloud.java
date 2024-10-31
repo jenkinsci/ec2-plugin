@@ -1243,6 +1243,11 @@ public abstract class EC2Cloud extends Cloud {
                                                 + pk.getFingerprint() + ")");
                         }
                     }
+                } else {
+                    // using dynamic keys, so lets try to create and delete a keypair
+                    ec2.createKeyPair(new CreateKeyPairRequest("test-key"));
+                    // now remove it
+                    ec2.deleteKeyPair(new DeleteKeyPairRequest("test-key"));
                 }
             } catch(AmazonClientException e){
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
