@@ -1206,7 +1206,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return toSlaves(newInstances);
     }
 
-    List<InstanceInfo> createNewInstances(AmazonEC2 ec2, RunInstancesRequest riRequest) {
+    List<InstanceInfo> createNewInstances(AmazonEC2 ec2, RunInstancesRequest riRequest) throws IOException {
         if (isUsingDynamicSshKeys()) {
             // no static ssh key defined, so submit riRequest.maxCount requests
             // each with a unique keypair (instead of a single request for multiple identical instances)
