@@ -1116,24 +1116,20 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @CheckForNull
-    private static SSHUserPrivateKey getSshCredential(String id, ItemGroup context){
+    private static SSHUserPrivateKey getSshCredential(@NonNull String id, ItemGroup context){
+        SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
+                CredentialsProvider.lookupCredentials(
+                        SSHUserPrivateKey.class, // (1)
+                        context,
+                        null,
+                        Collections.emptyList()),
+                CredentialsMatchers.withId(id));
 
-        if (!id.isEmpty()) {
-            SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
-                    CredentialsProvider.lookupCredentials(
-                            SSHUserPrivateKey.class, // (1)
-                            context,
-                            null,
-                            Collections.emptyList()),
-                    CredentialsMatchers.withId(id));
-
-            if (credential == null) {
-                LOGGER.log(Level.WARNING, "EC2 Plugin could not find the specified credentials ({0}) in the Jenkins Global Credentials Store, EC2 Plugin for cloud must be manually reconfigured", new String[]{id});
-            }
-
-            return credential;
+        if (credential == null) {
+            LOGGER.log(Level.WARNING, "EC2 Plugin could not find the specified credentials ({0}) in the Jenkins Global Credentials Store, EC2 Plugin for cloud must be manually reconfigured", new String[]{id});
         }
-        return null;
+
+        return credential;
     }
 
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
