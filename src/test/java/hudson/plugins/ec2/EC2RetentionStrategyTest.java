@@ -757,6 +757,9 @@ public class EC2RetentionStrategyTest {
     private static void checkRetentionStrategy(EC2RetentionStrategy rs, EC2Computer c) throws InterruptedException {
         rs.check(c);
         EC2AbstractSlave node = c.getNode();
-        assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
+        // checks if node has been terminated within timeout. if node is null, it has already been terminated
+        if (node != null) {
+            assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
+        }
     }
 }
