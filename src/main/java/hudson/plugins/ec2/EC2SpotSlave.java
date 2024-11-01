@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.Functions;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -84,7 +85,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                 LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId);
                             } catch (AmazonClientException e) {
                                 // Spot request is no longer valid
-                                e.printStackTrace(listener.error("Failed to cancel Spot request: " + spotInstanceRequestId));
+                                Functions.printStackTrace(e, listener.error("Failed to cancel Spot request: " + spotInstanceRequestId));
                             }
 
                             // Terminate the agent if it is running
@@ -101,7 +102,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                         LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
                                     } catch (AmazonClientException e) {
                                         // Spot request is no longer valid
-                                        e.printStackTrace(listener.error("Failed to terminate the Spot instance: " + instanceId));
+                                        Functions.printStackTrace(e, listener.error("Failed to terminate the Spot instance: " + instanceId));
                                     }
                                 }
                             }
@@ -115,7 +116,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             try {
                                 Jenkins.get().removeNode(this);
                             } catch (IOException e) {
-                                e.printStackTrace(listener.error("Failed to remove agent"));
+                                Functions.printStackTrace(e, listener.error("Failed to remove agent"));
                             }
                             synchronized(terminateScheduled) {
                                 terminateScheduled.countDown();

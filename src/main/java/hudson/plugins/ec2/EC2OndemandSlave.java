@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Computer;
 import hudson.model.Node;
@@ -111,7 +112,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                             Jenkins.get().removeNode(this);
                             LOGGER.info("Removed EC2 instance from jenkins controller: " + getInstanceId());
                         } catch (AmazonClientException | IOException e) {
-                            e.printStackTrace(listener.error("Failed to terminate EC2 instance: " + getInstanceId()));
+                            Functions.printStackTrace(e, listener.error("Failed to terminate EC2 instance: " + getInstanceId()));
                         } finally {
                             synchronized(terminateScheduled) {
                                 terminateScheduled.countDown();
