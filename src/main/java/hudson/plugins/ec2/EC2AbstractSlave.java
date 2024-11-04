@@ -28,10 +28,11 @@ import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
-import hudson.model.Slave;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.plugins.ec2.util.ResettableCountDownLatch;
+import hudson.slaves.AbstractCloudComputer;
 import hudson.slaves.NodeProperty;
+import hudson.slaves.AbstractCloudSlave;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
@@ -76,7 +77,7 @@ import org.kohsuke.stapler.verb.POST;
  * @author Kohsuke Kawaguchi
  */
 @SuppressWarnings("serial")
-public abstract class EC2AbstractSlave extends Slave {
+public abstract class EC2AbstractSlave extends AbstractCloudSlave {
     public static final Boolean DEFAULT_METADATA_SUPPORTED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.TRUE;
@@ -442,7 +443,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     @Override
-    public Computer createComputer() {
+    public EC2Computer createComputer() {
         return new EC2Computer(this);
     }
 
@@ -463,10 +464,6 @@ public abstract class EC2AbstractSlave extends Slave {
         }
         return i;
     }
-    /**
-     * Terminates the instance in EC2.
-     */
-    public abstract void terminate();
 
     void stop() {
         try {
@@ -526,7 +523,11 @@ public abstract class EC2AbstractSlave extends Slave {
     void idleTimeout() {
         LOGGER.info("EC2 instance idle time expired: " + getInstanceId());
         if (!stopOnTerminate) {
-            terminate();
+            try {
+                terminate();
+            } catch (InterruptedException | IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
+            }
         } else {
             stop();
         }
@@ -534,7 +535,11 @@ public abstract class EC2AbstractSlave extends Slave {
 
     void launchTimeout(){
         LOGGER.info("EC2 instance failed to launch: " + getInstanceId());
-        terminate();
+        try {
+            terminate();
+        } catch (InterruptedException | IOException e) {
+            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
+        }
     }
 
     public long getLaunchTimeoutInMillis() {

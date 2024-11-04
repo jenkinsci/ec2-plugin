@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.Functions;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -22,6 +23,7 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 
 import hudson.Extension;
 import hudson.model.Computer;
+import hudson.model.TaskListener;
 import hudson.model.Descriptor.FormException;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
@@ -66,7 +68,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
      * Cancel the spot request for the instance. Terminate the instance if it is up. Remove the agent from Jenkins.
      */
     @Override
-    public void terminate() {
+    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         if (terminateScheduled.getCount() == 0) {
             synchronized(terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
@@ -83,7 +85,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                 LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId);
                             } catch (AmazonClientException e) {
                                 // Spot request is no longer valid
-                                LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
+                                Functions.printStackTrace(e, listener.error("Failed to cancel Spot request: " + spotInstanceRequestId));
                             }
 
                             // Terminate the agent if it is running
@@ -100,7 +102,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                         LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
                                     } catch (AmazonClientException e) {
                                         // Spot request is no longer valid
-                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                                        Functions.printStackTrace(e, listener.error("Failed to terminate the Spot instance: " + instanceId));
                                     }
                                 }
                             }
@@ -114,7 +116,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             try {
                                 Jenkins.get().removeNode(this);
                             } catch (IOException e) {
-                                LOGGER.log(Level.WARNING, "Failed to remove agent: " + name, e);
+                                Functions.printStackTrace(e, listener.error("Failed to remove agent"));
                             }
                             synchronized(terminateScheduled) {
                                 terminateScheduled.countDown();

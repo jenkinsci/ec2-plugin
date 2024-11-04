@@ -8,6 +8,7 @@ import hudson.model.Node;
 import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.ResourceList;
+import hudson.model.TaskListener;
 import hudson.model.Queue.Executable;
 import hudson.model.Queue.Task;
 import hudson.model.queue.CauseOfBlockage;
@@ -18,20 +19,17 @@ import hudson.plugins.ec2.util.PrivateKeyHelper;
 import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
-import hudson.security.Permission;import hudson.model.Executor;
+import hudson.security.Permission;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import jenkins.util.NonLocalizable;
 import jenkins.model.Jenkins;
-import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.testcontainers.shaded.org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jvnet.hudson.test.LoggerRule;
 
-import java.security.Security;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -47,7 +45,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import jenkins.util.NonLocalizable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -55,10 +52,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
 
 public class EC2RetentionStrategyTest {
 
@@ -210,7 +203,7 @@ public class EC2RetentionStrategyTest {
     private EC2Computer computerWithIdleTime(final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
             }
 
             @Override
@@ -279,7 +272,7 @@ public class EC2RetentionStrategyTest {
         idleTimeoutCalled.set(false);
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, -1) {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
             }
 
             @Override
@@ -368,7 +361,7 @@ public class EC2RetentionStrategyTest {
     private EC2Computer computerWithUsageLimit(final int usageLimit) throws Exception {
         final EC2AbstractSlave slave = new EC2AbstractSlave("name", "id", "description", "fs", 1, null, "label", null, null, "init", "tmpDir", new ArrayList<NodeProperty<?>>(), "remote", "jvm", false, "idle", null, "cloud", false, Integer.MAX_VALUE, null, ConnectionStrategy.PRIVATE_IP, usageLimit) {
             @Override
-            public void terminate() {
+            protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
                 terminateCalled.set(true);
             }
 
@@ -764,6 +757,9 @@ public class EC2RetentionStrategyTest {
     private static void checkRetentionStrategy(EC2RetentionStrategy rs, EC2Computer c) throws InterruptedException {
         rs.check(c);
         EC2AbstractSlave node = c.getNode();
-        assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
+        // checks if node has been terminated within timeout. if node is null, it has already been terminated
+        if (node != null) {
+            assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
+        }
     }
 }
