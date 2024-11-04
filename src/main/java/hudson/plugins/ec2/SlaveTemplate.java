@@ -1015,6 +1015,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         KeyPair keyPair = getKeyPair(ec2);
         if (keyPair != null) {
+            logProvisionInfo("Static SSH key was configured; adding it to the request filter");
             riRequest.setKeyName(keyPair.getKeyName());
             diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
         } else {

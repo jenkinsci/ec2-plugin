@@ -318,14 +318,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
         if (ec2PrivateKey != null){
-            LOGGER.fine(() -> "using global private key for " + computer.getName());
+            LOGGER.fine(() -> "using static ssh credential [ " + computer.getName() + "]");
             privateKey = ec2PrivateKey.getPrivateKey();
         } else {
             EC2AbstractSlave node = computer.getNode();
             if (node != null) {
                 Secret sshPrivatekey = node.getInstanceSshPrivateKey();
                 if (sshPrivatekey != null) {
-                    LOGGER.log(Level.FINE, () -> "using dynamic ssh key -> " + computer.getNode().getInstanceSshKeyPairName() + "[" + computer.getInstanceId() + "]");
+                    LOGGER.log(Level.FINE, () -> "using dynamic ssh key " + computer.getNode().getInstanceSshKeyPairName() + " [" + computer.getInstanceId() + "]");
                     privateKey = sshPrivatekey.getPlainText();
                 } else {
                     throw new IOException("unable to determine private ssh key!! [" + computer.getInstanceId() + "]");
@@ -384,7 +384,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
     private boolean bootstrap(@NonNull EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
             InterruptedException, AmazonClientException {
-        logInfo(computer, listener, "bootstrap() for " + computer.getInstanceId());
+        logInfo(computer, listener, "bootstrap(...)");
         Connection bootstrapConn = null;
         try {
             int tries = bootstrapAuthTries;
@@ -404,6 +404,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                     try {
                         bootstrapConn = connectToSsh(computer, listener, template);
+                        log(Level.FINE, computer, listener,"sshPrivateKey length --> " + sshPrivateKey.getPlainText().length());
                         isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "");
                     } catch (IOException e) {
                         logException(computer, listener, "Exception trying to authenticate", e);
@@ -465,8 +466,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 int port = computer.getSshPort();
                 Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", 10000);
-                logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
-                        + ".");
+                logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout);
                 Connection conn = new Connection(host, port);
                 ProxyConfiguration proxyConfig = Jenkins.get().proxy;
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);

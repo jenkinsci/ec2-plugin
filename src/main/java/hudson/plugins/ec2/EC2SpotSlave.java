@@ -56,6 +56,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
 
         this.name = name;
         this.spotInstanceRequestId = spotInstanceRequestId;
+        LOGGER.fine(() -> "created spot instance request with spotInstanceRequestId=" + spotInstanceRequestId);
     }
 
     @Override
@@ -73,6 +74,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                 if (terminateScheduled.getCount() == 0) {
                     Computer.threadPoolForRemoting.submit(() -> {
                         try {
+                            LOGGER.fine(() -> "scheduling termination for spot node [" + getInstanceId() + "]");
                             // Cancel the spot request
                             AmazonEC2 ec2 = getCloud().connect();
 
@@ -81,10 +83,10 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
                             try {
                                 ec2.cancelSpotInstanceRequests(cancelRequest);
-                                LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId);
+                                LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId + "[" + getInstanceId() + "]");
                             } catch (AmazonClientException e) {
                                 // Spot request is no longer valid
-                                LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId, e);
+                                LOGGER.log(Level.WARNING, "Failed to cancel Spot request: " + spotInstanceRequestId + "[" + getInstanceId() + "]", e);
                             }
 
                             // Terminate the agent if it is running
@@ -93,27 +95,27 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                                     /*
                                     * The node has been killed externally, so we've nothing to do here
                                     */
-                                    LOGGER.info("EC2 instance already terminated: " + instanceId);
+                                    LOGGER.info("EC2 spot instance already terminated [" + getInstanceId() + "]");
                                 } else {
                                     // check to see if there is a dynamic keypair associated with this instance, and if so, clean it up
                                     try {
                                         cleanupSshKeyPairIfNeeded();
                                     } catch (AmazonClientException | IOException e) {
-                                        LOGGER.info(() -> "unable to remove instance keypair for : " + instanceId);
+                                        LOGGER.info(() -> "unable to remove instance keypair for spot instance [" + getInstanceId() + "]");
                                     }
                                     // send request to terminate instance
                                     TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
                                     try {
                                         ec2.terminateInstances(request);
-                                        LOGGER.info("Terminated EC2 spot instance (terminated): " + instanceId);
+                                        LOGGER.info("Terminated EC2 spot instance (terminated) [" + getInstanceId() +"]");
                                     } catch (AmazonClientException e) {
                                         // Spot request is no longer valid
-                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance [" + getInstanceId() + "]", e);
                                     }
                                 }
                             }
                         } catch (Exception e) {
-                            LOGGER.log(Level.WARNING,"Failed to remove agent: ", e);
+                            LOGGER.log(Level.WARNING,"Failed to remove spot instance agent [" + getInstanceId() + "]", e);
                         } finally {
                             // Remove the instance even if deletion failed, otherwise it will hang around forever in
                             // the nodes page. One way for this to occur is that an instance was terminated
@@ -122,7 +124,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             try {
                                 Jenkins.get().removeNode(this);
                             } catch (IOException e) {
-                                LOGGER.log(Level.WARNING, "Failed to remove agent: " + name, e);
+                                LOGGER.log(Level.WARNING, "Failed to remove spot instance agent: " + name, e);
                             }
                             synchronized(terminateScheduled) {
                                 terminateScheduled.countDown();
