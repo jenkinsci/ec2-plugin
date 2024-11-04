@@ -29,6 +29,7 @@ import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -118,7 +119,6 @@ import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 
 import org.kohsuke.stapler.AncestorInPath;
-import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -250,6 +250,23 @@ public abstract class EC2Cloud extends Cloud {
             LOGGER.fine("controller is using dynamic ssh keys, nothing to resolve");
             return null;
         }
+    }
+
+    public static KeyPair createKeyPair(AmazonEC2 ec2) {
+        return createKeyPair(ec2, "dev-1-" + UUID.randomUUID());
+    }
+
+    public static KeyPair createKeyPair(AmazonEC2 ec2, String keyPairName) {
+        KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyPairName)).getKeyPair();
+        if ((keyPair.getKeyMaterial() == null) || keyPair.getKeyMaterial().isBlank()) {
+            // try to delete this key, its no good
+            ec2.deleteKeyPair(new DeleteKeyPairRequest(keyPairName));
+            throw new AmazonClientException("createKeyPairRequest returned an empty key!");
+        } else {
+            LOGGER.fine(() -> "created new dynamic keypair " + keyPair.getKeyName() + " for to use in on-demand launch request");
+            LOGGER.fine(() -> "Dynamic key fingerprint is " + keyPair.getKeyFingerprint());
+        }
+        return keyPair;
     }
 
     public abstract URL getEc2EndpointUrl() throws IOException;
@@ -475,7 +492,7 @@ public abstract class EC2Cloud extends Cloud {
      */
     @RequirePOST
     public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id)
-            throws ServletException, IOException, AmazonClientException {
+            throws Exception {
         checkPermission(PROVISION);
         SlaveTemplate t = getTemplates().get(0);
 
@@ -1255,7 +1272,7 @@ public abstract class EC2Cloud extends Cloud {
                     }
                 } else {
                     // using dynamic keys, so lets try to create and delete a keypair
-                    ec2.createKeyPair(new CreateKeyPairRequest("test-key"));
+                    EC2Cloud.createKeyPair(ec2, "test-key");
                     // now remove it
                     ec2.deleteKeyPair(new DeleteKeyPairRequest("test-key"));
                 }

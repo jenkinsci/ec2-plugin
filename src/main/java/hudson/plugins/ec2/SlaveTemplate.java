@@ -33,6 +33,7 @@ import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.CreditSpecificationRequest;
+import com.amazonaws.services.ec2.model.DeleteKeyPairRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -1140,40 +1141,51 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
+     * When using dynamic ssh key management no attempt will be made to re-attach any stopped or orphaned nodes
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
             throws IOException {
         AmazonEC2 ec2 = getParent().connect();
-
-        logProvisionInfo("Considering launching");
+        DescribeInstancesRequest diRequest;
+        RunInstancesRequest riRequest = null;
+        List<InstanceInfo> newInstances;
+        List<Instance> orphansOrStopped;
 
         HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(image, number, ec2);
         Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
-        RunInstancesRequest riRequest = entry.getKey();
-        List<Filter> diFilters = entry.getValue();
+        riRequest = entry.getKey();
+        if (isUsingDynamicSshKeys()) {
+            logProvisionInfo("Using dynamic ssh key management, will not attempt to re-use any existing instance");
+            orphansOrStopped = Collections.emptyList();
 
-        DescribeInstancesRequest diRequest = new DescribeInstancesRequest().withFilters(diFilters);
+        } else {
+            logProvisionInfo("Considering launching");
 
-        logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
+            List<Filter> diFilters = entry.getValue();
 
-        DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
+            diRequest = new DescribeInstancesRequest().withFilters(diFilters);
 
-        if (orphansOrStopped.isEmpty() && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
-                !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-            logProvisionInfo("No existing instance found - but cannot create new instance");
-            return null;
+            logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
+
+            DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
+            orphansOrStopped = findOrphansOrStopped(diResult, number);
+
+            if (orphansOrStopped.isEmpty() && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
+                    !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+                logProvisionInfo("No existing instance found - but cannot create new instance");
+                return null;
+            }
+
+            wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+
+            if (orphansOrStopped.size() == number) {
+                return toSlaves(InstanceInfo.fromInstances(orphansOrStopped, getParent()));
+            }
+
+            riRequest.setMaxCount(number - orphansOrStopped.size());
         }
 
-        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-        if (orphansOrStopped.size() == number) {
-            return toSlaves(InstanceInfo.fromInstances(orphansOrStopped, getParent()));
-        }
-
-        riRequest.setMaxCount(number - orphansOrStopped.size());
-
-        List<InstanceInfo> newInstances;
         if (spotWithoutBidPrice) {
             InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
             if (getSpotBlockReservationDuration() != 0) {
@@ -1216,9 +1228,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             int maxRequested = riRequest.getMaxCount();
             riRequest.setMaxCount(1);
             for (int i=0;i < maxRequested; i++) {
-                String keyName = "jenkins-" + UUID.randomUUID();
-                KeyPair keyPair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
-                LOGGER.fine("created new dynamic keypair " + keyPair.getKeyName());
+                KeyPair keyPair = EC2Cloud.createKeyPair(ec2);
                 riRequest.setKeyName(keyPair.getKeyName());
                 Instance instance = ec2.runInstances(riRequest).getReservation().getInstances().get(0);
                 instances.add(new InstanceInfo(instance, keyPair));
@@ -1251,8 +1261,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     }
 
-    /* this method is only used by onDemand provisioning */
     List<EC2AbstractSlave> toSlaves(List<InstanceInfo> newInstances) throws IOException {
+        LOGGER.fine(() -> "converting instances to agents.....");
         try {
             List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
             for (InstanceInfo info : newInstances) {
@@ -1438,13 +1448,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
+        LOGGER.fine(() -> "attempt to provision " + number + " spot instances");
+
         if (!spotConfig.useBidPrice) {
             return provisionOndemand(image, 1, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         AmazonEC2 ec2 = getParent().connect();
         String imageId = image.getImageId();
-
+        LaunchSpecification launchSpecification = null;
         try {
             LOGGER.info("Launching " + imageId + " for template " + description);
 
@@ -1458,7 +1470,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             spotRequest.setSpotPrice(getSpotMaxBidPrice());
             spotRequest.setInstanceCount(number);
 
-            LaunchSpecification launchSpecification = new LaunchSpecification();
+            launchSpecification = new LaunchSpecification();
 
             launchSpecification.setImageId(imageId);
             launchSpecification.setInstanceType(type);
@@ -1498,20 +1510,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             launchSpecification.setUserData(userDataString);
 
-            KeyPair keypair = null;
-
+            KeyPair keyPair = null;
             if (!isUsingDynamicSshKeys()) {
-                // there is a global/static ssh keypair configured, so use that
+                // there is a global/static ssh keyPair configured, so use that
                 LOGGER.fine(() -> "static ssh credential is configured, resolving keyname to use in spot launch request");
-                keypair = getParent().resolveKeyPair();
-                if (keypair != null) {
-                    launchSpecification.setKeyName(keypair.getKeyName());
+                keyPair = getParent().resolveKeyPair();
+                if (keyPair != null) {
+                    launchSpecification.setKeyName(keyPair.getKeyName());
+                    LOGGER.fine(() -> "Set static keypair for spot instance request");
                 }
             } else {
-                String keyName = "dev-1-" + UUID.randomUUID();
-                keypair = ec2.createKeyPair(new CreateKeyPairRequest(keyName)).getKeyPair();
-                LOGGER.fine("created new dynamic keypair " + keypair.getKeyName() + " for to use in spot launch request");
-                launchSpecification.setKeyName(keypair.getKeyName());
+                LOGGER.fine(() -> "creating keypair for spot instance request");
+                keyPair = EC2Cloud.createKeyPair(ec2);
+                launchSpecification.setKeyName(keyPair.getKeyName());
+                LOGGER.fine("set dynamic keypair for spot instance request with fingerprint " + keyPair.getKeyFingerprint());
+
             }
             launchSpecification.setInstanceType(type.toString());
 
@@ -1538,6 +1551,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 // Make the request for a new Spot instance
                 reqResult = ec2.requestSpotInstances(spotRequest);
             } catch (AmazonEC2Exception e) {
+                // cleanup the keypair, if one was created (a new one will be created for the ondemand instance)
+                cleanUpSshKeyPairIfNeeded(launchSpecification.getKeyName());
                 if (spotConfig.getFallbackToOndemand() && e.getErrorCode().equals("MaxSpotInstanceCountExceeded")) {
                     logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
                     return provisionOndemand(image, number, provisionOptions);
@@ -1573,6 +1588,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
                         CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
                         ec2.cancelSpotInstanceRequests(cancelRequest);
+                        // cleanup the keypair, if one was created (a new one will be createed)
+                        cleanUpSshKeyPairIfNeeded(launchSpecification.getKeyName());
                         return provisionOndemand(image, number, provisionOptions);
                     }
                 }
@@ -1585,15 +1602,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 LOGGER.info("Spot instance id in provision: " + spotInstReq.getSpotInstanceRequestId());
 
-                slaves.add(newSpotSlave(spotInstReq, keypair));
+                slaves.add(newSpotSlave(spotInstReq, keyPair));
             }
 
             return slaves;
 
         } catch (FormException e) {
-            throw new AssertionError(); // we should have discovered all
-                                        // configuration issues upfront
+            if (launchSpecification != null) {
+                cleanUpSshKeyPairIfNeeded(launchSpecification.getKeyName());
+            }
+            throw new AssertionError(); // we should have discovered all configuration issues up front
         } catch (InterruptedException e) {
+            cleanUpSshKeyPairIfNeeded(launchSpecification.getKeyName());
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
@@ -1605,6 +1625,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             setupEphemeralDeviceMapping(image, blockDeviceMappings);
         } else {
             setupCustomDeviceMapping(blockDeviceMappings);
+        }
+    }
+
+    // attempts to delete the specified keypair in ec2 IFF the instance is configured to use dynamic ssh keys
+    private void cleanUpSshKeyPairIfNeeded(String keyname) throws IOException {
+        LOGGER.fine(() -> "removed ssh keypair fromm failed provision attempt");
+        if ((parent.resolveKeyPair() == null) && (keyname != null)) {
+            //this instance is using dynamic ssh keys
+            AmazonEC2 ec2 = getParent().connect();
+            ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(keyname));
+            LOGGER.fine(() -> "EC2 instance delete key pair request sent for keypair " + keyname);
+        } else {
+            LOGGER.fine(() -> "No dynamic keypair to delete for  because a static key has been configured");
         }
     }
 
@@ -1791,12 +1824,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Provisions a new EC2 agent based on the currently running instance on EC2, instead of starting a new one.
      */
-    public EC2AbstractSlave attach(String instanceId, TaskListener listener) throws AmazonClientException, IOException {
-        PrintStream logger = listener.getLogger();
+    public EC2AbstractSlave attach(String instanceId, TaskListener listener) throws Exception {
         AmazonEC2 ec2 = getParent().connect();
 
+        if (isUsingDynamicSshKeys()) {
+            throw new Exception("not allowed when using dynamic ssh keypair management");
+        }
         try {
-            logger.println("Attaching to " + instanceId);
             LOGGER.info("Attaching to " + instanceId);
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));

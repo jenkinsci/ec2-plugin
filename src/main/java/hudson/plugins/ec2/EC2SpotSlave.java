@@ -122,6 +122,12 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             // manually or a spot instance was killed due to pricing. If we don't remove the node,
                             // we screw up auto-scaling, since it will continue to count against the quota.
                             try {
+                                // check to see if there is a dynamic keypair associated with this instance, and if so, clean it up
+                                try {
+                                    cleanupSshKeyPairIfNeeded();
+                                } catch (AmazonClientException | IOException e) {
+                                    LOGGER.info(() -> "unable to remove instance keypair for spot instance [" + getInstanceId() + "]");
+                                }
                                 Jenkins.get().removeNode(this);
                             } catch (IOException e) {
                                 LOGGER.log(Level.WARNING, "Failed to remove spot instance agent: " + name, e);

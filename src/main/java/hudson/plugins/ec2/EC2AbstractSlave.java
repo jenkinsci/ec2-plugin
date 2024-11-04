@@ -514,14 +514,13 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     protected void cleanupSshKeyPairIfNeeded() throws java.io.IOException {
-        if (getCloud().resolveKeyPair() == null) {
-            //this instance is using dynamic ssh keys
-            LOGGER.fine(() -> "EC2 instance delete key pair request sent for keypair " + this.getInstanceSshKeyPairName() + "[ " + getInstanceId() + "]");
-            AmazonEC2 ec2 = getCloud().connect();
-            ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(this.getInstanceSshKeyPairName()));
-        } else {
-            LOGGER.fine(() -> "No dynamic keypair to delete for  because a static key has been configured [" + getInstanceId() + "]");
-        }
+       if (getInstanceSshPrivateKey() != null) {
+           AmazonEC2 ec2 = getCloud().connect();
+           ec2.deleteKeyPair(new DeleteKeyPairRequest().withKeyName(getInstanceSshKeyPairName()));
+           LOGGER.fine(() -> "EC2 instance delete key pair request sent for keypair " + getInstanceSshKeyPairName() + "[ " + instanceId + "]");
+       } else {
+           LOGGER.fine(() -> "No dynamic keypair to delete for  because a static key has been configured [" + instanceId + "]");
+       }
     }
 
     @Override
