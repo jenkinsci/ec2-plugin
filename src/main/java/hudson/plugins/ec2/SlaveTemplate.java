@@ -1105,6 +1105,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         tagSpecification.setTags(instTags);
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Instance));
         tagList.add(tagSpecification.clone().withResourceType(ResourceType.Volume));
+        tagList.add(tagSpecification.clone().withResourceType(ResourceType.NetworkInterface));
         riRequest.setTagSpecifications(tagList);
 
         if (metadataSupported) {
