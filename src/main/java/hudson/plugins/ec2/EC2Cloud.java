@@ -253,7 +253,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     public static KeyPair createKeyPair(AmazonEC2 ec2) {
-        return createKeyPair(ec2, "dev-1-" + UUID.randomUUID());
+        return createKeyPair(ec2, "jenkins-" + UUID.randomUUID());
     }
 
     public static KeyPair createKeyPair(AmazonEC2 ec2, String keyPairName) {
