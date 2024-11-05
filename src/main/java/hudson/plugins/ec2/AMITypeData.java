@@ -5,6 +5,9 @@ import hudson.model.AbstractDescribableImpl;
 import java.util.concurrent.TimeUnit;
 
 public abstract class AMITypeData extends AbstractDescribableImpl<AMITypeData> {
+
+    public abstract boolean isWindowsSSH();
+
     public abstract boolean isWindows();
 
     public abstract boolean isUnix();
