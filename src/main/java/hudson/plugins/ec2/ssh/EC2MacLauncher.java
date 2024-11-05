@@ -112,8 +112,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     }
 
     @Override
-    protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
-            AmazonClientException, InterruptedException {
+    protected void launchScript(EC2Computer computer, TaskListener listener) throws Exception {
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final
                                        // doesn't work that well.
@@ -148,7 +147,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             }
         }
 
-        logInfo(computer, listener, "Launching instance: " + node.getInstanceId());
+        logInfo(computer, listener, "Launching instance");
 
         try {
             boolean isBootstrapped = bootstrap(computer, listener, template);
@@ -163,11 +162,22 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
                 Secret sshPrivateKey = node.getInstanceSshPrivateKey();
-
+                if (sshPrivateKey == null) {
+                    // are we using a static ssh credential?
+                    logInfo(computer, listener, "checking for static ssh credential");
+                    EC2PrivateKey key = node.getCloud().resolvePrivateKey();
+                    if (key != null) {
+                        sshPrivateKey = key.getPrivateKeySecret();
+                    } else {
+                        logWarning(computer, listener, "no static ssh credential could be found!");
+                    }
+                }
+                LOGGER.fine("private key resolution result: " + sshPrivateKey == null ? "not found" : "found");
                 if (sshPrivateKey == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
+
             } else {
                 logWarning(computer, listener, "bootstrapresult failed");
                 return; // bootstrap closed for us.
@@ -301,11 +311,25 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         return true;
     }
 
-    private File createIdentityKeyFile(EC2Computer computer) throws IOException {
+    private File createIdentityKeyFile(EC2Computer computer) throws Exception {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
         if (ec2PrivateKey != null){
+            LOGGER.fine(() -> "using static ssh credential [ " + computer.getName() + "]");
             privateKey = ec2PrivateKey.getPrivateKey();
+        } else {
+            EC2AbstractSlave node = computer.getNode();
+            if (node != null) {
+                Secret sshPrivatekey = node.getInstanceSshPrivateKey();
+                if (sshPrivatekey != null) {
+                    LOGGER.log(Level.FINE, () -> "using dynamic ssh key " + computer.getNode().getInstanceSshKeyPairName() + " [" + computer.getInstanceId() + "]");
+                    privateKey = sshPrivatekey.getPlainText();
+                } else {
+                    throw new IOException("unable to determine private ssh key!! [" + computer.getInstanceId() + "]");
+                }
+            } else {
+                throw new IOException("unable to determine private ssh key!![" + computer.getInstanceId() + "]");
+            }
         }
 
         File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
@@ -331,26 +355,36 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
-            InterruptedException, AmazonClientException {
+    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws Exception {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting private key...");
-            KeyPair key = computer.getCloud().getKeyPair();
-            if (key == null){
-                logWarning(computer, listener, "Could not retrieve a valid key pair");
-                return false;
-            }
+            EC2AbstractSlave node = computer.getNode();
+            if (node != null) {
+                Secret sshPrivateKey = node.getInstanceSshPrivateKey();
+                if (sshPrivateKey == null) {
+                    // is there a static key defined?
+                    EC2PrivateKey key = node.getCloud().resolvePrivateKey();
+                    if (key == null) {
+                        logWarning(computer, listener, "Could not retrieve a valid private key.");
+                        return false;
+                    } else {
+                        logInfo(computer, listener, "");
+                        sshPrivateKey = key.getPrivateKeySecret();
+                    }
+                }
+
             logInfo(computer, listener,
-                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
+                    String.format("Using private key %s ", node.getInstanceSshKeyPairName()));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapConn = connectToSsh(computer, listener, template);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                    log(Level.FINE, computer, listener,"sshPrivateKey length --> " + sshPrivateKey.getPlainText().length());
+                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "");
                 } catch(IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
                     bootstrapConn.close();
@@ -363,6 +397,10 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             }
             if (!isAuthenticated) {
                 logWarning(computer, listener, "Authentication failed");
+                return false;
+                }
+            } else {
+                logWarning(computer, listener, "node was null, unable to bootstrap");
                 return false;
             }
         } finally {

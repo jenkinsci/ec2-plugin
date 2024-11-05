@@ -266,11 +266,12 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public void setInstanceKeypair(KeyPair keypair) {
         if (keypair != null) {
-            LOGGER.fine(() -> "Set instance ec2keypair [" + this.instanceId + "]");
-            this.instanceSshKeyPairName = keypair.getKeyName();
-            this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
             LOGGER.fine(() -> "Set instance ec2keypair to " + keypair.getKeyName() + " [" + this.instanceId + "]");
-            LOGGER.fine(() -> "private key length is " + keypair.getKeyMaterial().length() + " [" + this.instanceId + "]");
+            this.instanceSshKeyPairName = keypair.getKeyName();
+            if (keypair.getKeyMaterial() != null) {
+                LOGGER.fine(() -> "setting instance private key from keypair [" + this.instanceId +"]");
+                this.instanceSshPrivateKey = Secret.fromString(keypair.getKeyMaterial());
+            }
         } else {
             LOGGER.fine(() -> "null passed for keypair, instance keypair not set [" + this.instanceId + "]");
         }

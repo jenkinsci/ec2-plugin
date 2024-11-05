@@ -34,9 +34,13 @@ public class InstanceInfo {
         if (cloud.getSshKeysCredentialsId() != null) {
             LOGGER.fine(() -> "static ssh credential defined");
             KeyPair keyPair = cloud.resolveKeyPair();
+            if (keyPair != null) {
+                // using static ssh keys, so clear out the private key field
+                keyPair.setKeyMaterial(null);
+            }
             return instances.stream().map(obj -> new InstanceInfo(obj, keyPair)).collect(Collectors.toList());
         } else {
-            LOGGER.fine(() -> "fromInstances not supported when ysing dynamic ssh key management");
+            LOGGER.fine(() -> "fromInstances not supported when using dynamic ssh key management");
             return Collections.EMPTY_LIST;
         }
     }

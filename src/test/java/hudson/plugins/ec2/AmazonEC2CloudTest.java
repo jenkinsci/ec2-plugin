@@ -116,7 +116,7 @@ public class AmazonEC2CloudTest {
     }
 
     @Test
-    public void testSshCredentials() throws IOException {
+    public void testSshCredentials() throws Exception {
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);
@@ -141,7 +141,7 @@ public class AmazonEC2CloudTest {
      */
     @Test
     @Issue("JENKINS-63986")
-    public void testCustomSshCredentialTypes() throws IOException {
+    public void testCustomSshCredentialTypes() throws Exception {
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);

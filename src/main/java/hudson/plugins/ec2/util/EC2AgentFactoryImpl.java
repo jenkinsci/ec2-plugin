@@ -19,7 +19,9 @@ public class EC2AgentFactoryImpl implements EC2AgentFactory {
         instance.setInstanceKeypair(config.keyPair);
         LOGGER.fine(() -> "on-demand instance created with keypair " + config.keyPair.getKeyName() + " [" + instance.getInstanceId() + "]");
         LOGGER.fine(() -> "keypair fingerprint is " + config.keyPair.getKeyFingerprint()+ " [" + instance.getInstanceId() + "]");
-        LOGGER.fine(() -> "key length is --> " + instance.getInstanceSshPrivateKey().getPlainText().length());
+        if (instance.getInstanceSshPrivateKey() == null) {
+            LOGGER.fine("no private key set for instance, must be using static ssh credential");
+        }
         return instance;
     }
 
@@ -29,7 +31,9 @@ public class EC2AgentFactoryImpl implements EC2AgentFactory {
         instance.setInstanceKeypair(config.keyPair);
         LOGGER.fine(() -> "spot instance created with keypair " + config.keyPair.getKeyName() + " [" + instance.getInstanceId() + "]");
         LOGGER.fine(() -> "keypair fingerprint is " + config.keyPair.getKeyFingerprint()+ " [" + instance.getInstanceId() + "]");
-        LOGGER.fine(() -> "key length is --> " + instance.getInstanceSshPrivateKey().getPlainText().length());
+        if (instance.getInstanceSshPrivateKey() == null) {
+            LOGGER.fine("no private key set for instance, must be using static ssh credential");
+        }
         return instance;
     }
 }

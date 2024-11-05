@@ -127,8 +127,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     @Override
-    protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
-            AmazonClientException, InterruptedException {
+    protected void launchScript(EC2Computer computer, TaskListener listener) throws Exception {
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final
                                        // doesn't work that well.
@@ -179,7 +178,17 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
                 Secret sshPrivateKey = node.getInstanceSshPrivateKey();
-
+                if (sshPrivateKey == null) {
+                    // are we using a static ssh credential?
+                    logInfo(computer, listener, "checking for static ssh credential");
+                    EC2PrivateKey key = node.getCloud().resolvePrivateKey();
+                    if (key != null) {
+                        sshPrivateKey = key.getPrivateKeySecret();
+                    } else {
+                        logWarning(computer, listener, "no static ssh credential could be found!");
+                    }
+                }
+                LOGGER.fine("private key resolution result: " + sshPrivateKey == null ? "not found" : "found");
                 if (sshPrivateKey == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), sshPrivateKey.getPlainText().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
@@ -314,7 +323,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         return true;
     }
 
-    private File createIdentityKeyFile(EC2Computer computer) throws IOException {
+    private File createIdentityKeyFile(EC2Computer computer) throws Exception {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
         if (ec2PrivateKey != null){
@@ -382,8 +391,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(@NonNull EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
-            InterruptedException, AmazonClientException {
+    private boolean bootstrap(@NonNull EC2Computer computer, TaskListener listener, SlaveTemplate template) throws Exception {
         logInfo(computer, listener, "bootstrap(...)");
         Connection bootstrapConn = null;
         try {
@@ -394,8 +402,15 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             if (node != null) {
                 Secret sshPrivateKey = node.getInstanceSshPrivateKey();
                 if (sshPrivateKey == null) {
-                    logWarning(computer, listener, "Could not retrieve a valid private key.");
-                    return false;
+                    // is there a static key defined?
+                    EC2PrivateKey key =  node.getCloud().resolvePrivateKey();
+                    if (key == null) {
+                        logWarning(computer, listener, "Could not retrieve a valid private key.");
+                        return false;
+                    } else {
+                        logInfo(computer,listener,"");
+                        sshPrivateKey = key.getPrivateKeySecret();
+                    }
                 }
 
                 logInfo(computer, listener,

@@ -55,7 +55,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                     ec2AbstractSlave.terminate();
                 }
             }
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             Thread.currentThread().interrupt();
             e.printStackTrace(listener.error(e.getMessage()));
             if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
@@ -73,6 +73,6 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
      * Stage 2 of the launch. Called after the EC2 instance comes up.
      */
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
-            throws AmazonClientException, IOException, InterruptedException;
+            throws Exception;
 
 }

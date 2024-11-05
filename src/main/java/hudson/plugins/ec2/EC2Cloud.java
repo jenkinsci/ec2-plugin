@@ -238,14 +238,14 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @CheckForNull
-    public EC2PrivateKey resolvePrivateKey() throws IOException {
+    public EC2PrivateKey resolvePrivateKey() throws Exception {
         if (sshKeysCredentialsId != null) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 LOGGER.fine("private key resolved from sshCredential");
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
-            return null;
+            throw new Exception("unable to resolve private key from static ssh credential!");
         } else {
             LOGGER.fine("controller is using dynamic ssh keys, nothing to resolve");
             return null;
@@ -505,7 +505,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     @RequirePOST
-    public HttpResponse doProvision(@QueryParameter String template) throws ServletException, IOException {
+    public HttpResponse doProvision(@QueryParameter String template) throws Exception {
         checkPermission(PROVISION);
         if (template == null) {
             throw HttpResponses.error(SC_BAD_REQUEST, "The 'template' query parameter is missing");
@@ -571,7 +571,7 @@ public abstract class EC2Cloud extends Cloud {
             for (Reservation r : result.getReservations()) {
                 for (Instance i : r.getInstances()) {
                     if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
-                        LOGGER.log(Level.FINE, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
+                        LOGGER.log(Level.FINER, "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: " + jenkinsServerUrl);
                         n++;
                         instanceIds.add(i.getInstanceId());
@@ -764,7 +764,7 @@ public abstract class EC2Cloud extends Cloud {
      * Obtains a agent whose AMI matches the AMI of the given template, and that also has requiredLabel (if requiredLabel is non-null)
      * forceCreateNew specifies that the creation of a new agent is required. Otherwise, an existing matching agent may be re-used
      */
-    private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) throws IOException {
+    private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew) throws Exception {
         try {
             slaveCountingLock.lock();
             int possibleSlavesCount = getPossibleNewSlavesCount(t);
@@ -837,7 +837,7 @@ public abstract class EC2Cloud extends Cloud {
                         LOGGER.log(Level.WARNING, "Failed to reconnect ec2", e2);
                     }
                 }
-            } catch (AmazonClientException | IOException e) {
+            } catch (Exception e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
             }
         }
@@ -886,7 +886,7 @@ public abstract class EC2Cloud extends Cloud {
             LOGGER.log(Level.INFO, "{0}. Attempting provision finished", t);
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more",
               new Object[]{Jenkins.get().getComputers().length, number});
-        } catch (AmazonClientException | IOException e) {
+        } catch (Exception e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
         }
     }
@@ -894,11 +894,13 @@ public abstract class EC2Cloud extends Cloud {
     /**
      * Helper method to reattach lost EC2 node agents @Issue("JENKINS-57795")
      *
+     *
      * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
      * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
      * @param requestedNum The requested number of nodes to re-attach. We don't go above this in the case its value corresponds to an instance cap.
      */
-    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum) throws IOException {
+     //This appears to only be used by the EC2CloudTest - consider moving this?
+    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum) throws Exception {
         LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
         AmazonEC2 ec2 = this.connect();
         DescribeInstancesResult diResult = template.getDescribeInstanceResult(ec2,true);

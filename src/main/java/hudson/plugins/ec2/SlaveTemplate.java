@@ -931,7 +931,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     @NonNull
-    public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws Exception {
         final Image image = getImage();
         if (this.spotConfig != null) {
             if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
@@ -979,16 +979,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(this + ". " + message);
     }
 
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2) throws Exception {
         return makeRunInstancesRequestAndFilters(image, number, ec2, true);
     }
 
     @Deprecated
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws Exception {
         return makeRunInstancesRequestAndFilters(getImage(), number, ec2);
     }
 
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws Exception {
         String imageId = image.getImageId();
         RunInstancesRequest riRequest = new RunInstancesRequest(imageId, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
@@ -1127,7 +1127,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws Exception {
         return makeRunInstancesRequestAndFilters(getImage(), number, ec2, rotateSubnet);
     }
 
@@ -1135,7 +1135,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
-            throws IOException {
+            throws Exception {
         return provisionOndemand(image, number, provisionOptions, false, false);
     }
 
@@ -1144,7 +1144,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * When using dynamic ssh key management no attempt will be made to re-attach any stopped or orphaned nodes
      */
     private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
-            throws IOException {
+            throws Exception {
         AmazonEC2 ec2 = getParent().connect();
         DescribeInstancesRequest diRequest;
         RunInstancesRequest riRequest = null;
@@ -1447,7 +1447,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Provision a new agent for an EC2 spot instance to call back to Jenkins
      */
     private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
-            throws IOException {
+            throws Exception {
         LOGGER.fine(() -> "attempt to provision " + number + " spot instances");
 
         if (!spotConfig.useBidPrice) {
@@ -1736,7 +1736,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * returns null if no global private key has been configured
      */
     @CheckForNull
-    private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
+    private KeyPair getKeyPair(AmazonEC2 ec2) throws Exception {
         EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
 
         if (ec2PrivateKey != null) {
@@ -1748,6 +1748,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             return keyPair;
         }
+        LOGGER.fine("no static ssh credentials configured");
         return null;
     }
 
@@ -1835,7 +1836,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));
             Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
-            return newOndemandSlave(new InstanceInfo(inst, null));
+            return newOndemandSlave(new InstanceInfo(inst, new KeyPair().withKeyName(inst.getKeyName())));
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
                                         // configuration issues upfront
@@ -1956,7 +1957,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @param allSubnets if true, uses all subnets defined for this SlaveTemplate as the filter, else will only use the current subnet
      * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this SlaveTemplate's configs
      */
-    DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws IOException {
+    // Seems to only be used by the ec2cloud test?
+    DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws Exception {
         HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(getImage(), 1, ec2, false);
         Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
         List<Filter> diFilters = entry.getValue();

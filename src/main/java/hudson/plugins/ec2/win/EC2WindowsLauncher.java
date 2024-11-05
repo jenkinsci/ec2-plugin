@@ -36,8 +36,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     final long sleepBetweenAttempts = TimeUnit.SECONDS.toMillis(10);
 
     @Override
-    protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
-            AmazonClientException, InterruptedException {
+    protected void launchScript(EC2Computer computer, TaskListener listener) throws Exception {
         final PrintStream logger = listener.getLogger();
         EC2AbstractSlave node = computer.getNode();
         if (node == null) {
@@ -121,8 +120,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
     }
 
     @NonNull
-    private WinConnection connectToWinRM(EC2Computer computer, EC2AbstractSlave node, SlaveTemplate template, PrintStream logger) throws AmazonClientException,
-            InterruptedException {
+    private WinConnection connectToWinRM(EC2Computer computer, EC2AbstractSlave node, SlaveTemplate template, PrintStream logger) throws Exception {
         final long minTimeout = 3000;
         long timeout = node.getLaunchTimeoutInMillis(); // timeout is less than 0 when jenkins is booting up.
         if (timeout < minTimeout) {
