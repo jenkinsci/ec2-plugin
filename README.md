@@ -48,7 +48,7 @@ another EC2 compatible cloud.
 
 First, go to [EC2](http://aws.amazon.com/ec2/) and sign
 up for the service. Once you've installed the plugin, you navigate to
-the main "Manage Jenkins" \> "Configure System" page, and scroll down
+the main "`Manage Jenkins" \> "Configure System`" page, and scroll down
 near the bottom to the "Cloud" section. There, you click the "Add a new
 cloud" button, and select the "Amazon EC2" option. This will display the
 UI for configuring the EC2 plugin.  Then enter the Access Key and Secret
