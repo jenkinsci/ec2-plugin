@@ -1655,6 +1655,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (keyPair == null) {
             throw new AmazonClientException("No matching keypair found on EC2. Is the EC2 private key a valid one?");
         }
+        LOGGER.fine("found matching keypair");
         return keyPair;
     }
 

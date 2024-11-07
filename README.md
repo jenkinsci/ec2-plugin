@@ -52,14 +52,25 @@ the main "Manage Jenkins" \> "Configure System" page, and scroll down
 near the bottom to the "Cloud" section. There, you click the "Add a new
 cloud" button, and select the "Amazon EC2" option. This will display the
 UI for configuring the EC2 plugin.  Then enter the Access Key and Secret
-Access Key which act like a username/password (see IAM section). Because
-of the way EC2 works, you also need to have an RSA private key that the
+Access Key which act like a username/password (see IAM section). 
+
+Because of the way EC2 works, you also need to have an RSA private key that the
 cloud has the other half for, to permit sshing into the instances that
 are started. Please use the AWS console or any other tool of your choice
-to generate the private key to interactively log in to EC2 instances.
+to generate the private key to interactively log in to EC2 instances. 
 
-Once you have put in your Access Key and Secret Access Key, select a
-region for the cloud (not shown in screenshot). You may define only one
+Once you have generated the needed private key you must either store it as
+a Jenkins `SSH Private Key` credential (and select that credential in your cloud
+config).
+
+If you do not want to create a new Jenkins credential you may alterantively store it
+in plain text on disk, indicating its file path via the Jenkins system property
+`SSH_KEY_PAIR_PRIVATE_KEY_FILE`.  If this system property has a non-empty value then
+it will override the ssh credential specified in the cloud configuration page.  This
+approach works well for `k8s` secrets that are mounted in a jenkins container for example.
+
+Once you have put in your Access Key, Secret Access Key, and configured an ssh private key
+select a region for the cloud (not shown in screenshot). You may define only one
 cloud for each region, and the regions offered in the UI will show only
 the regions that you don't already have clouds defined for them.
 

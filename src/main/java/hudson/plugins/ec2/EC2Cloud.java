@@ -87,6 +87,9 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -126,6 +129,10 @@ public abstract class EC2Cloud extends Cloud {
     public static final String EC2_REQUEST_EXPIRED_ERROR_CODE = "RequestExpired";
 
     private static final SimpleFormatter sf = new SimpleFormatter();
+
+    // if this system property is defined and its value points to a valid ssh private key on disk
+    // then this will be used instead of any configured ssh credential
+    private static final String SSH_KEY_PAIR_PRIVATE_KEY_FILE = "SSH_KEY_PAIR_PRIVATE_KEY_FILE";
 
     private transient ReentrantLock slaveCountingLock = new ReentrantLock();
 
@@ -195,10 +202,27 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
-        if (sshKeysCredentialsId != null) {
+        if (!System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "").isEmpty()) {
+            LOGGER.fine(() -> "(resolvePrivateKey) secret key file configured, will load from disk");
+            return fetchPrivateKeyFromDisk();
+        } else if (sshKeysCredentialsId != null) {
+            LOGGER.fine(() -> "(resolvePrivateKey) Using jenkins ssh credential");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
+            }
+        }
+        return null;
+    }
+
+    private static EC2PrivateKey fetchPrivateKeyFromDisk()  {
+        String filename = System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "");
+        if (!filename.isEmpty()) {
+            try {
+                return new EC2PrivateKey(new String(Files.readAllBytes(Paths.get(filename)), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                LOGGER.warning(() -> "unable to read private key from file " + filename);
+                return null;
             }
         }
         return null;
@@ -1122,6 +1146,7 @@ public abstract class EC2Cloud extends Cloud {
             AbstractIdCredentialsListBoxModel result = new StandardListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 result = result
+                        .includeEmptyValue()
                         .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeCurrentValue(sshKeysCredentialsId);
@@ -1135,16 +1160,22 @@ public abstract class EC2Cloud extends Cloud {
                 // Don't do anything if the user is only reading the configuration
                 return FormValidation.ok();
             }
-            if (value == null || value.isEmpty()){
-                return FormValidation.error("No ssh credentials selected");
-            }
 
-            SSHUserPrivateKey sshCredential = getSshCredential(value, context);
             String privateKey = "";
-            if (sshCredential != null) {
-                privateKey = sshCredential.getPrivateKey();
+
+            if (System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "").isEmpty()) {
+                if (value == null || value.isEmpty()) {
+                    return FormValidation.error("No ssh credentials selected");
+                }
+
+                SSHUserPrivateKey sshCredential = getSshCredential(value, context);
+                if (sshCredential != null) {
+                    privateKey = sshCredential.getPrivateKey();
+                } else {
+                    return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
+                }
             } else {
-                return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
+                privateKey = fetchPrivateKeyFromDisk().getPrivateKey();
             }
 
             boolean hasStart = false, hasEnd = false;
@@ -1188,12 +1219,16 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
             try {
-                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                 String privateKey = "";
-                if (sshCredential != null) {
-                    privateKey = sshCredential.getPrivateKey();
+                if (System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "").isEmpty()) {
+                    SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
+                    if (sshCredential != null) {
+                        privateKey = sshCredential.getPrivateKey();
+                    } else {
+                        return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                    }
                 } else {
-                    return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                    privateKey = fetchPrivateKeyFromDisk().getPrivateKey() ;
                 }
 
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
