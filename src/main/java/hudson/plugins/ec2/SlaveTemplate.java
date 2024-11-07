@@ -72,6 +72,7 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.Util;
 import hudson.XmlFile;
 import hudson.model.Describable;
@@ -89,6 +90,7 @@ import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.plugins.ec2.util.DeviceMappingParser;
 import hudson.plugins.ec2.util.EC2AgentConfig;
 import hudson.plugins.ec2.util.EC2AgentFactory;
+import hudson.plugins.ec2.util.EC2KeyPairManager;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
 import hudson.security.Permission;
@@ -1010,14 +1012,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         diFilters.add(new Filter("image-id").withValues(imageId));
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
-        KeyPair keyPair = getKeyPair(ec2);
-        if (keyPair == null){
-            logProvisionInfo("Could not retrieve a valid key pair.");
-            return null;
+        // don't set a keypair name in the request if we are using dynamic keys
+        if (!parent.isUsingDyanamicSSHKeyPairs()) {
+            KeyPair keyPair = getKeyPair(ec2);
+            if (keyPair == null){
+                logProvisionInfo("Could not retrieve a valid key pair.");
+                return null;
+            }
+
+            riRequest.setKeyName(keyPair.getKeyName());
+            diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
         }
+
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
-        riRequest.setKeyName(keyPair.getKeyName());
-        diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
 
 
         if (StringUtils.isNotBlank(getZone())) {
@@ -1179,7 +1186,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
             riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
             try {
-                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+                newInstances = createNewOnDemandInstances(ec2, riRequest);
             } catch (AmazonEC2Exception e) {
                 if (fallbackSpotToOndemand && e.getErrorCode().equals("InsufficientInstanceCapacity")) {
                     logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
@@ -1190,7 +1197,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            newInstances = createNewOnDemandInstances(ec2, riRequest);
         }
         // Have to create a new instance
 
@@ -1201,6 +1208,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         newInstances.addAll(orphansOrStopped);
 
         return toSlaves(newInstances);
+    }
+
+    List<Instance> createNewOnDemandInstances(AmazonEC2 ec2, RunInstancesRequest riRequest) throws IOException {
+        if (getParent().isUsingDyanamicSSHKeyPairs()) {
+            // no static ssh key defined, so submit riRequest.maxCount requests
+            // each with a unique keypair (instead of a single request for multiple identical instances)
+            LOGGER.fine(() -> "no static ssh credential configured, will use dynamic ssh keys instead");
+            List<Instance> instances = new ArrayList<>();
+            int maxRequested = riRequest.getMaxCount();
+            riRequest.setMaxCount(1);
+            for (int i=0;i < maxRequested; i++) {
+                riRequest.setKeyName(getParent().createKeyPair());
+                instances.add(ec2.runInstances(riRequest).getReservation().getInstances().get(0));
+            }
+            return instances;
+        } else {
+            // using a static ssh key
+            return ec2.runInstances(riRequest).getReservation().getInstances();
+        }
     }
 
     void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
@@ -1408,9 +1434,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         String imageId = image.getImageId();
 
         try {
-            LOGGER.info("Launching " + imageId + " for template " + description);
-
-            KeyPair keyPair = getKeyPair(ec2);
+            LOGGER.info("Launching " + imageId + " for template " + description + " to provision spot instance");
 
             RequestSpotInstancesRequest spotRequest = new RequestSpotInstancesRequest();
 
@@ -1461,7 +1485,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String userDataString = Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8));
 
             launchSpecification.setUserData(userDataString);
-            launchSpecification.setKeyName(keyPair.getKeyName());
+            String keyPairName = null;
+            // don't set a keypair name in the request if we are using dynamic keys
+            if (!parent.isUsingDyanamicSSHKeyPairs()) {
+                KeyPair keyPair = getKeyPair(ec2);
+                if (keyPair == null){
+                    logProvisionInfo("Could not retrieve a valid key pair.");
+                    return null;
+                }
+                keyPairName = keyPair.getKeyName();
+            } else {
+                keyPairName = getParent().createKeyPair();
+            }
+            launchSpecification.setKeyName(keyPairName);
+
             launchSpecification.setInstanceType(type.toString());
 
             net.setAssociatePublicIpAddress(getAssociatePublicIp());
@@ -1646,6 +1683,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     /**
      * Get a KeyPair from the configured information for the agent template
      */
+    //mikec - done
     @CheckForNull
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
         EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();

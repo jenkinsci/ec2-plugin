@@ -165,6 +165,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         try {
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (isBootstrapped) {
+                logInfo(computer, listener, "bootstrap complete");
                 int bootDelay = node.getBootDelay();
                 if (bootDelay > 0) {
                     logInfo(computer, listener, "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
@@ -175,7 +176,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
-                KeyPair key = computer.getCloud().getKeyPair();
+                KeyPair key = computer.getCloud().getKeyPair(computer.getInstanceId());
                 if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
@@ -184,6 +185,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logWarning(computer, listener, "bootstrapresult failed");
                 return; // bootstrap closed for us.
             }
+
+            logInfo(computer, listener,"we should be connected now...");
             conn = cleanupConn;
 
             SCPClient scp = conn.createSCPClient();
@@ -311,11 +314,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
-        String privateKey = "";
-        if (ec2PrivateKey != null){
-            privateKey = ec2PrivateKey.getPrivateKey();
-        }
+        String privateKey = resolvePrivateKey(computer);
 
         File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
 
@@ -371,24 +370,27 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
-            logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
-            if (key == null){
+            logInfo(computer, listener, "Getting keypair...[" + computer.getInstanceId() + "]");
+            String privateKey = computer.getCloud().getPrivateKey(computer.getInstanceId());
+            if (privateKey == null){
                 logWarning(computer, listener, "Could not retrieve a valid key pair.");
                 return false;
             }
-            logInfo(computer, listener,
-                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
+//            logInfo(computer, listener,
+//                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapConn = connectToSsh(computer, listener, template);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                    logInfo(computer, listener,"SSh connected, now authenticate");
+                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), privateKey.toCharArray(), "");
+                    logInfo(computer, listener,"did we auth ok? [" + isAuthenticated + "]");
                 } catch(IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
                     bootstrapConn.close();
                 }
                 if (isAuthenticated) {
+                    logInfo(computer, listener,"authenticated via ssh success!");
                     break;
                 }
                 logWarning(computer, listener, "Authentication failed. Trying again...");
@@ -398,8 +400,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logWarning(computer, listener, "Authentication failed");
                 return false;
             }
+            LOGGER.fine(() -> "we are finally authenticated");
         } finally {
             if (bootstrapConn != null) {
+                logInfo(computer, listener,"closing connection");
                 bootstrapConn.close();
             }
         }

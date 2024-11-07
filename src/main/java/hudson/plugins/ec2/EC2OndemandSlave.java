@@ -102,6 +102,8 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                                 LOGGER.info("EC2 instance already terminated: " + getInstanceId());
                             } else {
                                 AmazonEC2 ec2 = getCloud().connect();
+                                // clean up dynamic keys if needed
+                                cleanupSSHKeyPairs();
                                 TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
                                 ec2.terminateInstances(request);
                                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());

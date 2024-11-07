@@ -49,6 +49,7 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.ProxyConfiguration;
 import hudson.Util;
 import hudson.model.Computer;
@@ -59,6 +60,7 @@ import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.EC2KeyPairManager;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -157,6 +159,8 @@ public abstract class EC2Cloud extends Cloud {
      */
     private final int instanceCap;
 
+    private EC2KeyPairManager keyPairManager = ExtensionList.lookupSingleton(EC2KeyPairManager.class);
+
     private List<? extends SlaveTemplate> templates;
 
     private transient KeyPair usableKeyPair;
@@ -185,6 +189,7 @@ public abstract class EC2Cloud extends Cloud {
         }
 
         readResolve(); // set parents
+        keyPairManager.setCloud(this);
     }
 
     @Deprecated
@@ -193,15 +198,45 @@ public abstract class EC2Cloud extends Cloud {
         this(id, useInstanceProfileForCredentials, credentialsId, privateKey, null, instanceCapStr, templates, roleArn, roleSessionName);
     }
 
+    public boolean isUsingDyanamicSSHKeyPairs() {
+        if ((this.sshKeysCredentialsId == null) || (this.sshKeysCredentialsId.isEmpty())) {
+            return true;
+        }
+        return false;
+    }
+
     @CheckForNull
-    public EC2PrivateKey resolvePrivateKey(){
-        if (sshKeysCredentialsId != null) {
-            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
+    public EC2PrivateKey resolvePrivateKey(String keyPairName) {
+        // retain the old behavior by passing null if needed
+        //make spotbugs happy
+        String sshKeysCredentialsId1 = sshKeysCredentialsId;
+        if ((keyPairName == null) && (sshKeysCredentialsId1 != null)) {
+            LOGGER.fine(() -> "resolvePrivateKey: it appears static credentials are configured [keypairname: null, sshCredentialsId:" + sshKeysCredentialsId1);
+            SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId1, Jenkins.getInstanceOrNull());
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
             }
+        } else if (keyPairName != null) {
+            LOGGER.fine(() -> "retrieving private key for key-pair" + keyPairName);
+            return new EC2PrivateKey(keyPairManager.getPrivateKey(keyPairName));
         }
         return null;
+    }
+
+    public void deleteKeyPair(String keyPairName) {
+        keyPairManager.deleteKeyPair(connect(), keyPairName);
+        getDescriptor().save();
+    }
+
+    public String createKeyPair() {
+        String keyPairName = keyPairManager.createKeyPair(connect());
+        getDescriptor().save();
+        return keyPairName;
+    }
+
+    @CheckForNull
+    public EC2PrivateKey resolvePrivateKey(){
+        return  resolvePrivateKey(null);
     }
 
     public abstract URL getEc2EndpointUrl() throws IOException;
@@ -415,20 +450,46 @@ public abstract class EC2Cloud extends Cloud {
         return matchingTemplates;
     }
 
+
     /**
      * Gets the {@link KeyPairInfo} used for the launch.
      */
     @CheckForNull
-    public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
-        if (usableKeyPair == null) {
-            EC2PrivateKey ec2PrivateKey = this.resolvePrivateKey();
-            if (ec2PrivateKey != null) {
-                usableKeyPair = ec2PrivateKey.find(connect());
+    public synchronized KeyPair getKeyPair(String instanceId) throws AmazonClientException, IOException {
+        if (isUsingDyanamicSSHKeyPairs() && instanceId != null) {
+            String keyName = getKeyPairName(instanceId);
+            if (keyName == null) {
+                return null;
             }
+            KeyPairInfo keyPairInfo = connect().describeKeyPairs(new DescribeKeyPairsRequest().withKeyNames(keyName)).getKeyPairs().get(0);
+            return new KeyPair().withKeyName(keyName).withKeyMaterial(keyPairManager.getPrivateKey(keyName)).withKeyFingerprint(keyPairInfo.getKeyFingerprint());
+        } else {
+            if (usableKeyPair == null) {
+                EC2PrivateKey ec2PrivateKey = this.resolvePrivateKey();
+                if (ec2PrivateKey != null) {
+                    usableKeyPair = ec2PrivateKey.find(connect());
+                }
+            }
+            return usableKeyPair;
         }
-        return usableKeyPair;
     }
 
+    public String getPrivateKey(String instanceId) {
+        LOGGER.fine("Getting private key for instance [" + instanceId + "]");
+        AmazonEC2 ec2 = connect();
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+        request.setInstanceIds(Collections.singletonList(instanceId));
+        String keyName = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0).getKeyName();
+        LOGGER.fine("getting private key for keyName " + keyName + " [" + instanceId + "]");
+        return this.keyPairManager.getPrivateKey(keyName);
+    }
+
+    public String getKeyPairName(String instanceId) {
+        AmazonEC2 ec2 = connect();
+        DescribeInstancesRequest request = new DescribeInstancesRequest();
+        request.setInstanceIds(Collections.singletonList(instanceId));
+        return ec2.describeInstances(request).getReservations().get(0).getInstances().get(0).getKeyName();
+    }
     /**
      * Debug command to attach to a running instance.
      */
@@ -1122,6 +1183,7 @@ public abstract class EC2Cloud extends Cloud {
             AbstractIdCredentialsListBoxModel result = new StandardListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 result = result
+                        .includeEmptyValue()
                         .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeCurrentValue(sshKeysCredentialsId);

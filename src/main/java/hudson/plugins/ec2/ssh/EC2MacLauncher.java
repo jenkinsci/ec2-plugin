@@ -161,7 +161,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
-                KeyPair key = computer.getCloud().getKeyPair();
+                KeyPair key = computer.getCloud().getKeyPair(computer.getInstanceId());
                 if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
@@ -300,11 +300,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     }
 
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
-        EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
-        String privateKey = "";
-        if (ec2PrivateKey != null){
-            privateKey = ec2PrivateKey.getPrivateKey();
-        }
+        String privateKey = resolvePrivateKey(computer);
 
         File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
 
@@ -337,7 +333,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
-            KeyPair key = computer.getCloud().getKeyPair();
+            KeyPair key = computer.getCloud().getKeyPair(computer.getInstanceId());
             if (key == null){
                 logWarning(computer, listener, "Could not retrieve a valid key pair.");
                 return false;

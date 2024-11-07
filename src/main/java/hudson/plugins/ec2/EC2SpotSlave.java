@@ -7,6 +7,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.Reservation;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -76,6 +80,9 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             AmazonEC2 ec2 = getCloud().connect();
 
                             String instanceId = getInstanceId();
+                            // clean up dynamic keys if needed
+                            cleanupSSHKeyPairs();
+
                             List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
                             CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
                             try {

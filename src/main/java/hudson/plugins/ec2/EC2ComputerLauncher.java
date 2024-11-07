@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.Instance;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
@@ -75,4 +76,27 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
             throws AmazonClientException, IOException, InterruptedException;
 
+    protected String resolvePrivateKey(EC2Computer computer) throws IOException {
+        if (computer.getCloud().isUsingDyanamicSSHKeyPairs()) {
+            try {
+                Instance nodeInstance = computer.describeInstance();
+                EC2PrivateKey key = computer.getCloud().resolvePrivateKey(nodeInstance.getKeyName());
+                if (key != null) {
+                    return key.getPrivateKey();
+                } else {
+                    LOGGER.warning(() -> "failed to fetch instance keypair private key!");
+                    throw new IOException();
+                }
+            } catch (InterruptedException e) {
+                LOGGER.warning(() -> "failed to fetch instance keypair private key!");
+                throw new IOException();
+            }
+        } else {
+            EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
+            if (ec2PrivateKey != null){
+                return ec2PrivateKey.getPrivateKey();
+            }
+        }
+        return  null;
+    }
 }

@@ -23,6 +23,9 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Reservation;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -467,6 +470,18 @@ public abstract class EC2AbstractSlave extends Slave {
      * Terminates the instance in EC2.
      */
     public abstract void terminate();
+
+    public void cleanupSSHKeyPairs() {
+        if (getCloud().isUsingDyanamicSSHKeyPairs()) {
+            LOGGER.fine("Instance is terminating, cleanup keypairs");
+            DescribeInstancesResult dir = getCloud().connect().describeInstances(new DescribeInstancesRequest().withInstanceIds(Collections.singletonList(getInstanceId())));
+            for (Reservation reservation : dir.getReservations()) {
+                for (Instance instance : reservation.getInstances()) {
+                    getCloud().deleteKeyPair(instance.getKeyName());
+                }
+            }
+        }
+    }
 
     void stop() {
         try {
