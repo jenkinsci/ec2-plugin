@@ -485,20 +485,6 @@ public abstract class EC2AbstractSlave extends Slave {
 
     }
 
-    boolean terminateInstance() {
-        try {
-            AmazonEC2 ec2 = getCloud().connect();
-            TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
-            LOGGER.fine("Sending terminate request for " + getInstanceId());
-            ec2.terminateInstances(request);
-            LOGGER.info("EC2 instance terminate request sent for " + getInstanceId());
-            return true;
-        } catch (AmazonClientException e) {
-            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
-            return false;
-        }
-    }
-
     @Override
     public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {
         if (form == null) {
