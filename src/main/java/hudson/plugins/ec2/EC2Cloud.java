@@ -219,9 +219,9 @@ public abstract class EC2Cloud extends Cloud {
         String filename = System.getProperty(sshPrivateKeyFilePath, "");
         if (!filename.isEmpty()) {
             try {
-                return new EC2PrivateKey(new String(Files.readAllBytes(Paths.get(filename)), StandardCharsets.UTF_8));
+                return new EC2PrivateKey(Files.readString(Paths.get(filename), StandardCharsets.UTF_8));
             } catch (IOException e) {
-                LOGGER.warning(() -> "unable to read private key from file " + filename);
+                LOGGER.warning(() -> "unable to read private key from file " + filename + ": " + e);
                 return null;
             }
         }
@@ -1161,7 +1161,7 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
 
-            String privateKey = "";
+            String privateKey;
 
             if (System.getProperty(sshPrivateKeyFilePath, "").isEmpty()) {
                 if (value == null || value.isEmpty()) {
