@@ -132,7 +132,7 @@ public abstract class EC2Cloud extends Cloud {
 
     // if this system property is defined and its value points to a valid ssh private key on disk
     // then this will be used instead of any configured ssh credential
-    private static final String SSH_KEY_PAIR_PRIVATE_KEY_FILE = "SSH_KEY_PAIR_PRIVATE_KEY_FILE";
+    private static final String sshPrivateKeyFilePath =EC2Cloud.class.getName() + "sshPrivateKeyFilePath";
 
     private transient ReentrantLock slaveCountingLock = new ReentrantLock();
 
@@ -202,7 +202,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
-        if (!System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "").isEmpty()) {
+        if (!System.getProperty(sshPrivateKeyFilePath, "").isEmpty()) {
             LOGGER.fine(() -> "(resolvePrivateKey) secret key file configured, will load from disk");
             return fetchPrivateKeyFromDisk();
         } else if (sshKeysCredentialsId != null) {
@@ -216,7 +216,7 @@ public abstract class EC2Cloud extends Cloud {
     }
 
     private static EC2PrivateKey fetchPrivateKeyFromDisk()  {
-        String filename = System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "");
+        String filename = System.getProperty(sshPrivateKeyFilePath, "");
         if (!filename.isEmpty()) {
             try {
                 return new EC2PrivateKey(new String(Files.readAllBytes(Paths.get(filename)), StandardCharsets.UTF_8));
@@ -1163,7 +1163,7 @@ public abstract class EC2Cloud extends Cloud {
 
             String privateKey = "";
 
-            if (System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "").isEmpty()) {
+            if (System.getProperty(sshPrivateKeyFilePath, "").isEmpty()) {
                 if (value == null || value.isEmpty()) {
                     return FormValidation.error("No ssh credentials selected");
                 }
@@ -1220,7 +1220,7 @@ public abstract class EC2Cloud extends Cloud {
             }
             try {
                 String privateKey = "";
-                if (System.getProperty(SSH_KEY_PAIR_PRIVATE_KEY_FILE, "").isEmpty()) {
+                if (System.getProperty(sshPrivateKeyFilePath, "").isEmpty()) {
                     SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                     if (sshCredential != null) {
                         privateKey = sshCredential.getPrivateKey();
