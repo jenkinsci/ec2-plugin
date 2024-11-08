@@ -1186,7 +1186,7 @@ public abstract class EC2Cloud extends Cloud {
 
             if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                 if (!StringUtils.isEmpty(value)) {
-                    return FormValidation.ok("Using private key file instead of selected credential");
+                    return FormValidation.warning("Using private key file instead of selected credential");
                 } else {
                     return FormValidation.ok("Using private key file");
                 }
@@ -1216,8 +1216,10 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
             try {
+                LOGGER.fine(() -> "begin doTestConnection()");
                 String privateKey = "";
                 if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                    LOGGER.fine(() -> "static credential is in use");
                     SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
                     if (sshCredential != null) {
                         privateKey = sshCredential.getPrivateKey();
@@ -1225,12 +1227,14 @@ public abstract class EC2Cloud extends Cloud {
                         return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
                     }
                 } else {
+                    LOGGER.fine(() -> "using static ssh keyfile");
                     EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
                     if (k == null) {
                         return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
                     }
                     privateKey = k.getPrivateKey();
                 }
+                LOGGER.fine(() -> "private key found ok");
 
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
@@ -1247,7 +1251,7 @@ public abstract class EC2Cloud extends Cloud {
 
                 if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                     if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
-                        return FormValidation.ok("Using private key file instead of selected credential");
+                        return FormValidation.warning("Using private key file instead of selected credential");
                     } else {
                         return FormValidation.ok("Using private key file");
                     }
