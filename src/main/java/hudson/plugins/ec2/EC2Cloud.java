@@ -132,7 +132,7 @@ public abstract class EC2Cloud extends Cloud {
 
     // if this system property is defined and its value points to a valid ssh private key on disk
     // then this will be used instead of any configured ssh credential
-    public static String SSH_PRIVATE_KEY_FILEPATH = EC2Cloud.class.getName() + ".sshPrivateKeyFilePath";
+    public static final String SSH_PRIVATE_KEY_FILEPATH = EC2Cloud.class.getName() + ".sshPrivateKeyFilePath";
 
     private transient ReentrantLock slaveCountingLock = new ReentrantLock();
 
@@ -217,13 +217,17 @@ public abstract class EC2Cloud extends Cloud {
 
     /* visible for testing */
     @CheckForNull
-    public static EC2PrivateKey fetchPrivateKeyFromDisk()  {
-        String filename = System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "");
-        if (!filename.isEmpty()) {
+    public static EC2PrivateKey fetchPrivateKeyFromDisk() {
+        return fetchPrivateKeyFromDisk(System.getProperty(SSH_PRIVATE_KEY_FILEPATH, ""));
+    }
+
+    @CheckForNull
+    public static EC2PrivateKey fetchPrivateKeyFromDisk(String filepath) {
+        if (!(filepath == null) && !(filepath.isEmpty())) {
             try {
-                return new EC2PrivateKey(Files.readString(Paths.get(filename), StandardCharsets.UTF_8));
+                return new EC2PrivateKey(Files.readString(Paths.get(filepath), StandardCharsets.UTF_8));
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "unable to read private key from file " + filename, e);
+                LOGGER.log(Level.WARNING, "unable to read private key from file " + filepath, e);
                 return null;
             }
         }
@@ -1177,7 +1181,11 @@ public abstract class EC2Cloud extends Cloud {
                     return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
                 }
             } else {
-                privateKey = fetchPrivateKeyFromDisk().getPrivateKey();
+                EC2PrivateKey k = fetchPrivateKeyFromDisk();
+                if (k == null) {
+                    return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
+                }
+                privateKey = k.getPrivateKey();
             }
 
             boolean hasStart = false, hasEnd = false;
@@ -1230,7 +1238,11 @@ public abstract class EC2Cloud extends Cloud {
                         return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
                     }
                 } else {
-                    privateKey = fetchPrivateKeyFromDisk().getPrivateKey() ;
+                    EC2PrivateKey k = fetchPrivateKeyFromDisk();
+                    if (k == null) {
+                        return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
+                    }
+                    privateKey = k.getPrivateKey();
                 }
 
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
