@@ -1184,7 +1184,7 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation
                         .error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
 
-            if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+            if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                 if (!StringUtils.isEmpty(value)) {
                     return FormValidation.ok("Using private key file instead of selected credential");
                 } else {
@@ -1245,7 +1245,7 @@ public abstract class EC2Cloud extends Cloud {
                                         + pk.getFingerprint() + ")");
                 }
 
-                if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                     if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
                         return FormValidation.ok("Using private key file instead of selected credential");
                     } else {
