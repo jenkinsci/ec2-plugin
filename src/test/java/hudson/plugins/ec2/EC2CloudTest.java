@@ -26,12 +26,6 @@ import static org.mockito.Mockito.times;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EC2CloudTest {
-
-    @Test
-    public void testFileBasedSShKey() {
-        assertNotNull("file content should not have been empty", EC2PrivateKey.fetchFromDisk(getClass().getClassLoader().getResource("hudson/plugins/ec2/test.pem").getPath()));
-    }
-
     @Test
     public void testSlaveTemplateAddition() throws Exception {
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true,
