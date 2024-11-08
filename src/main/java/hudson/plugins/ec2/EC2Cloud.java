@@ -127,6 +127,10 @@ public abstract class EC2Cloud extends Cloud {
 
     private static final SimpleFormatter sf = new SimpleFormatter();
 
+    // if this system property is defined and its value points to a valid ssh private key on disk
+    // then this will be used instead of any configured ssh credential
+    public static final String SSH_PRIVATE_KEY_FILEPATH = EC2Cloud.class.getName() + ".sshPrivateKeyFilePath";
+
     private transient ReentrantLock slaveCountingLock = new ReentrantLock();
 
     private final boolean useInstanceProfileForCredentials;
@@ -195,7 +199,11 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey(){
-        if (sshKeysCredentialsId != null) {
+        if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+            LOGGER.fine(() -> "(resolvePrivateKey) secret key file configured, will load from disk");
+            return EC2PrivateKey.fetchFromDisk();
+        } else if (sshKeysCredentialsId != null) {
+            LOGGER.fine(() -> "(resolvePrivateKey) Using jenkins ssh credential");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
@@ -1122,6 +1130,7 @@ public abstract class EC2Cloud extends Cloud {
             AbstractIdCredentialsListBoxModel result = new StandardListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 result = result
+                        .includeEmptyValue()
                         .includeMatchingAs(Jenkins.getAuthentication(), context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeMatchingAs(ACL.SYSTEM, context, SSHUserPrivateKey.class, Collections.<DomainRequirement>emptyList(), CredentialsMatchers.always())
                         .includeCurrentValue(sshKeysCredentialsId);
@@ -1135,17 +1144,34 @@ public abstract class EC2Cloud extends Cloud {
                 // Don't do anything if the user is only reading the configuration
                 return FormValidation.ok();
             }
-            if (value == null || value.isEmpty()){
-                return FormValidation.error("No ssh credentials selected");
+
+            String privateKey;
+            List<FormValidation> validations = new ArrayList<>();
+
+            if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                // not using a static ssh key file
+                if (value == null || value.isEmpty()) {
+                    return FormValidation.error("No ssh credentials selected and no private key file defined");
+                }
+
+                SSHUserPrivateKey sshCredential = getSshCredential(value, context);
+                if (sshCredential != null) {
+                    privateKey = sshCredential.getPrivateKey();
+                } else {
+                    return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
+                }
+            } else {
+                EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
+                if (k == null) {
+                    validations.add(FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
+                    if (!StringUtils.isEmpty(value)) {
+                        validations.add(FormValidation.warning("Private key file path defined, selected credential will be ignored"));
+                    }
+                    return FormValidation.aggregate(validations);
+                }
+                privateKey = k.getPrivateKey();
             }
 
-            SSHUserPrivateKey sshCredential = getSshCredential(value, context);
-            String privateKey = "";
-            if (sshCredential != null) {
-                privateKey = sshCredential.getPrivateKey();
-            } else {
-                return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
-            }
 
             boolean hasStart = false, hasEnd = false;
             BufferedReader br = new BufferedReader(new StringReader(privateKey));
@@ -1159,11 +1185,20 @@ public abstract class EC2Cloud extends Cloud {
                     hasEnd = true;
             }
             if (!hasStart)
-                return FormValidation.error("This doesn't look like a private key at all");
+                validations.add(FormValidation.error("This doesn't look like a private key at all"));
             if (!hasEnd)
-                return FormValidation
-                        .error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
-            return FormValidation.ok();
+                validations.add(FormValidation.error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?"));
+
+            if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                if (!StringUtils.isEmpty(value)) {
+                    validations.add(FormValidation.warning("Using private key file instead of selected credential"));
+                } else {
+                    validations.add(FormValidation.ok("Using private key file"));
+                }
+            }
+
+            validations.add(FormValidation.ok("SSH key validation successful"));
+            return FormValidation.aggregate(validations);
         }
 
         /**
@@ -1188,28 +1223,54 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
             try {
-                SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
+                List<FormValidation> validations = new ArrayList<>();
+
+                LOGGER.fine(() -> "begin doTestConnection()");
                 String privateKey = "";
-                if (sshCredential != null) {
-                    privateKey = sshCredential.getPrivateKey();
+                if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                    LOGGER.fine(() -> "static credential is in use");
+                    SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
+                    if (sshCredential != null) {
+                        privateKey = sshCredential.getPrivateKey();
+                    } else {
+                        return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                    }
                 } else {
-                    return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                    EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
+                    if (k == null) {
+                        validations.add(FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
+                        if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                            validations.add(FormValidation.warning("Private key file path defined, selected credential will be ignored"));
+                        }
+                        return FormValidation.aggregate(validations);
+                    }
+                    privateKey = k.getPrivateKey();
                 }
+                LOGGER.fine(() -> "private key found ok");
 
                 AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
+
                 if (privateKey.trim().length() > 0) {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if (pk.find(ec2) == null)
-                        return FormValidation
+                        validations.add(FormValidation
                                 .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
-                                        + pk.getFingerprint() + ")");
+                                        + pk.getFingerprint() + ")"));
                 }
 
-                return FormValidation.ok(Messages.EC2Cloud_Success());
+                if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                    if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                        validations.add(FormValidation.warning("Using private key file instead of selected credential"));
+                    } else {
+                        validations.add(FormValidation.ok("Using private key file"));
+                    }
+                }
+                validations.add(FormValidation.ok(Messages.EC2Cloud_Success()));
+                return FormValidation.aggregate(validations);
             } catch (AmazonClientException e) {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());

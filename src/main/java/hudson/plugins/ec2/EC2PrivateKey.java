@@ -26,6 +26,9 @@ package hudson.plugins.ec2;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.UnrecoverableKeyException;
 import java.util.Base64;
 
@@ -33,14 +36,19 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.util.Secret;
 import jenkins.bouncycastle.api.PEMEncodable;
 import javax.crypto.Cipher;
 import java.nio.charset.Charset;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+
+import static hudson.plugins.ec2.EC2Cloud.SSH_PRIVATE_KEY_FILEPATH;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -50,6 +58,8 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
  * @author Kohsuke Kawaguchi
  */
 public class EC2PrivateKey {
+
+    private static final Logger LOGGER = Logger.getLogger(EC2PrivateKey.class.getName());
 
     private final Secret privateKey;
 
@@ -141,6 +151,25 @@ public class EC2PrivateKey {
         } catch (Exception e) {
             throw new AmazonClientException("Unable to decode password:\n" + e.toString());
         }
+    }
+
+    /* visible for testing */
+    @CheckForNull
+    public static EC2PrivateKey fetchFromDisk() {
+        return fetchFromDisk(System.getProperty(SSH_PRIVATE_KEY_FILEPATH, ""));
+    }
+
+    @CheckForNull
+    public static EC2PrivateKey fetchFromDisk(String filepath) {
+        if (StringUtils.isNotEmpty(filepath)) {
+            try {
+                return new EC2PrivateKey(Files.readString(Paths.get(filepath), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "unable to read private key from file " + filepath, e);
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override

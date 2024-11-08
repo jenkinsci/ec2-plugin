@@ -26,7 +26,6 @@ import static org.mockito.Mockito.times;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EC2CloudTest {
-
     @Test
     public void testSlaveTemplateAddition() throws Exception {
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true,
