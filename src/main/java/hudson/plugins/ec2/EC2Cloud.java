@@ -1150,7 +1150,7 @@ public abstract class EC2Cloud extends Cloud {
             if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                 // not using a static ssh key file
                 if (value == null || value.isEmpty()) {
-                    return FormValidation.error("No ssh credentials selected");
+                    return FormValidation.error("No ssh credentials selected and no static key file defined");
                 }
 
                 SSHUserPrivateKey sshCredential = getSshCredential(value, context);
@@ -1167,6 +1167,8 @@ public abstract class EC2Cloud extends Cloud {
                 privateKey = k.getPrivateKey();
             }
 
+            List<FormValidation> validations = new ArrayList<>();
+
             boolean hasStart = false, hasEnd = false;
             BufferedReader br = new BufferedReader(new StringReader(privateKey));
             String line;
@@ -1179,19 +1181,18 @@ public abstract class EC2Cloud extends Cloud {
                     hasEnd = true;
             }
             if (!hasStart)
-                return FormValidation.error("This doesn't look like a private key at all");
+                validations.add(FormValidation.error("This doesn't look like a private key at all"));
             if (!hasEnd)
-                return FormValidation
-                        .error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
+                validations.add(FormValidation.error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?"));
 
             if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                 if (!StringUtils.isEmpty(value)) {
-                    return FormValidation.warning("Using private key file instead of selected credential");
+                    validations.add(FormValidation.warning("Using private key file instead of selected credential"));
                 } else {
-                    return FormValidation.ok("Using private key file");
+                    validations.add(FormValidation.ok("Using private key file"));
                 }
             }
-            return FormValidation.ok();
+            return validations.isEmpty() ? FormValidation.ok() : FormValidation.aggregate(validations);
         }
 
         /**
@@ -1240,24 +1241,26 @@ public abstract class EC2Cloud extends Cloud {
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
+                List<FormValidation> validations = new ArrayList<>();
+
                 if (privateKey.trim().length() > 0) {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if (pk.find(ec2) == null)
-                        return FormValidation
+                        validations.add(FormValidation
                                 .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
-                                        + pk.getFingerprint() + ")");
+                                        + pk.getFingerprint() + ")"));
                 }
 
                 if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                     if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
-                        return FormValidation.warning("Using private key file instead of selected credential");
+                        validations.add(FormValidation.warning("Using private key file instead of selected credential"));
                     } else {
-                        return FormValidation.ok("Using private key file");
+                        validations.add(FormValidation.ok("Using private key file"));
                     }
                 }
 
-                return FormValidation.ok(Messages.EC2Cloud_Success());
+                return validations.isEmpty() ? FormValidation.ok(Messages.EC2Cloud_Success()) : FormValidation.aggregate(validations);
             } catch (AmazonClientException e) {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());
