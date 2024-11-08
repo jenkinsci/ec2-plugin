@@ -29,7 +29,7 @@ public class EC2CloudTest {
 
     @Test
     public void testFileBasedSShKey() {
-        assertTrue("file content should not have been empty", EC2Cloud.fetchPrivateKeyFromDisk(getClass().getClassLoader().getResource("hudson/plugins/ec2/test.pem").getPath()) != null);
+        assertNotNull("file content should not have been empty", EC2PrivateKey.fetchFromDisk(getClass().getClassLoader().getResource("hudson/plugins/ec2/test.pem").getPath()));
     }
 
     @Test

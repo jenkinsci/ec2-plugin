@@ -87,9 +87,6 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -204,31 +201,12 @@ public abstract class EC2Cloud extends Cloud {
     public EC2PrivateKey resolvePrivateKey(){
         if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
             LOGGER.fine(() -> "(resolvePrivateKey) secret key file configured, will load from disk");
-            return fetchPrivateKeyFromDisk();
+            return EC2PrivateKey.fetchFromDisk();
         } else if (sshKeysCredentialsId != null) {
             LOGGER.fine(() -> "(resolvePrivateKey) Using jenkins ssh credential");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
-            }
-        }
-        return null;
-    }
-
-    /* visible for testing */
-    @CheckForNull
-    public static EC2PrivateKey fetchPrivateKeyFromDisk() {
-        return fetchPrivateKeyFromDisk(System.getProperty(SSH_PRIVATE_KEY_FILEPATH, ""));
-    }
-
-    @CheckForNull
-    public static EC2PrivateKey fetchPrivateKeyFromDisk(String filepath) {
-        if (StringUtils.isNotEmpty(filepath)) {
-            try {
-                return new EC2PrivateKey(Files.readString(Paths.get(filepath), StandardCharsets.UTF_8));
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "unable to read private key from file " + filepath, e);
-                return null;
             }
         }
         return null;
@@ -1181,7 +1159,7 @@ public abstract class EC2Cloud extends Cloud {
                     return FormValidation.error("Failed to find credential \"" + value + "\" in store.");
                 }
             } else {
-                EC2PrivateKey k = fetchPrivateKeyFromDisk();
+                EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
                 if (k == null) {
                     return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
                 }
@@ -1238,7 +1216,7 @@ public abstract class EC2Cloud extends Cloud {
                         return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
                     }
                 } else {
-                    EC2PrivateKey k = fetchPrivateKeyFromDisk();
+                    EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
                     if (k == null) {
                         return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
                     }
