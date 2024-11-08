@@ -1148,6 +1148,7 @@ public abstract class EC2Cloud extends Cloud {
             String privateKey;
 
             if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                // not using a static ssh key file
                 if (value == null || value.isEmpty()) {
                     return FormValidation.error("No ssh credentials selected");
                 }
@@ -1182,6 +1183,14 @@ public abstract class EC2Cloud extends Cloud {
             if (!hasEnd)
                 return FormValidation
                         .error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
+
+            if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                if (!StringUtils.isEmpty(value)) {
+                    return FormValidation.ok("Using private key file instead of selected credential");
+                } else {
+                    return FormValidation.ok("Using private key file");
+                }
+            }
             return FormValidation.ok();
         }
 
@@ -1234,6 +1243,14 @@ public abstract class EC2Cloud extends Cloud {
                         return FormValidation
                                 .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
                                         + pk.getFingerprint() + ")");
+                }
+
+                if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                    if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                        return FormValidation.ok("Using private key file instead of selected credential");
+                    } else {
+                        return FormValidation.ok("Using private key file");
+                    }
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
