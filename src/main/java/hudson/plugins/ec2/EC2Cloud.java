@@ -223,7 +223,7 @@ public abstract class EC2Cloud extends Cloud {
 
     @CheckForNull
     public static EC2PrivateKey fetchPrivateKeyFromDisk(String filepath) {
-        if (!(filepath == null) && !(filepath.isEmpty())) {
+        if (StringUtils.isNotEmpty(filepath)) {
             try {
                 return new EC2PrivateKey(Files.readString(Paths.get(filepath), StandardCharsets.UTF_8));
             } catch (IOException e) {

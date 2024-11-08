@@ -65,7 +65,7 @@ config).
 
 If you do not want to create a new Jenkins credential you may alterantively store it
 in plain text on disk, indicating its file path via the Jenkins system property
-`SSH_KEY_PAIR_PRIVATE_KEY_FILE`.  If this system property has a non-empty value then
+`hudson.plugins.ec2.EC2Cloud.sshPrivateKeyFilePath`.  If this system property has a non-empty value then
 it will override the ssh credential specified in the cloud configuration page.  This
 approach works well for `k8s` secrets that are mounted in a jenkins container for example.
 
