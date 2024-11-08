@@ -1192,7 +1192,9 @@ public abstract class EC2Cloud extends Cloud {
                     validations.add(FormValidation.ok("Using private key file"));
                 }
             }
-            return validations.isEmpty() ? FormValidation.ok() : FormValidation.aggregate(validations);
+
+            validations.add(FormValidation.ok("SSH key validation successful"));
+            return FormValidation.aggregate(validations);
         }
 
         /**
@@ -1259,8 +1261,8 @@ public abstract class EC2Cloud extends Cloud {
                         validations.add(FormValidation.ok("Using private key file"));
                     }
                 }
-
-                return validations.isEmpty() ? FormValidation.ok(Messages.EC2Cloud_Success()) : FormValidation.aggregate(validations);
+                validations.add(FormValidation.ok(Messages.EC2Cloud_Success()));
+                return FormValidation.aggregate(validations);
             } catch (AmazonClientException e) {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());
