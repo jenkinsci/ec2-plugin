@@ -29,9 +29,7 @@ public class EC2CloudTest {
 
     @Test
     public void testFileBasedSShKey() {
-        System.setProperty("hudson.plugins.ec2.EC2Cloud.sshPrivateKeyFilePath", getClass().getClassLoader().getResource("hudson/plugins/ec2/test.pem").getPath());
-        assertTrue("file content should not have been empty", EC2Cloud.fetchPrivateKeyFromDisk() != null);
-        System.setProperty("hudson.plugins.ec2.EC2Cloud.sshPrivateKeyFilePath",null);
+        assertTrue("file content should not have been empty", EC2Cloud.fetchPrivateKeyFromDisk(getClass().getClassLoader().getResource("hudson/plugins/ec2/test.pem").getPath()) != null);
     }
 
     @Test
