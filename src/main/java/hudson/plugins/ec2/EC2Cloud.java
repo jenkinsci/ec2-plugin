@@ -1146,11 +1146,12 @@ public abstract class EC2Cloud extends Cloud {
             }
 
             String privateKey;
+            List<FormValidation> validations = new ArrayList<>();
 
             if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
                 // not using a static ssh key file
                 if (value == null || value.isEmpty()) {
-                    return FormValidation.error("No ssh credentials selected and no static key file defined");
+                    return FormValidation.error("No ssh credentials selected and no private key file defined");
                 }
 
                 SSHUserPrivateKey sshCredential = getSshCredential(value, context);
@@ -1162,12 +1163,15 @@ public abstract class EC2Cloud extends Cloud {
             } else {
                 EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
                 if (k == null) {
-                    return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
+                    validations.add(FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
+                    if (!StringUtils.isEmpty(value)) {
+                        validations.add(FormValidation.warning("Private key file path defined, selected credential will be ignored"));
+                    }
+                    return FormValidation.aggregate(validations);
                 }
                 privateKey = k.getPrivateKey();
             }
 
-            List<FormValidation> validations = new ArrayList<>();
 
             boolean hasStart = false, hasEnd = false;
             BufferedReader br = new BufferedReader(new StringReader(privateKey));
@@ -1219,6 +1223,8 @@ public abstract class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
             try {
+                List<FormValidation> validations = new ArrayList<>();
+
                 LOGGER.fine(() -> "begin doTestConnection()");
                 String privateKey = "";
                 if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
@@ -1230,10 +1236,13 @@ public abstract class EC2Cloud extends Cloud {
                         return FormValidation.error("Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
                     }
                 } else {
-                    LOGGER.fine(() -> "using static ssh keyfile");
                     EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
                     if (k == null) {
-                        return FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH));
+                        validations.add(FormValidation.error("Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
+                        if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                            validations.add(FormValidation.warning("Private key file path defined, selected credential will be ignored"));
+                        }
+                        return FormValidation.aggregate(validations);
                     }
                     privateKey = k.getPrivateKey();
                 }
@@ -1243,7 +1252,6 @@ public abstract class EC2Cloud extends Cloud {
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
-                List<FormValidation> validations = new ArrayList<>();
 
                 if (privateKey.trim().length() > 0) {
                     // check if this key exists
