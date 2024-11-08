@@ -215,8 +215,9 @@ public abstract class EC2Cloud extends Cloud {
         return null;
     }
 
+    /* visible for testing */
     @CheckForNull
-    private static EC2PrivateKey fetchPrivateKeyFromDisk()  {
+    public static EC2PrivateKey fetchPrivateKeyFromDisk()  {
         String filename = System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "");
         if (!filename.isEmpty()) {
             try {

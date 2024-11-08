@@ -28,6 +28,13 @@ import static org.mockito.Mockito.times;
 public class EC2CloudTest {
 
     @Test
+    public void testFileBasedSShKey() {
+        System.setProperty("hudson.plugins.ec2.EC2Cloud.sshPrivateKeyFilePath", getClass().getClassLoader().getResource("hudson/plugins/ec2/test.pem").getPath());
+        assertTrue("file content should not have been empty", EC2Cloud.fetchPrivateKeyFromDisk() != null);
+        System.setProperty("hudson.plugins.ec2.EC2Cloud.sshPrivateKeyFilePath",null);
+    }
+
+    @Test
     public void testSlaveTemplateAddition() throws Exception {
         AmazonEC2Cloud cloud = new AmazonEC2Cloud("us-east-1", true,
                 "abc", "us-east-1", null, "ghi",
