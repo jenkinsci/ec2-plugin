@@ -1042,7 +1042,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         String subnetId = chooseSubnetId(rotateSubnet);
-        LOGGER.log(Level.FINE, String.format("Chose subnetId %s", subnetId));
+        LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
@@ -1436,7 +1436,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
             String subnetId = chooseSubnetId();
-            LOGGER.log(Level.FINE, String.format("Chose subnetId %s", subnetId));
+            LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
             if (StringUtils.isNotBlank(subnetId)) {
                 net.setSubnetId(subnetId);
 
