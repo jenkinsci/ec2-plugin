@@ -1042,6 +1042,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         String subnetId = chooseSubnetId(rotateSubnet);
+        LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
 
         InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
         if (StringUtils.isNotBlank(subnetId)) {
@@ -1436,6 +1437,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             InstanceNetworkInterfaceSpecification net = new InstanceNetworkInterfaceSpecification();
             String subnetId = chooseSubnetId();
+            LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
             if (StringUtils.isNotBlank(subnetId)) {
                 net.setSubnetId(subnetId);
 
@@ -1692,14 +1694,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a list of security group ids for the agent
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
+        LOGGER.log(Level.FINE, () -> String.format("Get security group %s for EC2Cloud %s with currentSubnetId %s",
+            securityGroupSet, this.getParent().name, getCurrentSubnetId()));
         List<String> groupIds = new ArrayList<>();
-
         DescribeSecurityGroupsResult groupResult = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
         if (groupResult.getSecurityGroups().size() == 0) {
             groupResult = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
         }
 
         for (SecurityGroup group : groupResult.getSecurityGroups()) {
+            LOGGER.log(Level.FINE, () -> String.format("Checking security group %s (vpc-id = %s, subnet-id = %s)",
+                group.getGroupId(), group.getVpcId(), getCurrentSubnetId()));
             if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
                 List<Filter> filters = new ArrayList<>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
@@ -1712,6 +1717,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
                 List<Subnet> subnets = subnetResult.getSubnets();
                 if (subnets != null && !subnets.isEmpty()) {
+                    LOGGER.log(Level.FINE, () -> "Adding security group");
                     groupIds.add(group.getGroupId());
                 }
             }
