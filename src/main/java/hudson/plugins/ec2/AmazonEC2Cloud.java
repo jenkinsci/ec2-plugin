@@ -185,6 +185,9 @@ public class AmazonEC2Cloud extends EC2Cloud {
         public ListBoxModel doFillRegionItems(
                 @QueryParameter String altEC2Endpoint,
                 @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName,
+                @QueryParameter String region,
                 @QueryParameter String credentialsId)
 
                 throws IOException, ServletException {
@@ -192,7 +195,10 @@ public class AmazonEC2Cloud extends EC2Cloud {
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 try {
                     AWSCredentialsProvider credentialsProvider = createCredentialsProvider(useInstanceProfileForCredentials,
-                            credentialsId);
+                            credentialsId,
+                            roleArn,
+                            roleSessionName,
+                            region);
                     AmazonEC2 client = AmazonEC2Factory.getInstance().connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
                     DescribeRegionsResult regions = client.describeRegions();
                     List<Region> regionList = regions.getRegions();
@@ -201,6 +207,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
                         model.add(name, name);
                     }
                 } catch (SdkClientException ex) {
+                    LOGGER.log(Level.INFO, "AmazonEC2Cloud.doFillRegionItems() got exception: " + ex);
                     // Ignore, as this may happen before the credentials are specified
                 }
             }
