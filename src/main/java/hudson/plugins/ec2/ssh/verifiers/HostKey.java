@@ -27,9 +27,18 @@
 package hudson.plugins.ec2.ssh.verifiers;
 
 import com.trilead.ssh2.KnownHosts;
+import com.trilead.ssh2.signature.KeyAlgorithm;
+import com.trilead.ssh2.signature.KeyAlgorithmManager;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.plugins.ec2.Messages;
+import hudson.plugins.ec2.util.FIPS140Utils;
+import jenkins.security.FIPS140;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.security.Key;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Arrays;
 
 /**
@@ -45,8 +54,29 @@ public final class HostKey implements Serializable {
     private final String algorithm;
     private final byte[] key;
 
+    public static void ensurePublicKeyInFipsMode(@NonNull String algorithm, @NonNull byte[] key) {
+        if (!FIPS140.useCompliantAlgorithms()) {
+            return;
+        }
+
+        KeyAlgorithm<PublicKey, PrivateKey> publicKeyPrivateKeyKeyAlgorithm = KeyAlgorithmManager
+                .getSupportedAlgorithms()
+                .stream()
+                .filter((keyAlgorithm) -> keyAlgorithm.getKeyFormat().equals(algorithm))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(algorithm)));
+        try {
+            Key publicKey = publicKeyPrivateKeyKeyAlgorithm.decodePublicKey(key);
+            FIPS140Utils.ensureKeyInFipsMode(publicKey);
+        } catch (RuntimeException | IOException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+    }
+
     public HostKey(@NonNull String algorithm, @NonNull byte[] key) {
         super();
+        ensurePublicKeyInFipsMode(algorithm, key);
+
         this.algorithm = algorithm;
         this.key = key.clone();
     }
