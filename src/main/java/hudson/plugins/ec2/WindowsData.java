@@ -9,9 +9,11 @@ import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
 
 
 public class WindowsData extends AMITypeData {
@@ -98,8 +100,13 @@ public class WindowsData extends AMITypeData {
             return "windows";
         }
 
+        @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckUseHTTPS(@QueryParameter boolean useHTTPS, @QueryParameter String password) {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                // for security reasons, do not perform any check if the user is not an admin
+                return FormValidation.ok();
+            }
             try {
                 FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
             } catch (IllegalArgumentException ex) {
@@ -108,8 +115,13 @@ public class WindowsData extends AMITypeData {
             return FormValidation.ok();
         }
 
+        @POST
         @SuppressWarnings("unused")
         public FormValidation doCheckAllowSelfSignedCertificate(@QueryParameter boolean allowSelfSignedCertificate) {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                // for security reasons, do not perform any check if the user is not an admin
+                return FormValidation.ok();
+            }
             if (FIPS140.useCompliantAlgorithms() && allowSelfSignedCertificate) {
                 return FormValidation.error(Messages.AmazonEC2Cloud_selfSignedCertificateNotAllowedInFIPSMode());
             }
