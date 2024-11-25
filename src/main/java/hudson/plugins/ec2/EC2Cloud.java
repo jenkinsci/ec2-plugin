@@ -59,6 +59,7 @@ import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -67,8 +68,10 @@ import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import jenkins.bouncycastle.api.PEMEncodable;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
+import jenkins.security.FIPS140;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.HttpResponse;
@@ -87,6 +90,8 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
+import java.security.Key;
+import java.security.UnrecoverableKeyException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -198,7 +203,9 @@ public abstract class EC2Cloud extends Cloud {
         if (sshKeysCredentialsId != null) {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
-                return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
+                String privateKey = privateKeyCredential.getPrivateKey();
+                ensurePrivateKeyInFipsMode(privateKey);
+                return new EC2PrivateKey(privateKey);
             }
         }
         return null;
@@ -266,7 +273,9 @@ public abstract class EC2Cloud extends Cloud {
             t.parent = this;
 
         if (this.sshKeysCredentialsId == null && this.privateKey != null ){
-            migratePrivateSshKeyToCredential(this.privateKey.getPrivateKey());
+            String privateKey = this.privateKey.getPrivateKey();
+            ensurePrivateKeyInFipsMode(privateKey);
+            migratePrivateSshKeyToCredential(privateKey);
         }
         this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
 
@@ -1098,6 +1107,33 @@ public abstract class EC2Cloud extends Cloud {
         return credential;
     }
 
+    /**
+     * Checks if the private key is allowed when FIPS mode is requested.
+     * Allowed private key with the following algorithms and sizes:
+     * <ul>
+     *     <li>DSA with key size >= 2048</li>
+     *     <li>RSA with key size >= 2048</li>
+     *     <li>Elliptic curve (ED25519) with field size >= 224</li>
+     * </ul>
+     * If the private key is valid and allowed or not in FIPS mode method will just exit.
+     * If not it will throw an {@link IllegalArgumentException}.
+     * @param privateKeyString String containing the private key PEM.
+     */
+    public static void ensurePrivateKeyInFipsMode(String privateKeyString) {
+        if (!FIPS140.useCompliantAlgorithms()) {
+            return;
+        }
+        if (StringUtils.isBlank(privateKeyString)) {
+            throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsMandatory());
+        }
+        try {
+            Key privateKey = PEMEncodable.decode(privateKeyString).toPrivateKey();
+            FIPS140Utils.ensureKeyInFipsMode(privateKey);
+        } catch (RuntimeException | UnrecoverableKeyException | IOException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+    }
+
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
 
         public InstanceType[] getInstanceTypes() {
@@ -1163,6 +1199,13 @@ public abstract class EC2Cloud extends Cloud {
             if (!hasEnd)
                 return FormValidation
                         .error("The private key is missing the trailing 'END RSA PRIVATE KEY' marker. Copy&paste error?");
+
+            try {
+                ensurePrivateKeyInFipsMode(privateKey);
+            } catch (IllegalArgumentException ex) {
+                return FormValidation.error(ex, ex.getLocalizedMessage());
+            }
+
             return FormValidation.ok();
         }
 
@@ -1207,6 +1250,12 @@ public abstract class EC2Cloud extends Cloud {
                         return FormValidation
                                 .error("The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
                                         + pk.getFingerprint() + ")");
+                }
+
+                try {
+                    ensurePrivateKeyInFipsMode(privateKey);
+                } catch (IllegalArgumentException ex) {
+                    return FormValidation.error(ex, ex.getLocalizedMessage());
                 }
 
                 return FormValidation.ok(Messages.EC2Cloud_Success());
