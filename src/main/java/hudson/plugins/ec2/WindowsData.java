@@ -132,8 +132,10 @@ public class WindowsData extends AMITypeData {
                 // for security reasons, do not perform any check if the user is not an admin
                 return FormValidation.ok();
             }
-            if (FIPS140.useCompliantAlgorithms() && allowSelfSignedCertificate) {
-                return FormValidation.error(Messages.AmazonEC2Cloud_selfSignedCertificateNotAllowedInFIPSMode());
+            try {
+                FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+            } catch (IllegalArgumentException ex) {
+                return FormValidation.error(ex, ex.getLocalizedMessage());
             }
             return FormValidation.ok();
         }
