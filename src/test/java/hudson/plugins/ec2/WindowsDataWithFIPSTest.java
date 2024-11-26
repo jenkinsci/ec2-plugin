@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import hudson.model.Descriptor;
 import hudson.ExtensionList;
 import hudson.util.FormValidation;
 import jenkins.security.FIPS140;
@@ -21,40 +22,40 @@ public class WindowsDataWithFIPSTest {
     public JenkinsRule j = new JenkinsRule();
 
     /**
-     * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
+     * Self-signed certificate should not be allowed in FIPS mode, an {@link Descriptor.FormException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = Descriptor.FormException.class)
     @WithoutJenkins
-    public void testSelfSignedCertificateNotAllowed() {
+    public void testSelfSignedCertificateNotAllowed() throws Descriptor.FormException {
         new WindowsData("", true, "", true, true);
     }
 
     /**
-     * Using a password without using TLS, an {@link IllegalArgumentException} is expected
+     * Using a password without using TLS, an {@link Descriptor.FormException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = Descriptor.FormException.class)
     @WithoutJenkins
-    public void testCreateWindowsDataWithPasswordWithoutTLS() {
+    public void testCreateWindowsDataWithPasswordWithoutTLS() throws Descriptor.FormException {
         new WindowsData("yes", false, "", true, false);
     }
 
     /**
-     * Using a password with TLS, an {@link IllegalArgumentException} is not expected
+     * Using a password with TLS, an {@link Descriptor.FormException} is not expected
      */
     @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithPasswordWithTLS() {
+    public void testCreateWindowsDataWithPasswordWithTLS() throws Descriptor.FormException {
         new WindowsData("yes", true, "", true, false);
         // specifyPassword is set to true in the constructor
         new WindowsData("yes", true, "", false, false);
     }
 
     /**
-     * If no password is used TLS can have any value, an {@link IllegalArgumentException} is not expected
+     * If no password is used TLS can have any value, an {@link Descriptor.FormException} is not expected
      */
     @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithoutPassword() {
+    public void testCreateWindowsDataWithoutPassword() throws Descriptor.FormException {
         new WindowsData("", false, "", true, false);
         // specifyPassword is set to true in the constructor
         new WindowsData("", false, "", false, false);

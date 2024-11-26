@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import hudson.model.Descriptor;
 import hudson.ExtensionList;
 import hudson.util.FormValidation;
 import jenkins.security.FIPS140;
@@ -25,7 +26,7 @@ public class WindowsDataWithoutFIPSTest {
      */
     @Test
     @WithoutJenkins
-    public void testWinConnectionCreation() {
+    public void testWinConnectionCreation() throws Descriptor.FormException {
         new WindowsData("", true, "", true, true);
         new WindowsData("yes", true, "", true, true);
         new WindowsData("", false, "", true, true);

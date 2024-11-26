@@ -25,9 +25,18 @@ public class WindowsData extends AMITypeData {
     private final Boolean allowSelfSignedCertificate; //Boolean to allow nulls when the saved template doesn't have the field
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate) {
-        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
-        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate)
+            throws Descriptor.FormException {
+        try {
+            FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+        } catch (IllegalArgumentException e) {
+            throw new Descriptor.FormException(e, "password");
+        }
+        try {
+            FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+        } catch (IllegalArgumentException e) {
+            throw new Descriptor.FormException(e, "allowSelfSignedCertificate");
+        }
 
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
@@ -42,11 +51,12 @@ public class WindowsData extends AMITypeData {
     }
     
     @Deprecated
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword)
+            throws Descriptor.FormException {
         this(password, useHTTPS, bootDelay, specifyPassword, true);
     }
 
-    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay) throws Descriptor.FormException {
         this(password, useHTTPS, bootDelay, false);
     }
 
