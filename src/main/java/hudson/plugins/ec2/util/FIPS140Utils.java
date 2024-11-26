@@ -2,6 +2,7 @@ package hudson.plugins.ec2.util;
 
 import hudson.plugins.ec2.Messages;
 import jenkins.security.FIPS140;
+import org.apache.commons.lang.StringUtils;
 
 import java.net.URL;
 import java.security.Key;
@@ -51,9 +52,6 @@ public class FIPS140Utils {
         }
     }
 
-    private static boolean isNotEmpty(String password) {
-        return password != null && !password.isEmpty();
-    }
 
     /**
      * Password leak prevention when FIPS mode is requested. If FIPS mode is not requested, this method does nothing.
@@ -74,7 +72,7 @@ public class FIPS140Utils {
      * @throws IllegalArgumentException if there is a risk that the password will leak
      */
     public static void ensureNoPasswordLeak(boolean useHTTPS, String password) {
-        ensureNoPasswordLeak(useHTTPS, isNotEmpty(password));
+        ensureNoPasswordLeak(useHTTPS, !StringUtils.isEmpty(password));
     }
 
     /**
