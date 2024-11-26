@@ -1,13 +1,14 @@
 package hudson.plugins.ec2;
 
-import hudson.plugins.ec2.win.WinConnection;
+import hudson.ExtensionList;
 import hudson.util.FormValidation;
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
-
-import java.net.MalformedURLException;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.WithoutJenkins;
 
 import static org.junit.Assert.assertEquals;
 
@@ -16,10 +17,14 @@ public class WindowsDataWithoutFIPSTest {
     public static FlagRule<String>
             fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
 
+    @Rule
+    public JenkinsRule j = new JenkinsRule();
+
     /**
      * When FIPS is not enabled, it should always be allowed to create the {@link WindowsData}, an {@link IllegalArgumentException} is not expected
      */
     @Test
+    @WithoutJenkins
     public void testWinConnectionCreation() {
         new WindowsData("", true, "", true, true);
         new WindowsData("yes", true, "", true, true);
@@ -46,37 +51,37 @@ public class WindowsDataWithoutFIPSTest {
 
     @Test
     public void testDoCheckUseHTTPSWithPassword() {
-        FormValidation formValidation = new WindowsData.DescriptorImpl().doCheckUseHTTPS(true, "yes");
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "yes");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     public void testDoCheckUseHTTPSWithoutPassword() {
-        FormValidation formValidation = new WindowsData.DescriptorImpl().doCheckUseHTTPS(true, "");
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     public void testDoCheckUseHTTPWithPassword() {
-        FormValidation formValidation = new WindowsData.DescriptorImpl().doCheckUseHTTPS(false, "yes");
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "yes");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     public void testDoCheckUseHTTPWithoutPassword() {
-        FormValidation formValidation = new WindowsData.DescriptorImpl().doCheckUseHTTPS(false, "");
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     public void testDoCheckAllowSelfSignedCertificateChecked() {
-        FormValidation formValidation = new WindowsData.DescriptorImpl().doCheckAllowSelfSignedCertificate(true);
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(true);
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     public void testDoCheckAllowSelfSignedCertificateNotChecked() {
-        FormValidation formValidation = new WindowsData.DescriptorImpl().doCheckAllowSelfSignedCertificate(false);
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(false);
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 }
