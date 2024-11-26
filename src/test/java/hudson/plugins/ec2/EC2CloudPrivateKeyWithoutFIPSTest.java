@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import hudson.plugins.ec2.util.FIPS140Utils;
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -51,7 +52,7 @@ public class EC2CloudPrivateKeyWithoutFIPSTest {
     @Test
     public void testPrivateKeyValidation() {
         try {
-            EC2Cloud.ensurePrivateKeyInFipsMode(privateKey);
+            FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
         } catch (IllegalArgumentException e) {
             fail(description + " should be valid");
         }

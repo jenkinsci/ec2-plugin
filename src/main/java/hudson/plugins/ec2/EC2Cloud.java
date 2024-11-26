@@ -68,10 +68,8 @@ import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
-import jenkins.bouncycastle.api.PEMEncodable;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
-import jenkins.security.FIPS140;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.HttpResponse;
@@ -90,8 +88,6 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.security.Key;
-import java.security.UnrecoverableKeyException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -212,7 +208,7 @@ public abstract class EC2Cloud extends Cloud {
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
                 String privateKey = privateKeyCredential.getPrivateKey();
-                ensurePrivateKeyInFipsMode(privateKey);
+                FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
                 return new EC2PrivateKey(privateKey);
             }
         }
@@ -282,7 +278,7 @@ public abstract class EC2Cloud extends Cloud {
 
         if (this.sshKeysCredentialsId == null && this.privateKey != null ){
             String privateKey = this.privateKey.getPrivateKey();
-            ensurePrivateKeyInFipsMode(privateKey);
+            FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
             migratePrivateSshKeyToCredential(privateKey);
         }
         this.privateKey = null; // This enforces it not to be persisted and that CasC will never output privateKey on export
@@ -1115,33 +1111,6 @@ public abstract class EC2Cloud extends Cloud {
         return credential;
     }
 
-    /**
-     * Checks if the private key is allowed when FIPS mode is requested.
-     * Allowed private key with the following algorithms and sizes:
-     * <ul>
-     *     <li>DSA with key size >= 2048</li>
-     *     <li>RSA with key size >= 2048</li>
-     *     <li>Elliptic curve (ED25519) with field size >= 224</li>
-     * </ul>
-     * If the private key is valid and allowed or not in FIPS mode method will just exit.
-     * If not it will throw an {@link IllegalArgumentException}.
-     * @param privateKeyString String containing the private key PEM.
-     */
-    public static void ensurePrivateKeyInFipsMode(String privateKeyString) {
-        if (!FIPS140.useCompliantAlgorithms()) {
-            return;
-        }
-        if (StringUtils.isBlank(privateKeyString)) {
-            throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsMandatory());
-        }
-        try {
-            Key privateKey = PEMEncodable.decode(privateKeyString).toPrivateKey();
-            FIPS140Utils.ensureKeyInFipsMode(privateKey);
-        } catch (RuntimeException | UnrecoverableKeyException | IOException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
-        }
-    }
-
     public static abstract class DescriptorImpl extends Descriptor<Cloud> {
 
         public InstanceType[] getInstanceTypes() {
@@ -1234,7 +1203,7 @@ public abstract class EC2Cloud extends Cloud {
             }
 
             try {
-                ensurePrivateKeyInFipsMode(privateKey);
+                FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
             } catch (IllegalArgumentException ex) {
                 validations.add(FormValidation.error(ex, ex.getLocalizedMessage()));
             }
@@ -1313,7 +1282,7 @@ public abstract class EC2Cloud extends Cloud {
                 }
 
                 try {
-                    ensurePrivateKeyInFipsMode(privateKey);
+                    FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
                 } catch (IllegalArgumentException ex) {
                     validations.add(FormValidation.error(ex, ex.getLocalizedMessage()));
                 }
