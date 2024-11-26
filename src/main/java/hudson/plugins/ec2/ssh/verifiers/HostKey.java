@@ -28,6 +28,7 @@ package hudson.plugins.ec2.ssh.verifiers;
 
 import com.trilead.ssh2.KnownHosts;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.plugins.ec2.util.FIPS140Utils;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -47,6 +48,8 @@ public final class HostKey implements Serializable {
 
     public HostKey(@NonNull String algorithm, @NonNull byte[] key) {
         super();
+        FIPS140Utils.ensurePublicKeyInFipsMode(algorithm, key);
+
         this.algorithm = algorithm;
         this.key = key.clone();
     }

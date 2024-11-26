@@ -6,8 +6,15 @@ import java.util.Objects;
 import hudson.Extension;
 import hudson.model.Descriptor;
 
+import hudson.plugins.ec2.util.FIPS140Utils;
+import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
+
 
 public class WindowsData extends AMITypeData {
 
@@ -18,7 +25,19 @@ public class WindowsData extends AMITypeData {
     private final Boolean allowSelfSignedCertificate; //Boolean to allow nulls when the saved template doesn't have the field
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate)
+            throws Descriptor.FormException {
+        try {
+            FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+        } catch (IllegalArgumentException e) {
+            throw new Descriptor.FormException(e, "password");
+        }
+        try {
+            FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+        } catch (IllegalArgumentException e) {
+            throw new Descriptor.FormException(e, "allowSelfSignedCertificate");
+        }
+
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
@@ -32,11 +51,12 @@ public class WindowsData extends AMITypeData {
     }
     
     @Deprecated
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword)
+            throws Descriptor.FormException {
         this(password, useHTTPS, bootDelay, specifyPassword, true);
     }
 
-    public WindowsData(String password, boolean useHTTPS, String bootDelay) {
+    public WindowsData(String password, boolean useHTTPS, String bootDelay) throws Descriptor.FormException {
         this(password, useHTTPS, bootDelay, false);
     }
 
@@ -88,6 +108,36 @@ public class WindowsData extends AMITypeData {
         @Override
         public String getDisplayName() {
             return "windows";
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckUseHTTPS(@QueryParameter boolean useHTTPS, @QueryParameter String password) {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                // for security reasons, do not perform any check if the user is not an admin
+                return FormValidation.ok();
+            }
+            try {
+                FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+            } catch (IllegalArgumentException ex) {
+                return FormValidation.error(ex, ex.getLocalizedMessage());
+            }
+            return FormValidation.ok();
+        }
+
+        @POST
+        @SuppressWarnings("unused")
+        public FormValidation doCheckAllowSelfSignedCertificate(@QueryParameter boolean allowSelfSignedCertificate) {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                // for security reasons, do not perform any check if the user is not an admin
+                return FormValidation.ok();
+            }
+            try {
+                FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+            } catch (IllegalArgumentException ex) {
+                return FormValidation.error(ex, ex.getLocalizedMessage());
+            }
+            return FormValidation.ok();
         }
     }
 

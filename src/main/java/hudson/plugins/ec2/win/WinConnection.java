@@ -1,8 +1,8 @@
 package hudson.plugins.ec2.win;
 
 import com.hierynomus.protocol.transport.TransportException;
-import com.hierynomus.security.bc.BCSecurityProvider;
-import com.hierynomus.smbj.SmbConfig;
+import hudson.plugins.ec2.Messages;
+import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.plugins.ec2.win.winrm.WinRM;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 
@@ -21,6 +21,7 @@ import com.hierynomus.smbj.session.Session;
 import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
+import jenkins.security.FIPS140;
 
 import javax.net.ssl.SSLException;
 import java.util.logging.Level;
@@ -49,6 +50,8 @@ public class WinConnection {
     }
     
     public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+
         this.host = host;
         this.username = username;
         this.password = password;
@@ -58,6 +61,9 @@ public class WinConnection {
     }
 
     public WinRM winrm() {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+
         WinRM winrm = new WinRM(host, username, password, allowSelfSignedCertificate);
         winrm.setUseHTTPS(useHTTPS);
         return winrm;
@@ -178,6 +184,7 @@ public class WinConnection {
     }
 
     public void setUseHTTPS(boolean useHTTPS) {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
         this.useHTTPS = useHTTPS;
     }
 }
