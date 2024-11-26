@@ -30,21 +30,20 @@ import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.WindowsData;
 import hudson.slaves.Cloud;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-
 @Extension
 public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
-    private final static int MAX_TEMPLATES_FOUND = 5;
-    
+    private static final int MAX_TEMPLATES_FOUND = 5;
+
     List<String> insecureTemplates = new ArrayList<>(MAX_TEMPLATES_FOUND);
 
     @Override
@@ -65,15 +64,15 @@ public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
     @Override
     public boolean isActivated() {
         boolean maxTemplatesReached = false;
-        
+
         ListIterator<Cloud> cloudIterator = Jenkins.get().clouds.listIterator();
-        
+
         // Let's clear the previously calculated wrong templates to populate the lists with them again
         insecureTemplates.clear();
-        
+
         while (cloudIterator.hasNext() && !maxTemplatesReached) {
             Cloud cloud = cloudIterator.next();
-            if (cloud instanceof  EC2Cloud) {
+            if (cloud instanceof EC2Cloud) {
                 maxTemplatesReached = gatherInsecureTemplate((EC2Cloud) cloud);
             }
         }
@@ -90,7 +89,9 @@ public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
             }
 
             AMITypeData amiTypeData = template.getAmiType();
-            if (insecureTemplates.size() < MAX_TEMPLATES_FOUND && amiTypeData.isWindows() && ((WindowsData)amiTypeData).isAllowSelfSignedCertificate()) {
+            if (insecureTemplates.size() < MAX_TEMPLATES_FOUND
+                    && amiTypeData.isWindows()
+                    && ((WindowsData) amiTypeData).isAllowSelfSignedCertificate()) {
                 // it is insecure
                 insecureTemplates.add(template.getDisplayName());
             }
@@ -100,17 +101,17 @@ public class SelfSignedCertificateAllowedMonitor extends AdministrativeMonitor {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     @RequirePOST
     @SuppressWarnings("unused") // used by message.jelly
     public HttpResponse doAct(@QueryParameter String dismiss) throws IOException {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (dismiss != null) {
             disable(true);
-        } 
+        }
         return HttpResponses.forwardToPreviousPage();
     }
 }

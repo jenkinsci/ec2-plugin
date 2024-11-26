@@ -1,33 +1,30 @@
 package hudson.plugins.ec2;
 
-import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import jenkins.model.Jenkins;
-import hudson.util.Secret;
-import hudson.model.labels.LabelAtom;
-import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
-import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
-import io.jenkins.plugins.casc.ConfiguratorRegistry;
-import io.jenkins.plugins.casc.ConfigurationContext;
-import io.jenkins.plugins.casc.model.CNode;
-
 import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
-import static io.jenkins.plugins.casc.misc.Util.toYamlString;
 import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
-
-import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-
-import org.junit.Rule;
-import org.junit.Test;
+import static io.jenkins.plugins.casc.misc.Util.toYamlString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
+
+import hudson.model.labels.LabelAtom;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.util.Secret;
+import io.jenkins.plugins.casc.ConfigurationContext;
+import io.jenkins.plugins.casc.ConfiguratorRegistry;
+import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
+import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
+import io.jenkins.plugins.casc.model.CNode;
+import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import jenkins.model.Jenkins;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class ConfigurationAsCodeTest {
 
@@ -67,7 +64,6 @@ public class ConfigurationAsCodeTest {
         assertEquals(3, spotConfig.getSpotBlockReservationDuration());
         assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
         assertTrue(spotConfig.useBidPrice);
-
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isUnix());
@@ -140,7 +136,7 @@ public class ConfigurationAsCodeTest {
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals(ConnectionStrategy.PRIVATE_DNS,slaveTemplate.connectionStrategy);
+        assertEquals(ConnectionStrategy.PRIVATE_DNS, slaveTemplate.connectionStrategy);
     }
 
     @Test
@@ -181,14 +177,14 @@ public class ConfigurationAsCodeTest {
         assertEquals("linux ubuntu", slaveTemplate.getLabelString());
         assertEquals(2, slaveTemplate.getLabelSet().size());
 
-        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig = slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
+        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig =
+                slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
         assertNotNull(timeRangeConfig);
         assertEquals(LocalTime.parse("01:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeFromAsTime());
         assertEquals(LocalTime.parse("13:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeToAsTime());
         assertFalse(timeRangeConfig.getDay("monday"));
         assertTrue(timeRangeConfig.getDay("tuesday"));
         assertFalse(timeRangeConfig.getDay("wednesday"));
-
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
@@ -216,8 +212,7 @@ public class ConfigurationAsCodeTest {
         assertNull(slaveTemplate.ami);
         assertEquals("self", slaveTemplate.getAmiOwners());
         assertEquals("self", slaveTemplate.getAmiUsers());
-        expectedFilters = Arrays.asList(new EC2Filter("name", "foo-*"),
-                                        new EC2Filter("architecture", "x86_64"));
+        expectedFilters = Arrays.asList(new EC2Filter("name", "foo-*"), new EC2Filter("architecture", "x86_64"));
         assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
 
         slaveTemplate = templates.get(2);

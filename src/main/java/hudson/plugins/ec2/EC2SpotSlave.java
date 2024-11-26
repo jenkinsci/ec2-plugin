@@ -1,16 +1,5 @@
 package hudson.plugins.ec2;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
@@ -19,15 +8,21 @@ import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotInstanceState;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     private static final Logger LOGGER = Logger.getLogger(EC2SpotSlave.class.getName());
@@ -35,23 +30,140 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     private final String spotInstanceRequestId;
 
     @Deprecated
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType)
+    public EC2SpotSlave(
+            String name,
+            String spotInstanceRequestId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            String labelString,
+            String remoteAdmin,
+            String jvmopts,
+            String idleTerminationMinutes,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType)
             throws FormException, IOException {
-        this(name, spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, remoteAdmin, jvmopts, idleTerminationMinutes, tags, cloudName, false, launchTimeout, amiType);
+        this(
+                name,
+                spotInstanceRequestId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                mode,
+                initScript,
+                tmpDir,
+                labelString,
+                remoteAdmin,
+                jvmopts,
+                idleTerminationMinutes,
+                tags,
+                cloudName,
+                false,
+                launchTimeout,
+                amiType);
     }
 
     @Deprecated
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, String remoteAdmin, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, boolean usePrivateDnsName, int launchTimeout, AMITypeData amiType)
+    public EC2SpotSlave(
+            String name,
+            String spotInstanceRequestId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            String labelString,
+            String remoteAdmin,
+            String jvmopts,
+            String idleTerminationMinutes,
+            List<EC2Tag> tags,
+            String cloudName,
+            boolean usePrivateDnsName,
+            int launchTimeout,
+            AMITypeData amiType)
             throws FormException, IOException {
-        this(templateDescription + " (" + name + ")", spotInstanceRequestId, templateDescription, remoteFS, numExecutors, mode, initScript, tmpDir, labelString, Collections.emptyList(), remoteAdmin, DEFAULT_JAVA_PATH, jvmopts, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false), -1);
+        this(
+                templateDescription + " (" + name + ")",
+                spotInstanceRequestId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                mode,
+                initScript,
+                tmpDir,
+                labelString,
+                Collections.emptyList(),
+                remoteAdmin,
+                DEFAULT_JAVA_PATH,
+                jvmopts,
+                idleTerminationMinutes,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                ConnectionStrategy.backwardsCompatible(usePrivateDnsName, false, false),
+                -1);
     }
 
     @DataBoundConstructor
-    public EC2SpotSlave(String name, String spotInstanceRequestId, String templateDescription, String remoteFS, int numExecutors, Mode mode, String initScript, String tmpDir, String labelString, List<? extends NodeProperty<?>> nodeProperties, String remoteAdmin, String javaPath, String jvmopts, String idleTerminationMinutes, List<EC2Tag> tags, String cloudName, int launchTimeout, AMITypeData amiType, ConnectionStrategy connectionStrategy, int maxTotalUses)
+    public EC2SpotSlave(
+            String name,
+            String spotInstanceRequestId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            String labelString,
+            List<? extends NodeProperty<?>> nodeProperties,
+            String remoteAdmin,
+            String javaPath,
+            String jvmopts,
+            String idleTerminationMinutes,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses)
             throws FormException, IOException {
 
-        super(name, "", templateDescription, remoteFS, numExecutors, mode, labelString, amiType.isWindows() ? new EC2WindowsLauncher() :
-                new EC2UnixLauncher(), new EC2RetentionStrategy(idleTerminationMinutes), initScript, tmpDir, nodeProperties, remoteAdmin, javaPath, jvmopts, false, idleTerminationMinutes, tags, cloudName, launchTimeout, amiType, connectionStrategy, maxTotalUses,null, DEFAULT_METADATA_ENDPOINT_ENABLED, DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT, DEFAULT_METADATA_SUPPORTED);
+        super(
+                name,
+                "",
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                mode,
+                labelString,
+                amiType.isWindows() ? new EC2WindowsLauncher() : new EC2UnixLauncher(),
+                new EC2RetentionStrategy(idleTerminationMinutes),
+                initScript,
+                tmpDir,
+                nodeProperties,
+                remoteAdmin,
+                javaPath,
+                jvmopts,
+                false,
+                idleTerminationMinutes,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                connectionStrategy,
+                maxTotalUses,
+                null,
+                DEFAULT_METADATA_ENDPOINT_ENABLED,
+                DEFAULT_METADATA_TOKENS_REQUIRED,
+                DEFAULT_METADATA_HOPS_LIMIT,
+                DEFAULT_METADATA_SUPPORTED);
 
         this.name = name;
         this.spotInstanceRequestId = spotInstanceRequestId;
@@ -68,7 +180,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     @Override
     public void terminate() {
         if (terminateScheduled.getCount() == 0) {
-            synchronized(terminateScheduled) {
+            synchronized (terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
                     Computer.threadPoolForRemoting.submit(() -> {
                         try {
@@ -77,7 +189,8 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
 
                             String instanceId = getInstanceId();
                             List<String> requestIds = Collections.singletonList(spotInstanceRequestId);
-                            CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestIds);
+                            CancelSpotInstanceRequestsRequest cancelRequest =
+                                    new CancelSpotInstanceRequestsRequest(requestIds);
                             try {
                                 ec2.cancelSpotInstanceRequests(cancelRequest);
                                 LOGGER.info("Cancelled Spot request: " + spotInstanceRequestId);
@@ -90,22 +203,26 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             if (instanceId != null && !instanceId.equals("")) {
                                 if (!super.isAlive(true)) {
                                     /*
-                                    * The node has been killed externally, so we've nothing to do here
-                                    */
+                                     * The node has been killed externally, so we've nothing to do here
+                                     */
                                     LOGGER.info("EC2 instance already terminated: " + instanceId);
                                 } else {
-                                    TerminateInstancesRequest request = new TerminateInstancesRequest(Collections.singletonList(instanceId));
+                                    TerminateInstancesRequest request =
+                                            new TerminateInstancesRequest(Collections.singletonList(instanceId));
                                     try {
                                         ec2.terminateInstances(request);
                                         LOGGER.info("Terminated EC2 instance (terminated): " + instanceId);
                                     } catch (AmazonClientException e) {
                                         // Spot request is no longer valid
-                                        LOGGER.log(Level.WARNING, "Failed to terminate the Spot instance: " + instanceId, e);
+                                        LOGGER.log(
+                                                Level.WARNING,
+                                                "Failed to terminate the Spot instance: " + instanceId,
+                                                e);
                                     }
                                 }
                             }
                         } catch (Exception e) {
-                            LOGGER.log(Level.WARNING,"Failed to remove agent: ", e);
+                            LOGGER.log(Level.WARNING, "Failed to remove agent: ", e);
                         } finally {
                             // Remove the instance even if deletion failed, otherwise it will hang around forever in
                             // the nodes page. One way for this to occur is that an instance was terminated
@@ -116,7 +233,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             } catch (IOException e) {
                                 LOGGER.log(Level.WARNING, "Failed to remove agent: " + name, e);
                             }
-                            synchronized(terminateScheduled) {
+                            synchronized (terminateScheduled) {
                                 terminateScheduled.countDown();
                             }
                         }
@@ -140,7 +257,8 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
             return null;
         }
 
-        DescribeSpotInstanceRequestsRequest dsirRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
+        DescribeSpotInstanceRequestsRequest dsirRequest =
+                new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(this.spotInstanceRequestId);
         try {
             DescribeSpotInstanceRequestsResult dsirResult = ec2.describeSpotInstanceRequests(dsirRequest);
             List<SpotInstanceRequest> siRequests = dsirResult.getSpotInstanceRequests();
@@ -148,7 +266,9 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
             return siRequests.get(0);
         } catch (AmazonClientException e) {
             // Spot request is no longer valid
-            LOGGER.log(Level.WARNING, "Failed to fetch spot instance request for requestId: " + this.spotInstanceRequestId);
+            LOGGER.log(
+                    Level.WARNING,
+                    "Failed to fetch spot instance request for requestId: " + this.spotInstanceRequestId);
         }
 
         return null;
@@ -177,8 +297,9 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     public String getInstanceId() {
         if (StringUtils.isEmpty(instanceId)) {
             SpotInstanceRequest sr = getSpotRequest();
-            if (sr != null)
+            if (sr != null) {
                 instanceId = sr.getInstanceId();
+            }
         }
         return instanceId;
     }
@@ -204,7 +325,8 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
         SpotInstanceRequest spotRequest = getSpotRequest();
         if (spotRequest != null) {
             String spotMaxBidPrice = spotRequest.getSpotPrice();
-            return Messages.EC2SpotSlave_Spot1() + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
+            return Messages.EC2SpotSlave_Spot1()
+                    + spotMaxBidPrice.substring(0, spotMaxBidPrice.length() - 3)
                     + Messages.EC2SpotSlave_Spot2();
         }
         return null;

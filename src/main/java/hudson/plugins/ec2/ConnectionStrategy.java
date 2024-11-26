@@ -23,7 +23,8 @@ public enum ConnectionStrategy {
      * @param associatePublicIp whether or not to associate to a public ip.
      * @return an {@link ConnectionStrategy} based on provided parameters.
      */
-    public static ConnectionStrategy backwardsCompatible(boolean usePrivateDnsName, boolean connectUsingPublicIp, boolean associatePublicIp) {
+    public static ConnectionStrategy backwardsCompatible(
+            boolean usePrivateDnsName, boolean connectUsingPublicIp, boolean associatePublicIp) {
         if (usePrivateDnsName && !connectUsingPublicIp) {
             return PRIVATE_DNS;
         } else if (connectUsingPublicIp || associatePublicIp) {

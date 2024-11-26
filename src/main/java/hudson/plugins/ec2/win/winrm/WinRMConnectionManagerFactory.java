@@ -1,5 +1,10 @@
 package hudson.plugins.ec2.win.winrm;
 
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
@@ -8,12 +13,6 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.ssl.SSLContextBuilder;
-
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class WinRMConnectionManagerFactory {
     private static final Logger log = Logger.getLogger(WinRMClient.class.getName());
@@ -26,8 +25,8 @@ public class WinRMConnectionManagerFactory {
         private final PoolingHttpClientConnectionManager connectionManager;
         private SSLConnectionSocketFactory socketFactory;
 
-        final static int DEFAULT_MAX_PER_ROUTE = 50;
-        final static int MAX_TOTAL = 2500;
+        static final int DEFAULT_MAX_PER_ROUTE = 50;
+        static final int MAX_TOTAL = 2500;
 
         WinRMHttpConnectionManager() {
             connectionManager = new PoolingHttpClientConnectionManager();
@@ -54,7 +53,9 @@ public class WinRMConnectionManagerFactory {
             try {
                 if (allowSelfSignedCertificate) {
                     this.socketFactory = new SSLConnectionSocketFactory(
-                            new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
+                            new SSLContextBuilder()
+                                    .loadTrustMaterial(null, new TrustSelfSignedStrategy())
+                                    .build(),
                             NoopHostnameVerifier.INSTANCE);
                     log.log(Level.FINE, "Allowing self-signed certificates");
                 } else {

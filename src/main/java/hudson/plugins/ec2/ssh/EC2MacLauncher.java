@@ -39,10 +39,6 @@ import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
-import jenkins.model.Jenkins;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
-
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -50,6 +46,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -61,9 +60,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     private static final Logger LOGGER = Logger.getLogger(EC2MacLauncher.class.getName());
 
     private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
-    private static final String BOOTSTRAP_AUTH_TRIES= "jenkins.ec2.bootstrapAuthTries";
+    private static final String BOOTSTRAP_AUTH_TRIES = "jenkins.ec2.bootstrapAuthTries";
     private static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
-    private static final String READINESS_TRIES= "jenkins.ec2.readinessTries";
+    private static final String READINESS_TRIES = "jenkins.ec2.readinessTries";
 
     private static int bootstrapAuthSleepMs = 30000;
     private static int bootstrapAuthTries = 30;
@@ -71,19 +70,23 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     private static int readinessSleepMs = 1000;
     private static int readinessTries = 120;
 
-    static  {
+    static {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
-        if (prop != null)
+        if (prop != null) {
             bootstrapAuthSleepMs = Integer.parseInt(prop);
+        }
         prop = System.getProperty(BOOTSTRAP_AUTH_TRIES);
-        if (prop != null)
+        if (prop != null) {
             bootstrapAuthTries = Integer.parseInt(prop);
+        }
         prop = System.getProperty(READINESS_TRIES);
-        if (prop != null)
+        if (prop != null) {
             readinessTries = Integer.parseInt(prop);
+        }
         prop = System.getProperty(READINESS_SLEEP_MS);
-        if (prop != null)
+        if (prop != null) {
             readinessSleepMs = Integer.parseInt(prop);
+        }
     }
 
     protected void log(Level level, EC2Computer computer, TaskListener listener, String message) {
@@ -111,17 +114,17 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     }
 
     @Override
-    protected void launchScript(EC2Computer computer, TaskListener listener) throws IOException,
-            AmazonClientException, InterruptedException {
+    protected void launchScript(EC2Computer computer, TaskListener listener)
+            throws IOException, AmazonClientException, InterruptedException {
         final Connection conn;
         Connection cleanupConn = null; // java's code path analysis for final
-                                       // doesn't work that well.
+        // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
         EC2AbstractSlave node = computer.getNode();
         SlaveTemplate template = computer.getSlaveTemplate();
 
-        if(node == null) {
+        if (node == null) {
             throw new IllegalStateException();
         }
 
@@ -138,12 +141,17 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     break;
                 }
 
-                logInfo(computer, listener, "Node still not ready. Current status: " + readinessNode.getEc2ReadinessStatus());
+                logInfo(
+                        computer,
+                        listener,
+                        "Node still not ready. Current status: " + readinessNode.getEc2ReadinessStatus());
                 Thread.sleep(readinessSleepMs);
             }
 
             if (!readinessNode.isReady()) {
-                throw new AmazonClientException("Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000) + "s with status " + readinessNode.getEc2ReadinessStatus());
+                throw new AmazonClientException(
+                        "Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000)
+                                + "s with status " + readinessNode.getEc2ReadinessStatus());
             }
         }
 
@@ -154,7 +162,10 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             if (isBootstrapped) {
                 int bootDelay = node.getBootDelay();
                 if (bootDelay > 0) {
-                    logInfo(computer, listener, "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
+                    logInfo(
+                            computer,
+                            listener,
+                            "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
                     Thread.sleep(bootDelay);
                     logInfo(computer, listener, "SSH service should have stabilized");
                 }
@@ -162,7 +173,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "connect fresh as root");
                 cleanupConn = connectToSsh(computer, listener, template);
                 KeyPair key = computer.getCloud().getKeyPair();
-                if (key == null || !cleanupConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+                if (key == null
+                        || !cleanupConn.authenticateWithPublicKey(
+                                computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
@@ -179,18 +192,19 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
             conn.exec("mkdir -p " + tmpDir, logger);
 
-            if (initScript != null && initScript.trim().length() > 0
+            if (initScript != null
+                    && initScript.trim().length() > 0
                     && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
                 logInfo(computer, listener, "Executing init script");
                 scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");
                 Session sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout
-                                       // and stderr
+                // and stderr
                 sess.execCommand(buildUpCommand(computer, tmpDir + "/init.sh"));
 
                 sess.getStdin().close(); // nothing to write here
                 sess.getStderr().close(); // we are not supposed to get anything
-                                          // from stderr
+                // from stderr
                 IOUtils.copy(sess.getStdout(), logger);
 
                 int exitStatus = waitCompletion(sess);
@@ -205,12 +219,12 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 // Needs a tty to run sudo.
                 sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout
-                                       // and stderr
+                // and stderr
                 sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
 
                 sess.getStdin().close(); // nothing to write here
                 sess.getStderr().close(); // we are not supposed to get anything
-                                          // from stderr
+                // from stderr
                 IOUtils.copy(sess.getStdout(), logger);
 
                 exitStatus = waitCompletion(sess);
@@ -227,10 +241,21 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 Instance nodeInstance = computer.describeInstance();
                 if (nodeInstance.getInstanceType().equals("mac2.metal")) {
                     LOGGER.info("Running Command for mac2.metal");
-                    executeRemote(computer, conn, javaPath + " -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /", logger, listener);
-                }
-                else{
-                    executeRemote(computer, conn, javaPath + " -fullversion", "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /", logger, listener);
+                    executeRemote(
+                            computer,
+                            conn,
+                            javaPath + " -fullversion",
+                            "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
+                            logger,
+                            listener);
+                } else {
+                    executeRemote(
+                            computer,
+                            conn,
+                            javaPath + " -fullversion",
+                            "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
+                            logger,
+                            listener);
                 }
             } catch (InterruptedException ex) {
                 LOGGER.warning(ex.getMessage());
@@ -245,8 +270,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             final String suffix = computer.getSlaveCommandSuffix();
             final String remoteFS = node.getRemoteFS();
             final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
-            String launchString = prefix + " " + javaPath + " " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir + "/remoting.jar -workDir " + workDir + suffix;
-           // launchString = launchString.trim();
+            String launchString = prefix + " " + javaPath + " " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir
+                    + "/remoting.jar -workDir " + workDir + suffix;
+            // launchString = launchString.trim();
 
             SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
 
@@ -256,13 +282,23 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 try {
                     // Obviously the controller must have an installed ssh client.
                     // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                    String sshClientLaunchString = String.format("ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s", slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(), identityKeyFile.getAbsolutePath(), node.remoteAdmin, getEC2HostAddress(computer, template), node.getSshPort(), launchString);
+                    String sshClientLaunchString = String.format(
+                            "ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s",
+                            slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(),
+                            identityKeyFile.getAbsolutePath(),
+                            node.remoteAdmin,
+                            getEC2HostAddress(computer, template),
+                            node.getSshPort(),
+                            launchString);
 
-                    logInfo(computer, listener, "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
+                    logInfo(
+                            computer,
+                            listener,
+                            "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
                     CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
                     commandLauncher.launch(computer, listener);
                 } finally {
-                    if(!identityKeyFile.delete()) {
+                    if (!identityKeyFile.delete()) {
                         LOGGER.log(Level.WARNING, "Failed to delete identity key file");
                     }
                 }
@@ -281,14 +317,21 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
             successful = true;
         } finally {
-            if (cleanupConn != null && !successful)
+            if (cleanupConn != null && !successful) {
                 cleanupConn.close();
+            }
         }
     }
 
-    private boolean executeRemote(EC2Computer computer, Connection conn, String checkCommand,  String command, PrintStream logger, TaskListener listener)
+    private boolean executeRemote(
+            EC2Computer computer,
+            Connection conn,
+            String checkCommand,
+            String command,
+            PrintStream logger,
+            TaskListener listener)
             throws IOException, InterruptedException {
-        logInfo(computer, listener,"Verifying: " + checkCommand);
+        logInfo(computer, listener, "Verifying: " + checkCommand);
         if (conn.exec(checkCommand, logger) != 0) {
             logInfo(computer, listener, "Installing: " + command);
             if (conn.exec(command, logger) != 0) {
@@ -302,7 +345,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     private File createIdentityKeyFile(EC2Computer computer) throws IOException {
         EC2PrivateKey ec2PrivateKey = computer.getCloud().resolvePrivateKey();
         String privateKey = "";
-        if (ec2PrivateKey != null){
+        if (ec2PrivateKey != null) {
             privateKey = ec2PrivateKey.getPrivateKey();
         }
 
@@ -329,8 +372,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         }
     }
 
-    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws IOException,
-            InterruptedException, AmazonClientException {
+    private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template)
+            throws IOException, InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
         Connection bootstrapConn = null;
         try {
@@ -338,18 +381,22 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
             KeyPair key = computer.getCloud().getKeyPair();
-            if (key == null){
+            if (key == null) {
                 logWarning(computer, listener, "Could not retrieve a valid key pair.");
                 return false;
             }
-            logInfo(computer, listener,
-                String.format("Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
+            logInfo(
+                    computer,
+                    listener,
+                    String.format(
+                            "Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapConn = connectToSsh(computer, listener, template);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
-                } catch(IOException e) {
+                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(
+                            computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                } catch (IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
                     bootstrapConn.close();
                 }
@@ -371,8 +418,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         return true;
     }
 
-    private Connection connectToSsh(EC2Computer computer, TaskListener listener, SlaveTemplate template) throws AmazonClientException,
-            InterruptedException {
+    private Connection connectToSsh(EC2Computer computer, TaskListener listener, SlaveTemplate template)
+            throws AmazonClientException, InterruptedException {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
@@ -387,8 +434,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 String host = getEC2HostAddress(computer, template);
 
                 if ((node instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
-                     // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
-                     // the instance id that it is starting. Continue to wait until the instanceId is set.
+                    // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
+                    // the instance id that it is starting. Continue to wait until the instanceId is set.
                     logInfo(computer, listener, "empty instanceId for Spot Slave.");
                     throw new IOException("goto sleep");
                 }
@@ -399,14 +446,19 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 }
 
                 if ("0.0.0.0".equals(host)) {
-                    logWarning(computer, listener, "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
+                    logWarning(
+                            computer,
+                            listener,
+                            "Invalid host 0.0.0.0, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
                 }
 
                 int port = computer.getSshPort();
                 Integer slaveConnectTimeout = Integer.getInteger("jenkins.ec2.slaveConnectTimeout", 10000);
-                logInfo(computer, listener, "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout
-                        + ".");
+                logInfo(
+                        computer,
+                        listener,
+                        "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout + ".");
                 Connection conn = new Connection(host, port);
                 ProxyConfiguration proxyConfig = Jenkins.get().proxy;
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
@@ -414,7 +466,11 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     InetSocketAddress address = (InetSocketAddress) proxy.address();
                     HTTPProxyData proxyData = null;
                     if (null != proxyConfig.getUserName()) {
-                        proxyData = new HTTPProxyData(address.getHostName(), address.getPort(), proxyConfig.getUserName(), proxyConfig.getPassword());
+                        proxyData = new HTTPProxyData(
+                                address.getHostName(),
+                                address.getPort(),
+                                proxyConfig.getUserName(),
+                                proxyConfig.getPassword());
                     } else {
                         proxyData = new HTTPProxyData(address.getHostName(), address.getPort());
                     }
@@ -422,7 +478,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     logInfo(computer, listener, "Using HTTP Proxy Configuration");
                 }
 
-                conn.connect(new ServerHostKeyVerifierImpl(computer, listener), slaveConnectTimeout, slaveConnectTimeout);
+                conn.connect(
+                        new ServerHostKeyVerifierImpl(computer, listener), slaveConnectTimeout, slaveConnectTimeout);
                 logInfo(computer, listener, "Connected via SSH.");
                 return conn; // successfully connected
             } catch (IOException e) {
@@ -431,8 +488,11 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
                 // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it.
                 // The computer is offline for a long period
-                if (computer.isOffline() && StringUtils.isNotBlank(computer.getOfflineCauseReason()) && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
-                    throw new AmazonClientException("The connection couldn't be established and the computer is now offline", e);
+                if (computer.isOffline()
+                        && StringUtils.isNotBlank(computer.getOfflineCauseReason())
+                        && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
+                    throw new AmazonClientException(
+                            "The connection couldn't be established and the computer is now offline", e);
                 } else {
                     logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
                     Thread.sleep(5000);
@@ -455,9 +515,13 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         }
 
         @Override
-        public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+        public boolean verifyServerHostKey(
+                String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
             SlaveTemplate template = computer.getSlaveTemplate();
-            return template != null && template.getHostKeyVerificationStrategy().getStrategy().verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
+            return template != null
+                    && template.getHostKeyVerificationStrategy()
+                            .getStrategy()
+                            .verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
         }
     }
 
@@ -472,8 +536,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         // to 1 sec.
         for (int i = 0; i < 10; i++) {
             Integer r = session.getExitStatus();
-            if (r != null)
+            if (r != null) {
                 return r;
+            }
             Thread.sleep(100);
         }
         return -1;

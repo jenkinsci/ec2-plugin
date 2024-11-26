@@ -14,7 +14,12 @@ public class MacData extends AMITypeData {
     private final String bootDelay;
 
     @DataBoundConstructor
-    public MacData(String rootCommandPrefix, String slaveCommandPrefix, String slaveCommandSuffix, String sshPort, String bootDelay) {
+    public MacData(
+            String rootCommandPrefix,
+            String slaveCommandPrefix,
+            String slaveCommandSuffix,
+            String sshPort,
+            String bootDelay) {
         this.rootCommandPrefix = rootCommandPrefix;
         this.slaveCommandPrefix = slaveCommandPrefix;
         this.slaveCommandSuffix = slaveCommandSuffix;
@@ -44,6 +49,7 @@ public class MacData extends AMITypeData {
         return true;
     }
 
+    @Override
     public String getBootDelay() {
         return bootDelay;
     }
@@ -85,33 +91,44 @@ public class MacData extends AMITypeData {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-        if (obj == null)
+        }
+        if (obj == null) {
             return false;
-        if (this.getClass() != obj.getClass())
+        }
+        if (this.getClass() != obj.getClass()) {
             return false;
+        }
         final MacData other = (MacData) obj;
         if (StringUtils.isEmpty(rootCommandPrefix)) {
-            if (!StringUtils.isEmpty(other.rootCommandPrefix))
+            if (!StringUtils.isEmpty(other.rootCommandPrefix)) {
                 return false;
-        } else if (!rootCommandPrefix.equals(other.rootCommandPrefix))
+            }
+        } else if (!rootCommandPrefix.equals(other.rootCommandPrefix)) {
             return false;
+        }
         if (StringUtils.isEmpty(slaveCommandPrefix)) {
-            if (!StringUtils.isEmpty(other.slaveCommandPrefix))
+            if (!StringUtils.isEmpty(other.slaveCommandPrefix)) {
                 return false;
-        } else if (!slaveCommandPrefix.equals(other.slaveCommandPrefix))
+            }
+        } else if (!slaveCommandPrefix.equals(other.slaveCommandPrefix)) {
             return false;
+        }
         if (StringUtils.isEmpty(slaveCommandSuffix)) {
-            if (!StringUtils.isEmpty(other.slaveCommandSuffix))
+            if (!StringUtils.isEmpty(other.slaveCommandSuffix)) {
                 return false;
-        } else if (!slaveCommandSuffix.equals(other.slaveCommandSuffix))
+            }
+        } else if (!slaveCommandSuffix.equals(other.slaveCommandSuffix)) {
             return false;
+        }
         if (StringUtils.isEmpty(sshPort)) {
-            if (!StringUtils.isEmpty(other.sshPort))
+            if (!StringUtils.isEmpty(other.sshPort)) {
                 return false;
-        } else if (!sshPort.equals(other.sshPort))
+            }
+        } else if (!sshPort.equals(other.sshPort)) {
             return false;
+        }
         return true;
     }
 }

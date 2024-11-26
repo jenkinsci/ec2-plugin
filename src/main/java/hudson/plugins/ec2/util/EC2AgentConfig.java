@@ -1,12 +1,11 @@
 package hudson.plugins.ec2.util;
 
-import hudson.plugins.ec2.Tenancy;
 import hudson.model.Node;
 import hudson.plugins.ec2.AMITypeData;
 import hudson.plugins.ec2.ConnectionStrategy;
 import hudson.plugins.ec2.EC2Tag;
+import hudson.plugins.ec2.Tenancy;
 import hudson.slaves.NodeProperty;
-
 import java.util.List;
 
 public abstract class EC2AgentConfig {
@@ -60,8 +59,10 @@ public abstract class EC2AgentConfig {
         final String publicDNS;
         final String privateDNS;
         final Tenancy tenancy;
+
         @Deprecated
         final boolean useDedicatedTenancy;
+
         final Boolean metadataSupported;
         final Boolean metadataEndpointEnabled;
         final Boolean metadataTokensRequired;
@@ -92,7 +93,7 @@ public abstract class EC2AgentConfig {
         }
     }
 
-    private static abstract class Builder<B extends Builder<B, C>, C extends EC2AgentConfig> {
+    private abstract static class Builder<B extends Builder<B, C>, C extends EC2AgentConfig> {
 
         private String name;
         private String description;
@@ -225,8 +226,10 @@ public abstract class EC2AgentConfig {
         private String publicDNS;
         private String privateDNS;
         private Tenancy tenancy;
+
         @Deprecated
         private boolean useDedicatedTenancy;
+
         private Boolean metadataSupported;
         private Boolean metadataEndpointEnabled;
         private Boolean metadataTokensRequired;
@@ -279,16 +282,18 @@ public abstract class EC2AgentConfig {
             return useDedicatedTenancy;
         }
 
-        public OnDemandBuilder withTenancyAttribute( Tenancy tenancy){
+        public OnDemandBuilder withTenancyAttribute(Tenancy tenancy) {
             this.tenancy = tenancy;
             return this;
         }
 
-        public Tenancy getTenancyAttribute(){ return tenancy;}
+        public Tenancy getTenancyAttribute() {
+            return tenancy;
+        }
 
         public OnDemandBuilder withMetadataSupported(Boolean metadataSupported) {
-          this.metadataSupported = metadataSupported;
-          return this;
+            this.metadataSupported = metadataSupported;
+            return this;
         }
 
         public OnDemandBuilder withMetadataEndpointEnabled(Boolean metadataEndpointEnabled) {
@@ -336,5 +341,4 @@ public abstract class EC2AgentConfig {
             return new Spot(this);
         }
     }
-
 }

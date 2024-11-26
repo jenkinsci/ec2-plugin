@@ -1,12 +1,11 @@
 package hudson.plugins.ec2.util;
 
-import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-
 import java.io.IOException;
 import java.io.StringWriter;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 
 public class PrivateKeyHelper {
 

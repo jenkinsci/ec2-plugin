@@ -1,15 +1,12 @@
 package hudson.plugins.ec2.util;
 
-import net.sf.json.JSONObject;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 
 public class MinimumNumberOfInstancesTimeRangeConfig {
 
@@ -28,10 +25,8 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
     private Boolean saturday;
     private Boolean sunday;
 
-
     @DataBoundConstructor
-    public MinimumNumberOfInstancesTimeRangeConfig() {
-    }
+    public MinimumNumberOfInstancesTimeRangeConfig() {}
 
     protected Object readResolve() {
         if (minimumNoInstancesActiveTimeRangeDays != null && !minimumNoInstancesActiveTimeRangeDays.isEmpty()) {
@@ -157,14 +152,22 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
 
     public boolean getDay(String day) {
         switch (day.toLowerCase()) {
-        case "monday": return Boolean.TRUE.equals(this.monday);
-        case "tuesday": return Boolean.TRUE.equals(this.tuesday);
-        case "wednesday": return Boolean.TRUE.equals(this.wednesday);
-        case "thursday": return Boolean.TRUE.equals(this.thursday);
-        case "friday": return Boolean.TRUE.equals(this.friday);
-        case "saturday": return Boolean.TRUE.equals(this.saturday);
-        case "sunday": return Boolean.TRUE.equals(this.sunday);
-        default: throw new IllegalArgumentException("Can only get days");
+            case "monday":
+                return Boolean.TRUE.equals(this.monday);
+            case "tuesday":
+                return Boolean.TRUE.equals(this.tuesday);
+            case "wednesday":
+                return Boolean.TRUE.equals(this.wednesday);
+            case "thursday":
+                return Boolean.TRUE.equals(this.thursday);
+            case "friday":
+                return Boolean.TRUE.equals(this.friday);
+            case "saturday":
+                return Boolean.TRUE.equals(this.saturday);
+            case "sunday":
+                return Boolean.TRUE.equals(this.sunday);
+            default:
+                throw new IllegalArgumentException("Can only get days");
         }
     }
 }

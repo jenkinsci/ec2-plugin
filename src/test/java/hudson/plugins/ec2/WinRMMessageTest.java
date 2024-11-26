@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import static org.junit.Assert.assertEquals;
+
 import hudson.plugins.ec2.win.winrm.request.DeleteShellRequest;
 import hudson.plugins.ec2.win.winrm.request.ExecuteCommandRequest;
 import hudson.plugins.ec2.win.winrm.request.GetOutputRequest;
@@ -8,9 +9,7 @@ import hudson.plugins.ec2.win.winrm.request.OpenShellRequest;
 import hudson.plugins.ec2.win.winrm.request.SendInputRequest;
 import hudson.plugins.ec2.win.winrm.request.SignalRequest;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
-
 import java.net.URL;
-
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.XPath;
@@ -72,7 +71,7 @@ public class WinRMMessageTest {
 
     @Test
     public void testSendInputMessage() throws Exception {
-        SendInputRequest r = new SendInputRequest(url, new byte[] { 31, 32 }, "SHELLID", "COMMANDID");
+        SendInputRequest r = new SendInputRequest(url, new byte[] {31, 32}, "SHELLID", "COMMANDID");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Send", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
         assertEquals("SHELLID", xpath("//w:Selector[@Name=\"ShellId\"]", r.build()));
@@ -85,7 +84,9 @@ public class WinRMMessageTest {
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
         assertEquals("SHELLID", xpath("//w:Selector[@Name=\"ShellId\"]", r.build()));
-        assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/signal/terminate", xpath("//rsp:Signal[@CommandId=\"COMMANDID\"]/rsp:Code", r.build()));
+        assertEquals(
+                "http://schemas.microsoft.com/wbem/wsman/1/windows/shell/signal/terminate",
+                xpath("//rsp:Signal[@CommandId=\"COMMANDID\"]/rsp:Code", r.build()));
     }
 
     private String xpath(String xpath, Document doc) {

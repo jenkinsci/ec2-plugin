@@ -25,15 +25,13 @@ package hudson.plugins.ec2.util;
 
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import org.apache.commons.lang.StringUtils;
-
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.commons.lang.StringUtils;
 
 public class DeviceMappingParser {
 
-    private DeviceMappingParser() {
-    }
+    private DeviceMappingParser() {}
 
     public static List<BlockDeviceMapping> parse(String customDeviceMapping) {
 

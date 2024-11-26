@@ -73,7 +73,6 @@ public class EC2HostAddressProviderTest {
         assertThat(unix(instance, strategy), equalTo("0.0.0.0"));
     }
 
-
     @Test
     public void windows_privateDnsStrategy() {
         Instance instance = mock(Instance.class);

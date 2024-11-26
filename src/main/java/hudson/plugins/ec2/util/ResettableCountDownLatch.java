@@ -3,9 +3,8 @@ package hudson.plugins.ec2.util;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 @Restricted(NoExternalUse.class)
 public class ResettableCountDownLatch {

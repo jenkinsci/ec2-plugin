@@ -27,7 +27,6 @@ import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.slaves.OfflineCause;
-
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,19 +40,35 @@ import java.util.logging.Logger;
  */
 public class AcceptNewStrategy extends SshHostKeyVerificationStrategy {
     private static final Logger LOGGER = Logger.getLogger(AcceptNewStrategy.class.getName());
-    
+
     @Override
     public boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws IOException {
         HostKey existingHostKey = HostKeyHelper.getInstance().getHostKey(computer);
         if (null == existingHostKey) {
             HostKeyHelper.getInstance().saveHostKey(computer, hostKey);
-            EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("The SSH key %s %s has been automatically trusted for connections to %s", hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
+            EC2Cloud.log(
+                    LOGGER,
+                    Level.INFO,
+                    computer.getListener(),
+                    String.format(
+                            "The SSH key %s %s has been automatically trusted for connections to %s",
+                            hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
             return true;
         } else if (existingHostKey.equals(hostKey)) {
-            EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("Connection allowed after the host key has been verified"));
+            EC2Cloud.log(
+                    LOGGER,
+                    Level.INFO,
+                    computer.getListener(),
+                    String.format("Connection allowed after the host key has been verified"));
             return true;
         } else {
-            EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), String.format("The SSH key (%s) presented by the instance has changed since first saved (%s). The connection to %s is closed to prevent a possible man-in-the-middle attack", hostKey.getFingerprint(), existingHostKey.getFingerprint(), computer.getName()));
+            EC2Cloud.log(
+                    LOGGER,
+                    Level.WARNING,
+                    computer.getListener(),
+                    String.format(
+                            "The SSH key (%s) presented by the instance has changed since first saved (%s). The connection to %s is closed to prevent a possible man-in-the-middle attack",
+                            hostKey.getFingerprint(), existingHostKey.getFingerprint(), computer.getName()));
             // To avoid reconnecting continuously
             computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed()));
             return false;
