@@ -65,7 +65,7 @@ public class FIPS140UtilsWithFIPSTest {
         DSAPublicKey key = Mockito.mock(DSAPublicKey.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(key.getParams().getP().bitLength()).thenReturn(2047);
 
-        assertInvalidKey(key, Messages.AmazonEC2Cloud_invalidKeySize());
+        assertInvalidKey(key, Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
     }
 
     @Test
@@ -81,7 +81,7 @@ public class FIPS140UtilsWithFIPSTest {
         RSAPublicKey key = Mockito.mock(RSAPublicKey.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(key.getModulus().bitLength()).thenReturn(2047);
 
-        assertInvalidKey(key, Messages.AmazonEC2Cloud_invalidKeySize());
+        assertInvalidKey(key, Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
     }
 
     @Test
@@ -97,7 +97,7 @@ public class FIPS140UtilsWithFIPSTest {
         ECKey key = Mockito.mock(ECKey.class, Mockito.withSettings().extraInterfaces(Key.class).defaultAnswer(Mockito.RETURNS_DEEP_STUBS));
         Mockito.when(key.getParams().getCurve().getField().getFieldSize()).thenReturn(223);
 
-        assertInvalidKey((Key) key, Messages.AmazonEC2Cloud_invalidKeySizeEC());
+        assertInvalidKey((Key) key, Messages.AmazonEC2Cloud_invalidKeySizeECInFIPSMode());
     }
 
     @Test

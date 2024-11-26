@@ -42,15 +42,15 @@ public class FIPS140Utils {
         try {
             if (key instanceof RSAKey) {
                 if (((RSAKey) key).getModulus().bitLength() < 2048) {
-                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySize());
+                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
                 }
             } else if (key instanceof DSAKey) {
                 if (((DSAKey) key).getParams().getP().bitLength() < 2048) {
-                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySize());
+                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
                 }
             } else if (key instanceof ECKey) {
                 if (((ECKey) key).getParams().getCurve().getField().getFieldSize() < 224) {
-                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeEC());
+                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeECInFIPSMode());
                 }
             } else {
                 throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
@@ -129,7 +129,7 @@ public class FIPS140Utils {
             return;
         }
         if (StringUtils.isBlank(privateKeyString)) {
-            throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsMandatory());
+            throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsMandatoryInFIPSMode());
         }
         try {
             Key privateKey = PEMEncodable.decode(privateKeyString).toPrivateKey();
