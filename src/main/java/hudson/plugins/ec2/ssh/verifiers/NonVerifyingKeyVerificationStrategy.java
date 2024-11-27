@@ -2,7 +2,7 @@
  * The MIT License
  *
  * Copyright (c) 2020-, M Ramon Leon, CloudBees, Inc.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -26,7 +26,6 @@ package hudson.plugins.ec2.ssh.verifiers;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
-
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,10 +37,16 @@ import java.util.logging.Logger;
  */
 public class NonVerifyingKeyVerificationStrategy extends SshHostKeyVerificationStrategy {
     private static final Logger LOGGER = Logger.getLogger(NonVerifyingKeyVerificationStrategy.class.getName());
-    
+
     @Override
     public boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws IOException {
-        EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("No SSH key verification (%s %s) for connections to %s", hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
+        EC2Cloud.log(
+                LOGGER,
+                Level.INFO,
+                computer.getListener(),
+                String.format(
+                        "No SSH key verification (%s %s) for connections to %s",
+                        hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
         return true;
     }
 }

@@ -5,7 +5,7 @@
  * Modified work Copyright (c) 2020-, M Ramon Leon, CloudBees, Inc.
  * Modified work:
  * - getHostKeyFromConsole method and called methods
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -35,16 +35,15 @@ import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.InstanceState;
-import jenkins.model.Jenkins;
-
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
 
 /**
  * A method for verifying the host key provided by the remote host during the
  * initiation of each connection.
- * 
+ *
  * @author Michael Clarke
  * @since TODO
  */
@@ -66,8 +65,8 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
      */
     public abstract boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws Exception;
 
-    public static abstract class SshHostKeyVerificationStrategyDescriptor extends Descriptor<SshHostKeyVerificationStrategy> {
-    }
+    public abstract static class SshHostKeyVerificationStrategyDescriptor
+            extends Descriptor<SshHostKeyVerificationStrategy> {}
 
     /**
      * Get the host key printed out in the console.
@@ -77,13 +76,21 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
      * but an empty array as the key if the console is not blank and the key for such an algorithm couldn't be found.
      */
     @Nullable
-    HostKey getHostKeyFromConsole(@NonNull final Logger logger, @NonNull final EC2Computer computer, @NonNull final String serverHostKeyAlgorithm) {
+    HostKey getHostKeyFromConsole(
+            @NonNull final Logger logger,
+            @NonNull final EC2Computer computer,
+            @NonNull final String serverHostKeyAlgorithm) {
         HostKey key;
         TaskListener listener = computer.getListener();
 
         try {
-            if(!computer.getState().equals(InstanceState.RUNNING)) {
-                EC2Cloud.log(logger, Level.INFO, listener, "The instance " + computer.getName() + " is not running, waiting to validate the key against the console");
+            if (!computer.getState().equals(InstanceState.RUNNING)) {
+                EC2Cloud.log(
+                        logger,
+                        Level.INFO,
+                        listener,
+                        "The instance " + computer.getName()
+                                + " is not running, waiting to validate the key against the console");
             }
         } catch (InterruptedException e) {
             return null;
@@ -93,7 +100,7 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
         if (line != null && line.length() > 0) {
             key = getKeyFromLine(logger, line, listener);
         } else if (line != null) {
-            key = new HostKey(serverHostKeyAlgorithm, new byte[]{});
+            key = new HostKey(serverHostKeyAlgorithm, new byte[] {});
         } else {
             key = null;
         }
@@ -102,20 +109,28 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
     }
 
     /**
-     * Get the line with the key for such an algorithm 
-     * @param logger the logger to print the messages 
-     * @param computer the computer 
+     * Get the line with the key for such an algorithm
+     * @param logger the logger to print the messages
+     * @param computer the computer
      * @param serverHostKeyAlgorithm the algorithm to search for
      * @return the line where the key for the algorithm is on, null if the console is blank, "" if the console is not
      * blank and the line is not found.
      */
     @CheckForNull
-    String getLineWithKey(@NonNull final Logger logger, @NonNull final EC2Computer computer, @NonNull final String serverHostKeyAlgorithm) {
+    String getLineWithKey(
+            @NonNull final Logger logger,
+            @NonNull final EC2Computer computer,
+            @NonNull final String serverHostKeyAlgorithm) {
         String line = null;
         String console = computer.getDecodedConsoleOutput();
         if (console == null) {
             // The instance is running and the console is blank
-            EC2Cloud.log(logger, Level.INFO, computer.getListener(), "The instance " + computer.getName() + " has a blank console. Maybe the console is yet not available. If enough time has passed, consider changing the key verification strategy or the AMI used by one printing out the host key in the instance console");
+            EC2Cloud.log(
+                    logger,
+                    Level.INFO,
+                    computer.getListener(),
+                    "The instance " + computer.getName()
+                            + " has a blank console. Maybe the console is yet not available. If enough time has passed, consider changing the key verification strategy or the AMI used by one printing out the host key in the instance console");
             return null;
         }
 
@@ -126,7 +141,13 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
                 line = console.substring(start, end);
             } else {
                 // The instance printed on the console but the key was not printed with the expected format
-                EC2Cloud.log(logger, Level.INFO, computer.getListener(), String.format("The instance %s didn't print the host key. Expected a line starting with: \"%s\"", computer.getName(), serverHostKeyAlgorithm));
+                EC2Cloud.log(
+                        logger,
+                        Level.INFO,
+                        computer.getListener(),
+                        String.format(
+                                "The instance %s didn't print the host key. Expected a line starting with: \"%s\"",
+                                computer.getName(), serverHostKeyAlgorithm));
                 return "";
             }
         } catch (IllegalArgumentException ignored) {
@@ -135,13 +156,20 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
     }
 
     @CheckForNull
-    HostKey getKeyFromLine(@NonNull final Logger logger, @NonNull final String line, @Nullable final TaskListener listener) {
+    HostKey getKeyFromLine(
+            @NonNull final Logger logger, @NonNull final String line, @Nullable final TaskListener listener) {
         String[] parts = line.split(" ");
         if (parts.length >= 2) {
             // The public SSH key in the console is Base64 encoded
             return new HostKey(parts[0], Base64.getDecoder().decode(parts[1]));
         } else {
-            EC2Cloud.log(logger, Level.INFO, listener, String.format("The line with the key doesn't have the required format. Found: \"%s\". Expected a line with this text: \"ALGORITHM THEHOSTKEY\", example: \"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJbvbEIoY3tqKwkeRW/L1FnbCLLp8a1TwSOyZHKJqFFR \"", line));
+            EC2Cloud.log(
+                    logger,
+                    Level.INFO,
+                    listener,
+                    String.format(
+                            "The line with the key doesn't have the required format. Found: \"%s\". Expected a line with this text: \"ALGORITHM THEHOSTKEY\", example: \"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJbvbEIoY3tqKwkeRW/L1FnbCLLp8a1TwSOyZHKJqFFR \"",
+                            line));
             return null;
         }
     }

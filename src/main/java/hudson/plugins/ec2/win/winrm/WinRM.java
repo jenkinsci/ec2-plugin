@@ -20,7 +20,7 @@ public class WinRM {
     public WinRM(String host, String username, String password) {
         this(host, username, password, true);
     }
-    
+
     public WinRM(String host, String username, String password, boolean allowSelfSignedCertificate) {
         this.host = host;
         this.username = username;
@@ -101,7 +101,7 @@ public class WinRM {
      * # Convert the number of seconds to an ISO8601 duration format # @see
      * http://tools.ietf.org/html/rfc2445#section-4.3.6 # @param [Fixnum] seconds The amount of seconds for this
      * duration
-     * 
+     *
      * @param seconds
      * @return
      */

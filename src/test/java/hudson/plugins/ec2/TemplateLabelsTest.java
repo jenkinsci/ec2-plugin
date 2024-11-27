@@ -23,18 +23,17 @@
  */
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.assertEquals;
+
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 public class TemplateLabelsTest {
 
@@ -56,7 +55,36 @@ public class TemplateLabelsTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, false, label, mode, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
+        SlaveTemplate template = new SlaveTemplate(
+                "ami",
+                "foo",
+                null,
+                "default",
+                "zone",
+                InstanceType.M1Large,
+                false,
+                label,
+                mode,
+                "foo ami",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "-Xmx1g",
+                true,
+                "subnet 456",
+                tags,
+                null,
+                false,
+                null,
+                "",
+                false,
+                false,
+                null,
+                false,
+                "");
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(template);
 
@@ -108,5 +136,4 @@ public class TemplateLabelsTest {
 
         assertEquals(false, ac.canProvision((Label) null));
     }
-
 }

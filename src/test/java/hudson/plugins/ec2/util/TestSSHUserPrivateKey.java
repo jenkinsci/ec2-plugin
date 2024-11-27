@@ -4,9 +4,8 @@ import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
-import hudson.util.Secret;
 import edu.umd.cs.findbugs.annotations.NonNull;
-
+import hudson.util.Secret;
 import java.util.List;
 
 /**
@@ -19,12 +18,13 @@ public class TestSSHUserPrivateKey extends BaseStandardCredentials implements SS
     private final Secret passphrase;
     BasicSSHUserPrivateKey.PrivateKeySource privateKeySource;
 
-    public TestSSHUserPrivateKey(CredentialsScope scope,
-                                 String id,
-                                 String username,
-                                 BasicSSHUserPrivateKey.PrivateKeySource privateKeySource,
-                                 String passphrase,
-                                 String description) {
+    public TestSSHUserPrivateKey(
+            CredentialsScope scope,
+            String id,
+            String username,
+            BasicSSHUserPrivateKey.PrivateKeySource privateKeySource,
+            String passphrase,
+            String description) {
         super(scope, id, description);
         this.username = username;
         this.privateKeySource = privateKeySource;

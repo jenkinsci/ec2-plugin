@@ -1,8 +1,8 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
-import hudson.model.TaskListener;
 import hudson.model.Computer;
+import hudson.model.TaskListener;
 import hudson.slaves.ComputerListener;
 
 @Extension

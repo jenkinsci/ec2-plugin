@@ -11,6 +11,7 @@ public enum Tenancy {
         this.value = value;
     }
 
+    @Override
     public String toString() {
         return this.value;
     }
@@ -20,7 +21,7 @@ public enum Tenancy {
             Tenancy[] var1 = values();
             int var2 = var1.length;
 
-            for(int var3 = 0; var3 < var2; ++var3) {
+            for (int var3 = 0; var3 < var2; ++var3) {
                 Tenancy enumEntry = var1[var3];
                 if (enumEntry.toString().equals(value)) {
                     return enumEntry;
@@ -46,4 +47,3 @@ public enum Tenancy {
         }
     }
 }
-

@@ -23,17 +23,16 @@
  */
 package hudson.plugins.ec2.ebs;
 
-import hudson.model.PeriodicWork;
-import hudson.model.AdministrativeMonitor;
 import hudson.Extension;
+import hudson.model.AdministrativeMonitor;
+import hudson.model.PeriodicWork;
+import java.io.IOException;
+import java.net.URL;
+import java.util.concurrent.TimeUnit;
 import jenkins.model.Jenkins;
 import org.jvnet.solaris.libzfs.LibZFS;
 import org.jvnet.solaris.libzfs.ZFSFileSystem;
 import org.jvnet.solaris.libzfs.ZFSPool;
-
-import java.net.URL;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Once an hour, check if the main zpool is that hosts $HUDSON_HOME has still enough free space.
@@ -55,8 +54,9 @@ public class ZPoolMonitor extends PeriodicWork {
         Jenkins jenkinsInstance = Jenkins.getInstanceOrNull();
         ZFSFileSystem fs = null;
         try {
-            if (isInsideEC2() && jenkinsInstance != null)
+            if (isInsideEC2() && jenkinsInstance != null) {
                 fs = new LibZFS().getFileSystemByMountPoint(jenkinsInstance.getRootDir());
+            }
         } catch (LinkageError e) {
             // probably not running on OpenSolaris
         }

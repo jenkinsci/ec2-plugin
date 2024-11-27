@@ -1,11 +1,10 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Instance;
-import org.apache.commons.lang.StringUtils;
-
-import java.util.Optional;
-
 import static hudson.plugins.ec2.ConnectionStrategy.*;
+
+import com.amazonaws.services.ec2.model.Instance;
+import java.util.Optional;
+import org.apache.commons.lang.StringUtils;
 
 public class EC2HostAddressProvider {
     public static String unix(Instance instance, ConnectionStrategy strategy) {

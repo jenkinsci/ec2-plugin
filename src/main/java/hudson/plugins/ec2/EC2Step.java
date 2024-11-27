@@ -29,13 +29,12 @@ import hudson.Util;
 import hudson.model.TaskListener;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
+import java.util.*;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
-
-import java.util.*;
 
 /**
  * Returns the instance provisioned.
@@ -60,6 +59,7 @@ public class EC2Step extends Step {
         this.cloud = cloud;
         this.template = template;
     }
+
     public String getCloud() {
         return cloud;
     }
@@ -70,7 +70,7 @@ public class EC2Step extends Step {
 
     @Override
     public StepExecution start(StepContext context) throws Exception {
-        return new EC2Step.Execution( this, context);
+        return new EC2Step.Execution(this, context);
     }
 
     @Extension
@@ -91,7 +91,8 @@ public class EC2Step extends Step {
             Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
-            Jenkins.get().clouds
+            Jenkins.get()
+                    .clouds
                     .getAll(AmazonEC2Cloud.class)
                     .forEach(c -> r.add(c.getDisplayName(), c.getDisplayName()));
             return r;
@@ -106,25 +107,25 @@ public class EC2Step extends Step {
                 AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) cloud;
                 for (SlaveTemplate template : ec2Cloud.getTemplates()) {
                     for (String labelList : template.labels.split(" ")) {
-                        r.add(labelList + "  (AMI: " + template.getAmi() + ", REGION: " + ec2Cloud.getRegion() + ", TYPE: " + template.type.name() + ")", labelList);
+                        r.add(
+                                labelList + "  (AMI: " + template.getAmi() + ", REGION: " + ec2Cloud.getRegion()
+                                        + ", TYPE: " + template.type.name() + ")",
+                                labelList);
                     }
                 }
             }
             return r;
         }
 
-
         @Override
         public Set<? extends Class<?>> getRequiredContext() {
             return Collections.singleton(TaskListener.class);
         }
-
     }
 
     public static class Execution extends SynchronousNonBlockingStepExecution<Instance> {
         private final String cloud;
         private final String template;
-
 
         Execution(EC2Step step, StepContext context) {
             super(context);
@@ -145,16 +146,19 @@ public class EC2Step extends Step {
 
                     List<EC2AbstractSlave> instances = t.provision(1, opt);
                     if (instances == null) {
-                        throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                        throw new IllegalArgumentException(
+                                "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                     }
 
                     EC2AbstractSlave slave = instances.get(0);
                     return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (AmazonEC2Cloud) cl);
                 } else {
-                    throw new IllegalArgumentException("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                    throw new IllegalArgumentException(
+                            "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                 }
             } else {
-                throw new IllegalArgumentException("Error in AWS Cloud. Please review EC2 settings in Jenkins configuration.");
+                throw new IllegalArgumentException(
+                        "Error in AWS Cloud. Please review EC2 settings in Jenkins configuration.");
             }
         }
 
@@ -172,5 +176,4 @@ public class EC2Step extends Step {
             return c;
         }
     }
-
 }

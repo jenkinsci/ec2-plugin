@@ -1,13 +1,11 @@
 package hudson.plugins.ec2.win.winrm.request;
 
+import hudson.plugins.ec2.win.winrm.soap.HeaderBuilder;
+import hudson.plugins.ec2.win.winrm.soap.MessageBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.UUID;
-
-import hudson.plugins.ec2.win.winrm.soap.HeaderBuilder;
-import hudson.plugins.ec2.win.winrm.soap.MessageBuilder;
-
 import org.dom4j.Document;
 import org.dom4j.Element;
 
@@ -28,13 +26,19 @@ public abstract class AbstractWinRMRequest implements WinRMRequest {
 
     protected abstract void construct();
 
+    @Override
     public Document build() {
         construct();
         return message.build();
     }
 
     protected HeaderBuilder defaultHeader() throws URISyntaxException {
-        return header.to(url.toURI()).replyTo(new URI("http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous")).maxEnvelopeSize(envelopSize).id(generateUUID()).locale(locale).timeout(timeout);
+        return header.to(url.toURI())
+                .replyTo(new URI("http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous"))
+                .maxEnvelopeSize(envelopSize)
+                .id(generateUUID())
+                .locale(locale)
+                .timeout(timeout);
     }
 
     protected void setBody(Element body) {
@@ -69,5 +73,4 @@ public abstract class AbstractWinRMRequest implements WinRMRequest {
     public void setLocale(String locale) {
         this.locale = locale;
     }
-
 }

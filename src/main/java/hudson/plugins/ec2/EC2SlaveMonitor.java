@@ -1,22 +1,19 @@
 package hudson.plugins.ec2;
 
+import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.Extension;
 import hudson.model.AsyncPeriodicWork;
-import hudson.model.TaskListener;
 import hudson.model.Node;
-
+import hudson.model.TaskListener;
+import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import jenkins.model.Jenkins;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
-
-import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
 
 /**
  * @author Bruno Meneguello
@@ -54,9 +51,10 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                         ec2Slave.terminate();
                     }
                 } catch (AmazonClientException e) {
-                    if (e instanceof AmazonEC2Exception &&
-                            EC2_REQUEST_EXPIRED_ERROR_CODE.equals(((AmazonEC2Exception) e).getErrorCode())) {
-                        LOGGER.info("EC2 request expired, skipping consideration of " + ec2Slave.getInstanceId() + " due to unknown state.");
+                    if (e instanceof AmazonEC2Exception
+                            && EC2_REQUEST_EXPIRED_ERROR_CODE.equals(((AmazonEC2Exception) e).getErrorCode())) {
+                        LOGGER.info("EC2 request expired, skipping consideration of " + ec2Slave.getInstanceId()
+                                + " due to unknown state.");
                     } else {
                         LOGGER.info("EC2 instance is dead and failed to terminate: " + ec2Slave.getInstanceId());
                         removeNode(ec2Slave);
@@ -73,5 +71,4 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
             LOGGER.log(Level.WARNING, "Failed to remove node: " + ec2Slave.getInstanceId());
         }
     }
-
 }

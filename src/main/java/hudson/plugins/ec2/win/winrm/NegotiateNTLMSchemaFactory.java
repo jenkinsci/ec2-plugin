@@ -11,6 +11,7 @@ import org.apache.http.util.CharArrayBuffer;
 
 public class NegotiateNTLMSchemaFactory implements AuthSchemeProvider {
 
+    @Override
     public AuthScheme create(HttpContext context) {
         return new NegotiateNTLM();
     }
@@ -25,10 +26,11 @@ public class NegotiateNTLMSchemaFactory implements AuthSchemeProvider {
         public Header authenticate(Credentials credentials, HttpRequest request) throws AuthenticationException {
             Credentials ntCredentials = credentials;
             if (!(credentials instanceof NTCredentials)) {
-                ntCredentials = new NTCredentials(credentials.getUserPrincipal().getName(), credentials.getPassword(), null, null);
+                ntCredentials = new NTCredentials(
+                        credentials.getUserPrincipal().getName(), credentials.getPassword(), null, null);
             }
             Header header = super.authenticate(ntCredentials, request);
-            //need replace NTLM with Negotiate
+            // need replace NTLM with Negotiate
             CharArrayBuffer buffer = new CharArrayBuffer(512);
             buffer.append(header.getName());
             buffer.append(": ");

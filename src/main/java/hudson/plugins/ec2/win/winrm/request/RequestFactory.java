@@ -77,5 +77,4 @@ public class RequestFactory {
     public void setLocale(String locale) {
         this.locale = locale;
     }
-
 }

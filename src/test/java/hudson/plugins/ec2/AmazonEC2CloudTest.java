@@ -23,6 +23,11 @@
  */
 package hudson.plugins.ec2;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
@@ -32,10 +37,13 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import org.htmlunit.html.HtmlForm;
-import org.htmlunit.html.HtmlTextInput;
 import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
 import hudson.util.ListBoxModel;
+import java.io.IOException;
+import java.util.Collections;
+import jenkins.model.Jenkins;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlTextInput;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,16 +52,6 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
-
-import jenkins.model.Jenkins;
-
-import java.io.IOException;
-import java.util.Collections;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -67,14 +65,27 @@ public class AmazonEC2CloudTest {
 
     @Before
     public void setUp() throws Exception {
-        cloud = new AmazonEC2Cloud("us-east-1", true, "abc", "us-east-1", null, "ghi", "3", Collections.emptyList(), "roleArn", "roleSessionName");
+        cloud = new AmazonEC2Cloud(
+                "us-east-1",
+                true,
+                "abc",
+                "us-east-1",
+                null,
+                "ghi",
+                "3",
+                Collections.emptyList(),
+                "roleArn",
+                "roleSessionName");
         r.jenkins.clouds.add(cloud);
     }
 
     @Test
     public void testConfigRoundtrip() throws Exception {
         r.submit(getConfigForm());
-        r.assertEqualBeans(cloud, r.jenkins.clouds.get(AmazonEC2Cloud.class), "name,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+        r.assertEqualBeans(
+                cloud,
+                r.jenkins.clouds.get(AmazonEC2Cloud.class),
+                "name,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
     @Test
@@ -94,7 +105,8 @@ public class AmazonEC2CloudTest {
         r.submit(form);
         AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
         assertEquals("updatedSessionName", actual.getRoleSessionName());
-        r.assertEqualBeans(cloud, actual, "name,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
+        r.assertEqualBeans(
+                cloud, actual, "name,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
@@ -104,13 +116,17 @@ public class AmazonEC2CloudTest {
         assertNotNull(descriptor);
         ListBoxModel m = descriptor.doFillCredentialsIdItems(Jenkins.get());
         assertThat(m.size(), is(1));
-        SystemCredentialsProvider.getInstance().getCredentials().add(
-            new AWSCredentialsImpl(CredentialsScope.SYSTEM, "system_id","system_ak", "system_sk", "system_desc"));
-        //Ensure added credential is displayed
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.SYSTEM, "system_id", "system_ak", "system_sk", "system_desc"));
+        // Ensure added credential is displayed
         m = descriptor.doFillCredentialsIdItems(Jenkins.get());
         assertThat(m.size(), is(2));
-        SystemCredentialsProvider.getInstance().getCredentials().add(
-            new AWSCredentialsImpl(CredentialsScope.GLOBAL, "global_id","global_ak", "global_sk", "global_desc"));
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.GLOBAL, "global_id", "global_ak", "global_sk", "global_desc"));
         m = descriptor.doFillCredentialsIdItems(Jenkins.get());
         assertThat(m.size(), is(3));
     }
@@ -122,17 +138,22 @@ public class AmazonEC2CloudTest {
         assertNotNull(descriptor);
         ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(1));
-        BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(CredentialsScope.SYSTEM, "ghi", "key",
-                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"), "", "");
-        for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(r.jenkins)) {
-            if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
-                    credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
+        BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(
+                CredentialsScope.SYSTEM,
+                "ghi",
+                "key",
+                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"),
+                "",
+                "");
+        for (CredentialsStore credentialsStore : CredentialsProvider.lookupStores(r.jenkins)) {
+            if (credentialsStore instanceof SystemCredentialsProvider.StoreImpl) {
+                credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
             }
         }
-        //Ensure added credential is displayed
+        // Ensure added credential is displayed
         m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(2));
-        //Ensure that the cloud can resolve the new key
+        // Ensure that the cloud can resolve the new key
         assertThat(actual.resolvePrivateKey(), notNullValue());
     }
 
@@ -147,22 +168,26 @@ public class AmazonEC2CloudTest {
         assertNotNull(descriptor);
         ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(1));
-        SSHUserPrivateKey sshKeyCredentials = new TestSSHUserPrivateKey(CredentialsScope.SYSTEM, "ghi", "key",
-                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"), "", "");
-        for (CredentialsStore credentialsStore: CredentialsProvider.lookupStores(r.jenkins)) {
-            if (credentialsStore instanceof  SystemCredentialsProvider.StoreImpl) {
+        SSHUserPrivateKey sshKeyCredentials = new TestSSHUserPrivateKey(
+                CredentialsScope.SYSTEM,
+                "ghi",
+                "key",
+                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"),
+                "",
+                "");
+        for (CredentialsStore credentialsStore : CredentialsProvider.lookupStores(r.jenkins)) {
+            if (credentialsStore instanceof SystemCredentialsProvider.StoreImpl) {
                 credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
             }
         }
-        //Ensure added credential is displayed
+        // Ensure added credential is displayed
         m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
         assertThat(m.size(), is(2));
-        //Ensure that the cloud can resolve the new key
+        // Ensure that the cloud can resolve the new key
         assertThat(actual.resolvePrivateKey(), notNullValue());
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {
         return r.createWebClient().goTo(cloud.getUrl() + "configure").getFormByName("config");
     }
-
 }

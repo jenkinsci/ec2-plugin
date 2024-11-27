@@ -23,15 +23,14 @@
  */
 package hudson.plugins.ec2;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
+import java.util.HashMap;
+import java.util.Map;
 
 /*
  * Note this is used only to handle the metadata for older versions of the ec2-plugin. The current
@@ -55,15 +54,18 @@ public class InstanceTypeConverter implements Converter {
         TYPICAL_INSTANCE_TYPES.put("XLARGE_CLUSTER_COMPUTE", InstanceType.Cc14xlarge);
     }
 
+    @Override
     public boolean canConvert(Class type) {
         return InstanceType.class == type;
     }
 
+    @Override
     public void marshal(Object source, HierarchicalStreamWriter writer, MarshallingContext context) {
         InstanceType instanceType = (InstanceType) source;
         writer.setValue(instanceType.name());
     }
 
+    @Override
     public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
         InstanceType instanceType = null;
 
@@ -77,5 +79,4 @@ public class InstanceTypeConverter implements Converter {
 
         return instanceType;
     }
-
 }

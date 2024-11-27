@@ -1,5 +1,7 @@
 package hudson.plugins.ec2;
 
+import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
+
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -10,20 +12,18 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
-import java.util.ArrayList;
-import org.apache.commons.lang.StringUtils;
-
 import edu.umd.cs.findbugs.annotations.CheckForNull;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Logger;
-
-import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
+import org.apache.commons.lang.StringUtils;
 
 final class CloudHelper {
     private static final Logger LOGGER = Logger.getLogger(CloudHelper.class.getName());
 
-    static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud) throws AmazonClientException, InterruptedException {
+    static Instance getInstanceWithRetry(String instanceId, EC2Cloud cloud)
+            throws AmazonClientException, InterruptedException {
         // Sometimes even after a successful RunInstances, DescribeInstances
         // returns an error for a few seconds. We do a few retries instead of
         // failing instantly. See [JENKINS-15319].
@@ -31,7 +31,8 @@ final class CloudHelper {
             try {
                 return getInstance(instanceId, cloud);
             } catch (AmazonServiceException e) {
-                if (e.getErrorCode().equals("InvalidInstanceID.NotFound") || EC2_REQUEST_EXPIRED_ERROR_CODE.equals(e.getErrorCode())) {
+                if (e.getErrorCode().equals("InvalidInstanceID.NotFound")
+                        || EC2_REQUEST_EXPIRED_ERROR_CODE.equals(e.getErrorCode())) {
                     // retry in 5 seconds.
                     Thread.sleep(5000);
                     continue;
@@ -45,31 +46,35 @@ final class CloudHelper {
 
     @CheckForNull
     static Instance getInstance(String instanceId, EC2Cloud cloud) throws AmazonClientException {
-        if (StringUtils.isEmpty(instanceId) || cloud == null)
+        if (StringUtils.isEmpty(instanceId) || cloud == null) {
             return null;
+        }
 
         DescribeInstancesRequest request = new DescribeInstancesRequest();
         request.setInstanceIds(Collections.singletonList(instanceId));
 
-        List<Reservation> reservations = cloud.connect().describeInstances(request).getReservations();
+        List<Reservation> reservations =
+                cloud.connect().describeInstances(request).getReservations();
         if (reservations.size() != 1) {
-          String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + reservations + ".";
-          if (reservations.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.info(message);
-          throw new AmazonClientException(message);
+            String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId
+                    + "', expected 1 result, found " + reservations + ".";
+            if (reservations.size() == 0) {
+                message += " Instance seems to be dead.";
+            }
+            LOGGER.info(message);
+            throw new AmazonClientException(message);
         }
         Reservation reservation = reservations.get(0);
 
         List<Instance> instances = reservation.getInstances();
         if (instances.size() != 1) {
-          String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId + "', expected 1 result, found " + instances + ".";
-          if (instances.size() == 0) {
-            message += " Instance seems to be dead.";
-          }
-          LOGGER.info(message);
-          throw new AmazonClientException(message);
+            String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId
+                    + "', expected 1 result, found " + instances + ".";
+            if (instances.size() == 0) {
+                message += " Instance seems to be dead.";
+            }
+            LOGGER.info(message);
+            throw new AmazonClientException(message);
         }
         return instances.get(0);
     }

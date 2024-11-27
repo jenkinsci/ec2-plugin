@@ -27,8 +27,9 @@ public class MessageBuilder {
 
     public void addBody(Element body) {
         Element elem = envelope.addElement(QName.get("Body", Namespaces.NS_SOAP_ENV));
-        if (body != null)
+        if (body != null) {
             elem.add(body);
+        }
     }
 
     public Document build() {

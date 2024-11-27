@@ -23,6 +23,8 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
@@ -32,12 +34,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
 import org.kohsuke.stapler.verb.POST;
 
 /**
@@ -119,11 +117,12 @@ public class EC2Computer extends SlaveComputer {
         }
     }
 
-    private GetConsoleOutputResult getDecodedConsoleOutputResponse() throws AmazonClientException, InterruptedException {
+    private GetConsoleOutputResult getDecodedConsoleOutputResponse()
+            throws AmazonClientException, InterruptedException {
         AmazonEC2 ec2 = getCloud().connect();
         GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
         if (checkIfNitro()) {
-            //Can only be used if instance has hypervisor Nitro
+            // Can only be used if instance has hypervisor Nitro
             request.setLatest(true);
         }
         return ec2.getConsoleOutput(request);
@@ -136,7 +135,8 @@ public class EC2Computer extends SlaveComputer {
         try {
             if (isNitro == null) {
                 DescribeInstanceTypesRequest request = new DescribeInstanceTypesRequest();
-                request.setInstanceTypes(Collections.singletonList(describeInstance().getInstanceType()));
+                request.setInstanceTypes(
+                        Collections.singletonList(describeInstance().getInstanceType()));
                 AmazonEC2 ec2 = getCloud().connect();
                 DescribeInstanceTypesResult result = ec2.describeInstanceTypes(request);
                 if (result.getInstanceTypes().size() == 1) {
@@ -145,7 +145,6 @@ public class EC2Computer extends SlaveComputer {
                 } else {
                     isNitro = false;
                 }
-
             }
             return isNitro;
         } catch (AmazonClientException e) {
@@ -165,8 +164,9 @@ public class EC2Computer extends SlaveComputer {
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
     public Instance describeInstance() throws AmazonClientException, InterruptedException {
-        if (ec2InstanceDescription == null)
+        if (ec2InstanceDescription == null) {
             ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        }
         return ec2InstanceDescription;
     }
 
@@ -219,8 +219,9 @@ public class EC2Computer extends SlaveComputer {
     public HttpResponse doDoDelete() throws IOException {
         checkPermission(DELETE);
         EC2AbstractSlave node = getNode();
-        if (node != null)
+        if (node != null) {
             node.terminate();
+        }
         return new HttpRedirect("..");
     }
 
@@ -261,5 +262,4 @@ public class EC2Computer extends SlaveComputer {
             node.onConnected();
         }
     }
-
 }
