@@ -876,9 +876,9 @@ public abstract class EC2Cloud extends Cloud {
                 }
             } catch (AmazonServiceException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-                if (e.getErrorCode().equals("RequestExpired")) {
-                    // JENKINS-71554: A RequestExpired error can indicate that credentials have expired so reconnect
-                    LOGGER.log(Level.INFO, "[JENKINS-71554] Reconnecting to EC2 due to RequestExpired error");
+                if (e.getErrorCode().equals("RequestExpired") || e.getErrorCode().equals("ExpiredToken")) {
+                    // A RequestExpired or ExpiredToken error can indicate that credentials have expired so reconnect
+                    LOGGER.log(Level.INFO, "Reconnecting to EC2 due to RequestExpired or ExpiredToken error");
                     try {
                         reconnectToEc2();
                     } catch (IOException e2) {
