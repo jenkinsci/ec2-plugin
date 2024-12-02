@@ -48,7 +48,12 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                 try {
                     if (!ec2Slave.isAlive(true)) {
                         LOGGER.info("EC2 instance is dead: " + ec2Slave.getInstanceId());
-                        ec2Slave.terminate();
+                        try {
+                            ec2Slave.terminate();
+                        } catch (InterruptedException | IOException e) {
+                            LOGGER.log(
+                                    Level.WARNING, "Failed to terminate EC2 instance: " + ec2Slave.getInstanceId(), e);
+                        }
                     }
                 } catch (AmazonClientException e) {
                     if (e instanceof AmazonEC2Exception

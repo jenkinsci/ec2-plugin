@@ -2,7 +2,6 @@ package hudson.plugins.ec2.util;
 
 import com.amazonaws.AmazonClientException;
 import hudson.Extension;
-import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.*;
 import hudson.plugins.ec2.Tenancy;
@@ -182,7 +181,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         }
 
         @Override
-        public Computer createComputer() {
+        public EC2Computer createComputer() {
             return new MockEC2Computer(this);
         }
     }
@@ -236,7 +235,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         }
 
         @Override
-        public Computer createComputer() {
+        public EC2Computer createComputer() {
             return new MockEC2Computer(this);
         }
     }

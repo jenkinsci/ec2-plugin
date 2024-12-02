@@ -18,6 +18,7 @@ import hudson.model.Queue;
 import hudson.model.Queue.Executable;
 import hudson.model.Queue.Task;
 import hudson.model.ResourceList;
+import hudson.model.TaskListener;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
@@ -29,6 +30,7 @@ import hudson.security.AccessControlled;
 import hudson.security.Permission;
 import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -244,7 +246,7 @@ public class EC2RetentionStrategyTest {
                         ConnectionStrategy.PRIVATE_IP,
                         -1) {
                     @Override
-                    public void terminate() {}
+                    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {}
 
                     @Override
                     public String getEc2Type() {
@@ -369,7 +371,7 @@ public class EC2RetentionStrategyTest {
                         ConnectionStrategy.PRIVATE_IP,
                         -1) {
                     @Override
-                    public void terminate() {}
+                    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {}
 
                     @Override
                     public String getEc2Type() {
@@ -515,9 +517,7 @@ public class EC2RetentionStrategyTest {
                         ConnectionStrategy.PRIVATE_IP,
                         usageLimit) {
                     @Override
-                    public void terminate() {
-                        terminateCalled.set(true);
-                    }
+                    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {}
 
                     @Override
                     public String getEc2Type() {
@@ -1148,6 +1148,9 @@ public class EC2RetentionStrategyTest {
     private static void checkRetentionStrategy(EC2RetentionStrategy rs, EC2Computer c) throws InterruptedException {
         rs.check(c);
         EC2AbstractSlave node = c.getNode();
-        assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
+        // checks if node has been terminated within timeout. if node is null, it has already been terminated
+        if (node != null) {
+            assertTrue(node.terminateScheduled.await(10, TimeUnit.SECONDS));
+        }
     }
 }

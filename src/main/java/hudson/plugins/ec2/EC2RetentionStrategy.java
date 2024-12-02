@@ -32,6 +32,7 @@ import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.slaves.RetentionStrategy;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -363,7 +364,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 if (computer.countBusy() <= 1 && !computer.isAcceptingTasks()) {
                     LOGGER.info("Agent " + slaveNode.instanceId + " is terminated due to maxTotalUses ("
                             + slaveNode.maxTotalUses + ")");
-                    slaveNode.terminate();
+                    try {
+                        slaveNode.terminate();
+                    } catch (InterruptedException | IOException e) {
+                        LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + slaveNode.getInstanceId(), e);
+                    }
                 } else {
                     if (slaveNode.maxTotalUses == 1) {
                         LOGGER.info("Agent " + slaveNode.instanceId + " is still in use by more than one ("
