@@ -4,9 +4,11 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.*;
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
+import hudson.model.TaskListener;
 import hudson.plugins.ec2.ssh.EC2MacLauncher;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
@@ -435,7 +437,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
      * Terminates the instance in EC2.
      */
     @Override
-    public void terminate() {
+    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {
         if (terminateScheduled.getCount() == 0) {
             synchronized (terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
@@ -456,7 +458,8 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                             Jenkins.get().removeNode(this);
                             LOGGER.info("Removed EC2 instance from jenkins controller: " + getInstanceId());
                         } catch (AmazonClientException | IOException e) {
-                            LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
+                            Functions.printStackTrace(
+                                    e, listener.error("Failed to terminate EC2 instance: " + getInstanceId()));
                         } finally {
                             synchronized (terminateScheduled) {
                                 terminateScheduled.countDown();
