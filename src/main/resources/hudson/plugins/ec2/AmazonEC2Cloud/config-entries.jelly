@@ -50,7 +50,7 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
     <f:entry title="${%Session Name}" field="roleSessionName">
-      <f:textbox />
+      <f:textbox checkDependsOn="roleArn"/>
     </f:entry>
   </f:advanced>
   <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />

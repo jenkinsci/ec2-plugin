@@ -38,6 +38,7 @@ import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
+import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.util.Collections;
@@ -94,6 +95,24 @@ public class AmazonEC2CloudTest {
         AmazonEC2 connection = cloud.connect();
         Assert.assertNotNull(connection);
         Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
+    }
+
+    @Test
+    public void testAmazonEC2FactoryWorksIfSessionNameMissing() throws Exception {
+        r.jenkins.clouds.replace(new AmazonEC2Cloud(
+                "us-east-1", true, "abc", "us-east-1", null, "ghi", "3", Collections.emptyList(), "roleArn", null));
+        AmazonEC2Cloud cloud = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        AmazonEC2 connection = cloud.connect();
+        Assert.assertNotNull(connection);
+        Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
+    }
+
+    @Test
+    public void testSessionNameMissingWarning() {
+        AmazonEC2Cloud actual = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        AmazonEC2Cloud.DescriptorImpl descriptor = (AmazonEC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertThat(descriptor.doCheckRoleSessionName("roleArn", "").kind, is(FormValidation.Kind.WARNING));
+        assertThat(descriptor.doCheckRoleSessionName("roleArn", "roleSessionName").kind, is(FormValidation.Kind.OK));
     }
 
     @Test
