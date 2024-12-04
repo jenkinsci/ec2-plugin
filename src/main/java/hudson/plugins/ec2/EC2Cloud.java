@@ -50,6 +50,7 @@ import com.cloudbees.plugins.credentials.common.AbstractIdCredentialsListBoxMode
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -92,6 +93,8 @@ import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
@@ -1083,8 +1086,9 @@ public abstract class EC2Cloud extends Cloud {
 
         AWSCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
 
-        if (StringUtils.isNotEmpty(roleArn) && StringUtils.isNotEmpty(roleSessionName)) {
-            return new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, roleSessionName)
+        if (StringUtils.isNotEmpty(roleArn)) {
+            return new STSAssumeRoleSessionCredentialsProvider.Builder(
+                            roleArn, StringUtils.defaultIfBlank(roleSessionName, "Jenkins"))
                     .withStsClient(AWSSecurityTokenServiceClientBuilder.standard()
                             .withCredentials(provider)
                             .withRegion(region)
@@ -1270,6 +1274,22 @@ public abstract class EC2Cloud extends Cloud {
                         .includeCurrentValue(sshKeysCredentialsId);
             }
             return result;
+        }
+
+        @NonNull
+        @RequirePOST
+        @Restricted(NoExternalUse.class)
+        @VisibleForTesting
+        public FormValidation doCheckRoleSessionName(
+                @QueryParameter String roleArn, @QueryParameter String roleSessionName) {
+            // Don't do anything if the user is only reading the configuration
+            if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                if (StringUtils.isNotEmpty(roleArn) && StringUtils.isBlank(roleSessionName)) {
+                    return FormValidation.warning(
+                            "Session Name is recommended when specifying an Arn Role. If empty, 'Jenkins' will be used.");
+                }
+            }
+            return FormValidation.ok();
         }
 
         @RequirePOST
