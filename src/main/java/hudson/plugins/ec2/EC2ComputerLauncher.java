@@ -55,7 +55,14 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                         e);
                 EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
                 if (ec2AbstractSlave != null) {
-                    ec2AbstractSlave.terminate();
+                    try {
+                        ec2AbstractSlave.terminate();
+                    } catch (InterruptedException | IOException e1) {
+                        LOGGER.log(
+                                Level.WARNING,
+                                "Failed to terminate EC2 instance: " + ec2AbstractSlave.getInstanceId(),
+                                e1);
+                    }
                 }
             }
         } catch (InterruptedException e) {
@@ -70,7 +77,14 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
                         e);
                 EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
                 if (ec2AbstractSlave != null) {
-                    ec2AbstractSlave.terminate();
+                    try {
+                        ec2AbstractSlave.terminate();
+                    } catch (InterruptedException | IOException e1) {
+                        LOGGER.log(
+                                Level.WARNING,
+                                "Failed to terminate EC2 instance: " + ec2AbstractSlave.getInstanceId(),
+                                e1);
+                    }
                 }
             }
         }

@@ -8,7 +8,9 @@ import static org.junit.Assert.assertEquals;
 
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
+import hudson.model.TaskListener;
 import hudson.slaves.NodeProperty;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -56,10 +58,7 @@ public class EC2AbstractSlaveTest {
                         DEFAULT_METADATA_SUPPORTED) {
 
                     @Override
-                    public void terminate() {
-                        // To change body of implemented methods use File | Settings |
-                        // File Templates.
-                    }
+                    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {}
 
                     @Override
                     public String getEc2Type() {
@@ -150,7 +149,7 @@ public class EC2AbstractSlaveTest {
                         ConnectionStrategy.PRIVATE_IP,
                         0) {
                     @Override
-                    public void terminate() {}
+                    protected void _terminate(TaskListener listener) throws IOException, InterruptedException {}
 
                     @Override
                     public String getEc2Type() {

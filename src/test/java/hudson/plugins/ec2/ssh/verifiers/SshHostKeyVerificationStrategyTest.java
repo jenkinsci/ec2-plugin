@@ -9,6 +9,7 @@ import com.amazonaws.services.ec2.model.InstanceType;
 import com.trilead.ssh2.Connection;
 import com.trilead.ssh2.ServerHostKeyVerifier;
 import hudson.model.Node;
+import hudson.model.TaskListener;
 import hudson.plugins.ec2.ConnectionStrategy;
 import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
@@ -378,7 +379,7 @@ public class SshHostKeyVerificationStrategyTest {
                             ConnectionStrategy.PRIVATE_IP,
                             -1) {
                         @Override
-                        public void terminate() {}
+                        protected void _terminate(TaskListener listener) throws IOException, InterruptedException {}
 
                         @Override
                         public String getEc2Type() {

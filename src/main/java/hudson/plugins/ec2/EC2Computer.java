@@ -29,7 +29,7 @@ import com.amazonaws.services.ec2.model.*;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;
-import hudson.slaves.SlaveComputer;
+import hudson.slaves.AbstractCloudComputer;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.logging.Level;
@@ -41,7 +41,7 @@ import org.kohsuke.stapler.verb.POST;
 /**
  * @author Kohsuke Kawaguchi
  */
-public class EC2Computer extends SlaveComputer {
+public class EC2Computer extends AbstractCloudComputer<EC2AbstractSlave> {
 
     private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
 
@@ -220,7 +220,11 @@ public class EC2Computer extends SlaveComputer {
         checkPermission(DELETE);
         EC2AbstractSlave node = getNode();
         if (node != null) {
-            node.terminate();
+            try {
+                node.terminate();
+            } catch (InterruptedException | IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
+            }
         }
         return new HttpRedirect("..");
     }
