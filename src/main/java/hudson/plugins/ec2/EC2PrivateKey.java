@@ -33,7 +33,6 @@ import hudson.util.Secret;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -147,7 +146,7 @@ public class EC2PrivateKey {
                     PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
             byte[] cipherText = Base64.getDecoder().decode(StringUtils.deleteWhitespace(encodedPassword));
             byte[] plainText = cipher.doFinal(cipherText);
-            return new String(plainText, Charset.forName("ASCII"));
+            return new String(plainText, StandardCharsets.US_ASCII);
         } catch (Exception e) {
             throw new AmazonClientException("Unable to decode password:\n" + e.toString());
         }

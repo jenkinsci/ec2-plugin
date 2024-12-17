@@ -3,6 +3,7 @@ package hudson.plugins.ec2.ssh;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 
 public class HostKeyVerifierImplTest {
@@ -13,12 +14,12 @@ public class HostKeyVerifierImplTest {
     @Test
     public void testVerifyFail() throws Exception {
         HostKeyVerifierImpl impl = new HostKeyVerifierImpl("");
-        assertFalse(impl.verifyServerHostKey("", 0, null, key.getBytes("UTF-8")));
+        assertFalse(impl.verifyServerHostKey("", 0, null, key.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
     public void testVerifyTrue() throws Exception {
         HostKeyVerifierImpl impl = new HostKeyVerifierImpl(fp);
-        assertTrue(impl.verifyServerHostKey("", 0, null, key.getBytes("UTF-8")));
+        assertTrue(impl.verifyServerHostKey("", 0, null, key.getBytes(StandardCharsets.UTF_8)));
     }
 }
