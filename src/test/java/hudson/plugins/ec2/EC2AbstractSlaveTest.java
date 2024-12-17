@@ -8,7 +8,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
-import hudson.slaves.NodeProperty;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -37,7 +36,7 @@ public class EC2AbstractSlaveTest {
                         null,
                         "init",
                         "tmpDir",
-                        new ArrayList<NodeProperty<?>>(),
+                        new ArrayList<>(),
                         "root",
                         "java",
                         "jvm",
@@ -137,7 +136,7 @@ public class EC2AbstractSlaveTest {
                         null,
                         "init",
                         "tmpDir",
-                        new ArrayList<NodeProperty<?>>(),
+                        new ArrayList<>(),
                         "root",
                         "jvm",
                         false,

@@ -973,7 +973,7 @@ public abstract class EC2Cloud extends Cloud {
     private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
         return new PlannedNode(
                 t.getDisplayName(),
-                Computer.threadPoolForRemoting.submit(new Callable<Node>() {
+                Computer.threadPoolForRemoting.submit(new Callable<>() {
                     int retryCount = 0;
                     private static final int DESCRIBE_LIMIT = 2;
 

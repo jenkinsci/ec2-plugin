@@ -15,7 +15,6 @@ import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.InstanceState;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.util.ConnectionRule;
-import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -365,7 +364,7 @@ public class SshHostKeyVerificationStrategyTest {
                             null,
                             "init",
                             "tmpDir",
-                            new ArrayList<NodeProperty<?>>(),
+                            new ArrayList<>(),
                             "remote",
                             "jvm",
                             false,

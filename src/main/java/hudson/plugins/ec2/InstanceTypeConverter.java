@@ -38,7 +38,7 @@ import java.util.Map;
  */
 public class InstanceTypeConverter implements Converter {
 
-    private static final Map<String, InstanceType> TYPICAL_INSTANCE_TYPES = new HashMap<String, InstanceType>();
+    private static final Map<String, InstanceType> TYPICAL_INSTANCE_TYPES = new HashMap<>();
 
     static {
         TYPICAL_INSTANCE_TYPES.put("DEFAULT", InstanceType.M1Small);
