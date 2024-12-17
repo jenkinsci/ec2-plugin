@@ -6,8 +6,6 @@ import static org.hamcrest.Matchers.emptyString;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.InstanceType;
-import com.trilead.ssh2.Connection;
-import com.trilead.ssh2.ServerHostKeyVerifier;
 import hudson.model.Node;
 import hudson.plugins.ec2.ConnectionStrategy;
 import hudson.plugins.ec2.EC2AbstractSlave;
@@ -16,9 +14,13 @@ import hudson.plugins.ec2.InstanceState;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.util.ConnectionRule;
 import java.io.IOException;
+import java.net.SocketAddress;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
+import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
+import org.apache.sshd.client.session.ClientSession;
 import org.hamcrest.core.StringContains;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -219,7 +221,7 @@ public class SshHostKeyVerificationStrategyTest {
 
         // The computer and verifier used during the try of connection
         private MockEC2Computer computer;
-        private ServerHostKeyVerifierImpl verifier;
+        private ServerKeyVerifier verifier;
 
         // The number of this attempt (for logging purposes)
         private int stage;
@@ -255,7 +257,7 @@ public class SshHostKeyVerificationStrategyTest {
         private void connect() throws Exception {
             try {
                 // Try to connect to it
-                Connection con = conRule.connect(verifier);
+                ClientSession con = conRule.connect(verifier);
                 con.close();
             } catch (IOException ignored) {
                 // When the connection is not verified, the connect method throws an IOException
@@ -267,17 +269,13 @@ public class SshHostKeyVerificationStrategyTest {
                 assertThat(
                         String.format(
                                 "Stage %d. isOffline failed on %s using %s strategy",
-                                stage,
-                                computer.getName(),
-                                verifier.strategy.getClass().getSimpleName()),
+                                stage, computer.getName(), verifier.getClass().getSimpleName()),
                         computer.isOffline(),
                         is(true));
                 assertThat(
                         String.format(
                                 "Stage %d. Offline reason failed on %s using %s strategy",
-                                stage,
-                                computer.getName(),
-                                verifier.strategy.getClass().getSimpleName()),
+                                stage, computer.getName(), verifier.getClass().getSimpleName()),
                         computer.getOfflineCauseReason(),
                         is(Messages.OfflineCause_SSHKeyCheckFailed()));
             }
@@ -286,9 +284,7 @@ public class SshHostKeyVerificationStrategyTest {
                 assertThat(
                         String.format(
                                 "Stage %d. Log message not found on %s using %s strategy",
-                                stage,
-                                computer.getName(),
-                                verifier.strategy.getClass().getSimpleName()),
+                                stage, computer.getName(), verifier.getClass().getSimpleName()),
                         loggerRule,
                         LoggerRule.recorded(StringContains.containsString(messageInLog)));
             }
@@ -329,7 +325,7 @@ public class SshHostKeyVerificationStrategyTest {
                 connectionAttempt = new ConnectionAttempt();
             }
 
-            private ConnectionAttempt build(MockEC2Computer computer, ServerHostKeyVerifierImpl verifier, int stage) {
+            private ConnectionAttempt build(MockEC2Computer computer, ServerKeyVerifier verifier, int stage) {
                 connectionAttempt.stage = stage;
                 connectionAttempt.computer = computer;
                 connectionAttempt.verifier = verifier;
@@ -439,7 +435,7 @@ public class SshHostKeyVerificationStrategyTest {
     }
 
     // A verifier using the set strategy
-    private static class ServerHostKeyVerifierImpl implements ServerHostKeyVerifier {
+    private static class ServerHostKeyVerifierImpl implements ServerKeyVerifier {
         private final EC2Computer computer;
         private final SshHostKeyVerificationStrategy strategy;
 
@@ -449,10 +445,13 @@ public class SshHostKeyVerificationStrategyTest {
         }
 
         @Override
-        public boolean verifyServerHostKey(
-                String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+        public boolean verifyServerKey(ClientSession clientSession, SocketAddress remoteAddress, PublicKey serverKey) {
             // TODO: change by the verifier defined on the instance template or the default one
-            return strategy.verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), null);
+            try {
+                return strategy.verify(computer, new HostKey(serverKey.getAlgorithm(), serverKey.getEncoded()), null);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }
