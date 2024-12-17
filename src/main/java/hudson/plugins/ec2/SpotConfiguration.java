@@ -90,8 +90,7 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
 
         String normalizedBid = normalizeBid(this.spotMaxBidPrice);
         String otherNormalizedBid = normalizeBid(config.spotMaxBidPrice);
-        boolean normalizedBidsAreEqual =
-                normalizedBid == null ? (otherNormalizedBid == null) : normalizedBid.equals(otherNormalizedBid);
+        boolean normalizedBidsAreEqual = Objects.equals(normalizedBid, otherNormalizedBid);
         boolean blockReservationIsEqual = true;
         if (this.spotBlockReservationDuration != config.spotBlockReservationDuration) {
             blockReservationIsEqual = false;
