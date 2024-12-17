@@ -23,8 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2Cloud.SSH_PRIVATE_KEY_FILEPATH;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
@@ -155,7 +153,7 @@ public class EC2PrivateKey {
     /* visible for testing */
     @CheckForNull
     public static EC2PrivateKey fetchFromDisk() {
-        return fetchFromDisk(System.getProperty(SSH_PRIVATE_KEY_FILEPATH, ""));
+        return fetchFromDisk(System.getProperty(EC2Cloud.SSH_PRIVATE_KEY_FILEPATH, ""));
     }
 
     @CheckForNull

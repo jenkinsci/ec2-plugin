@@ -1,6 +1,5 @@
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2HostAddressProvider.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
@@ -18,7 +17,7 @@ public class EC2HostAddressProviderTest {
 
         when(instance.getPublicDnsName()).thenReturn("ec2-0-0-0-0.compute-1.amazonaws.com");
 
-        assertThat(unix(instance, strategy), equalTo("ec2-0-0-0-0.compute-1.amazonaws.com"));
+        assertThat(EC2HostAddressProvider.unix(instance, strategy), equalTo("ec2-0-0-0-0.compute-1.amazonaws.com"));
     }
 
     @Test
@@ -29,7 +28,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPublicDnsName()).thenReturn("");
         when(instance.getPublicIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(unix(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.unix(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -39,7 +38,7 @@ public class EC2HostAddressProviderTest {
 
         when(instance.getPublicIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(unix(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.unix(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -49,7 +48,7 @@ public class EC2HostAddressProviderTest {
 
         when(instance.getPrivateDnsName()).thenReturn("0-0-0-0.ec2.internal");
 
-        assertThat(unix(instance, strategy), equalTo("0-0-0-0.ec2.internal"));
+        assertThat(EC2HostAddressProvider.unix(instance, strategy), equalTo("0-0-0-0.ec2.internal"));
     }
 
     @Test
@@ -60,7 +59,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPrivateDnsName()).thenReturn("");
         when(instance.getPrivateIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(unix(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.unix(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -70,7 +69,7 @@ public class EC2HostAddressProviderTest {
 
         when(instance.getPrivateIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(unix(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.unix(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -81,7 +80,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPrivateDnsName()).thenReturn("0-0-0-0.ec2.internal");
         when(instance.getPrivateIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.windows(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -92,7 +91,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPrivateDnsName()).thenReturn("");
         when(instance.getPrivateIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.windows(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -103,7 +102,7 @@ public class EC2HostAddressProviderTest {
         when(instance.getPublicDnsName()).thenReturn("ec2-0-0-0-0.compute-1.amazonaws.com");
         when(instance.getPublicIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.windows(instance, strategy), equalTo("0.0.0.0"));
     }
 
     @Test
@@ -114,6 +113,6 @@ public class EC2HostAddressProviderTest {
         when(instance.getPublicDnsName()).thenReturn("");
         when(instance.getPublicIpAddress()).thenReturn("0.0.0.0");
 
-        assertThat(windows(instance, strategy), equalTo("0.0.0.0"));
+        assertThat(EC2HostAddressProvider.windows(instance, strategy), equalTo("0.0.0.0"));
     }
 }

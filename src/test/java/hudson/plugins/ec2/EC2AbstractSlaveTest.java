@@ -1,9 +1,5 @@
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
 import static org.junit.Assert.assertEquals;
 
 import com.amazonaws.services.ec2.model.InstanceType;
@@ -49,10 +45,10 @@ public class EC2AbstractSlaveTest {
                         ConnectionStrategy.PRIVATE_IP,
                         -1,
                         Tenancy.Default,
-                        DEFAULT_METADATA_ENDPOINT_ENABLED,
-                        DEFAULT_METADATA_TOKENS_REQUIRED,
-                        DEFAULT_METADATA_HOPS_LIMIT,
-                        DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
 
                     @Override
                     public void terminate() {
@@ -114,10 +110,10 @@ public class EC2AbstractSlaveTest {
                 HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
                 EbsEncryptRootVolume.DEFAULT,
-                DEFAULT_METADATA_ENDPOINT_ENABLED,
-                DEFAULT_METADATA_TOKENS_REQUIRED,
-                DEFAULT_METADATA_HOPS_LIMIT,
-                DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         String cloudName = "us-east-1";

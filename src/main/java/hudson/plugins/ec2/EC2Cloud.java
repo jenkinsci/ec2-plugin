@@ -18,9 +18,6 @@
  */
 package hudson.plugins.ec2;
 
-import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
-import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
@@ -31,7 +28,19 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStateName;
+import com.amazonaws.services.ec2.model.InstanceType;
+import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.SpotInstanceRequest;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
@@ -81,7 +90,17 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -90,6 +109,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.lang.StringUtils;
@@ -505,25 +525,26 @@ public abstract class EC2Cloud extends Cloud {
     public HttpResponse doProvision(@QueryParameter String template) throws ServletException, IOException {
         checkPermission(PROVISION);
         if (template == null) {
-            throw HttpResponses.error(SC_BAD_REQUEST, "The 'template' query parameter is missing");
+            throw HttpResponses.error(HttpServletResponse.SC_BAD_REQUEST, "The 'template' query parameter is missing");
         }
         SlaveTemplate t = getTemplate(template);
         if (t == null) {
-            throw HttpResponses.error(SC_BAD_REQUEST, "No such template: " + template);
+            throw HttpResponses.error(HttpServletResponse.SC_BAD_REQUEST, "No such template: " + template);
         }
 
         final Jenkins jenkinsInstance = Jenkins.get();
         if (jenkinsInstance.isQuietingDown()) {
-            throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is quieting down");
+            throw HttpResponses.error(HttpServletResponse.SC_BAD_REQUEST, "Jenkins instance is quieting down");
         }
         if (jenkinsInstance.isTerminating()) {
-            throw HttpResponses.error(SC_BAD_REQUEST, "Jenkins instance is terminating");
+            throw HttpResponses.error(HttpServletResponse.SC_BAD_REQUEST, "Jenkins instance is terminating");
         }
         try {
             List<EC2AbstractSlave> nodes = getNewOrExistingAvailableSlave(t, 1, true);
             if (nodes == null || nodes.isEmpty()) {
                 throw HttpResponses.error(
-                        SC_BAD_REQUEST, "Cloud or AMI instance cap would be exceeded for: " + template);
+                        HttpServletResponse.SC_BAD_REQUEST,
+                        "Cloud or AMI instance cap would be exceeded for: " + template);
             }
 
             // Reconnect a stopped instance, the ADD is invoking the connect only for the node creation
@@ -536,7 +557,7 @@ public abstract class EC2Cloud extends Cloud {
             return HttpResponses.redirectViaContextPath(
                     "/computer/" + nodes.get(0).getNodeName());
         } catch (AmazonClientException e) {
-            throw HttpResponses.error(SC_INTERNAL_SERVER_ERROR, e);
+            throw HttpResponses.error(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e);
         }
     }
 

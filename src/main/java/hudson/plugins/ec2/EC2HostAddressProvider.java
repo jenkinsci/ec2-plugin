@@ -1,7 +1,5 @@
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.ConnectionStrategy.*;
-
 import com.amazonaws.services.ec2.model.Instance;
 import java.util.Optional;
 import org.apache.commons.lang.StringUtils;
@@ -38,9 +36,9 @@ public class EC2HostAddressProvider {
     }
 
     public static String windows(Instance instance, ConnectionStrategy strategy) {
-        if (strategy.equals(PRIVATE_DNS) || strategy.equals(PRIVATE_IP)) {
+        if (strategy.equals(ConnectionStrategy.PRIVATE_DNS) || strategy.equals(ConnectionStrategy.PRIVATE_IP)) {
             return getPrivateIpAddress(instance);
-        } else if (strategy.equals(PUBLIC_DNS) || strategy.equals(PUBLIC_IP)) {
+        } else if (strategy.equals(ConnectionStrategy.PUBLIC_DNS) || strategy.equals(ConnectionStrategy.PUBLIC_IP)) {
             return getPublicIpAddress(instance);
         } else {
             throw new IllegalArgumentException("Could not windows host address for strategy = " + strategy);

@@ -2,7 +2,8 @@ package hudson.plugins.ec2.util;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
-import hudson.plugins.ec2.*;
+import hudson.plugins.ec2.EC2OndemandSlave;
+import hudson.plugins.ec2.EC2SpotSlave;
 import java.io.IOException;
 
 @Extension

@@ -25,7 +25,11 @@ package hudson.plugins.ec2;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.*;
+import com.amazonaws.services.ec2.model.DescribeInstanceTypesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstanceTypesResult;
+import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
+import com.amazonaws.services.ec2.model.GetConsoleOutputResult;
+import com.amazonaws.services.ec2.model.Instance;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;

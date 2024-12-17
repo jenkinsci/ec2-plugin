@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2Cloud.DEFAULT_EC2_ENDPOINT;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -56,8 +55,8 @@ public class AmazonEC2CloudUnitTest {
     public void testEC2EndpointURLCreation() throws MalformedURLException {
         AmazonEC2Cloud.DescriptorImpl descriptor = new AmazonEC2Cloud.DescriptorImpl();
 
-        assertEquals(new URL(DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(null));
-        assertEquals(new URL(DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(""));
+        assertEquals(new URL(EC2Cloud.DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(null));
+        assertEquals(new URL(EC2Cloud.DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(""));
         assertEquals(new URL("https://www.abc.com"), descriptor.determineEC2EndpointURL("https://www.abc.com"));
     }
 
