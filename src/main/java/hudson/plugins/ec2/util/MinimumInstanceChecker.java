@@ -25,7 +25,7 @@ public class MinimumInstanceChecker {
     public static Clock clock = Clock.systemDefaultZone();
 
     private static Stream<Computer> agentsForTemplate(@NonNull SlaveTemplate agentTemplate) {
-        return (Stream<Computer>) Arrays.stream(Jenkins.get().getComputers())
+        return Arrays.stream(Jenkins.get().getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .filter(computer -> {
                     SlaveTemplate computerTemplate = ((EC2Computer) computer).getSlaveTemplate();

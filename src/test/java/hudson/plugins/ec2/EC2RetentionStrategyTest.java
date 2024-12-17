@@ -84,7 +84,7 @@ public class EC2RetentionStrategyTest {
             checkRetentionStrategy(rs, computer);
             assertEquals(
                     "Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i),
-                    (boolean) expected.get(i),
+                    expected.get(i),
                     idleTimeoutCalled.get());
             // reset the assumption
             idleTimeoutCalled.set(false);
@@ -474,13 +474,13 @@ public class EC2RetentionStrategyTest {
                 }
                 // As we want to terminate agent both for usageCount 1 & 0 - setting this to true
                 if (usageCount == 1 || usageCount == 0) {
-                    assertEquals("Expected " + usageCount + " to be " + true, (boolean) true, terminateCalled.get());
+                    assertEquals("Expected " + usageCount + " to be " + true, true, terminateCalled.get());
                     // Reset the assumption
                     terminateCalled.set(false);
                 } else {
                     assertEquals(
                             "Expected " + usageCount + " to be " + expected.get(i),
-                            (boolean) expected.get(i),
+                            expected.get(i),
                             terminateCalled.get());
                 }
             }
