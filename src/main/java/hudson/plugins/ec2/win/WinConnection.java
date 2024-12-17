@@ -106,7 +106,7 @@ public class WinConnection {
 
     private static String toAdministrativeShare(String path) {
         // administrative windows share are DRIVE$path like
-        return path.substring(0, 1) + "$";
+        return path.charAt(0) + "$";
     }
 
     private static String toFilePath(String path) {
