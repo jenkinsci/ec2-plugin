@@ -60,7 +60,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 return;
             }
 
-            if (initScript != null && initScript.trim().length() > 0 && !connection.exists(tmpDir + ".jenkins-init")) {
+            if (initScript != null && !initScript.trim().isEmpty() && !connection.exists(tmpDir + ".jenkins-init")) {
                 logger.println("Executing init script");
                 try (OutputStream init = connection.putFile(tmpDir + "init.bat")) {
                     init.write(initScript.getBytes("utf-8"));

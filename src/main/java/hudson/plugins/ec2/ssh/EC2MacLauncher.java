@@ -193,7 +193,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             conn.exec("mkdir -p " + tmpDir, logger);
 
             if (initScript != null
-                    && initScript.trim().length() > 0
+                    && !initScript.trim().isEmpty()
                     && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
                 logInfo(computer, listener, "Executing init script");
                 scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");

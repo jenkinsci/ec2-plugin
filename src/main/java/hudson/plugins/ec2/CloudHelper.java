@@ -58,7 +58,7 @@ final class CloudHelper {
         if (reservations.size() != 1) {
             String message = "Unexpected number of reservations reported by EC2 for instance id '" + instanceId
                     + "', expected 1 result, found " + reservations + ".";
-            if (reservations.size() == 0) {
+            if (reservations.isEmpty()) {
                 message += " Instance seems to be dead.";
             }
             LOGGER.info(message);
@@ -70,7 +70,7 @@ final class CloudHelper {
         if (instances.size() != 1) {
             String message = "Unexpected number of instances reported by EC2 for instance id '" + instanceId
                     + "', expected 1 result, found " + instances + ".";
-            if (instances.size() == 0) {
+            if (instances.isEmpty()) {
                 message += " Instance seems to be dead.";
             }
             LOGGER.info(message);

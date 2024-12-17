@@ -97,7 +97,7 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
         }
 
         String line = getLineWithKey(logger, computer, serverHostKeyAlgorithm);
-        if (line != null && line.length() > 0) {
+        if (line != null && !line.isEmpty()) {
             key = getKeyFromLine(logger, line, listener);
         } else if (line != null) {
             key = new HostKey(serverHostKeyAlgorithm, new byte[] {});

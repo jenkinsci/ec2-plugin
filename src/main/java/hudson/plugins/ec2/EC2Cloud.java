@@ -965,7 +965,7 @@ public abstract class EC2Cloud extends Cloud {
             orphansOrStopped.remove(0);
         }
         attachSlavesToJenkins(jenkinsInstance, template.toSlaves(orphansOrStopped), template);
-        if (orphansOrStopped.size() > 0) {
+        if (!orphansOrStopped.isEmpty()) {
             LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
         }
     }
@@ -1170,7 +1170,7 @@ public abstract class EC2Cloud extends Cloud {
      * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
      */
     public static String convertHostName(String ec2HostName) {
-        if (ec2HostName == null || ec2HostName.length() == 0) {
+        if (ec2HostName == null || ec2HostName.isEmpty()) {
             ec2HostName = DEFAULT_EC2_HOST;
         }
         if (!ec2HostName.contains(".")) {
@@ -1183,7 +1183,7 @@ public abstract class EC2Cloud extends Cloud {
      * Convert a user entered string into a port number "" -&gt; -1 to indicate default based on SSL setting
      */
     public static Integer convertPort(String ec2Port) {
-        if (ec2Port == null || ec2Port.length() == 0) {
+        if (ec2Port == null || ec2Port.isEmpty()) {
             return -1;
         }
         return Integer.parseInt(ec2Port);
@@ -1424,7 +1424,7 @@ public abstract class EC2Cloud extends Cloud {
                 AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, ec2endpoint);
                 ec2.describeInstances();
 
-                if (privateKey.trim().length() > 0) {
+                if (!privateKey.trim().isEmpty()) {
                     // check if this key exists
                     EC2PrivateKey pk = new EC2PrivateKey(privateKey);
                     if (pk.find(ec2) == null) {

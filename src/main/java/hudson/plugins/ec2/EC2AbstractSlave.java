@@ -765,7 +765,7 @@ public abstract class EC2AbstractSlave extends Slave {
     }
 
     public String getRemoteAdmin() {
-        if (remoteAdmin == null || remoteAdmin.length() == 0) {
+        if (remoteAdmin == null || remoteAdmin.isEmpty()) {
             return amiType.isWindows() ? "Administrator" : "root";
         }
         return remoteAdmin;
@@ -775,7 +775,7 @@ public abstract class EC2AbstractSlave extends Slave {
         String commandPrefix = (amiType.isUnix()
                 ? ((UnixData) amiType).getRootCommandPrefix()
                 : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
-        if (commandPrefix == null || commandPrefix.length() == 0) {
+        if (commandPrefix == null || commandPrefix.isEmpty()) {
             return "";
         }
         return commandPrefix + " ";
@@ -785,7 +785,7 @@ public abstract class EC2AbstractSlave extends Slave {
         String commandPrefix = (amiType.isUnix()
                 ? ((UnixData) amiType).getSlaveCommandPrefix()
                 : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
-        if (commandPrefix == null || commandPrefix.length() == 0) {
+        if (commandPrefix == null || commandPrefix.isEmpty()) {
             return "";
         }
         return commandPrefix + " ";
@@ -795,7 +795,7 @@ public abstract class EC2AbstractSlave extends Slave {
         String commandSuffix = (amiType.isUnix()
                 ? ((UnixData) amiType).getSlaveCommandSuffix()
                 : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
-        if (commandSuffix == null || commandSuffix.length() == 0) {
+        if (commandSuffix == null || commandSuffix.isEmpty()) {
             return "";
         }
         return " " + commandSuffix;
@@ -813,7 +813,7 @@ public abstract class EC2AbstractSlave extends Slave {
         String sshPort = (amiType.isUnix()
                 ? ((UnixData) amiType).getSshPort()
                 : (amiType.isMac() ? ((MacData) amiType).getSshPort() : "22"));
-        if (sshPort == null || sshPort.length() == 0) {
+        if (sshPort == null || sshPort.isEmpty()) {
             return 22;
         }
 
