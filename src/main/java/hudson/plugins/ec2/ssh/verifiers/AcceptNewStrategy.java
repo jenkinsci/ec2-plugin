@@ -59,7 +59,7 @@ public class AcceptNewStrategy extends SshHostKeyVerificationStrategy {
                     LOGGER,
                     Level.INFO,
                     computer.getListener(),
-                    String.format("Connection allowed after the host key has been verified"));
+                    "Connection allowed after the host key has been verified");
             return true;
         } else {
             EC2Cloud.log(
