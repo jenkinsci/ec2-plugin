@@ -35,7 +35,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
@@ -55,11 +54,11 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
     }
 
     public String getVeryInsecureTemplates() {
-        return veryInsecureTemplates.stream().collect(Collectors.joining(", "));
+        return String.join(", ", veryInsecureTemplates);
     }
 
     public String getInsecureTemplates() {
-        return insecureTemplates.stream().collect(Collectors.joining(", "));
+        return String.join(", ", insecureTemplates);
     }
 
     public boolean showVeryInsecureTemplates() {

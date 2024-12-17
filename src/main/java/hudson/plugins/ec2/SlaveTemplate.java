@@ -2203,7 +2203,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         // Raise an exception if there were no search attributes.
         // This is legal but not what anyone wants - it will
         // launch random recently created public AMIs.
-        int numAttrs = Stream.of(imageIds, owners, users, filters).collect(Collectors.summingInt(List::size));
+        int numAttrs =
+                Stream.of(imageIds, owners, users, filters).mapToInt(List::size).sum();
         if (numAttrs == 0) {
             throw new AmazonClientException("Neither AMI ID nor AMI search attributes provided");
         }
