@@ -127,7 +127,7 @@ public class WinConnection {
         LOGGER.log(Level.FINE, () -> "checking SMB connection to " + host);
         try (Socket socket = new Socket();
                 Connection connection = smbclient.connect(host);
-                Session session = connection.authenticate(authentication); ) {
+                Session session = connection.authenticate(authentication)) {
             socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
             winrm().ping();
             session.connectShare("IPC$");
