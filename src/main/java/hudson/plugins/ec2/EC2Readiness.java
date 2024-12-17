@@ -3,7 +3,7 @@ package hudson.plugins.ec2;
 import com.amazonaws.AmazonClientException;
 
 public interface EC2Readiness {
-    public boolean isReady();
+    boolean isReady();
 
-    public String getEc2ReadinessStatus() throws AmazonClientException;
+    String getEc2ReadinessStatus() throws AmazonClientException;
 }
