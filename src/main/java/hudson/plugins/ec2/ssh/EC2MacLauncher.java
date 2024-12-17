@@ -352,14 +352,10 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         File tempFile = Files.createTempFile("ec2_", ".pem").toFile();
 
         try {
-            FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
-            OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8);
-            try {
+            try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+                    OutputStreamWriter writer = new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8)) {
                 writer.write(privateKey);
                 writer.flush();
-            } finally {
-                writer.close();
-                fileOutputStream.close();
             }
             FilePath filePath = new FilePath(tempFile);
             filePath.chmod(0400); // octal file mask - readonly by owner
