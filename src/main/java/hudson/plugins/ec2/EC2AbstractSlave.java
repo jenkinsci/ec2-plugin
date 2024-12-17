@@ -896,7 +896,7 @@ public abstract class EC2AbstractSlave extends Slave {
          * when fetchLiveInstanceData() is called before pushLiveInstancedata().
          */
         if (!i.getTags().isEmpty()) {
-            tags = new LinkedList<EC2Tag>();
+            tags = new LinkedList<>();
             for (Tag t : i.getTags()) {
                 tags.add(new EC2Tag(t.getKey(), t.getValue()));
             }
@@ -918,7 +918,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
         /* Now that we have our instance, we can clear the tags on it */
         if (!tags.isEmpty()) {
-            HashSet<Tag> instTags = new HashSet<Tag>();
+            HashSet<Tag> instTags = new HashSet<>();
 
             for (EC2Tag t : tags) {
                 instTags.add(new Tag(t.getName(), t.getValue()));
@@ -946,7 +946,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
         /* Now that we have our instance, we can set tags on it */
         if (inst != null && tags != null && !tags.isEmpty()) {
-            HashSet<Tag> instTags = new HashSet<Tag>();
+            HashSet<Tag> instTags = new HashSet<>();
 
             for (EC2Tag t : tags) {
                 instTags.add(new Tag(t.getName(), t.getValue()));

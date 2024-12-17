@@ -56,7 +56,7 @@ public class SlaveTemplateUnitTest {
 
         EC2Tag tag1 = new EC2Tag("name1", "value1");
         EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
         String instanceId = "123";
@@ -98,7 +98,7 @@ public class SlaveTemplateUnitTest {
                     }
                 };
 
-        ArrayList<Tag> awsTags = new ArrayList<Tag>();
+        ArrayList<Tag> awsTags = new ArrayList<>();
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
@@ -127,7 +127,7 @@ public class SlaveTemplateUnitTest {
 
         EC2Tag tag1 = new EC2Tag("name1", "value1");
         EC2Tag tag2 = new EC2Tag("name2", "value2");
-        List<EC2Tag> tags = new ArrayList<EC2Tag>();
+        List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
         String instanceId = "123";
@@ -169,7 +169,7 @@ public class SlaveTemplateUnitTest {
                     }
                 };
 
-        ArrayList<Tag> awsTags = new ArrayList<Tag>();
+        ArrayList<Tag> awsTags = new ArrayList<>();
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
         awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
 
@@ -985,7 +985,7 @@ public class SlaveTemplateUnitTest {
 }
 
 class TestHandler extends Handler {
-    private final List<LogRecord> records = new LinkedList<LogRecord>();
+    private final List<LogRecord> records = new LinkedList<>();
 
     @Override
     public void close() throws SecurityException {}

@@ -74,7 +74,7 @@ public class CloudHelperTest {
         AmazonServiceException amazonServiceException = new AmazonServiceException("test exception");
         amazonServiceException.setErrorCode("InvalidInstanceID.NotFound");
 
-        Answer<DescribeInstancesResult> answerWithRetry = new Answer<DescribeInstancesResult>() {
+        Answer<DescribeInstancesResult> answerWithRetry = new Answer<>() {
             private boolean first = true;
 
             @Override
@@ -110,7 +110,7 @@ public class CloudHelperTest {
         AmazonServiceException amazonServiceException = new AmazonServiceException("test exception");
         amazonServiceException.setErrorCode("RequestExpired");
 
-        Answer<DescribeInstancesResult> answerWithRetry = new Answer<DescribeInstancesResult>() {
+        Answer<DescribeInstancesResult> answerWithRetry = new Answer<>() {
             private boolean first = true;
 
             @Override

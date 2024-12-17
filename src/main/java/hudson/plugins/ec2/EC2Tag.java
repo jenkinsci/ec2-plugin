@@ -107,7 +107,7 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
             return null;
         }
 
-        LinkedList<EC2Tag> result = new LinkedList<EC2Tag>();
+        LinkedList<EC2Tag> result = new LinkedList<>();
         for (Tag t : amazonTags) {
             result.add(new EC2Tag(t));
         }

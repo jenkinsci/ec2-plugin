@@ -27,7 +27,6 @@ import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.security.Permission;
-import hudson.slaves.NodeProperty;
 import hudson.slaves.OfflineCause;
 import java.time.Clock;
 import java.time.Duration;
@@ -231,7 +230,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "init",
                         "tmpDir",
-                        new ArrayList<NodeProperty<?>>(),
+                        new ArrayList<>(),
                         "remote",
                         "jvm",
                         false,
@@ -356,7 +355,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "init",
                         "tmpDir",
-                        new ArrayList<NodeProperty<?>>(),
+                        new ArrayList<>(),
                         "remote",
                         "jvm",
                         false,
@@ -502,7 +501,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "init",
                         "tmpDir",
-                        new ArrayList<NodeProperty<?>>(),
+                        new ArrayList<>(),
                         "remote",
                         "jvm",
                         false,

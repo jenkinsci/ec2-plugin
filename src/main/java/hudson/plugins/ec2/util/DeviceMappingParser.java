@@ -35,7 +35,7 @@ public class DeviceMappingParser {
 
     public static List<BlockDeviceMapping> parse(String customDeviceMapping) {
 
-        List<BlockDeviceMapping> deviceMappings = new ArrayList<BlockDeviceMapping>();
+        List<BlockDeviceMapping> deviceMappings = new ArrayList<>();
 
         for (String mapping : customDeviceMapping.split(",")) {
             String[] mappingPair = mapping.split("=");
