@@ -105,7 +105,7 @@ public class SlaveTemplateUnitTest {
         Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod(
                 "updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
         updateRemoteTags.setAccessible(true);
-        final Object params[] = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", new String[] {instanceId}};
+        final Object[] params = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", new String[] {instanceId}};
         updateRemoteTags.invoke(orig, params);
         assertEquals(0, handler.getRecords().size());
     }
@@ -176,7 +176,7 @@ public class SlaveTemplateUnitTest {
         Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod(
                 "updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
         updateRemoteTags.setAccessible(true);
-        final Object params[] = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", new String[] {instanceId}};
+        final Object[] params = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", new String[] {instanceId}};
         updateRemoteTags.invoke(orig, params);
 
         assertEquals(5, handler.getRecords().size());
