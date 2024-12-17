@@ -260,7 +260,7 @@ public abstract class EC2Cloud extends Cloud {
         Optional<? extends SlaveTemplate> optionalOldTemplate = templates.stream()
                 .filter(template -> Objects.equals(template.description, oldTemplateDescription))
                 .findFirst();
-        if (!optionalOldTemplate.isPresent()) {
+        if (optionalOldTemplate.isEmpty()) {
             throw new Exception(
                     String.format("A SlaveTemplate with description %s does not exist", oldTemplateDescription));
         }
