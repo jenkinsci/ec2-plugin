@@ -5,7 +5,6 @@ import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.*;
-import hudson.plugins.ec2.Tenancy;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.List;
