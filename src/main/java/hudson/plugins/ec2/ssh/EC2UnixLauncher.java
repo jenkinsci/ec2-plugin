@@ -207,7 +207,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     && !initScript.trim().isEmpty()
                     && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
                 logInfo(computer, listener, "Executing init script");
-                scp.put(initScript.getBytes("UTF-8"), "init.sh", tmpDir, "0700");
+                scp.put(initScript.getBytes(StandardCharsets.UTF_8), "init.sh", tmpDir, "0700");
                 Session sess = conn.openSession();
                 sess.requestDumbPTY(); // so that the remote side bundles stdout
                 // and stderr
