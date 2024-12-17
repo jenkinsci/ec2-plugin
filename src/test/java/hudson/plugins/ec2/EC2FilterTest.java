@@ -31,6 +31,7 @@ import static org.junit.Assert.assertThrows;
 import com.amazonaws.services.ec2.model.Filter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import org.junit.Test;
 
 public class EC2FilterTest {
@@ -43,7 +44,7 @@ public class EC2FilterTest {
         Filter filter = ec2Filter.toFilter();
         assertNotNull(filter);
         assertEquals("name", filter.getName());
-        assertEquals(Arrays.asList("value"), filter.getValues());
+        assertEquals(List.of("value"), filter.getValues());
     }
 
     @Test
