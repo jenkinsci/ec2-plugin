@@ -2117,7 +2117,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         // get the root device (only one expected in the blockmappings)
         final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
-        if (rootDeviceMappings.size() == 0) {
+        if (rootDeviceMappings.isEmpty()) {
             LOGGER.warning("AMI missing block devices");
             return;
         }
@@ -2553,7 +2553,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         securityGroupSet, this.getParent().name, getCurrentSubnetId()));
         List<String> groupIds = new ArrayList<>();
         DescribeSecurityGroupsResult groupResult = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
-        if (groupResult.getSecurityGroups().size() == 0) {
+        if (groupResult.getSecurityGroups().isEmpty()) {
             groupResult = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
         }
 
