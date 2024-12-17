@@ -200,7 +200,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                             }
 
                             // Terminate the agent if it is running
-                            if (instanceId != null && !instanceId.equals("")) {
+                            if (instanceId != null && !instanceId.isEmpty()) {
                                 if (!super.isAlive(true)) {
                                     /*
                                      * The node has been killed externally, so we've nothing to do here
