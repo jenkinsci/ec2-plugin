@@ -26,6 +26,7 @@ package hudson.plugins.ec2;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -504,8 +505,8 @@ public class SlaveTemplateTest {
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
-        Assert.assertEquals(false, stored.getDay("monday"));
-        Assert.assertEquals(true, stored.getDay("tuesday"));
+        Assert.assertFalse(stored.getDay("monday"));
+        Assert.assertTrue(stored.getDay("tuesday"));
     }
 
     @Test
@@ -698,7 +699,7 @@ public class SlaveTemplateTest {
 
             assertEquals(actualNet.getSubnetId(), Util.fixEmpty(template.getSubnetId()));
             assertEquals(actualNet.getGroups(), Stream.of("some-group-id").collect(Collectors.toList()));
-            assertEquals(actualRequest.getSubnetId(), null);
+            assertNull(actualRequest.getSubnetId());
             assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
         }
@@ -1090,7 +1091,7 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
-        assertEquals(metadataOptionsRequest, null);
+        assertNull(metadataOptionsRequest);
     }
 
     @Test

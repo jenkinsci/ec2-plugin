@@ -704,7 +704,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 true,
                 "");
-        assertEquals(true, st.getAssociatePublicIp());
+        assertTrue(st.getAssociatePublicIp());
     }
 
     @Test
