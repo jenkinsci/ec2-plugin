@@ -474,7 +474,7 @@ public class EC2RetentionStrategyTest {
                 }
                 // As we want to terminate agent both for usageCount 1 & 0 - setting this to true
                 if (usageCount == 1 || usageCount == 0) {
-                    assertEquals("Expected " + usageCount + " to be " + true, true, terminateCalled.get());
+                    assertTrue("Expected " + usageCount + " to be " + true, terminateCalled.get());
                     // Reset the assumption
                     terminateCalled.set(false);
                 } else {
