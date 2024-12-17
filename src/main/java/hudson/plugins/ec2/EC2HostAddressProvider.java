@@ -33,7 +33,7 @@ public class EC2HostAddressProvider {
             case PRIVATE_IP:
                 return getPrivateIpAddress(instance);
             default:
-                throw new IllegalArgumentException("Could not mac host address for strategy = " + strategy.toString());
+                throw new IllegalArgumentException("Could not mac host address for strategy = " + strategy);
         }
     }
 
@@ -43,7 +43,7 @@ public class EC2HostAddressProvider {
         } else if (strategy.equals(PUBLIC_DNS) || strategy.equals(PUBLIC_IP)) {
             return getPublicIpAddress(instance);
         } else {
-            throw new IllegalArgumentException("Could not windows host address for strategy = " + strategy.toString());
+            throw new IllegalArgumentException("Could not windows host address for strategy = " + strategy);
         }
     }
 
