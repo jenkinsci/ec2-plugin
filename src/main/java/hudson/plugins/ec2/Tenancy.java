@@ -17,7 +17,7 @@ public enum Tenancy {
     }
 
     public static Tenancy fromValue(String value) {
-        if (value != null && !"".equals(value)) {
+        if (value != null && !value.isEmpty()) {
             for (Tenancy enumEntry : values()) {
                 if (enumEntry.toString().equals(value)) {
                     return enumEntry;

@@ -1455,7 +1455,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Set<String> parseSecurityGroups() {
-        if (securityGroups == null || "".equals(securityGroups.trim())) {
+        if (securityGroups == null || securityGroups.trim().isEmpty()) {
             return Collections.emptySet();
         } else {
             return new HashSet<>(Arrays.asList(securityGroups.split("\\s*,\\s*")));

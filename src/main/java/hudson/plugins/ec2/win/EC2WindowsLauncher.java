@@ -48,7 +48,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
         try {
             String initScript = node.initScript;
-            String tmpDir = (node.tmpDir != null && !node.tmpDir.equals("")
+            String tmpDir = (node.tmpDir != null && !node.tmpDir.isEmpty()
                     ? WindowsUtil.quoteArgument(Util.ensureEndsWith(node.tmpDir, "\\"))
                     : "C:\\Windows\\Temp\\");
 
