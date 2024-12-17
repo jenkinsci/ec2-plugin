@@ -5,7 +5,7 @@ public enum Tenancy {
     Dedicated("dedicated"),
     Host("host");
 
-    private String value;
+    private final String value;
 
     private Tenancy(String value) {
         this.value = value;
