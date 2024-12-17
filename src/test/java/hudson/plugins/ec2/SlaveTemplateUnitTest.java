@@ -463,7 +463,6 @@ public class SlaveTemplateUnitTest {
         if (rootVolumeEnum instanceof EbsEncryptRootVolume) {
             template.ebsEncryptRootVolume = rootVolumeEnum;
         }
-        ;
         Method setupRootDevice = SlaveTemplate.class.getDeclaredMethod("setupRootDevice", Image.class, List.class);
         setupRootDevice.setAccessible(true);
         setupRootDevice.invoke(template, image, deviceMappings);
