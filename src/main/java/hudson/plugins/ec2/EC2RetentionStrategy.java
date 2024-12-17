@@ -265,8 +265,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         }
         final Label selfLabel = selfNode.getSelfLabel();
         Queue.Item[] items = Jenkins.getInstance().getQueue().getItems();
-        for (int i = 0; i < items.length; i++) {
-            Queue.Item item = items[i];
+        for (Queue.Item item : items) {
             final Label assignedLabel = item.getAssignedLabel();
             if (assignedLabel == selfLabel) {
                 LOGGER.fine("Preventing idle timeout of " + c.getName()
