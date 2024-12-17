@@ -305,19 +305,34 @@ public class EC2RetentionStrategyTest {
                         "10",
                         "fff",
                         null,
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
                         "-Xmx1g",
                         false,
                         "subnet-123 subnet-456",
                         null,
                         null,
-                        true,
+                        0,
+                        0,
                         null,
                         "",
                         false,
                         false,
                         "",
                         false,
-                        "");
+                        "",
+                        false,
+                        false,
+                        false,
+                        ConnectionStrategy.PRIVATE_DNS,
+                        -1,
+                        Collections.emptyList(),
+                        null,
+                        Tenancy.Default,
+                        EbsEncryptRootVolume.DEFAULT,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
             }
 
             @Override
@@ -429,19 +444,34 @@ public class EC2RetentionStrategyTest {
                         "10",
                         "fff",
                         null,
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
                         "-Xmx1g",
                         false,
                         "subnet-123 subnet-456",
                         null,
                         null,
-                        true,
+                        0,
+                        0,
                         null,
                         "",
                         false,
                         false,
                         "",
                         false,
-                        "");
+                        "",
+                        false,
+                        false,
+                        false,
+                        ConnectionStrategy.PRIVATE_DNS,
+                        -1,
+                        Collections.emptyList(),
+                        null,
+                        Tenancy.Default,
+                        EbsEncryptRootVolume.DEFAULT,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
             }
 
             @Override
@@ -703,6 +733,7 @@ public class EC2RetentionStrategyTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -714,7 +745,6 @@ public class EC2RetentionStrategyTest {
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -722,8 +752,15 @@ public class EC2RetentionStrategyTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0,
-                Collections.emptyList());
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         AmazonEC2Cloud cloud = new AmazonEC2Cloud(
                 "us-east-1",
@@ -805,6 +842,7 @@ public class EC2RetentionStrategyTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -816,7 +854,6 @@ public class EC2RetentionStrategyTest {
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -824,8 +861,15 @@ public class EC2RetentionStrategyTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0,
-                Collections.emptyList());
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -897,6 +941,7 @@ public class EC2RetentionStrategyTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -908,7 +953,6 @@ public class EC2RetentionStrategyTest {
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -916,8 +960,15 @@ public class EC2RetentionStrategyTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0,
-                Collections.emptyList());
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -974,6 +1025,7 @@ public class EC2RetentionStrategyTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -985,7 +1037,6 @@ public class EC2RetentionStrategyTest {
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -993,8 +1044,15 @@ public class EC2RetentionStrategyTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0,
-                Collections.emptyList());
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -1066,6 +1124,7 @@ public class EC2RetentionStrategyTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -1077,7 +1136,6 @@ public class EC2RetentionStrategyTest {
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -1085,8 +1143,15 @@ public class EC2RetentionStrategyTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0,
-                Collections.emptyList());
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();

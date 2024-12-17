@@ -31,6 +31,7 @@ import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,19 +74,34 @@ public class TemplateLabelsTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 true,
                 "subnet 456",
                 tags,
                 null,
-                false,
+                0,
+                0,
                 null,
                 "",
                 false,
                 false,
                 null,
                 false,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(template);
 
