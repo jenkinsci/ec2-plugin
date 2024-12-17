@@ -7,7 +7,7 @@ public enum Tenancy {
 
     private final String value;
 
-    private Tenancy(String value) {
+    Tenancy(String value) {
         this.value = value;
     }
 

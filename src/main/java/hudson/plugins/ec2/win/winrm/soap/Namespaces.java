@@ -24,7 +24,7 @@ public class Namespaces {
 
     private Namespaces() {}
 
-    public static final List<Namespace> mostUsed() {
+    public static List<Namespace> mostUsed() {
         return Collections.unmodifiableList(
                 Arrays.asList(NS_SOAP_ENV, NS_ADDRESSING, NS_WIN_SHELL, NS_WSMAN_DMTF, NS_WSMAN_MSFT));
     }
