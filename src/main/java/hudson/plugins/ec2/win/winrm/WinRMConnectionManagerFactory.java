@@ -15,7 +15,7 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.ssl.SSLContextBuilder;
 
 public class WinRMConnectionManagerFactory {
-    private static final Logger log = Logger.getLogger(WinRMClient.class.getName());
+    private static final Logger log = Logger.getLogger(WinRMConnectionManagerFactory.class.getName());
 
     static final WinRMHttpConnectionManager DEFAULT = new WinRMHttpConnectionManager();
     static final WinRMHttpConnectionManager SSL = new WinRMHttpConnectionManager(false);
