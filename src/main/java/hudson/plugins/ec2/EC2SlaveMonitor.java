@@ -1,7 +1,5 @@
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.Extension;
@@ -52,7 +50,8 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                     }
                 } catch (AmazonClientException e) {
                     if (e instanceof AmazonEC2Exception
-                            && EC2_REQUEST_EXPIRED_ERROR_CODE.equals(((AmazonEC2Exception) e).getErrorCode())) {
+                            && EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE.equals(
+                                    ((AmazonEC2Exception) e).getErrorCode())) {
                         LOGGER.info("EC2 request expired, skipping consideration of " + ec2Slave.getInstanceId()
                                 + " due to unknown state.");
                     } else {

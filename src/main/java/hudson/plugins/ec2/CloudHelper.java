@@ -1,7 +1,5 @@
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -32,7 +30,7 @@ final class CloudHelper {
                 return getInstance(instanceId, cloud);
             } catch (AmazonServiceException e) {
                 if (e.getErrorCode().equals("InvalidInstanceID.NotFound")
-                        || EC2_REQUEST_EXPIRED_ERROR_CODE.equals(e.getErrorCode())) {
+                        || EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE.equals(e.getErrorCode())) {
                     // retry in 5 seconds.
                     Thread.sleep(5000);
                     continue;

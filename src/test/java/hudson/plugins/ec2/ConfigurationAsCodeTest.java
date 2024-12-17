@@ -1,8 +1,5 @@
 package hudson.plugins.ec2;
 
-import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
-import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
-import static io.jenkins.plugins.casc.misc.Util.toYamlString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -17,6 +14,7 @@ import io.jenkins.plugins.casc.ConfigurationContext;
 import io.jenkins.plugins.casc.ConfiguratorRegistry;
 import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
 import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
+import io.jenkins.plugins.casc.misc.Util;
 import io.jenkins.plugins.casc.model.CNode;
 import java.time.LocalTime;
 import java.util.Arrays;
@@ -144,9 +142,9 @@ public class ConfigurationAsCodeTest {
     public void testConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode clouds = getJenkinsRoot(context).get("clouds");
-        String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "UnixDataExport.yml");
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "UnixDataExport.yml");
         assertEquals(expected, exported);
     }
 
@@ -155,9 +153,9 @@ public class ConfigurationAsCodeTest {
     public void testConfigAsCodeWithAltEndpointAndJavaPathExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode clouds = getJenkinsRoot(context).get("clouds");
-        String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpointAndJavaPath.yml");
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "UnixDataExport-withAltEndpointAndJavaPath.yml");
         assertEquals(expected, exported);
     }
 
@@ -280,9 +278,9 @@ public class ConfigurationAsCodeTest {
     public void testMacCloudConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode clouds = getJenkinsRoot(context).get("clouds");
-        String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "MacDataExport.yml");
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "MacDataExport.yml");
         assertEquals(expected, exported);
     }
 }

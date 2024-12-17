@@ -1,8 +1,8 @@
 package hudson.plugins.ec2.win;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 
 import hudson.plugins.ec2.win.winrm.WindowsProcess;

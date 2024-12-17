@@ -1,7 +1,5 @@
 package hudson.plugins.ec2;
 
-import static hudson.Functions.checkPermission;
-
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -11,6 +9,7 @@ import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
@@ -150,7 +149,7 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                 @QueryParameter String ami)
                 throws IOException, ServletException {
 
-            checkPermission(EC2Cloud.PROVISION);
+            Functions.checkPermission(EC2Cloud.PROVISION);
 
             String cp = "";
             String zoneStr = "";

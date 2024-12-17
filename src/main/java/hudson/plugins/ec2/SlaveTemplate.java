@@ -18,12 +18,6 @@
  */
 package hudson.plugins.ec2;
 
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_JAVA_PATH;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -363,7 +357,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (StringUtils.isNotBlank(javaPath)) {
             this.javaPath = javaPath;
         } else {
-            this.javaPath = DEFAULT_JAVA_PATH;
+            this.javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
 
         this.jvmopts = jvmopts;
@@ -409,12 +403,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
-        this.metadataSupported = metadataSupported != null ? metadataSupported : DEFAULT_METADATA_SUPPORTED;
-        this.metadataEndpointEnabled =
-                metadataEndpointEnabled != null ? metadataEndpointEnabled : DEFAULT_METADATA_ENDPOINT_ENABLED;
-        this.metadataTokensRequired =
-                metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
-        this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
+        this.metadataSupported =
+                metadataSupported != null ? metadataSupported : EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED;
+        this.metadataEndpointEnabled = metadataEndpointEnabled != null
+                ? metadataEndpointEnabled
+                : EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+        this.metadataTokensRequired = metadataTokensRequired != null
+                ? metadataTokensRequired
+                : EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+        this.metadataHopsLimit =
+                metadataHopsLimit != null ? metadataHopsLimit : EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         readResolve(); // initialize
     }
 
@@ -481,7 +479,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 numExecutors,
                 remoteAdmin,
                 amiType,
-                DEFAULT_JAVA_PATH,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 jvmopts,
                 stopOnTerminate,
                 subnetId,
@@ -508,7 +506,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataEndpointEnabled,
                 metadataTokensRequired,
                 metadataHopsLimit,
-                DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
@@ -569,7 +567,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 numExecutors,
                 remoteAdmin,
                 amiType,
-                DEFAULT_JAVA_PATH,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 jvmopts,
                 stopOnTerminate,
                 subnetId,
@@ -593,10 +591,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 hostKeyVerificationStrategy,
                 tenancy,
                 null,
-                DEFAULT_METADATA_ENDPOINT_ENABLED,
-                DEFAULT_METADATA_TOKENS_REQUIRED,
-                DEFAULT_METADATA_HOPS_LIMIT,
-                DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
@@ -2687,7 +2685,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         }
         if (StringUtils.isBlank(javaPath)) {
-            javaPath = DEFAULT_JAVA_PATH;
+            javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
 
         return this;

@@ -2,7 +2,11 @@ package hudson.plugins.ec2.win.winrm;
 
 import org.apache.http.Header;
 import org.apache.http.HttpRequest;
-import org.apache.http.auth.*;
+import org.apache.http.auth.AuthScheme;
+import org.apache.http.auth.AuthSchemeProvider;
+import org.apache.http.auth.AuthenticationException;
+import org.apache.http.auth.Credentials;
+import org.apache.http.auth.NTCredentials;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.impl.auth.NTLMScheme;
 import org.apache.http.message.BufferedHeader;
