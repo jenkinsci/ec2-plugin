@@ -163,7 +163,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                             && (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state))) {
                 if (computer.isOnline()) {
                     LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status"
-                            + state.toString());
+                            + state);
                     computer.disconnect(null);
                 }
                 return CHECK_INTERVAL_MINUTES;
