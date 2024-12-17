@@ -1105,7 +1105,7 @@ public abstract class EC2Cloud extends Cloud {
         if (StringUtils.isBlank(credentialsId)) {
             return null;
         }
-        return (AmazonWebServicesCredentials) CredentialsMatchers.firstOrNull(
+        return CredentialsMatchers.firstOrNull(
                 CredentialsProvider.lookupCredentials(
                         AmazonWebServicesCredentials.class, Jenkins.get(), ACL.SYSTEM, Collections.emptyList()),
                 CredentialsMatchers.withId(credentialsId));
