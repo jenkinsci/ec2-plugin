@@ -12,11 +12,14 @@ import hudson.model.Node;
 import hudson.plugins.ec2.ConnectionStrategy;
 import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
+import hudson.plugins.ec2.EbsEncryptRootVolume;
 import hudson.plugins.ec2.InstanceState;
 import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.Tenancy;
 import hudson.plugins.ec2.util.ConnectionRule;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import org.hamcrest.core.StringContains;
@@ -422,19 +425,34 @@ public class SshHostKeyVerificationStrategyTest {
                     "10",
                     "fff",
                     null,
+                    EC2AbstractSlave.DEFAULT_JAVA_PATH,
                     "-Xmx1g",
                     false,
                     "subnet-123 subnet-456",
                     null,
                     null,
-                    true,
+                    0,
+                    0,
                     null,
                     "",
                     false,
                     false,
                     "",
                     false,
-                    "");
+                    "",
+                    false,
+                    false,
+                    false,
+                    ConnectionStrategy.PRIVATE_DNS,
+                    -1,
+                    Collections.emptyList(),
+                    null,
+                    Tenancy.Default,
+                    EbsEncryptRootVolume.DEFAULT,
+                    EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                    EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                    EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                    EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         }
     }
 
