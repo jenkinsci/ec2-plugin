@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.security.KeyFactory;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.ECPrivateKeySpec;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -70,7 +72,7 @@ public abstract class PEMParser {
             } else {
                 return null;
             }
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             return null;
         }
     }
