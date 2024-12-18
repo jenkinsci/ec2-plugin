@@ -23,14 +23,11 @@
  */
 package hudson.plugins.ec2.ssh;
 
+import static org.apache.sshd.client.session.ClientSession.REMOTE_COMMAND_WAIT_EVENTS;
+
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.KeyPair;
-import com.trilead.ssh2.Connection;
-import com.trilead.ssh2.HTTPProxyData;
-import com.trilead.ssh2.SCPClient;
-import com.trilead.ssh2.ServerHostKeyVerifier;
-import com.trilead.ssh2.Session;
 import hudson.FilePath;
 import hudson.ProxyConfiguration;
 import hudson.Util;
@@ -46,8 +43,10 @@ import hudson.plugins.ec2.EC2PrivateKey;
 import hudson.plugins.ec2.EC2Readiness;
 import hudson.plugins.ec2.EC2SpotSlave;
 import hudson.plugins.ec2.SlaveTemplate;
+import hudson.plugins.ec2.ssh.proxy.ProxyCONNECTListener;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
+import hudson.plugins.ec2.util.PEMParser;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
@@ -55,17 +54,33 @@ import hudson.slaves.ComputerLauncher;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
+import java.security.PublicKey;
+import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.channel.ClientChannel;
+import org.apache.sshd.client.channel.ClientChannelEvent;
+import org.apache.sshd.client.future.ConnectFuture;
+import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
+import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.scp.client.CloseableScpClient;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -86,6 +101,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
     private static int readinessSleepMs = 1000;
     private static int readinessTries = 120;
+
+    private static final long timeout = Duration.ofSeconds(10).toMillis();
 
     static {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
@@ -133,8 +150,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     @Override
     protected void launchScript(EC2Computer computer, TaskListener listener)
             throws IOException, AmazonClientException, InterruptedException {
-        final Connection conn;
-        Connection cleanupConn = null; // java's code path analysis for final
+        final ClientSession clientSession;
+        ClientSession cleanupClientSession = null; // java's code path analysis for final
         // doesn't work that well.
         boolean successful = false;
         PrintStream logger = listener.getLogger();
@@ -174,7 +191,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
         logInfo(computer, listener, "Launching instance: " + node.getInstanceId());
 
-        try {
+        try (SshClient client = SshClient.setUpDefaultClient()) {
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (isBootstrapped) {
                 int bootDelay = node.getBootDelay();
@@ -186,13 +203,21 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     Thread.sleep(bootDelay);
                     logInfo(computer, listener, "SSH service should have stabilized");
                 }
+
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
-                cleanupConn = connectToSsh(computer, listener, template);
+                cleanupClientSession = connectToSsh(client, computer, listener, template);
                 KeyPair key = computer.getCloud().getKeyPair();
-                if (key == null
-                        || !cleanupConn.authenticateWithPublicKey(
-                                computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "")) {
+
+                final boolean isAuthenticated;
+                if (key == null) {
+                    isAuthenticated = false;
+                } else {
+                    cleanupClientSession.addPublicKeyIdentity(PEMParser.decodeKeyPair(key.getKeyMaterial(), ""));
+                    cleanupClientSession.auth().await(timeout);
+                    isAuthenticated = cleanupClientSession.isAuthenticated();
+                }
+                if (!isAuthenticated) {
                     logWarning(computer, listener, "Authentication failed");
                     return; // failed to connect as root.
                 }
@@ -200,158 +225,201 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 logWarning(computer, listener, "bootstrapresult failed");
                 return; // bootstrap closed for us.
             }
-            conn = cleanupConn;
+            clientSession = cleanupClientSession;
 
-            SCPClient scp = conn.createSCPClient();
-            String initScript = node.initScript;
-            String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
+            try (CloseableScpClient scp = createScpClient(clientSession)) {
+                String initScript = node.initScript;
+                String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
-            logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
-            conn.exec("mkdir -p " + tmpDir, logger);
+                logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
+                executeRemote(clientSession, "mkdir -p " + tmpDir, logger);
 
-            if (initScript != null
-                    && !initScript.trim().isEmpty()
-                    && conn.exec("test -e ~/.hudson-run-init", logger) != 0) {
-                logInfo(computer, listener, "Executing init script");
-                scp.put(initScript.getBytes(StandardCharsets.UTF_8), "init.sh", tmpDir, "0700");
-                Session sess = conn.openSession();
-                sess.requestDumbPTY(); // so that the remote side bundles stdout
-                // and stderr
-                sess.execCommand(buildUpCommand(computer, tmpDir + "/init.sh"));
+                if (initScript != null
+                        && !initScript.trim().isEmpty()
+                        && executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
+                    logInfo(computer, listener, "Executing init script");
+                    scp.upload(
+                            initScript.getBytes(StandardCharsets.UTF_8),
+                            tmpDir + "/init.sh",
+                            List.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.OWNER_READ),
+                            null);
 
-                sess.getStdin().close(); // nothing to write here
-                sess.getStderr().close(); // we are not supposed to get anything
-                // from stderr
-                IOUtils.copy(sess.getStdout(), logger);
+                    String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
+                    try (ClientChannel channel = clientSession.createExecChannel(
+                            initCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
 
-                int exitStatus = waitCompletion(sess);
-                if (exitStatus != 0) {
-                    logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
-                    return;
+                        channel.getInvertedIn().close(); // nothing to write here
+                        channel.open().await(timeout);
+
+                        Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
+
+                        if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
+                            logWarning(computer, listener, "init script timed out");
+                            return;
+                        }
+
+                        int exitStatus = waitCompletion(channel);
+                        if (exitStatus != 0) {
+                            logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                            return;
+                        }
+
+                        channel.getInvertedErr().close(); // we are not supposed to get anything from stderr
+                        IOUtils.copy(channel.getInvertedOut(), logger);
+                    }
+
+                    logInfo(computer, listener, "Creating ~/.hudson-run-init");
+                    String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
+                    try (ClientChannel channel = clientSession.createExecChannel(
+                            createHudsonRunInitCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
+                        channel.getInvertedIn().close(); // nothing to write here
+                        channel.open().await(timeout);
+
+                        Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
+
+                        if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
+                            logWarning(computer, listener, "init script timed out");
+                            return;
+                        }
+
+                        int exitStatus = waitCompletion(channel);
+                        if (exitStatus != 0) {
+                            logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                            return;
+                        }
+
+                        channel.getInvertedErr().close(); // we are not supposed to get anything from stderr
+                        IOUtils.copy(channel.getInvertedOut(), logger);
+                    }
                 }
-                sess.close();
 
-                logInfo(computer, listener, "Creating ~/.hudson-run-init");
-
-                // Needs a tty to run sudo.
-                sess = conn.openSession();
-                sess.requestDumbPTY(); // so that the remote side bundles stdout
-                // and stderr
-                sess.execCommand(buildUpCommand(computer, "touch ~/.hudson-run-init"));
-
-                sess.getStdin().close(); // nothing to write here
-                sess.getStderr().close(); // we are not supposed to get anything
-                // from stderr
-                IOUtils.copy(sess.getStdout(), logger);
-
-                exitStatus = waitCompletion(sess);
-                if (exitStatus != 0) {
-                    logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
-                    return;
-                }
-                sess.close();
-            }
-
-            // TODO: parse the version number. maven-enforcer-plugin might help
-            final String javaPath = node.javaPath;
-            try {
-                Instance nodeInstance = computer.describeInstance();
-                if (nodeInstance.getInstanceType().equals("mac2.metal")) {
-                    LOGGER.info("Running Command for mac2.metal");
-                    executeRemote(
-                            computer,
-                            conn,
-                            javaPath + " -fullversion",
-                            "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
-                            logger,
-                            listener);
-                } else {
-                    executeRemote(
-                            computer,
-                            conn,
-                            javaPath + " -fullversion",
-                            "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
-                            logger,
-                            listener);
-                }
-            } catch (InterruptedException ex) {
-                LOGGER.warning(ex.getMessage());
-            }
-
-            // Always copy so we get the most recent remoting.jar
-            logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-            scp.put(Jenkins.get().getJnlpJars("remoting.jar").readFully(), "remoting.jar", tmpDir);
-
-            final String jvmopts = node.jvmopts;
-            final String prefix = computer.getSlaveCommandPrefix();
-            final String suffix = computer.getSlaveCommandSuffix();
-            final String remoteFS = node.getRemoteFS();
-            final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
-            String launchString = prefix + " " + javaPath + " " + (jvmopts != null ? jvmopts : "") + " -jar " + tmpDir
-                    + "/remoting.jar -workDir " + workDir + suffix;
-            // launchString = launchString.trim();
-
-            SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
-
-            if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
-                File identityKeyFile = createIdentityKeyFile(computer);
-
+                // TODO: parse the version number. maven-enforcer-plugin might help
+                final String javaPath = node.javaPath;
                 try {
-                    // Obviously the controller must have an installed ssh client.
-                    // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                    String sshClientLaunchString = String.format(
-                            "ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s",
-                            slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(),
-                            identityKeyFile.getAbsolutePath(),
-                            node.remoteAdmin,
-                            getEC2HostAddress(computer, template),
-                            node.getSshPort(),
-                            launchString);
+                    Instance nodeInstance = computer.describeInstance();
+                    if (nodeInstance.getInstanceType().equals("mac2.metal")) {
+                        LOGGER.info("Running Command for mac2.metal");
+                        executeRemote(
+                                computer,
+                                clientSession,
+                                javaPath + " -fullversion",
+                                "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
+                                logger,
+                                listener);
+                    } else {
+                        executeRemote(
+                                computer,
+                                clientSession,
+                                javaPath + " -fullversion",
+                                "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
+                                logger,
+                                listener);
+                    }
+                } catch (InterruptedException ex) {
+                    LOGGER.warning(ex.getMessage());
+                }
 
-                    logInfo(
-                            computer,
-                            listener,
-                            "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
-                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
-                    commandLauncher.launch(computer, listener);
-                } finally {
-                    if (!identityKeyFile.delete()) {
-                        LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+                // Always copy so we get the most recent remoting.jar
+                logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                scp.upload(
+                        Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                        tmpDir + "/remoting.jar",
+                        List.of(PosixFilePermission.OWNER_READ),
+                        null);
+
+                final String jvmopts = node.jvmopts;
+                final String prefix = computer.getSlaveCommandPrefix();
+                final String suffix = computer.getSlaveCommandSuffix();
+                final String remoteFS = node.getRemoteFS();
+                final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
+                String launchString = prefix
+                        + " "
+                        + javaPath
+                        + " "
+                        + (jvmopts != null ? jvmopts : "")
+                        + " -jar "
+                        + tmpDir
+                        + "/remoting.jar -workDir "
+                        + workDir
+                        + suffix;
+                // launchString = launchString.trim();
+
+                SlaveTemplate slaveTemplate = computer.getSlaveTemplate();
+
+                if (slaveTemplate != null && slaveTemplate.isConnectBySSHProcess()) {
+                    File identityKeyFile = createIdentityKeyFile(computer);
+
+                    try {
+                        // Obviously the controller must have an installed ssh client.
+                        // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
+                        String sshClientLaunchString = String.format(
+                                "ssh -o StrictHostKeyChecking=%s -i %s %s@%s -p %d %s",
+                                slaveTemplate.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(),
+                                identityKeyFile.getAbsolutePath(),
+                                node.remoteAdmin,
+                                getEC2HostAddress(computer, template),
+                                node.getSshPort(),
+                                launchString);
+
+                        logInfo(
+                                computer,
+                                listener,
+                                "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
+                        CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
+                        commandLauncher.launch(computer, listener);
+                    } finally {
+                        if (!identityKeyFile.delete()) {
+                            LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+                        }
+                    }
+                } else {
+                    logInfo(computer, listener, "Launching remoting agent (via SSH2 Connection): " + launchString);
+
+                    try (ClientChannel channel = clientSession.createExecChannel(
+                            launchString, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
+                        computer.setChannel(channel.getInvertedOut(), channel.getInvertedIn(), logger, new Listener() {
+                            @Override
+                            public void onClosed(Channel channel, IOException cause) {
+                                try {
+                                    clientSession.close();
+                                } catch (IOException e) {
+                                    LOGGER.log(Level.WARNING, "Error when closing the session", e);
+                                }
+                            }
+                        });
                     }
                 }
-            } else {
-                logInfo(computer, listener, "Launching remoting agent (via Trilead SSH2 Connection): " + launchString);
-                final Session sess = conn.openSession();
-                sess.execCommand(launchString);
-                computer.setChannel(sess.getStdout(), sess.getStdin(), logger, new Listener() {
-                    @Override
-                    public void onClosed(Channel channel, IOException cause) {
-                        sess.close();
-                        conn.close();
-                    }
-                });
-            }
 
-            successful = true;
-        } finally {
-            if (cleanupConn != null && !successful) {
-                cleanupConn.close();
+                successful = true;
             }
+        } finally {
+            if (cleanupClientSession != null && !successful) {
+                cleanupClientSession.close();
+            }
+        }
+    }
+
+    private boolean executeRemote(ClientSession session, String command, OutputStream logger) {
+        try {
+            session.executeRemoteCommand(command, logger, logger, null);
+            return true;
+        } catch (IOException e) {
+            return false;
         }
     }
 
     private boolean executeRemote(
             EC2Computer computer,
-            Connection conn,
+            ClientSession clientSession,
             String checkCommand,
             String command,
             PrintStream logger,
             TaskListener listener)
             throws IOException, InterruptedException {
         logInfo(computer, listener, "Verifying: " + checkCommand);
-        if (conn.exec(checkCommand, logger) != 0) {
+        if (executeRemote(clientSession, checkCommand, logger)) {
             logInfo(computer, listener, "Installing: " + command);
-            if (conn.exec(command, logger) != 0) {
+            if (executeRemote(clientSession, command, logger)) {
                 logWarning(computer, listener, "Failed to install: " + command);
                 return false;
             }
@@ -388,8 +456,8 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template)
             throws IOException, InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
-        Connection bootstrapConn = null;
-        try {
+        ClientSession bootstrapSession = null;
+        try (SshClient client = SshClient.setUpDefaultClient()) {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
@@ -406,12 +474,14 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
-                    bootstrapConn = connectToSsh(computer, listener, template);
-                    isAuthenticated = bootstrapConn.authenticateWithPublicKey(
-                            computer.getRemoteAdmin(), key.getKeyMaterial().toCharArray(), "");
+                    bootstrapSession = connectToSsh(client, computer, listener, template);
+                    bootstrapSession.addPublicKeyIdentity(PEMParser.decodeKeyPair(key.getKeyMaterial(), ""));
+                    bootstrapSession.auth().await(timeout);
+
+                    isAuthenticated = bootstrapSession.isAuthenticated();
                 } catch (IOException e) {
                     logException(computer, listener, "Exception trying to authenticate", e);
-                    bootstrapConn.close();
+                    bootstrapSession.close();
                 }
                 if (isAuthenticated) {
                     break;
@@ -424,20 +494,22 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 return false;
             }
         } finally {
-            if (bootstrapConn != null) {
-                bootstrapConn.close();
+            if (bootstrapSession != null) {
+                bootstrapSession.close();
             }
         }
         return true;
     }
 
-    private Connection connectToSsh(EC2Computer computer, TaskListener listener, SlaveTemplate template)
+    private ClientSession connectToSsh(
+            SshClient client, EC2Computer computer, TaskListener listener, SlaveTemplate template)
             throws AmazonClientException, InterruptedException {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
         while (true) {
             try {
+
                 long waitTime = System.currentTimeMillis() - startTime;
                 if (timeout > 0 && waitTime > timeout) {
                     throw new AmazonClientException("Timed out after " + (waitTime / 1000)
@@ -472,29 +544,35 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                         computer,
                         listener,
                         "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout + ".");
-                Connection conn = new Connection(host, port);
+
+                // Configure Host key verification
+                client.setServerKeyVerifier(new ServerKeyVerifierImpl(computer, listener));
+                client.start();
+
+                ConnectFuture connectFuture;
+
                 ProxyConfiguration proxyConfig = Jenkins.get().proxy;
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
                 if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
                     InetSocketAddress address = (InetSocketAddress) proxy.address();
-                    HTTPProxyData proxyData = null;
-                    if (null != proxyConfig.getUserName()) {
-                        proxyData = new HTTPProxyData(
-                                address.getHostName(),
-                                address.getPort(),
-                                proxyConfig.getUserName(),
-                                proxyConfig.getPassword());
-                    } else {
-                        proxyData = new HTTPProxyData(address.getHostName(), address.getPort());
-                    }
-                    conn.setProxyData(proxyData);
+                    String username = proxyConfig.getUserName();
+                    String password = proxyConfig.getPassword();
+
+                    client.setClientProxyConnector(new ProxyCONNECTListener(host, port, username, password));
+
+                    connectFuture = client.connect(computer.getRemoteAdmin(), address);
+
                     logInfo(computer, listener, "Using HTTP Proxy Configuration");
+                } else {
+                    connectFuture = client.connect(computer.getRemoteAdmin(), host, port);
                 }
 
-                conn.connect(
-                        new ServerHostKeyVerifierImpl(computer, listener), slaveConnectTimeout, slaveConnectTimeout);
+                ClientSession clientSession = connectFuture
+                        .verify(slaveConnectTimeout, TimeUnit.SECONDS) // successfully connected
+                        .getClientSession();
+
                 logInfo(computer, listener, "Connected via SSH.");
-                return conn; // successfully connected
+                return clientSession;
             } catch (IOException e) {
                 // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
@@ -517,24 +595,32 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     /**
      * Our host key verifier just pick up the right strategy and call its verify method.
      */
-    private static class ServerHostKeyVerifierImpl implements ServerHostKeyVerifier {
-
+    private static class ServerKeyVerifierImpl implements ServerKeyVerifier {
         private final EC2Computer computer;
         private final TaskListener listener;
 
-        public ServerHostKeyVerifierImpl(final EC2Computer computer, final TaskListener listener) {
+        public ServerKeyVerifierImpl(final EC2Computer computer, final TaskListener listener) {
             this.computer = computer;
             this.listener = listener;
         }
 
         @Override
-        public boolean verifyServerHostKey(
-                String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey) throws Exception {
+        public boolean verifyServerKey(ClientSession clientSession, SocketAddress remoteAddress, PublicKey serverKey) {
             SlaveTemplate template = computer.getSlaveTemplate();
-            return template != null
-                    && template.getHostKeyVerificationStrategy()
-                            .getStrategy()
-                            .verify(computer, new HostKey(serverHostKeyAlgorithm, serverHostKey), listener);
+            try {
+                return template != null
+                        && template.getHostKeyVerificationStrategy()
+                                .getStrategy()
+                                .verify(
+                                        computer,
+                                        new HostKey(serverKey.getAlgorithm(), serverKey.getEncoded()),
+                                        listener);
+            } catch (Exception exception) {
+                // false will trigger a SSHException which is a subclass of IOException.
+                // Therefore, it is not needed to throw a RuntimeException.
+                EC2Cloud.log(LOGGER, Level.WARNING, listener, "Unable to check the server key", exception);
+                return false;
+            }
         }
     }
 
@@ -542,19 +628,6 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
         return EC2HostAddressProvider.unix(instance, strategy);
-    }
-
-    private int waitCompletion(Session session) throws InterruptedException {
-        // I noticed that the exit status delivery often gets delayed. Wait up
-        // to 1 sec.
-        for (int i = 0; i < 10; i++) {
-            Integer r = session.getExitStatus();
-            if (r != null) {
-                return r;
-            }
-            Thread.sleep(100);
-        }
-        return -1;
     }
 
     @Override
