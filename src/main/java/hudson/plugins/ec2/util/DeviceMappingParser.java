@@ -23,11 +23,11 @@
  */
 package hudson.plugins.ec2.util;
 
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.EbsBlockDevice;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.lang.StringUtils;
+import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
 
 public class DeviceMappingParser {
 
@@ -42,17 +42,18 @@ public class DeviceMappingParser {
             String device = mappingPair[0];
             String blockDevice = mappingPair[1];
 
-            BlockDeviceMapping deviceMapping = new BlockDeviceMapping().withDeviceName(device);
+            BlockDeviceMapping.Builder deviceMappingBuilder =
+                    BlockDeviceMapping.builder().deviceName(device);
 
             if (blockDevice.equals("none")) {
-                deviceMapping.setNoDevice("none");
+                deviceMappingBuilder.noDevice("none");
             } else if (blockDevice.startsWith("ephemeral")) {
-                deviceMapping.setVirtualName(blockDevice);
+                deviceMappingBuilder.virtualName(blockDevice);
             } else {
-                deviceMapping.setEbs(parseEbs(blockDevice));
+                deviceMappingBuilder.ebs(parseEbs(blockDevice));
             }
 
-            deviceMappings.add(deviceMapping);
+            deviceMappings.add(deviceMappingBuilder.build());
         }
 
         return deviceMappings;
@@ -63,30 +64,30 @@ public class DeviceMappingParser {
 
         String[] parts = blockDevice.split(":");
 
-        EbsBlockDevice ebs = new EbsBlockDevice();
+        EbsBlockDevice.Builder ebsBuilder = EbsBlockDevice.builder();
         if (StringUtils.isNotBlank(getOrEmpty(parts, 0))) {
-            ebs.setSnapshotId(parts[0]);
+            ebsBuilder.snapshotId(parts[0]);
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 1))) {
-            ebs.setVolumeSize(Integer.valueOf(parts[1]));
+            ebsBuilder.volumeSize(Integer.valueOf(parts[1]));
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 2))) {
-            ebs.setDeleteOnTermination(Boolean.valueOf(parts[2]));
+            ebsBuilder.deleteOnTermination(Boolean.valueOf(parts[2]));
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 3))) {
-            ebs.setVolumeType(parts[3]);
+            ebsBuilder.volumeType(parts[3]);
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 4))) {
-            ebs.setIops(Integer.valueOf(parts[4]));
+            ebsBuilder.iops(Integer.valueOf(parts[4]));
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 5))) {
-            ebs.setEncrypted(parts[5].equals("encrypted"));
+            ebsBuilder.encrypted(parts[5].equals("encrypted"));
         }
         if (StringUtils.isNotBlank(getOrEmpty(parts, 6))) {
-            ebs.setThroughput(Integer.valueOf(parts[6]));
+            ebsBuilder.throughput(Integer.valueOf(parts[6]));
         }
 
-        return ebs;
+        return ebsBuilder.build();
     }
 
     private static String getOrEmpty(String[] arr, int idx) {

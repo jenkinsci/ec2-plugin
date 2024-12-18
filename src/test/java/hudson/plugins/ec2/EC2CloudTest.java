@@ -6,10 +6,6 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +20,10 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 @RunWith(MockitoJUnitRunner.class)
 public class EC2CloudTest {
@@ -46,7 +46,7 @@ public class EC2CloudTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -108,7 +108,7 @@ public class EC2CloudTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -153,7 +153,7 @@ public class EC2CloudTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -200,7 +200,7 @@ public class EC2CloudTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -262,11 +262,11 @@ public class EC2CloudTest {
                 "roleArn",
                 "roleSessionName");
         EC2Cloud spyCloud = Mockito.spy(cloud);
-        AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);
+        Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
         Jenkins mockJenkins = Mockito.mock(Jenkins.class);
         EC2AbstractSlave mockOrphanNode = Mockito.mock(EC2AbstractSlave.class);
         SlaveTemplate mockSlaveTemplate = Mockito.mock(SlaveTemplate.class);
-        DescribeInstancesResult mockedDIResult = Mockito.mock(DescribeInstancesResult.class);
+        DescribeInstancesResponse mockedDIResult = Mockito.mock(DescribeInstancesResponse.class);
         Instance mockedInstance = Mockito.mock(Instance.class);
         List<Instance> listOfMockedInstances = new ArrayList<>();
         listOfMockedInstances.add(mockedInstance);
@@ -293,20 +293,20 @@ public class EC2CloudTest {
             Mockito.doReturn(mockEc2).when(spyCloud).connect();
             Mockito.doReturn(mockedDIResult)
                     .when(mockSlaveTemplate)
-                    .getDescribeInstanceResult(Mockito.any(AmazonEC2.class), eq(true));
+                    .getDescribeInstanceResult(Mockito.any(Ec2Client.class), eq(true));
             Mockito.doReturn(listOfMockedInstances)
                     .when(mockSlaveTemplate)
                     .findOrphansOrStopped(eq(mockedDIResult), Mockito.anyInt());
             Mockito.doNothing()
                     .when(mockSlaveTemplate)
-                    .wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
+                    .wakeOrphansOrStoppedUp(Mockito.any(Ec2Client.class), eq(listOfMockedInstances));
 
             /* Actual call to test*/
             spyCloud.attemptReattachOrphanOrStoppedNodes(mockJenkins, mockSlaveTemplate, 1);
 
             /* Checks */
             Mockito.verify(mockSlaveTemplate, times(1))
-                    .wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
+                    .wakeOrphansOrStoppedUp(Mockito.any(Ec2Client.class), eq(listOfMockedInstances));
             Node[] expectedNodes = {mockOrphanNode};
             assertArrayEquals(expectedNodes, listOfJenkinsNodes.toArray());
         }
