@@ -1118,16 +1118,16 @@ public abstract class EC2Cloud extends Cloud {
     public static AwsCredentialsProvider createCredentialsProvider(
             final boolean useInstanceProfileForCredentials, final String credentialsId) {
         if (useInstanceProfileForCredentials) {
-            return InstanceProfileCredentialsProvider.builder().build();
+            return InstanceProfileCredentialsProvider.create();
         } else if (StringUtils.isBlank(credentialsId)) {
-            return DefaultCredentialsProvider.builder().build();
+            return DefaultCredentialsProvider.create();
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
             if (credentials != null) {
                 return StaticCredentialsProvider.create(credentials.resolveCredentials());
             }
         }
-        return DefaultCredentialsProvider.builder().build();
+        return DefaultCredentialsProvider.create();
     }
 
     public static AwsCredentialsProvider createCredentialsProvider(
