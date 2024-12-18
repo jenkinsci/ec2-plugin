@@ -25,6 +25,9 @@ public abstract class PEMParser {
         try (org.bouncycastle.openssl.PEMParser pemParser =
                 new org.bouncycastle.openssl.PEMParser(new StringReader(pem))) {
             Object object = pemParser.readObject();
+            if (object == null) {
+                throw new IllegalArgumentException("Failed to parse PEM input");
+            }
             JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
 
             if (object instanceof PEMEncryptedKeyPair) {
