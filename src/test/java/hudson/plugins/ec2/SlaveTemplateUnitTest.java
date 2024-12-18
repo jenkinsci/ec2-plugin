@@ -7,18 +7,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.BlockDeviceMapping;
-import com.amazonaws.services.ec2.model.CreateTagsResult;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Tag;
 import hudson.model.Node;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -36,6 +24,19 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
+import software.amazon.awssdk.services.ec2.model.CreateTagsResponse;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
+import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
+import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ec2.model.Image;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 public class SlaveTemplateUnitTest {
 
@@ -51,10 +52,18 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testUpdateRemoteTags() throws Exception {
-        AmazonEC2 ec2 = new AmazonEC2Client() {
+        Ec2Client ec2 = new Ec2Client() {
             @Override
-            public CreateTagsResult createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
+            public CreateTagsResponse createTags(CreateTagsRequest createTagsRequest) {
                 return null;
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public String serviceName() {
+                return "AmazonEC2";
             }
         };
 
@@ -75,7 +84,7 @@ public class SlaveTemplateUnitTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -121,11 +130,17 @@ public class SlaveTemplateUnitTest {
                 };
 
         ArrayList<Tag> awsTags = new ArrayList<>();
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
+        awsTags.add(Tag.builder()
+                .key(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                .value("value1")
+                .build());
+        awsTags.add(Tag.builder()
+                .key(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                .value("value2")
+                .build());
 
         Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod(
-                "updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
+                "updateRemoteTags", Ec2Client.class, Collection.class, String.class, String[].class);
         updateRemoteTags.setAccessible(true);
         final Object[] params = {ec2, awsTags, "InvalidInstanceRequestID.NotFound", new String[] {instanceId}};
         updateRemoteTags.invoke(orig, params);
@@ -134,13 +149,24 @@ public class SlaveTemplateUnitTest {
 
     @Test
     public void testUpdateRemoteTagsInstanceNotFound() throws Exception {
-        AmazonEC2 ec2 = new AmazonEC2Client() {
+        Ec2Client ec2 = new Ec2Client() {
             @Override
-            public CreateTagsResult createTags(com.amazonaws.services.ec2.model.CreateTagsRequest createTagsRequest) {
-                AmazonServiceException e =
-                        new AmazonServiceException("Instance not found - InvalidInstanceRequestID.NotFound");
-                e.setErrorCode("InvalidInstanceRequestID.NotFound");
+            public CreateTagsResponse createTags(CreateTagsRequest createTagsRequest) {
+                AwsServiceException e = AwsServiceException.builder()
+                        .message("Instance not found - InvalidInstanceRequestID.NotFound")
+                        .awsErrorDetails(AwsErrorDetails.builder()
+                                .errorCode("InvalidInstanceRequestID.NotFound")
+                                .build())
+                        .build();
                 throw e;
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public String serviceName() {
+                return "AmazonEC2";
             }
         };
 
@@ -161,7 +187,7 @@ public class SlaveTemplateUnitTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -207,11 +233,17 @@ public class SlaveTemplateUnitTest {
                 };
 
         ArrayList<Tag> awsTags = new ArrayList<>();
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value1"));
-        awsTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, "value2"));
+        awsTags.add(Tag.builder()
+                .key(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                .value("value1")
+                .build());
+        awsTags.add(Tag.builder()
+                .key(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                .value("value2")
+                .build());
 
         Method updateRemoteTags = SlaveTemplate.class.getDeclaredMethod(
-                "updateRemoteTags", AmazonEC2.class, Collection.class, String.class, String[].class);
+                "updateRemoteTags", Ec2Client.class, Collection.class, String.class, String[].class);
         updateRemoteTags.setAccessible(true);
         final Object[] params = {ec2, awsTags, "InvalidSpotInstanceRequestID.NotFound", new String[] {instanceId}};
         updateRemoteTags.invoke(orig, params);
@@ -219,7 +251,7 @@ public class SlaveTemplateUnitTest {
         assertEquals(5, handler.getRecords().size());
 
         for (LogRecord logRecord : handler.getRecords()) {
-            String log = logRecord.getMessage();
+            String log = logRecord.getThrown().getMessage();
             assertTrue(log.contains("Instance not found - InvalidInstanceRequestID.NotFound"));
         }
     }
@@ -244,7 +276,7 @@ public class SlaveTemplateUnitTest {
         Method makeDescribeImagesRequest = SlaveTemplate.class.getDeclaredMethod("makeDescribeImagesRequest");
         makeDescribeImagesRequest.setAccessible(true);
         if (shouldRaise) {
-            assertThrows(AmazonClientException.class, () -> {
+            assertThrows(SdkException.class, () -> {
                 try {
                     makeDescribeImagesRequest.invoke(template);
                 } catch (InvocationTargetException e) {
@@ -253,10 +285,10 @@ public class SlaveTemplateUnitTest {
             });
         } else {
             DescribeImagesRequest request = (DescribeImagesRequest) makeDescribeImagesRequest.invoke(template);
-            assertEquals(expectedImageIds, request.getImageIds());
-            assertEquals(expectedOwners, request.getOwners());
-            assertEquals(expectedUsers, request.getExecutableUsers());
-            assertEquals(expectedFilters, request.getFilters());
+            assertEquals(expectedImageIds, request.imageIds());
+            assertEquals(expectedOwners, request.owners());
+            assertEquals(expectedUsers, request.executableUsers());
+            assertEquals(expectedFilters, request.filters());
         }
     }
 
@@ -269,7 +301,7 @@ public class SlaveTemplateUnitTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -377,7 +409,10 @@ public class SlaveTemplateUnitTest {
         testFilters = Collections.singletonList(new EC2Filter("foo", "bar"));
         expectedOwners = Collections.singletonList("self");
         expectedUsers = Collections.singletonList("self");
-        expectedFilters = Collections.singletonList(new Filter("foo", Collections.singletonList("bar")));
+        expectedFilters = Collections.singletonList(Filter.builder()
+                .name("foo")
+                .values(Collections.singletonList("bar"))
+                .build());
         doTestMakeDescribeImagesRequest(
                 template,
                 testImageId,
@@ -422,8 +457,14 @@ public class SlaveTemplateUnitTest {
         // Make sure multiple filters pass through correctly
         testFilters = Arrays.asList(new EC2Filter("foo", "bar"), new EC2Filter("baz", "blah"));
         expectedFilters = Arrays.asList(
-                new Filter("foo", Collections.singletonList("bar")),
-                new Filter("baz", Collections.singletonList("blah")));
+                Filter.builder()
+                        .name("foo")
+                        .values(Collections.singletonList("bar"))
+                        .build(),
+                Filter.builder()
+                        .name("baz")
+                        .values(Collections.singletonList("blah"))
+                        .build());
         doTestMakeDescribeImagesRequest(
                 template,
                 testImageId,
@@ -446,7 +487,10 @@ public class SlaveTemplateUnitTest {
         };
         expectedOwners = Arrays.asList("self", "amazon");
         expectedUsers = Arrays.asList("self", "all");
-        expectedFilters = Collections.singletonList(new Filter("foo", Arrays.asList("a'quote", "s p a c e s")));
+        expectedFilters = Collections.singletonList(Filter.builder()
+                .name("foo")
+                .values(Arrays.asList("a'quote", "s p a c e s"))
+                .build());
 
         for (String[] entry : testCases) {
             logger.info("Multivalue test entry: [" + String.join(",", entry) + "]");
@@ -475,7 +519,7 @@ public class SlaveTemplateUnitTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -519,21 +563,21 @@ public class SlaveTemplateUnitTest {
                         return null;
                     }
                 };
-        List deviceMappings = new ArrayList();
-        deviceMappings.add(deviceMappings);
-
-        Image image = new Image();
-        image.setRootDeviceType("ebs");
-        BlockDeviceMapping blockDeviceMapping = new BlockDeviceMapping();
-        blockDeviceMapping.setEbs(new EbsBlockDevice());
-        image.getBlockDeviceMappings().add(blockDeviceMapping);
+        BlockDeviceMapping blockDeviceMapping = BlockDeviceMapping.builder()
+                .ebs(EbsBlockDevice.builder().build())
+                .build();
+        Image image = Image.builder()
+                .rootDeviceType("ebs")
+                .blockDeviceMappings(blockDeviceMapping)
+                .build();
+        List<BlockDeviceMapping> deviceMappings = new ArrayList<>(image.blockDeviceMappings());
         if (rootVolumeEnum instanceof EbsEncryptRootVolume) {
             template.ebsEncryptRootVolume = rootVolumeEnum;
         }
         Method setupRootDevice = SlaveTemplate.class.getDeclaredMethod("setupRootDevice", Image.class, List.class);
         setupRootDevice.setAccessible(true);
         setupRootDevice.invoke(template, image, deviceMappings);
-        return image.getBlockDeviceMappings().get(0).getEbs().getEncrypted();
+        return deviceMappings.get(0).ebs().encrypted();
     }
 
     @Test
@@ -568,7 +612,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -618,7 +662,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -672,7 +716,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -722,7 +766,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -772,7 +816,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -822,7 +866,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -872,7 +916,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -922,7 +966,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -972,7 +1016,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1024,7 +1068,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1081,7 +1125,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1138,7 +1182,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1196,7 +1240,7 @@ public class SlaveTemplateUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,

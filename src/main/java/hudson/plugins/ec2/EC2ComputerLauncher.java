@@ -23,13 +23,13 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * {@link ComputerLauncher} for EC2 that wraps the real user-specified {@link ComputerLauncher}.
@@ -44,7 +44,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
         try {
             EC2Computer computer = (EC2Computer) slaveComputer;
             launchScript(computer, listener);
-        } catch (AmazonClientException | IOException e) {
+        } catch (SdkException | IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
             if (slaveComputer.getNode() instanceof EC2AbstractSlave) {
                 LOGGER.log(
@@ -80,5 +80,5 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
      * Stage 2 of the launch. Called after the EC2 instance comes up.
      */
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
-            throws AmazonClientException, IOException, InterruptedException;
+            throws SdkException, IOException, InterruptedException;
 }

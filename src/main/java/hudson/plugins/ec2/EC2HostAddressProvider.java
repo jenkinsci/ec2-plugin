@@ -1,8 +1,8 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Instance;
 import java.util.Optional;
 import org.apache.commons.lang.StringUtils;
+import software.amazon.awssdk.services.ec2.model.Instance;
 
 public class EC2HostAddressProvider {
     public static String unix(Instance instance, ConnectionStrategy strategy) {
@@ -46,19 +46,19 @@ public class EC2HostAddressProvider {
     }
 
     private static String getPublicDnsName(Instance instance) {
-        return instance.getPublicDnsName();
+        return instance.publicDnsName();
     }
 
     private static String getPublicIpAddress(Instance instance) {
-        return instance.getPublicIpAddress();
+        return instance.publicIpAddress();
     }
 
     private static String getPrivateDnsName(Instance instance) {
-        return instance.getPrivateDnsName();
+        return instance.privateDnsName();
     }
 
     private static String getPrivateIpAddress(Instance instance) {
-        return instance.getPrivateIpAddress();
+        return instance.privateIpAddress();
     }
 
     private static Optional<String> filterNonEmpty(String value) {

@@ -23,11 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeRegionsResult;
-import com.amazonaws.services.ec2.model.Region;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
 import hudson.Util;
@@ -51,6 +46,11 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeRegionsResponse;
+import software.amazon.awssdk.services.ec2.model.Region;
 
 /**
  * The original implementation of {@link EC2Cloud}.
@@ -178,7 +178,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     }
 
     @Override
-    protected AWSCredentialsProvider createCredentialsProvider() {
+    protected AwsCredentialsProvider createCredentialsProvider() {
         return createCredentialsProvider(
                 isUseInstanceProfileForCredentials(),
                 getCredentialsId(),
@@ -229,14 +229,14 @@ public class AmazonEC2Cloud extends EC2Cloud {
             ListBoxModel model = new ListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 try {
-                    AWSCredentialsProvider credentialsProvider =
+                    AwsCredentialsProvider credentialsProvider =
                             createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
-                    AmazonEC2 client = AmazonEC2Factory.getInstance()
+                    Ec2Client client = AmazonEC2Factory.getInstance()
                             .connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
-                    DescribeRegionsResult regions = client.describeRegions();
-                    List<Region> regionList = regions.getRegions();
+                    DescribeRegionsResponse regions = client.describeRegions();
+                    List<Region> regionList = regions.regions();
                     for (Region r : regionList) {
-                        String name = r.getRegionName();
+                        String name = r.regionName();
                         model.add(name, name);
                     }
                 } catch (SdkClientException ex) {
