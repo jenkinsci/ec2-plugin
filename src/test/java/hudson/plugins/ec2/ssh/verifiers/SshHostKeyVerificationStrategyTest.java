@@ -369,16 +369,21 @@ public class SshHostKeyVerificationStrategyTest {
                             "tmpDir",
                             new ArrayList<>(),
                             "remote",
+                            EC2AbstractSlave.DEFAULT_JAVA_PATH,
                             "jvm",
                             false,
                             "idle",
                             null,
                             "cloud",
-                            false,
                             Integer.MAX_VALUE,
                             null,
                             ConnectionStrategy.PRIVATE_IP,
-                            -1) {
+                            -1,
+                            Tenancy.Default,
+                            EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                            EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                            EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                            EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
                         @Override
                         public void terminate() {}
 

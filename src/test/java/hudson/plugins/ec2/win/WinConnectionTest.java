@@ -17,7 +17,8 @@ public class WinConnectionTest {
         WinConnection connect = new WinConnection(
                 System.getProperty("winrm.host"),
                 System.getProperty("winrm.username", "Administrator"),
-                System.getProperty("winrm.password"));
+                System.getProperty("winrm.password"),
+                true);
         connect.setUseHTTPS(true);
         WindowsProcess process = connect.execute("dir c:\\");
         process.waitFor();
