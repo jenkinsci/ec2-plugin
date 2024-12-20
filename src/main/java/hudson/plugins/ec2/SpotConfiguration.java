@@ -1,13 +1,5 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.SpotPrice;
 import hudson.Extension;
 import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
@@ -15,15 +7,24 @@ import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.util.FormValidation;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Objects;
 import javax.servlet.ServletException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeSpotPriceHistoryRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSpotPriceHistoryResponse;
+import software.amazon.awssdk.services.ec2.model.Image;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.PlatformValues;
+import software.amazon.awssdk.services.ec2.model.SpotPrice;
 
 public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfiguration> {
     public final boolean useBidPrice;
@@ -156,9 +157,9 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
 
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
+            AwsCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
                     useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = AmazonEC2Factory.getInstance()
+            Ec2Client ec2 = AmazonEC2Factory.getInstance()
                     .connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {
@@ -166,13 +167,13 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                 try {
                     // Build a new price history request with the currently
                     // selected type
-                    DescribeSpotPriceHistoryRequest request = new DescribeSpotPriceHistoryRequest();
+                    DescribeSpotPriceHistoryRequest.Builder requestBuilder = DescribeSpotPriceHistoryRequest.builder();
                     // If a zone is specified, set the availability zone in the
                     // request
                     // Else, proceed with no availability zone which will result
                     // with the cheapest Spot price
                     if (CloudHelper.getAvailabilityZones(ec2).contains(zone)) {
-                        request.setAvailabilityZone(zone);
+                        requestBuilder.availabilityZone(zone);
                         zoneStr = zone + " availability zone";
                     } else {
                         zoneStr = region + " region";
@@ -204,27 +205,28 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                         Image img = CloudHelper.getAmiImage(ec2, ami);
                         if (img != null) {
                             Collection<String> productDescriptions = new ArrayList<>();
-                            productDescriptions.add("Windows".equals(img.getPlatform()) ? "Windows" : "Linux/UNIX");
-                            request.setProductDescriptions(productDescriptions);
+                            productDescriptions.add(
+                                    img.platform() == PlatformValues.WINDOWS ? "Windows" : "Linux/UNIX");
+                            requestBuilder.productDescriptions(productDescriptions);
                         }
                     }
 
-                    Collection<String> instanceType = new ArrayList<>();
-                    instanceType.add(ec2Type.toString());
-                    request.setInstanceTypes(instanceType);
-                    request.setStartTime(new Date());
+                    Collection<InstanceType> instanceType = new ArrayList<>();
+                    instanceType.add(ec2Type);
+                    requestBuilder.instanceTypes(instanceType);
+                    requestBuilder.startTime(Instant.now());
 
                     // Retrieve the price history request result and store the
                     // current price
-                    DescribeSpotPriceHistoryResult result = ec2.describeSpotPriceHistory(request);
+                    DescribeSpotPriceHistoryResponse result = ec2.describeSpotPriceHistory(requestBuilder.build());
 
-                    if (!result.getSpotPriceHistory().isEmpty()) {
-                        SpotPrice currentPrice = result.getSpotPriceHistory().get(0);
+                    if (!result.spotPriceHistory().isEmpty()) {
+                        SpotPrice currentPrice = result.spotPriceHistory().get(0);
 
-                        cp = currentPrice.getSpotPrice();
+                        cp = currentPrice.spotPrice();
                     }
 
-                } catch (AmazonServiceException e) {
+                } catch (AwsServiceException e) {
                     return FormValidation.error(e.getMessage());
                 }
             }

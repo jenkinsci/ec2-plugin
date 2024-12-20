@@ -9,7 +9,7 @@ jenkins:
           - description:
             ami: "ami-12345"
             labelString: "linux ubuntu"
-            type: "T2Micro"
+            type: "t2.micro"
             remoteFS: "/home/ec2-user"
             mode: "NORMAL"
             spotConfig:

@@ -9,7 +9,7 @@ jenkins:
           - description:
             ami: "ami-abc123"
             labelString: "windows vs2019"
-            type: "M5aLarge"
+            type: "m5a.large"
             remoteFS: "C:/jenkins"
             mode: "NORMAL"
             amiType:
