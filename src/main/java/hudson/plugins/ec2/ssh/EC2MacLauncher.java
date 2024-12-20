@@ -82,6 +82,7 @@ import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
+import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -229,6 +230,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             clientSession = cleanupClientSession;
 
             try (CloseableScpClient scp = createScpClient(clientSession)) {
+                String timestamp = Duration.ofMillis(System.currentTimeMillis()).toSeconds() + " 0";
+                ScpTimestampCommandDetails scpTimestamp =
+                        ScpTimestampCommandDetails.parse("T" + timestamp + " " + timestamp);
                 String initScript = node.initScript;
                 String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
@@ -243,7 +247,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                             initScript.getBytes(StandardCharsets.UTF_8),
                             tmpDir + "/init.sh",
                             List.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.OWNER_READ),
-                            null);
+                            scpTimestamp);
 
                     String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
                     try (ClientChannel channel = clientSession.createExecChannel(
@@ -338,7 +342,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                         Jenkins.get().getJnlpJars("remoting.jar").readFully(),
                         tmpDir + "/remoting.jar",
                         List.of(PosixFilePermission.OWNER_READ),
-                        null);
+                        scpTimestamp);
 
                 final String jvmopts = node.jvmopts;
                 final String prefix = computer.getSlaveCommandPrefix();
