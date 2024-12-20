@@ -55,6 +55,7 @@ import hudson.slaves.ComputerLauncher;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
@@ -250,7 +251,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     try (ClientChannel channel = clientSession.createExecChannel(
                             initCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
 
-                        channel.getInvertedIn().close(); // nothing to write here
+                        OutputStream invertedIn = channel.getInvertedIn();
+                        if (invertedIn != null) {
+                            invertedIn.close(); // nothing to write here
+                        }
                         channel.open().await(timeout);
 
                         Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
@@ -266,7 +270,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             return;
                         }
 
-                        channel.getInvertedErr().close(); // we are not supposed to get anything from stderr
+                        InputStream invertedErr = channel.getInvertedErr();
+                        if (invertedErr != null) {
+                            invertedErr.close(); // we are not supposed to get anything from stderr
+                        }
                         IOUtils.copy(channel.getInvertedOut(), logger);
                     }
 
@@ -275,7 +282,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
                     try (ClientChannel channel = clientSession.createExecChannel(
                             createHudsonRunInitCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
-                        channel.getInvertedIn().close(); // nothing to write here
+                        OutputStream invertedIn = channel.getInvertedIn();
+                        if (invertedIn != null) {
+                            invertedIn.close(); // nothing to write here
+                        }
                         channel.open().await(timeout);
 
                         Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
@@ -291,7 +301,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             return;
                         }
 
-                        channel.getInvertedErr().close(); // we are not supposed to get anything from stderr
+                        InputStream invertedErr = channel.getInvertedErr();
+                        if (invertedErr != null) {
+                            invertedErr.close(); // we are not supposed to get anything from stderr
+                        }
                         IOUtils.copy(channel.getInvertedOut(), logger);
                     }
                 }
