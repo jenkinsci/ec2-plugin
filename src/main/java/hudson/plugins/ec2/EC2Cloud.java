@@ -58,7 +58,6 @@ import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.common.AbstractIdCredentialsListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -1127,8 +1126,8 @@ public abstract class EC2Cloud extends Cloud {
             return null;
         }
         return CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(
-                        AmazonWebServicesCredentials.class, Jenkins.get(), ACL.SYSTEM, Collections.emptyList()),
+                CredentialsProvider.lookupCredentialsInItemGroup(
+                        AmazonWebServicesCredentials.class, Jenkins.get(), ACL.SYSTEM2, Collections.emptyList()),
                 CredentialsMatchers.withId(credentialsId));
     }
 
@@ -1281,16 +1280,16 @@ public abstract class EC2Cloud extends Cloud {
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 result = result.includeEmptyValue()
                         .includeMatchingAs(
-                                Jenkins.getAuthentication(),
+                                Jenkins.getAuthentication2(),
                                 context,
                                 SSHUserPrivateKey.class,
-                                Collections.<DomainRequirement>emptyList(),
+                                Collections.emptyList(),
                                 CredentialsMatchers.always())
                         .includeMatchingAs(
-                                ACL.SYSTEM,
+                                ACL.SYSTEM2,
                                 context,
                                 SSHUserPrivateKey.class,
-                                Collections.<DomainRequirement>emptyList(),
+                                Collections.emptyList(),
                                 CredentialsMatchers.always())
                         .includeCurrentValue(sshKeysCredentialsId);
             }
@@ -1479,7 +1478,7 @@ public abstract class EC2Cloud extends Cloud {
             return new StandardListBoxModel()
                     .includeEmptyValue()
                     .includeMatchingAs(
-                            ACL.SYSTEM,
+                            ACL.SYSTEM2,
                             context,
                             AmazonWebServicesCredentials.class,
                             Collections.emptyList(),

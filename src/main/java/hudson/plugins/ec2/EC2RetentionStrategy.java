@@ -264,7 +264,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             return false;
         }
         final Label selfLabel = selfNode.getSelfLabel();
-        Queue.Item[] items = Jenkins.getInstance().getQueue().getItems();
+        Queue.Item[] items = Jenkins.get().getQueue().getItems();
         for (Queue.Item item : items) {
             final Label assignedLabel = item.getAssignedLabel();
             if (assignedLabel == selfLabel) {
