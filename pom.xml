@@ -109,6 +109,14 @@ THE SOFTWARE.
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>io.jenkins.plugins.mina-sshd-api</groupId>
+      <artifactId>mina-sshd-api-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins.mina-sshd-api</groupId>
+      <artifactId>mina-sshd-api-scp</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>apache-httpcomponents-client-4-api</artifactId>
     </dependency>
@@ -136,10 +144,6 @@ THE SOFTWARE.
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>trilead-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
