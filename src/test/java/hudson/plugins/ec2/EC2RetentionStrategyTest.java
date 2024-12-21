@@ -44,11 +44,11 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import jenkins.util.NonLocalizable;
-import org.acegisecurity.Authentication;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.springframework.security.core.Authentication;
 
 public class EC2RetentionStrategyTest {
 
@@ -140,7 +140,7 @@ public class EC2RetentionStrategyTest {
             public ACL getACL() {
                 return new ACL() {
                     @Override
-                    public boolean hasPermission(@NonNull Authentication a, @NonNull Permission permission) {
+                    public boolean hasPermission2(@NonNull Authentication a, @NonNull Permission permission) {
                         return true;
                     }
                 };
