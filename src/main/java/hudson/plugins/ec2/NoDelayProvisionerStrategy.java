@@ -39,13 +39,13 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         if (availableCapacity < currentDemand) {
             Jenkins jenkinsInstance = Jenkins.get();
             for (Cloud cloud : jenkinsInstance.clouds) {
-                if (!(cloud instanceof AmazonEC2Cloud)) {
+                if (!(cloud instanceof EC2Cloud)) {
                     continue;
                 }
                 if (!cloud.canProvision(label)) {
                     continue;
                 }
-                AmazonEC2Cloud ec2 = (AmazonEC2Cloud) cloud;
+                EC2Cloud ec2 = (EC2Cloud) cloud;
                 if (!ec2.isNoDelayProvisioning()) {
                     continue;
                 }

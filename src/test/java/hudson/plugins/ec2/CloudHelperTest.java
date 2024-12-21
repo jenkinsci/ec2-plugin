@@ -23,11 +23,11 @@ import org.mockito.stubbing.Answer;
 public class CloudHelperTest {
 
     @Mock
-    private AmazonEC2Cloud cloud;
+    private EC2Cloud cloud;
 
     @Before
     public void init() throws Exception {
-        cloud = new AmazonEC2Cloud(
+        cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",

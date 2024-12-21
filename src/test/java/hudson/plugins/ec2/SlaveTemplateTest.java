@@ -152,8 +152,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -222,8 +221,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -299,8 +297,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -371,8 +368,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -436,8 +432,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -499,8 +494,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -570,18 +564,13 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(slaveTemplate);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.configRoundtrip();
 
-        MinimumNumberOfInstancesTimeRangeConfig stored = r.jenkins
-                .clouds
-                .get(AmazonEC2Cloud.class)
-                .getTemplates()
-                .get(0)
-                .getMinimumNumberOfInstancesTimeRangeConfig();
+        MinimumNumberOfInstancesTimeRangeConfig stored =
+                r.jenkins.clouds.get(EC2Cloud.class).getTemplates().get(0).getMinimumNumberOfInstancesTimeRangeConfig();
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
@@ -921,7 +910,7 @@ public class SlaveTemplateTest {
     }
 
     private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
-        AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
+        EC2Cloud mockedCloud = mock(EC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
         KeyPair mockedKeyPair = new KeyPair();
@@ -1029,8 +1018,7 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -1134,12 +1122,12 @@ public class SlaveTemplateTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(broken);
         templates.add(working);
-        AmazonEC2Cloud brokenCloud =
-                new AmazonEC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud brokenCloud =
+                new EC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         assertThat(broken.getSlaveName("test"), is("test"));
         assertThat(working.getSlaveName("test"), is("test"));
-        AmazonEC2Cloud workingCloud =
-                new AmazonEC2Cloud("cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud workingCloud =
+                new EC2Cloud("cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         assertThat(broken.getSlaveName("test"), is("test"));
         assertThat(working.getSlaveName("test"), is("EC2 (cloud) - working (test)"));
     }
@@ -1195,8 +1183,7 @@ public class SlaveTemplateTest {
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
@@ -1453,7 +1440,7 @@ public class SlaveTemplateTest {
         assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
-    private HtmlForm getConfigForm(AmazonEC2Cloud ac) throws IOException, SAXException {
+    private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
     }
 }

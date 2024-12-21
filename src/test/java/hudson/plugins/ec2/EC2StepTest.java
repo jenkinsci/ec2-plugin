@@ -37,7 +37,7 @@ public class EC2StepTest {
     public JenkinsRule r = new JenkinsRule();
 
     @Mock
-    private AmazonEC2Cloud cl;
+    private EC2Cloud cl;
 
     @Mock
     private SlaveTemplate st;

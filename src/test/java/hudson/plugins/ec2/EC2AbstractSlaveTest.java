@@ -117,8 +117,7 @@ public class EC2AbstractSlaveTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         String cloudName = "us-east-1";
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud(cloudName, false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud(cloudName, false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
         EC2AbstractSlave slave =
                 new EC2AbstractSlave(

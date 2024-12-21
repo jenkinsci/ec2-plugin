@@ -2841,8 +2841,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
-                ec2 = AmazonEC2Factory.getInstance()
-                        .connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.getEc2EndpointUrl(region));
             } else {
                 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, new URL(ec2endpoint));
             }

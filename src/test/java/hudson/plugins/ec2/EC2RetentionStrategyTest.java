@@ -777,7 +777,7 @@ public class EC2RetentionStrategyTest {
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -900,7 +900,7 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock =
                 Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -999,7 +999,7 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock =
                 Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -1084,7 +1084,7 @@ public class EC2RetentionStrategyTest {
         MinimumInstanceChecker.clock =
                 Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -1183,7 +1183,7 @@ public class EC2RetentionStrategyTest {
                 Clock.fixed(localDateTime.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",

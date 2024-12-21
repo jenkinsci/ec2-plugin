@@ -33,8 +33,7 @@
 # Introduction
 
 Allow Jenkins to start agents on
-[EC2](http://aws.amazon.com/ec2/) or
-[Eucalyptus](https://www.eucalyptus.cloud/) on demand, and
+[EC2](http://aws.amazon.com/ec2/) on demand, and
 kill them as they get unused.  
 
 With this plugin, if Jenkins notices that your build cluster is
@@ -299,7 +298,7 @@ import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl
 import com.cloudbees.plugins.credentials.*
 import com.cloudbees.plugins.credentials.domains.Domain
 import hudson.model.*
-import hudson.plugins.ec2.AmazonEC2Cloud
+import hudson.plugins.ec2.EC2Cloud
 import hudson.plugins.ec2.AMITypeData
 import hudson.plugins.ec2.EC2Tag
 import hudson.plugins.ec2.SlaveTemplate
@@ -363,7 +362,7 @@ def slaveTemplateUsEast1Parameters = [
   nodeProperties:                null
 ]
 
-def AmazonEC2CloudParameters = [
+def EC2CloudParameters = [
   name:      'MyCompany',
   credentialsId:  'jenkins-aws-key',
   instanceCapStr: '2',
@@ -462,14 +461,14 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.metadataHopsLimit,
 )
 
-// https://javadoc.jenkins.io/plugin/ec2/index.html?hudson/plugins/ec2/AmazonEC2Cloud.html
-AmazonEC2Cloud amazonEC2Cloud = new AmazonEC2Cloud(
-  AmazonEC2CloudParameters.name,
-  AmazonEC2CloudParameters.useInstanceProfileForCredentials,
-  AmazonEC2CloudParameters.credentialsId,
-  AmazonEC2CloudParameters.region,
-  AmazonEC2CloudParameters.privateKey,
-  AmazonEC2CloudParameters.instanceCapStr,
+// https://javadoc.jenkins.io/plugin/ec2/hudson/plugins/ec2/EC2Cloud.html
+EC2Cloud ec2Cloud = new EC2Cloud(
+  EC2CloudParameters.name,
+  EC2CloudParameters.useInstanceProfileForCredentials,
+  EC2CloudParameters.credentialsId,
+  EC2CloudParameters.region,
+  EC2CloudParameters.privateKey,
+  EC2CloudParameters.instanceCapStr,
   [slaveTemplateUsEast1],
   '',
   ''
@@ -488,7 +487,7 @@ def store = jenkins.getExtensionList('com.cloudbees.plugins.credentials.SystemCr
 store.addCredentials(domain, aWSCredentialsImpl)
 
 // add cloud configuration to Jenkins
-jenkins.clouds.add(amazonEC2Cloud)
+jenkins.clouds.add(ec2Cloud)
 
 // save current Jenkins state to disk
 jenkins.save()
@@ -504,7 +503,7 @@ Example:
 ```java
  // Assuming on the Jenkins instance, there exists an EC2Cloud with the name "AwsCloud"
 
- AmazonEC2Cloud cloud = (AmazonEC2Cloud) Jenkins.get().clouds.stream().filter(cloud1 -> Objects.equals(cloud.getDisplayName(), "AwsCloud")).findFirst().get();
+ EC2Cloud cloud = (EC2Cloud) Jenkins.get().clouds.stream().filter(cloud1 -> Objects.equals(cloud.getDisplayName(), "AwsCloud")).findFirst().get();
  
  SlaveTemplate template = new SlaveTemplate(/*constructor*/); // View available constructors at https://github.com/jenkinsci/ec2-plugin/blob/master/src/main/java/hudson/plugins/ec2/SlaveTemplate.java
  

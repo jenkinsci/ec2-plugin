@@ -31,7 +31,7 @@ public class FileBasedSSHKeyTest {
     }
 
     private static void verifyCorrectKeyIsResolved(JenkinsRule r) throws Throwable {
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -43,7 +43,7 @@ public class FileBasedSSHKeyTest {
                 "roleArn",
                 "roleSessionName");
         r.jenkins.clouds.add(cloud);
-        AmazonEC2Cloud c = r.jenkins.clouds.get(AmazonEC2Cloud.class);
+        EC2Cloud c = r.jenkins.clouds.get(EC2Cloud.class);
         assertEquals("An unexpected key was returned!", c.resolvePrivateKey().getPrivateKey(), "hello, world!");
     }
 }
