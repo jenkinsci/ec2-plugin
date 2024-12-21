@@ -1041,8 +1041,8 @@ public abstract class EC2AbstractSlave extends Slave {
         ListBoxModel model = new ListBoxModel();
 
         if (!StringUtils.isEmpty(region)) {
-            AmazonEC2 client = AmazonEC2Factory.getInstance()
-                    .connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 client =
+                    AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.getEc2EndpointUrl(region));
             DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
             List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
             model.add("<not specified>", "");

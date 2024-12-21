@@ -158,8 +158,8 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
             // region queried from the created cloud
             AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
                     useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = AmazonEC2Factory.getInstance()
-                    .connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AmazonEC2 ec2 =
+                    AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {
 
