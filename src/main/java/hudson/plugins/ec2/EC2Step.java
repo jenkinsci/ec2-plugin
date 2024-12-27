@@ -99,10 +99,7 @@ public class EC2Step extends Step {
             Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
             r.add("", "");
-            Jenkins.get()
-                    .clouds
-                    .getAll(AmazonEC2Cloud.class)
-                    .forEach(c -> r.add(c.getDisplayName(), c.getDisplayName()));
+            Jenkins.get().clouds.getAll(EC2Cloud.class).forEach(c -> r.add(c.getDisplayName(), c.getDisplayName()));
             return r;
         }
 
@@ -111,8 +108,8 @@ public class EC2Step extends Step {
             Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
             Cloud cloud = Jenkins.get().getCloud(Util.fixEmpty(cloudName));
-            if (cloud instanceof AmazonEC2Cloud) {
-                AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) cloud;
+            if (cloud instanceof EC2Cloud) {
+                EC2Cloud ec2Cloud = (EC2Cloud) cloud;
                 for (SlaveTemplate template : ec2Cloud.getTemplates()) {
                     for (String labelList : template.labels.split(" ")) {
                         r.add(
@@ -144,9 +141,9 @@ public class EC2Step extends Step {
         @Override
         protected Instance run() throws Exception {
             Cloud cl = getByDisplayName(jenkins.model.Jenkins.get().clouds, this.cloud);
-            if (cl instanceof AmazonEC2Cloud) {
+            if (cl instanceof EC2Cloud) {
                 SlaveTemplate t;
-                t = ((AmazonEC2Cloud) cl).getTemplate(this.template);
+                t = ((EC2Cloud) cl).getTemplate(this.template);
                 if (t != null) {
                     SlaveTemplate.ProvisionOptions universe = SlaveTemplate.ProvisionOptions.ALLOW_CREATE;
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
@@ -159,7 +156,7 @@ public class EC2Step extends Step {
                     }
 
                     EC2AbstractSlave slave = instances.get(0);
-                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (AmazonEC2Cloud) cl);
+                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (EC2Cloud) cl);
                 } else {
                     throw new IllegalArgumentException(
                             "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");

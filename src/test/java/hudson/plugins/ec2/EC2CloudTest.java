@@ -1,35 +1,73 @@
+/*
+ * The MIT License
+ *
+ * Copyright (c) 2004-, Kohsuke Kawaguchi, Sun Microsystems, Inc., and a number of other of contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
 
 import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceType;
-import hudson.model.Node;
-import java.util.ArrayList;
-import java.util.Arrays;
+import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.CredentialsStore;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import hudson.plugins.ec2.util.TestSSHUserPrivateKey;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import jenkins.model.Jenkins;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlTextInput;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.MockedStatic;
+import org.jvnet.hudson.test.Issue;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
+import org.xml.sax.SAXException;
 
-@RunWith(MockitoJUnitRunner.class)
+/**
+ * @author Kohsuke Kawaguchi
+ */
 public class EC2CloudTest {
-    @Test
-    public void testSlaveTemplateAddition() throws Exception {
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
+
+    private EC2Cloud cloud;
+
+    @Before
+    public void setUp() throws Exception {
+        cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -40,275 +78,136 @@ public class EC2CloudTest {
                 Collections.emptyList(),
                 "roleArn",
                 "roleSessionName");
-        SlaveTemplate orig = new SlaveTemplate(
-                "ami-123",
-                EC2AbstractSlave.TEST_ZONE,
-                null,
-                "default",
-                "foo",
-                InstanceType.M1Large,
-                false,
-                "ttt",
-                Node.Mode.NORMAL,
-                "description",
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "subnet 456",
-                null,
-                null,
-                0,
-                0,
-                null,
-                "iamInstanceProfile",
-                true,
-                false,
-                "",
-                false,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.PUBLIC_IP,
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
-        cloud.addTemplate(orig);
-        assertNotNull(cloud.getTemplate(orig.description));
+        r.jenkins.clouds.add(cloud);
     }
 
     @Test
-    public void testSlaveTemplateUpdate() throws Exception {
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
-                "us-east-1",
-                true,
-                "abc",
-                "us-east-1",
-                null,
-                "ghi",
-                "3",
-                Collections.emptyList(),
-                "roleArn",
-                "roleSessionName");
-        SlaveTemplate oldSlaveTemplate = new SlaveTemplate(
-                "ami-123",
-                EC2AbstractSlave.TEST_ZONE,
-                null,
-                "default",
-                "foo",
-                InstanceType.M1Large,
-                false,
-                "ttt",
-                Node.Mode.NORMAL,
-                "OldSlaveDescription",
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "subnet 456",
-                null,
-                null,
-                0,
-                0,
-                null,
-                "iamInstanceProfile",
-                true,
-                false,
-                "",
-                false,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.PUBLIC_IP,
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
-        SlaveTemplate secondSlaveTemplate = new SlaveTemplate(
-                "ami-123",
-                EC2AbstractSlave.TEST_ZONE,
-                null,
-                "default",
-                "foo",
-                InstanceType.M1Large,
-                false,
-                "ttt",
-                Node.Mode.NORMAL,
-                "SecondSlaveDescription",
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "subnet 456",
-                null,
-                null,
-                0,
-                0,
-                null,
-                "iamInstanceProfile",
-                true,
-                false,
-                "",
-                false,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.PUBLIC_IP,
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
-        cloud.addTemplate(oldSlaveTemplate);
-        cloud.addTemplate(secondSlaveTemplate);
-        SlaveTemplate newSlaveTemplate = new SlaveTemplate(
-                "ami-456",
-                EC2AbstractSlave.TEST_ZONE,
-                null,
-                "default",
-                "foo",
-                InstanceType.M1Large,
-                false,
-                "ttt",
-                Node.Mode.NORMAL,
-                "NewSlaveDescription",
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "subnet 456",
-                null,
-                null,
-                0,
-                0,
-                null,
-                "iamInstanceProfile",
-                true,
-                false,
-                "",
-                false,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.PUBLIC_IP,
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
-        int index = cloud.getTemplates().indexOf(oldSlaveTemplate);
-
-        cloud.updateTemplate(newSlaveTemplate, "OldSlaveDescription");
-        assertNull(cloud.getTemplate("OldSlaveDescription"));
-        assertNotNull(cloud.getTemplate("NewSlaveDescription"));
-        Assert.assertEquals(index, cloud.getTemplates().indexOf(newSlaveTemplate)); // assert order of templates is kept
+    public void testConfigRoundtrip() throws Exception {
+        r.submit(getConfigForm());
+        r.assertEqualBeans(
+                cloud,
+                r.jenkins.clouds.get(EC2Cloud.class),
+                "name,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
     @Test
-    public void testReattachOrphanStoppedNodes() throws Exception {
-        /* Mocked items */
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
-                "us-east-1",
-                true,
-                "abc",
-                "us-east-1",
-                null,
+    public void testAmazonEC2FactoryGetInstance() throws Exception {
+        EC2Cloud cloud = r.jenkins.clouds.get(EC2Cloud.class);
+        AmazonEC2 connection = cloud.connect();
+        Assert.assertNotNull(connection);
+        Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
+    }
+
+    @Test
+    public void testAmazonEC2FactoryWorksIfSessionNameMissing() throws Exception {
+        r.jenkins.clouds.replace(new EC2Cloud(
+                "us-east-1", true, "abc", "us-east-1", null, "ghi", "3", Collections.emptyList(), "roleArn", null));
+        EC2Cloud cloud = r.jenkins.clouds.get(EC2Cloud.class);
+        AmazonEC2 connection = cloud.connect();
+        Assert.assertNotNull(connection);
+        Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
+    }
+
+    @Test
+    public void testSessionNameMissingWarning() {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertThat(descriptor.doCheckRoleSessionName("roleArn", "").kind, is(FormValidation.Kind.WARNING));
+        assertThat(descriptor.doCheckRoleSessionName("roleArn", "roleSessionName").kind, is(FormValidation.Kind.OK));
+    }
+
+    @Test
+    public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
+        HtmlForm form = getConfigForm();
+        HtmlTextInput input = form.getInputByName("_.roleSessionName");
+
+        input.setText("updatedSessionName");
+        r.submit(form);
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        assertEquals("updatedSessionName", actual.getRoleSessionName());
+        r.assertEqualBeans(
+                cloud, actual, "name,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
+    }
+
+    @Test
+    public void testAWSCredentials() throws IOException {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertNotNull(descriptor);
+        ListBoxModel m = descriptor.doFillCredentialsIdItems(Jenkins.get());
+        assertThat(m.size(), is(1));
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.SYSTEM, "system_id", "system_ak", "system_sk", "system_desc"));
+        // Ensure added credential is displayed
+        m = descriptor.doFillCredentialsIdItems(Jenkins.get());
+        assertThat(m.size(), is(2));
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.GLOBAL, "global_id", "global_ak", "global_sk", "global_desc"));
+        m = descriptor.doFillCredentialsIdItems(Jenkins.get());
+        assertThat(m.size(), is(3));
+    }
+
+    @Test
+    public void testSshCredentials() throws IOException {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertNotNull(descriptor);
+        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
+        assertThat(m.size(), is(1));
+        BasicSSHUserPrivateKey sshKeyCredentials = new BasicSSHUserPrivateKey(
+                CredentialsScope.SYSTEM,
                 "ghi",
-                "3",
-                Collections.emptyList(),
-                "roleArn",
-                "roleSessionName");
-        EC2Cloud spyCloud = Mockito.spy(cloud);
-        AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);
-        Jenkins mockJenkins = Mockito.mock(Jenkins.class);
-        EC2AbstractSlave mockOrphanNode = Mockito.mock(EC2AbstractSlave.class);
-        SlaveTemplate mockSlaveTemplate = Mockito.mock(SlaveTemplate.class);
-        DescribeInstancesResult mockedDIResult = Mockito.mock(DescribeInstancesResult.class);
-        Instance mockedInstance = Mockito.mock(Instance.class);
-        List<Instance> listOfMockedInstances = new ArrayList<>();
-        listOfMockedInstances.add(mockedInstance);
-
-        try (MockedStatic<Jenkins> mocked = Mockito.mockStatic(Jenkins.class)) {
-            mocked.when(Jenkins::getInstanceOrNull).thenReturn(mockJenkins);
-            EC2AbstractSlave[] orphanNodes = {mockOrphanNode};
-            Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(eq(listOfMockedInstances));
-            List<Node> listOfJenkinsNodes = new ArrayList<>();
-
-            Mockito.doAnswer(new Answer<Void>() {
-                        @Override
-                        public Void answer(InvocationOnMock invocation) {
-                            Node n = (Node) invocation.getArguments()[0];
-                            listOfJenkinsNodes.add(n);
-                            return null;
-                        }
-                    })
-                    .when(mockJenkins)
-                    .addNode(Mockito.any(Node.class));
-
-            Mockito.doReturn(null).when(mockOrphanNode).toComputer();
-            Mockito.doReturn(false).when(mockOrphanNode).getStopOnTerminate();
-            Mockito.doReturn(mockEc2).when(spyCloud).connect();
-            Mockito.doReturn(mockedDIResult)
-                    .when(mockSlaveTemplate)
-                    .getDescribeInstanceResult(Mockito.any(AmazonEC2.class), eq(true));
-            Mockito.doReturn(listOfMockedInstances)
-                    .when(mockSlaveTemplate)
-                    .findOrphansOrStopped(eq(mockedDIResult), Mockito.anyInt());
-            Mockito.doNothing()
-                    .when(mockSlaveTemplate)
-                    .wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
-
-            /* Actual call to test*/
-            spyCloud.attemptReattachOrphanOrStoppedNodes(mockJenkins, mockSlaveTemplate, 1);
-
-            /* Checks */
-            Mockito.verify(mockSlaveTemplate, times(1))
-                    .wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
-            Node[] expectedNodes = {mockOrphanNode};
-            assertArrayEquals(expectedNodes, listOfJenkinsNodes.toArray());
+                "key",
+                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"),
+                "",
+                "");
+        for (CredentialsStore credentialsStore : CredentialsProvider.lookupStores(r.jenkins)) {
+            if (credentialsStore instanceof SystemCredentialsProvider.StoreImpl) {
+                credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
+            }
         }
+        // Ensure added credential is displayed
+        m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
+        assertThat(m.size(), is(2));
+        // Ensure that the cloud can resolve the new key
+        assertThat(actual.resolvePrivateKey(), notNullValue());
+    }
+
+    /**
+     * Ensure that EC2 plugin can use any implementation of SSHUserPrivateKey (not just the default implementation, BasicSSHUserPrivateKey).
+     */
+    @Test
+    @Issue("JENKINS-63986")
+    public void testCustomSshCredentialTypes() throws IOException {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
+        assertNotNull(descriptor);
+        ListBoxModel m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
+        assertThat(m.size(), is(1));
+        SSHUserPrivateKey sshKeyCredentials = new TestSSHUserPrivateKey(
+                CredentialsScope.SYSTEM,
+                "ghi",
+                "key",
+                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource("somekey"),
+                "",
+                "");
+        for (CredentialsStore credentialsStore : CredentialsProvider.lookupStores(r.jenkins)) {
+            if (credentialsStore instanceof SystemCredentialsProvider.StoreImpl) {
+                credentialsStore.addCredentials(Domain.global(), sshKeyCredentials);
+            }
+        }
+        // Ensure added credential is displayed
+        m = descriptor.doFillSshKeysCredentialsIdItems(Jenkins.get(), "");
+        assertThat(m.size(), is(2));
+        // Ensure that the cloud can resolve the new key
+        assertThat(actual.resolvePrivateKey(), notNullValue());
+    }
+
+    private HtmlForm getConfigForm() throws IOException, SAXException {
+        return r.createWebClient().goTo(cloud.getUrl() + "configure").getFormByName("config");
     }
 }
