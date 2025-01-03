@@ -1,6 +1,5 @@
 package hudson.plugins.ec2.util;
 
-import com.amazonaws.AmazonClientException;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -15,6 +14,7 @@ import hudson.plugins.ec2.Tenancy;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.List;
+import software.amazon.awssdk.core.exception.SdkException;
 
 @Extension
 public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
@@ -259,7 +259,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         }
 
         @Override
-        public long getUptime() throws AmazonClientException {
+        public long getUptime() throws SdkException {
             return 3500000;
         }
     }
