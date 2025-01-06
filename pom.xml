@@ -156,11 +156,6 @@ THE SOFTWARE.
       <artifactId>workflow-step-api</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.kohsuke</groupId>
-      <artifactId>libzfs</artifactId>
-      <version>0.8</version>
-    </dependency>
-    <dependency>
       <groupId>io.jenkins</groupId>
       <artifactId>configuration-as-code</artifactId>
       <scope>test</scope>
