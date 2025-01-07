@@ -330,7 +330,10 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 scp.upload(
                         Jenkins.get().getJnlpJars("remoting.jar").readFully(),
                         tmpDir + "/remoting.jar",
-                        List.of(PosixFilePermission.OWNER_READ),
+                        List.of(
+                                PosixFilePermission.OWNER_READ,
+                                PosixFilePermission.GROUP_READ,
+                                PosixFilePermission.OTHERS_READ),
                         scpTimestamp);
 
                 final String jvmopts = node.jvmopts;
