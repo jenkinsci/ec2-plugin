@@ -626,15 +626,16 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
         @Override
         public boolean verifyServerKey(ClientSession clientSession, SocketAddress remoteAddress, PublicKey serverKey) {
+            String sshAlgorithm = KeyHelper.getSshAlgorithm(serverKey);
+            if (sshAlgorithm == null) {
+                return false;
+            }
             SlaveTemplate template = computer.getSlaveTemplate();
             try {
                 return template != null
                         && template.getHostKeyVerificationStrategy()
                                 .getStrategy()
-                                .verify(
-                                        computer,
-                                        new HostKey(serverKey.getAlgorithm(), serverKey.getEncoded()),
-                                        listener);
+                                .verify(computer, new HostKey(sshAlgorithm, serverKey.getEncoded()), listener);
             } catch (Exception exception) {
                 // false will trigger a SSHException which is a subclass of IOException.
                 // Therefore, it is not needed to throw a RuntimeException.

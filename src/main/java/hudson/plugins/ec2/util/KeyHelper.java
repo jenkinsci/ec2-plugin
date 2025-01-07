@@ -7,7 +7,11 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECField;
+import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPrivateKeySpec;
+import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -85,6 +89,43 @@ public abstract class KeyHelper {
             }
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             return null;
+        }
+    }
+
+    /**
+     * Determines the SSH algorithm identifier corresponding to the given server public key.
+     * This method matches the key type to the appropriate SSH algorithm string.
+     * When an {@link ECPublicKey} is given, an NIST curse will be assumed.
+     *
+     * @param serverKey The server's {@link PublicKey} object for which the SSH algorithm identifier
+     *                  needs to be determined.
+     * @return A {@code String} representing the SSH algorithm identifier for the given server key,
+     *         or {@code null} if the key type is unsupported or cannot be determined.
+     */
+    public static String getSshAlgorithm(PublicKey serverKey) {
+        switch (serverKey.getAlgorithm()) {
+            case "RSA":
+                return "ssh-rsa";
+            case "EC":
+                if (serverKey instanceof ECPublicKey) {
+                    ECPublicKey ecPublicKey = (ECPublicKey) serverKey;
+                    ECParameterSpec params = ecPublicKey.getParams();
+                    if (params != null) {
+
+                        EllipticCurve curve = params.getCurve();
+                        ECField field = (curve != null) ? curve.getField() : null;
+                        if (field != null) {
+                            int fieldSize = field.getFieldSize();
+                            // Assume NIST curve
+                            return "ecdsa-sha2-nistp" + fieldSize;
+                        }
+                    }
+                }
+                return null;
+            case "EdDSA":
+                return "ssh-ed25519";
+            default:
+                return null;
         }
     }
 }
