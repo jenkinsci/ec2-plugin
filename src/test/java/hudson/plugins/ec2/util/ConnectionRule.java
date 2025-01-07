@@ -73,7 +73,7 @@ public class ConnectionRule extends ExternalResource {
         ConnectFuture connectFuture = sshClient.connect(USER, ip, port);
 
         connection = connectFuture.verify().getSession();
-        connection.addPublicKeyIdentity(PEMParser.decodeKeyPair(privateKey, null));
+        connection.addPublicKeyIdentity(KeyHelper.decodeKeyPair(privateKey, null));
         connection.auth().await(Duration.ofSeconds(10));
 
         assertTrue(connection.isAuthenticated());

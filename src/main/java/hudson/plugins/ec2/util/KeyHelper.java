@@ -20,9 +20,20 @@ import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 /**
  * Utility class to parse PEM.
  */
-public abstract class PEMParser {
-    private PEMParser() {}
+public abstract class KeyHelper {
+    private KeyHelper() {}
 
+    /**
+     * Decodes a PEM-encoded key pair into a {@link KeyPair} object. This method supports
+     * various types of PEM input such as encrypted private keys, public keys, and key pairs.
+     *
+     * @param pem The PEM-formatted string containing the key data.
+     * @param password The password used to decrypt encrypted key pairs, if applicable. Can be null if no password is required.
+     * @return A {@link KeyPair} containing the public and private keys. If a public key is provided without a matching private key,
+     *         the private key in the returned {@link KeyPair} will be null.
+     * @throws IOException If an error occurs during parsing or decryption of the PEM input.
+     * @throws IllegalArgumentException If the provided PEM input cannot be parsed or is of an unsupported type.
+     */
     public static KeyPair decodeKeyPair(String pem, String password) throws IOException {
         try (org.bouncycastle.openssl.PEMParser pemParser =
                 new org.bouncycastle.openssl.PEMParser(new StringReader(pem))) {

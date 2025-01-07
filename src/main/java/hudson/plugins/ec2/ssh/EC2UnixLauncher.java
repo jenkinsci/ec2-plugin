@@ -47,7 +47,7 @@ import hudson.plugins.ec2.ssh.proxy.ProxyCONNECTListener;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import hudson.plugins.ec2.ssh.verifiers.HostKeyHelper;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
-import hudson.plugins.ec2.util.PEMParser;
+import hudson.plugins.ec2.util.KeyHelper;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
@@ -217,7 +217,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 if (key == null) {
                     isAuthenticated = false;
                 } else {
-                    cleanupClientSession.addPublicKeyIdentity(PEMParser.decodeKeyPair(key.getKeyMaterial(), ""));
+                    cleanupClientSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getKeyMaterial(), ""));
                     cleanupClientSession.auth().await(timeout);
                     isAuthenticated = cleanupClientSession.isAuthenticated();
                 }
@@ -521,7 +521,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapSession = connectToSsh(client, computer, listener, template);
-                    bootstrapSession.addPublicKeyIdentity(PEMParser.decodeKeyPair(key.getKeyMaterial(), ""));
+                    bootstrapSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getKeyMaterial(), ""));
                     bootstrapSession.auth().await(timeout);
 
                     isAuthenticated = bootstrapSession.isAuthenticated();
