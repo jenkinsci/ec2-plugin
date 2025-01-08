@@ -1440,6 +1440,61 @@ public class SlaveTemplateTest {
         assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
+    @Test(expected = AmazonEC2Exception.class)
+    public void provisionOnDemandSetsMetadataDefaultOptionsWithEC2Exception() throws Exception {
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+        when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
+                .thenThrow(new AmazonEC2Exception("InsufficientInstanceCapacity"));
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+    }
+
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
     }

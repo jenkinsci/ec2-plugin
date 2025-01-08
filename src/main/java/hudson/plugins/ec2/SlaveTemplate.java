@@ -2029,7 +2029,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            try {
+                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            } catch (AmazonEC2Exception e) {
+                logProvisionInfo("Error while trying to run instances for reserved capacity: " + e.getMessage());
+                throw e;
+            }
         }
         // Have to create a new instance
 
