@@ -1488,10 +1488,11 @@ public class SlaveTemplateTest {
                 null,
                 true);
 
-        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);        
-        when(mockedEC2.runInstances(any(RunInstancesRequest.class))).thenThrow(new AmazonEC2Exception("InsufficientInstanceCapacity"));        
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+        when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
+                .thenThrow(new AmazonEC2Exception("InsufficientInstanceCapacity"));
 
-        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));                
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
     }
 
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
