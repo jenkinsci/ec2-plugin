@@ -241,7 +241,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
                 if (initScript != null
                         && !initScript.trim().isEmpty()
-                        && executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
+                        && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
                     logInfo(computer, listener, "Executing init script");
                     scp.upload(
                             initScript.getBytes(StandardCharsets.UTF_8),
