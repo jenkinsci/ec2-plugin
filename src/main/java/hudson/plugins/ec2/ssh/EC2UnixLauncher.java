@@ -106,8 +106,6 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private static int readinessSleepMs = 1000;
     private static int readinessTries = 120;
 
-    private static final long timeout = Duration.ofSeconds(10).toMillis();
-
     static {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
         if (prop != null) {
@@ -154,13 +152,20 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     @Override
     protected void launchScript(EC2Computer computer, TaskListener listener)
             throws IOException, AmazonClientException, InterruptedException {
+        final SshClient client;
+        SshClient cleanupClient = null;
+        final CloseableScpClient scpClient;
+        CloseableScpClient cleanupScpClient = null;
         final ClientSession clientSession;
         ClientSession cleanupClientSession = null; // java's code path analysis for final
         // doesn't work that well.
+        final ClientChannel agentExecChannel;
+        ClientChannel cleanupAgentExecChannel = null;
         boolean successful = false;
         PrintStream logger = listener.getLogger();
         EC2AbstractSlave node = computer.getNode();
         SlaveTemplate template = computer.getSlaveTemplate();
+        final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
 
         if (node == null) {
             throw new IllegalStateException();
@@ -195,7 +200,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
         logInfo(computer, listener, "Launching instance: " + node.getInstanceId());
 
-        try (SshClient client = SshClient.setUpDefaultClient()) {
+        try {
+            cleanupClient = SshClient.setUpDefaultClient();
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (isBootstrapped) {
                 int bootDelay = node.getBootDelay();
@@ -210,7 +216,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                 // connect fresh as ROOT
                 logInfo(computer, listener, "connect fresh as root");
-                cleanupClientSession = connectToSsh(client, computer, listener, template);
+                cleanupClientSession = connectToSsh(cleanupClient, computer, listener, template);
                 KeyPair key = computer.getCloud().getKeyPair();
 
                 final boolean isAuthenticated;
@@ -229,191 +235,228 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                 logWarning(computer, listener, "bootstrapresult failed");
                 return; // bootstrap closed for us.
             }
+            client = cleanupClient;
             clientSession = cleanupClientSession;
 
-            try (CloseableScpClient scp = createScpClient(clientSession)) {
-                String timestamp = Duration.ofMillis(System.currentTimeMillis()).toSeconds() + " 0";
-                ScpTimestampCommandDetails scpTimestamp =
-                        ScpTimestampCommandDetails.parse("T" + timestamp + " " + timestamp);
-                String initScript = node.initScript;
-                String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
+            scpClient = createScpClient(clientSession);
+            cleanupScpClient = scpClient;
+            String timestamp = Duration.ofMillis(System.currentTimeMillis()).toSeconds() + " 0";
+            ScpTimestampCommandDetails scpTimestamp =
+                    ScpTimestampCommandDetails.parse("T" + timestamp + " " + timestamp);
+            String initScript = node.initScript;
+            String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
-                logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
-                executeRemote(clientSession, "mkdir -p " + tmpDir, logger);
+            logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
+            executeRemote(clientSession, "mkdir -p " + tmpDir, logger);
 
-                if (initScript != null
-                        && !initScript.trim().isEmpty()
-                        && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
-                    logInfo(computer, listener, "Executing init script");
-                    scp.upload(
-                            initScript.getBytes(StandardCharsets.UTF_8),
-                            tmpDir + "/init.sh",
-                            List.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.OWNER_READ),
-                            scpTimestamp);
-
-                    String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
-                    try (ClientChannel channel = clientSession.createExecChannel(
-                            initCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
-
-                        OutputStream invertedIn = channel.getInvertedIn();
-                        if (invertedIn != null) {
-                            invertedIn.close(); // nothing to write here
-                        }
-                        channel.open().await(timeout);
-
-                        Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
-
-                        if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
-                            logWarning(computer, listener, "init script timed out");
-                            return;
-                        }
-
-                        int exitStatus = waitCompletion(channel);
-                        if (exitStatus != 0) {
-                            logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
-                            return;
-                        }
-
-                        InputStream invertedErr = channel.getInvertedErr();
-                        if (invertedErr != null) {
-                            invertedErr.close(); // we are not supposed to get anything from stderr
-                        }
-                        IOUtils.copy(channel.getInvertedOut(), logger);
-                    }
-
-                    logInfo(computer, listener, "Creating ~/.hudson-run-init");
-
-                    String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
-                    try (ClientChannel channel = clientSession.createExecChannel(
-                            createHudsonRunInitCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
-                        OutputStream invertedIn = channel.getInvertedIn();
-                        if (invertedIn != null) {
-                            invertedIn.close(); // nothing to write here
-                        }
-                        channel.open().await(timeout);
-
-                        Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
-
-                        if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
-                            logWarning(computer, listener, "init script timed out");
-                            return;
-                        }
-
-                        int exitStatus = waitCompletion(channel);
-                        if (exitStatus != 0) {
-                            logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
-                            return;
-                        }
-
-                        InputStream invertedErr = channel.getInvertedErr();
-                        if (invertedErr != null) {
-                            invertedErr.close(); // we are not supposed to get anything from stderr
-                        }
-                        IOUtils.copy(channel.getInvertedOut(), logger);
-                    }
-                }
-
-                // TODO: parse the version number. maven-enforcer-plugin might help
-                final String javaPath = node.javaPath;
-                executeRemote(
-                        computer,
-                        clientSession,
-                        javaPath + " -fullversion",
-                        "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
-                        logger,
-                        listener);
-                executeRemote(
-                        computer, clientSession, "which scp", "sudo yum install -y openssh-clients", logger, listener);
-
-                // Always copy so we get the most recent remoting.jar
-                logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-                scp.upload(
-                        Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                        tmpDir + "/remoting.jar",
-                        List.of(
-                                PosixFilePermission.OWNER_READ,
-                                PosixFilePermission.GROUP_READ,
-                                PosixFilePermission.OTHERS_READ),
+            if (initScript != null
+                    && !initScript.trim().isEmpty()
+                    && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
+                logInfo(computer, listener, "Executing init script");
+                scpClient.upload(
+                        initScript.getBytes(StandardCharsets.UTF_8),
+                        tmpDir + "/init.sh",
+                        List.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.OWNER_READ),
                         scpTimestamp);
 
-                final String jvmopts = node.jvmopts;
-                final String prefix = computer.getSlaveCommandPrefix();
-                final String suffix = computer.getSlaveCommandSuffix();
-                final String remoteFS = node.getRemoteFS();
-                final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
-                String launchString = prefix
-                        + " "
-                        + javaPath
-                        + " "
-                        + (jvmopts != null ? jvmopts : "")
-                        + " -jar "
-                        + tmpDir
-                        + "/remoting.jar -workDir "
-                        + workDir
-                        + suffix;
-                // launchString = launchString.trim();
+                String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
+                try (ClientChannel channel = clientSession.createExecChannel(
+                        initCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
 
-                if (template.isConnectBySSHProcess()) {
-                    File identityKeyFile = createIdentityKeyFile(computer);
-                    String ec2HostAddress = getEC2HostAddress(computer, template);
-                    File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);
-                    String userKnownHostsFileFlag = "";
-                    if (hostKeyFile != null) {
-                        userKnownHostsFileFlag =
-                                String.format(" -o \"UserKnownHostsFile=%s\"", hostKeyFile.getAbsolutePath());
+                    channel.open().await(timeout);
+
+                    OutputStream invertedIn = channel.getInvertedIn();
+                    if (invertedIn != null) {
+                        invertedIn.close(); // nothing to write here
                     }
 
-                    try {
-                        // Obviously the controller must have an installed ssh client.
-                        // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
-                        String sshClientLaunchString = String.format(
-                                "ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s",
-                                template.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(),
-                                userKnownHostsFileFlag,
-                                getEC2HostKeyAlgorithmFlag(computer),
-                                identityKeyFile.getAbsolutePath(),
-                                node.remoteAdmin,
-                                ec2HostAddress,
-                                node.getSshPort(),
-                                launchString);
+                    Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
 
-                        logInfo(
-                                computer,
-                                listener,
-                                "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
-                        CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
-                        commandLauncher.launch(computer, listener);
-                    } finally {
-                        if (!identityKeyFile.delete()) {
-                            LOGGER.log(Level.WARNING, "Failed to delete identity key file");
-                        }
-                        if (hostKeyFile != null && !hostKeyFile.delete()) {
-                            LOGGER.log(Level.WARNING, "Failed to delete host key file");
-                        }
+                    if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
+                        logWarning(computer, listener, "init script timed out");
+                        return;
                     }
-                } else {
-                    logInfo(computer, listener, "Launching remoting agent (via SSH2 Connection): " + launchString);
 
-                    try (ClientChannel channel = clientSession.createExecChannel(
-                            launchString, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
-                        computer.setChannel(channel.getInvertedOut(), channel.getInvertedIn(), logger, new Listener() {
-                            @Override
-                            public void onClosed(Channel channel, IOException cause) {
-                                try {
-                                    clientSession.close();
-                                } catch (IOException e) {
-                                    LOGGER.log(Level.WARNING, "Error when closing the session", e);
-                                }
-                            }
-                        });
+                    int exitStatus = waitCompletion(channel);
+                    if (exitStatus != 0) {
+                        logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                        return;
                     }
+
+                    InputStream invertedErr = channel.getInvertedErr();
+                    if (invertedErr != null) {
+                        invertedErr.close(); // we are not supposed to get anything from stderr
+                    }
+                    IOUtils.copy(channel.getInvertedOut(), logger);
                 }
 
-                successful = true;
+                logInfo(computer, listener, "Creating ~/.hudson-run-init");
+
+                String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
+                try (ClientChannel channel = clientSession.createExecChannel(
+                        createHudsonRunInitCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
+                    OutputStream invertedIn = channel.getInvertedIn();
+                    if (invertedIn != null) {
+                        invertedIn.close(); // nothing to write here
+                    }
+                    channel.open().await(timeout);
+
+                    Collection<ClientChannelEvent> waitMask = channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
+
+                    if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
+                        logWarning(computer, listener, "init script timed out");
+                        return;
+                    }
+
+                    int exitStatus = waitCompletion(channel);
+                    if (exitStatus != 0) {
+                        logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
+                        return;
+                    }
+
+                    InputStream invertedErr = channel.getInvertedErr();
+                    if (invertedErr != null) {
+                        invertedErr.close(); // we are not supposed to get anything from stderr
+                    }
+                    IOUtils.copy(channel.getInvertedOut(), logger);
+                }
             }
+
+            // TODO: parse the version number. maven-enforcer-plugin might help
+            final String javaPath = node.javaPath;
+            executeRemote(
+                    computer,
+                    clientSession,
+                    javaPath + " -fullversion",
+                    "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
+                    logger,
+                    listener);
+            executeRemote(
+                    computer, clientSession, "which scp", "sudo yum install -y openssh-clients", logger, listener);
+
+            // Always copy so we get the most recent remoting.jar
+            logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+            scpClient.upload(
+                    Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                    tmpDir + "/remoting.jar",
+                    List.of(
+                            PosixFilePermission.OWNER_READ,
+                            PosixFilePermission.GROUP_READ,
+                            PosixFilePermission.OTHERS_READ),
+                    scpTimestamp);
+
+            final String jvmopts = node.jvmopts;
+            final String prefix = computer.getSlaveCommandPrefix();
+            final String suffix = computer.getSlaveCommandSuffix();
+            final String remoteFS = node.getRemoteFS();
+            final String workDir = Util.fixEmptyAndTrim(remoteFS) != null ? remoteFS : tmpDir;
+            String launchString = prefix
+                    + " "
+                    + javaPath
+                    + " "
+                    + (jvmopts != null ? jvmopts : "")
+                    + " -jar "
+                    + tmpDir
+                    + "/remoting.jar -workDir "
+                    + workDir
+                    + suffix;
+            // launchString = launchString.trim();
+
+            if (template.isConnectBySSHProcess()) {
+                File identityKeyFile = createIdentityKeyFile(computer);
+                String ec2HostAddress = getEC2HostAddress(computer, template);
+                File hostKeyFile = createHostKeyFile(computer, ec2HostAddress, listener);
+                String userKnownHostsFileFlag = "";
+                if (hostKeyFile != null) {
+                    userKnownHostsFileFlag =
+                            String.format(" -o \"UserKnownHostsFile=%s\"", hostKeyFile.getAbsolutePath());
+                }
+
+                try {
+                    // Obviously the controller must have an installed ssh client.
+                    // Depending on the strategy selected on the UI, we set the StrictHostKeyChecking flag
+                    String sshClientLaunchString = String.format(
+                            "ssh -o StrictHostKeyChecking=%s%s%s -i %s %s@%s -p %d %s",
+                            template.getHostKeyVerificationStrategy().getSshCommandEquivalentFlag(),
+                            userKnownHostsFileFlag,
+                            getEC2HostKeyAlgorithmFlag(computer),
+                            identityKeyFile.getAbsolutePath(),
+                            node.remoteAdmin,
+                            ec2HostAddress,
+                            node.getSshPort(),
+                            launchString);
+
+                    logInfo(
+                            computer,
+                            listener,
+                            "Launching remoting agent (via SSH client process): " + sshClientLaunchString);
+                    CommandLauncher commandLauncher = new CommandLauncher(sshClientLaunchString, null);
+                    commandLauncher.launch(computer, listener);
+                } finally {
+                    if (!identityKeyFile.delete()) {
+                        LOGGER.log(Level.WARNING, "Failed to delete identity key file");
+                    }
+                    if (hostKeyFile != null && !hostKeyFile.delete()) {
+                        LOGGER.log(Level.WARNING, "Failed to delete host key file");
+                    }
+                }
+            } else {
+                logInfo(computer, listener, "Launching remoting agent (via SSH2 Connection): " + launchString);
+
+                agentExecChannel = clientSession.createExecChannel(
+                        launchString, StandardCharsets.US_ASCII, null, Collections.emptyMap());
+                agentExecChannel.setRedirectErrorStream(true);
+                agentExecChannel.open().verify(timeout);
+
+                cleanupAgentExecChannel = agentExecChannel;
+                InputStream invertedOut = agentExecChannel.getInvertedOut();
+                OutputStream invertedIn = agentExecChannel.getInvertedIn();
+
+                computer.setChannel(invertedOut, invertedIn, logger, new Listener() {
+
+                    @Override
+                    public void onClosed(Channel channel, IOException cause) {
+                        try {
+                            agentExecChannel.close();
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, "Channel Listener Error when closing the channel", e);
+                        }
+                        try {
+                            scpClient.close();
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, "Channel Listener Error when closing the SCP session", e);
+                        }
+                        try {
+                            clientSession.close();
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, "Error when closing the session", e);
+                        }
+                        try {
+                            client.stop();
+                            client.close();
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING, "Channel Listener Error when closing the client", e);
+                        }
+                    }
+                });
+            }
+
+            successful = true;
         } finally {
-            if (cleanupClientSession != null && (!successful || template.isConnectBySSHProcess())) {
-                cleanupClientSession.close();
+            if (!successful || template.isConnectBySSHProcess()) {
+                if (cleanupAgentExecChannel != null) {
+                    cleanupAgentExecChannel.close();
+                }
+                if (cleanupScpClient != null) {
+                    cleanupScpClient.close();
+                }
+                if (cleanupClientSession != null) {
+                    cleanupClientSession.close();
+                }
+                if (cleanupClient != null) {
+                    cleanupClient.stop();
+                    cleanupClient.close();
+                }
             }
         }
     }
@@ -424,12 +467,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             String checkCommand,
             String command,
             PrintStream logger,
-            TaskListener listener)
-            throws IOException, InterruptedException {
+            TaskListener listener) {
         logInfo(computer, listener, "Verifying: " + checkCommand);
-        if (executeRemote(clientSession, checkCommand, logger)) {
+        if (!executeRemote(clientSession, checkCommand, logger)) {
             logInfo(computer, listener, "Installing: " + command);
-            if (executeRemote(clientSession, command, logger)) {
+            if (!executeRemote(clientSession, command, logger)) {
                 logWarning(computer, listener, "Failed to install: " + command);
                 return false;
             }
@@ -502,6 +544,8 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
     private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template)
             throws IOException, InterruptedException, AmazonClientException {
         logInfo(computer, listener, "bootstrap()");
+        final EC2AbstractSlave node = computer.getNode();
+        final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         ClientSession bootstrapSession = null;
         try (SshClient client = SshClient.setUpDefaultClient()) {
             int tries = bootstrapAuthTries;
