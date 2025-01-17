@@ -117,7 +117,7 @@ public class EC2AbstractSlaveTest {
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
         String cloudName = "us-east-1";
-        AmazonEC2Cloud ac = new AmazonEC2Cloud(cloudName, false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud(cloudName, false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
         EC2AbstractSlave slave =
                 new EC2AbstractSlave(
@@ -134,16 +134,21 @@ public class EC2AbstractSlaveTest {
                         "tmpDir",
                         new ArrayList<>(),
                         "root",
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
                         "jvm",
                         false,
                         "idle",
                         null,
                         cloudName,
-                        false,
                         Integer.MAX_VALUE,
                         new UnixData("remote", null, null, "22", null),
                         ConnectionStrategy.PRIVATE_IP,
-                        0) {
+                        -1,
+                        Tenancy.Default,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
                     @Override
                     public void terminate() {}
 

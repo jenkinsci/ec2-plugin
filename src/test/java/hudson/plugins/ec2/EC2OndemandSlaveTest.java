@@ -27,6 +27,7 @@ public class EC2OndemandSlaveTest {
                 "tmpDir",
                 Collections.emptyList(),
                 "remoteAdmin",
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "jvmopts",
                 false,
                 "30",
@@ -34,11 +35,15 @@ public class EC2OndemandSlaveTest {
                 "privateDNS",
                 Collections.emptyList(),
                 "cloudName",
-                false,
                 0,
                 new UnixData("a", null, null, "b", null),
                 ConnectionStrategy.PRIVATE_IP,
-                -1);
+                -1,
+                Tenancy.Default,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         assertEquals(Node.Mode.NORMAL, slaveNormal.getMode());
 
         EC2OndemandSlave slaveExclusive = new EC2OndemandSlave(
@@ -53,6 +58,7 @@ public class EC2OndemandSlaveTest {
                 "tmpDir",
                 Collections.emptyList(),
                 "remoteAdmin",
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "jvmopts",
                 false,
                 "30",
@@ -60,11 +66,15 @@ public class EC2OndemandSlaveTest {
                 "privateDNS",
                 Collections.emptyList(),
                 "cloudName",
-                false,
                 0,
                 new UnixData("a", null, null, "b", null),
                 ConnectionStrategy.PRIVATE_IP,
-                -1);
+                -1,
+                Tenancy.Default,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         assertEquals(Node.Mode.EXCLUSIVE, slaveExclusive.getMode());
     }

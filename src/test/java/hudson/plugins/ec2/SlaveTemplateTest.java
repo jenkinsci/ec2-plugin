@@ -120,6 +120,7 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -139,16 +140,19 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
-                null,
+                Collections.emptyList(),
                 null,
                 Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT);
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -185,6 +189,7 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -196,7 +201,6 @@ public class SlaveTemplateTest {
                 "",
                 true,
                 false,
-                false,
                 "",
                 false,
                 "",
@@ -206,13 +210,18 @@ public class SlaveTemplateTest {
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
                 null,
-                STRATEGY_TO_CHECK);
+                STRATEGY_TO_CHECK,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -257,24 +266,38 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
                 null,
                 null,
-                true,
+                0,
+                0,
                 null,
                 "",
                 false,
                 false,
                 "",
                 false,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_DNS,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -314,24 +337,38 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
                 null,
                 null,
-                true,
+                0,
+                0,
                 null,
                 "",
                 false,
                 false,
                 "",
                 false,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_DNS,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -362,26 +399,40 @@ public class SlaveTemplateTest {
                 "aaa",
                 "10",
                 "rrr",
-                new WindowsData("password", false, ""),
+                new WindowsData("password", false, "", false, true),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
                 null,
                 null,
-                false,
+                0,
+                0,
                 null,
                 "",
+                false,
                 true,
+                "",
                 false,
                 "",
                 false,
-                "");
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -412,24 +463,38 @@ public class SlaveTemplateTest {
                 "10",
                 "rrr",
                 new UnixData("sudo", "", "", "22", ""),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
                 null,
                 null,
-                false,
+                0,
+                0,
                 null,
                 "",
+                false,
                 true,
+                "",
                 false,
                 "",
                 false,
-                "");
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -466,17 +531,18 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
                 null,
                 null,
                 2,
+                0,
                 null,
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -484,24 +550,27 @@ public class SlaveTemplateTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0);
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(slaveTemplate);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.configRoundtrip();
 
-        MinimumNumberOfInstancesTimeRangeConfig stored = r.jenkins
-                .clouds
-                .get(AmazonEC2Cloud.class)
-                .getTemplates()
-                .get(0)
-                .getMinimumNumberOfInstancesTimeRangeConfig();
+        MinimumNumberOfInstancesTimeRangeConfig stored =
+                r.jenkins.clouds.get(EC2Cloud.class).getTemplates().get(0).getMinimumNumberOfInstancesTimeRangeConfig();
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
@@ -534,19 +603,34 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 subnetId,
                 null,
                 null,
-                false,
+                0,
+                0,
                 null,
                 iamInstanceProfile,
-                true,
                 false,
+                true,
                 "",
                 associatePublicIp,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SlaveTemplate noSubnet = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -564,19 +648,34 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "",
                 null,
                 null,
-                false,
+                0,
+                0,
                 null,
                 iamInstanceProfile,
-                true,
                 false,
+                true,
                 "",
                 associatePublicIp,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -638,19 +737,34 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 subnetId,
                 tags,
                 null,
-                false,
+                0,
+                0,
                 null,
                 iamInstanceProfile,
-                true,
                 false,
+                true,
                 "",
                 associatePublicIp,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SlaveTemplate noSubnet = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -668,19 +782,34 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "",
                 tags,
                 null,
-                false,
+                0,
+                0,
                 null,
                 iamInstanceProfile,
-                true,
                 false,
+                true,
                 "",
                 associatePublicIp,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -736,19 +865,34 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 subnetId,
                 null,
                 null,
-                false,
+                0,
+                0,
                 null,
                 iamInstanceProfile,
-                true,
                 false,
+                true,
                 "",
                 associatePublicIp,
-                "");
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -766,7 +910,7 @@ public class SlaveTemplateTest {
     }
 
     private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
-        AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
+        EC2Cloud mockedCloud = mock(EC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
         KeyPair mockedKeyPair = new KeyPair();
@@ -842,6 +986,7 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 new MacData("sudo", null, null, "22", null),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -861,15 +1006,19 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                null,
-                Tenancy.Default);
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -897,6 +1046,7 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -916,9 +1066,14 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                null,
-                Tenancy.Default);
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SlaveTemplate working = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -936,6 +1091,7 @@ public class SlaveTemplateTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -955,18 +1111,23 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                null,
-                Tenancy.Default);
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(broken);
         templates.add(working);
-        AmazonEC2Cloud brokenCloud =
-                new AmazonEC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud brokenCloud =
+                new EC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         assertThat(broken.getSlaveName("test"), is("test"));
         assertThat(working.getSlaveName("test"), is("test"));
-        AmazonEC2Cloud workingCloud =
-                new AmazonEC2Cloud("cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud workingCloud =
+                new EC2Cloud("cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         assertThat(broken.getSlaveName("test"), is("test"));
         assertThat(working.getSlaveName("test"), is("EC2 (cloud) - working (test)"));
     }
@@ -1011,8 +1172,8 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
                 EbsEncryptRootVolume.DEFAULT,
                 true,
@@ -1022,8 +1183,7 @@ public class SlaveTemplateTest {
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
-        AmazonEC2Cloud ac =
-                new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
@@ -1073,8 +1233,8 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
                 EbsEncryptRootVolume.DEFAULT,
                 true,
@@ -1133,8 +1293,8 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
                 EbsEncryptRootVolume.DEFAULT,
                 true,
@@ -1195,8 +1355,8 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
                 EbsEncryptRootVolume.DEFAULT,
                 true,
@@ -1257,8 +1417,8 @@ public class SlaveTemplateTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
+                Collections.emptyList(),
                 null,
-                HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
                 EbsEncryptRootVolume.DEFAULT,
                 null,
@@ -1280,7 +1440,62 @@ public class SlaveTemplateTest {
         assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
-    private HtmlForm getConfigForm(AmazonEC2Cloud ac) throws IOException, SAXException {
+    @Test(expected = AmazonEC2Exception.class)
+    public void provisionOnDemandSetsMetadataDefaultOptionsWithEC2Exception() throws Exception {
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+        when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
+                .thenThrow(new AmazonEC2Exception("InsufficientInstanceCapacity"));
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+    }
+
+    private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
     }
 }

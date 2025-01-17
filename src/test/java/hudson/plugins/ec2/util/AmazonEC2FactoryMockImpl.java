@@ -40,7 +40,6 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
-import hudson.plugins.ec2.AmazonEC2Cloud;
 import hudson.plugins.ec2.EC2Cloud;
 import java.net.URL;
 import java.util.ArrayList;
@@ -189,7 +188,7 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
                     KeyPairInfo keyPairInfo = new KeyPairInfo();
                     keyPairInfo.setKeyFingerprint(Jenkins.get()
                             .clouds
-                            .get(AmazonEC2Cloud.class)
+                            .get(EC2Cloud.class)
                             .resolvePrivateKey()
                             .getFingerprint());
                     return new DescribeKeyPairsResult().withKeyPairs(keyPairInfo);

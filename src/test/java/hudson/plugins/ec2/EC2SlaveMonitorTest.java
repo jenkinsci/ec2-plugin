@@ -43,17 +43,18 @@ public class EC2SlaveMonitorTest {
                 "10",
                 "fff",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
                 null,
                 null,
                 2,
+                0,
                 null,
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -61,9 +62,17 @@ public class EC2SlaveMonitorTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0);
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
@@ -104,6 +113,7 @@ public class EC2SlaveMonitorTest {
                 "10",
                 "remoteadmin",
                 null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
                 "-Xmx1g",
                 false,
                 "subnet 456",
@@ -115,7 +125,6 @@ public class EC2SlaveMonitorTest {
                 null,
                 true,
                 true,
-                false,
                 "",
                 false,
                 "",
@@ -123,10 +132,17 @@ public class EC2SlaveMonitorTest {
                 false,
                 true,
                 ConnectionStrategy.PRIVATE_IP,
-                0,
-                null);
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        AmazonEC2Cloud cloud = new AmazonEC2Cloud(
+        EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
                 "abc",
