@@ -475,6 +475,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             session.executeRemoteCommand(command, logger, logger, null);
             return true;
         } catch (IOException e) {
+            LOGGER.log(Level.FINE, "Failed to execute remote command: " + command, e);
             return false;
         }
     }
