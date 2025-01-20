@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.util;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.io.StringReader;
 import java.security.KeyFactory;
@@ -38,7 +39,7 @@ public abstract class KeyHelper {
      * @throws IOException If an error occurs during parsing or decryption of the PEM input.
      * @throws IllegalArgumentException If the provided PEM input cannot be parsed or is of an unsupported type.
      */
-    public static KeyPair decodeKeyPair(String pem, String password) throws IOException {
+    public static KeyPair decodeKeyPair(@NonNull String pem, @NonNull String password) throws IOException {
         try (org.bouncycastle.openssl.PEMParser pemParser =
                 new org.bouncycastle.openssl.PEMParser(new StringReader(pem))) {
             Object object = pemParser.readObject();
@@ -73,7 +74,7 @@ public abstract class KeyHelper {
         }
     }
 
-    private static PublicKey generatePublicKeyFromPrivateKey(PrivateKey privateKey) {
+    private static PublicKey generatePublicKeyFromPrivateKey(@NonNull PrivateKey privateKey) {
         try {
             KeyFactory keyFactory = KeyFactory.getInstance(privateKey.getAlgorithm());
 
@@ -102,7 +103,7 @@ public abstract class KeyHelper {
      * @return A {@code String} representing the SSH algorithm identifier for the given server key,
      *         or {@code null} if the key type is unsupported or cannot be determined.
      */
-    public static String getSshAlgorithm(PublicKey serverKey) {
+    public static String getSshAlgorithm(@NonNull PublicKey serverKey) {
         switch (serverKey.getAlgorithm()) {
             case "RSA":
                 return "ssh-rsa";
