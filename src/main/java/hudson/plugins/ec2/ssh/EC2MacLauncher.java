@@ -98,6 +98,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     private static final String BOOTSTRAP_AUTH_TRIES = "jenkins.ec2.bootstrapAuthTries";
     private static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
     private static final String READINESS_TRIES = "jenkins.ec2.readinessTries";
+    private static final String CORRETTO_LATEST_URL = "https://corretto.aws/downloads/latest";
 
     private static int bootstrapAuthSleepMs = 30000;
     private static int bootstrapAuthTries = 30;
@@ -317,7 +318,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                                         computer,
                                         clientSession,
                                         javaPath + " -fullversion",
-                                        "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
+                                        "curl -L -O "
+                                                + CORRETTO_LATEST_URL
+                                                + "/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
                                         logger,
                                         listener);
                             } else {
@@ -325,7 +328,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                                         computer,
                                         clientSession,
                                         javaPath + " -fullversion",
-                                        "curl -L -O https://corretto.aws/downloads/latest/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
+                                        "curl -L -O "
+                                                + CORRETTO_LATEST_URL
+                                                + "/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
                                         logger,
                                         listener);
                             }
