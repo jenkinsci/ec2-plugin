@@ -2,16 +2,13 @@ package hudson.plugins.ec2.util;
 
 import static org.junit.Assert.assertEquals;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.PublicKey;
-import java.security.spec.ECGenParameterSpec;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class KeyHelperTest {
+public class KeyHelperSSHAlgorithmTest extends KeyHelperTestAbstract {
 
     public static final PublicKey MOCK_PUBLIC_KEY = new PublicKey() {
         @Override
@@ -30,17 +27,17 @@ public class KeyHelperTest {
         }
     };
 
-    public KeyHelperTest(String description, PublicKey publicKey, String expected) {
-        this.description = description;
-        this.publicKey = publicKey;
-        this.expected = expected;
-    }
-
     private final String description;
 
     private final PublicKey publicKey;
 
     private final String expected;
+
+    public KeyHelperSSHAlgorithmTest(String description, PublicKey publicKey, String expected) {
+        this.description = description;
+        this.publicKey = publicKey;
+        this.expected = expected;
+    }
 
     @Parameterized.Parameters
     public static Object[] data() throws Exception {
@@ -59,23 +56,5 @@ public class KeyHelperTest {
     @Test
     public void testSSHAlgorithm() throws Exception {
         assertEquals(description, expected, KeyHelper.getSshAlgorithm(publicKey));
-    }
-
-    public static KeyPair generateECKey(String curveName) throws Exception {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
-        ECGenParameterSpec ecSpec = new ECGenParameterSpec(curveName);
-        keyPairGenerator.initialize(ecSpec);
-        return keyPairGenerator.generateKeyPair();
-    }
-
-    public static KeyPair generateRSAKey(int size) throws Exception {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(size);
-        return keyPairGenerator.generateKeyPair();
-    }
-
-    public static KeyPair generateEdDSAKey() throws Exception {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EdDSA");
-        return keyPairGenerator.generateKeyPair();
     }
 }

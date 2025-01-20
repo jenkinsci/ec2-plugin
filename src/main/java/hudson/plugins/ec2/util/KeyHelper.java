@@ -8,15 +8,22 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.interfaces.DSAParams;
+import java.security.interfaces.DSAPrivateKey;
+import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.ECField;
 import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPrivateCrtKeySpec;
+import java.security.spec.RSAPublicKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import org.bouncycastle.asn1.ASN1BitString;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.jcajce.interfaces.EdDSAPrivateKey;
 import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
@@ -55,8 +62,9 @@ public abstract class KeyHelper {
                 PublicKey publicKey = converter.getPublicKey(decryptedKeyPair.getPublicKeyInfo());
                 return new KeyPair(publicKey, privateKey);
             } else if (object instanceof PrivateKeyInfo) {
-                PrivateKey privateKey = converter.getPrivateKey((PrivateKeyInfo) object);
-                PublicKey publicKey = generatePublicKeyFromPrivateKey(privateKey);
+                PrivateKeyInfo privateKeyInfo = (PrivateKeyInfo) object;
+                PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
+                PublicKey publicKey = generatePublicKeyFromPrivateKey(privateKeyInfo, privateKey);
                 return new KeyPair(publicKey, privateKey);
             } else if (object instanceof SubjectPublicKeyInfo) {
                 PublicKey publicKey = converter.getPublicKey((SubjectPublicKeyInfo) object);
@@ -74,21 +82,41 @@ public abstract class KeyHelper {
         }
     }
 
-    private static PublicKey generatePublicKeyFromPrivateKey(@NonNull PrivateKey privateKey) {
+    /* visible for testing */
+    /**
+     * Extract a {@link PublicKey} from the given {@link PrivateKey}
+     * @param privateKey the private key to extract from
+     * @return the corresponding public key or null if the extraction is not possible
+     */
+    static PublicKey generatePublicKeyFromPrivateKey(PrivateKeyInfo privateKeyInfo, @NonNull PrivateKey privateKey) {
         try {
-            KeyFactory keyFactory = KeyFactory.getInstance(privateKey.getAlgorithm());
-
-            if ("RSA".equalsIgnoreCase(privateKey.getAlgorithm())) {
-                RSAPrivateCrtKeySpec rsaPrivateCrtKeySpec =
-                        keyFactory.getKeySpec(privateKey, RSAPrivateCrtKeySpec.class);
-                return keyFactory.generatePublic(rsaPrivateCrtKeySpec);
-            } else if ("EC".equalsIgnoreCase(privateKey.getAlgorithm())) {
-                ECPrivateKeySpec ecPrivateKeySpec = keyFactory.getKeySpec(privateKey, ECPrivateKeySpec.class);
-                return keyFactory.generatePublic(ecPrivateKeySpec);
+            if (privateKey instanceof RSAPrivateCrtKey)
+                return KeyFactory.getInstance("RSA")
+                        .generatePublic(new RSAPublicKeySpec(
+                                ((RSAPrivateCrtKey) privateKey).getModulus(),
+                                ((RSAPrivateCrtKey) privateKey).getPublicExponent()));
+            else if (privateKey instanceof DSAPrivateKey) {
+                DSAParams dsaParams = ((DSAPrivateKey) privateKey).getParams();
+                return KeyFactory.getInstance("DSA")
+                        .generatePublic(new DSAPublicKeySpec(
+                                dsaParams.getG().modPow(((DSAPrivateKey) privateKey).getX(), dsaParams.getP()),
+                                dsaParams.getP(),
+                                dsaParams.getQ(),
+                                dsaParams.getG()));
+            } else if (privateKey instanceof ECPrivateKey) {
+                ASN1BitString asn1BitString = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(
+                                privateKeyInfo.getPrivateKey().getOctets())
+                        .getPublicKey();
+                return KeyFactory.getInstance("EC")
+                        .generatePublic(new X509EncodedKeySpec(
+                                new SubjectPublicKeyInfo(privateKeyInfo.getPrivateKeyAlgorithm(), asn1BitString)
+                                        .getEncoded()));
+            } else if (privateKey instanceof EdDSAPrivateKey) {
+                return ((EdDSAPrivateKey) privateKey).getPublicKey();
             } else {
                 return null;
             }
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+        } catch (NoSuchAlgorithmException | IOException | InvalidKeySpecException e) {
             return null;
         }
     }
