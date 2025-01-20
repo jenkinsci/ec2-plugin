@@ -239,8 +239,7 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                     logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
                     executeRemote(clientSession, "mkdir -p " + tmpDir, logger);
 
-                    if (initScript != null
-                            && !initScript.trim().isEmpty()
+                    if (StringUtils.isNotBlank(initScript)
                             && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
                         logInfo(computer, listener, "Executing init script");
                         scp.upload(
