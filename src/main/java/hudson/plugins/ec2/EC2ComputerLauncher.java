@@ -30,7 +30,6 @@ import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,8 +47,6 @@ import org.apache.sshd.scp.client.ScpClientCreator;
  */
 public abstract class EC2ComputerLauncher extends ComputerLauncher {
     private static final Logger LOGGER = Logger.getLogger(EC2ComputerLauncher.class.getName());
-
-    private static final long timeout = Duration.ofSeconds(10).toMillis();
 
     @Override
     public void launch(SlaveComputer slaveComputer, TaskListener listener) {
@@ -94,7 +91,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
             throws AmazonClientException, IOException, InterruptedException;
 
-    protected int waitCompletion(ClientChannel clientChannel) {
+    protected int waitCompletion(ClientChannel clientChannel, long timeout) {
         Set<ClientChannelEvent> clientChannelEvents = clientChannel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
         if (clientChannelEvents.contains(ClientChannelEvent.TIMEOUT)) {
             return -1;

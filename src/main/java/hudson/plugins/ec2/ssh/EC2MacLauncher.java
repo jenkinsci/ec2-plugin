@@ -266,7 +266,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                                 return;
                             }
 
-                            int exitStatus = waitCompletion(channel);
+                            int exitStatus = waitCompletion(channel, timeout);
                             if (exitStatus != 0) {
                                 logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
                                 return;
@@ -297,7 +297,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                                 return;
                             }
 
-                            int exitStatus = waitCompletion(channel);
+                            int exitStatus = waitCompletion(channel, timeout);
                             if (exitStatus != 0) {
                                 logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
                                 return;
