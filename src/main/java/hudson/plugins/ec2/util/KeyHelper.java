@@ -152,6 +152,7 @@ public abstract class KeyHelper {
                 }
                 return null;
             case "EdDSA":
+            case "Ed25519":
                 return "ssh-ed25519";
             default:
                 return null;
