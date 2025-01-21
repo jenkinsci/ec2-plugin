@@ -156,11 +156,12 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
         PrintStream logger = listener.getLogger();
         EC2AbstractSlave node = computer.getNode();
         SlaveTemplate template = computer.getSlaveTemplate();
-        final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
 
         if (node == null) {
             throw new IllegalStateException();
         }
+
+        final long timeout = node.getLaunchTimeoutInMillis();
 
         if (template == null) {
             throw new IOException("Could not find corresponding agent template for " + computer.getDisplayName());
