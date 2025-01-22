@@ -115,6 +115,21 @@ public class WindowsData extends AMITypeData {
 
         @POST
         @SuppressWarnings("unused")
+        public FormValidation doCheckPassword(@QueryParameter String password) {
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                // for security reasons, do not perform any check if the user is not an admin
+                return FormValidation.ok();
+            }
+            try {
+                FIPS140Utils.ensurePasswordLength(password);
+            } catch (IllegalArgumentException ex) {
+                return FormValidation.error(ex, ex.getLocalizedMessage());
+            }
+            return FormValidation.ok();
+        }
+
+        @POST
+        @SuppressWarnings("unused")
         public FormValidation doCheckUseHTTPS(@QueryParameter boolean useHTTPS, @QueryParameter String password) {
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 // for security reasons, do not perform any check if the user is not an admin

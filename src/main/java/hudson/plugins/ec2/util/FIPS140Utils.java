@@ -94,6 +94,20 @@ public class FIPS140Utils {
     }
 
     /**
+     * Password length check chen FIPS mode is requested. If FIPS mode is not requested, this method does nothing.
+     * Otherwise, ensure that the password length is at least 14 char long.
+     * @param password the password to check
+     * @throws IllegalArgumentException if FIPS mode is requested and the password is too short
+     */
+    public static void ensurePasswordLength(String password) {
+        if (FIPS140.useCompliantAlgorithms()) {
+            if (StringUtils.isBlank(password) || password.length() < 14) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_passwordLengthInFIPSMode());
+            }
+        }
+    }
+
+    /**
      * Password leak prevention when FIPS mode is requested. If FIPS mode is not requested, this method does nothing.
      * Otherwise, ensure that no password can be leaked.
      * @param allowSelfSignedCertificate is self-signed certificate allowed

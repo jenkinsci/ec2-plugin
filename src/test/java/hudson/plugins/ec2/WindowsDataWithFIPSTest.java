@@ -7,7 +7,6 @@ import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
@@ -105,6 +104,20 @@ public class WindowsDataWithFIPSTest {
     public void testDoCheckAllowSelfSignedCertificateNotChecked() {
         FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class)
                 .doCheckAllowSelfSignedCertificate(false);
+        assertEquals(FormValidation.Kind.OK, formValidation.kind);
+    }
+
+    @Test
+    public void testDoCheckPasswordLengthLessThan14() {
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckPassword("123");
+        assertEquals(FormValidation.Kind.ERROR, formValidation.kind);
+    }
+
+    @Test
+    public void testDoCheckPasswordLengthGreaterThan14() {
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckPassword("12345678901234567890");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 }

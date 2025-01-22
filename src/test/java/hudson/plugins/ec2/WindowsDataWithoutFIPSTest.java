@@ -89,4 +89,18 @@ public class WindowsDataWithoutFIPSTest {
                 .doCheckAllowSelfSignedCertificate(false);
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
+
+    @Test
+    public void testDoCheckPasswordLengthLessThan14() {
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckPassword("123");
+        assertEquals(FormValidation.Kind.OK, formValidation.kind);
+    }
+
+    @Test
+    public void testDoCheckPasswordLengthGreaterThan14() {
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckPassword("12345678901234567890");
+        assertEquals(FormValidation.Kind.OK, formValidation.kind);
+    }
 }
