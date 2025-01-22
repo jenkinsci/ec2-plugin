@@ -1,14 +1,10 @@
 package hudson.plugins.ec2.util;
 
-import com.trilead.ssh2.signature.KeyAlgorithm;
-import com.trilead.ssh2.signature.KeyAlgorithmManager;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.plugins.ec2.Messages;
 import java.io.IOException;
 import java.net.URL;
 import java.security.Key;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.UnrecoverableKeyException;
 import java.security.interfaces.DSAKey;
 import java.security.interfaces.ECKey;
@@ -16,6 +12,11 @@ import java.security.interfaces.RSAKey;
 import jenkins.bouncycastle.api.PEMEncodable;
 import jenkins.security.FIPS140;
 import org.apache.commons.lang.StringUtils;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 
 /**
  * FIPS related utility methods (check Private and Public keys, ...)
@@ -143,17 +144,25 @@ public class FIPS140Utils {
             return;
         }
 
-        KeyAlgorithm<PublicKey, PrivateKey> publicKeyPrivateKeyKeyAlgorithm =
-                KeyAlgorithmManager.getSupportedAlgorithms().stream()
-                        .filter((keyAlgorithm) -> keyAlgorithm.getKeyFormat().equals(algorithm))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(algorithm)));
-        try {
-            Key publicKey = publicKeyPrivateKeyKeyAlgorithm.decodePublicKey(key);
-            ensureKeyInFipsMode(publicKey);
-        } catch (RuntimeException | IOException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
+        AsymmetricKeyParameter asymmetricKeyParameter = OpenSSHPublicKeyUtil.parsePublicKey(key);
+
+        if (asymmetricKeyParameter instanceof RSAKeyParameters) {
+            RSAKeyParameters rsaKeyParameters = (RSAKeyParameters) asymmetricKeyParameter;
+            if (rsaKeyParameters.getModulus().bitLength() < 2048) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
+            }
+        } else if (asymmetricKeyParameter instanceof DSAPublicKeyParameters) {
+            DSAPublicKeyParameters dsaPublicKeyParameters = (DSAPublicKeyParameters) asymmetricKeyParameter;
+            if (dsaPublicKeyParameters.getParameters().getP().bitLength() < 2048) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
+            }
+        } else if (asymmetricKeyParameter instanceof ECPublicKeyParameters) {
+            ECPublicKeyParameters ecPublicKeyParameters = (ECPublicKeyParameters) asymmetricKeyParameter;
+            if (ecPublicKeyParameters.getParameters().getCurve().getFieldSize() < 224) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeECInFIPSMode());
+            }
+        } else {
+            throw new IllegalArgumentException(Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(algorithm));
         }
     }
 }
