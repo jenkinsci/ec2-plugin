@@ -121,15 +121,6 @@ public class FIPS140UtilsWithFIPSTest {
     }
 
     @Test
-    public void testRuntimeException() {
-        String message = "The test message";
-        Key key = Mockito.mock(Key.class);
-        Mockito.when(key.getAlgorithm()).thenThrow(new RuntimeException(message));
-
-        assertInvalidKey(key, message);
-    }
-
-    @Test
     public void testTLSCheckWithHTTPAndPassword() {
         assertTLSIsNonCompliant(() -> FIPS140Utils.ensureNoPasswordLeak(new URL("http://localhost"), "non-empty"));
     }

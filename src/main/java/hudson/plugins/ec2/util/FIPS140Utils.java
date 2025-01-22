@@ -39,25 +39,20 @@ public class FIPS140Utils {
         if (!FIPS140.useCompliantAlgorithms()) {
             return;
         }
-        try {
-            if (key instanceof RSAKey) {
-                if (((RSAKey) key).getModulus().bitLength() < 2048) {
-                    throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
-                }
-            } else if (key instanceof DSAKey) {
-                if (((DSAKey) key).getParams().getP().bitLength() < 2048) {
-                    throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
-                }
-            } else if (key instanceof ECKey) {
-                if (((ECKey) key).getParams().getCurve().getField().getFieldSize() < 224) {
-                    throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeECInFIPSMode());
-                }
-            } else {
-                throw new IllegalArgumentException(
-                        Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
+        if (key instanceof RSAKey) {
+            if (((RSAKey) key).getModulus().bitLength() < 2048) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
             }
-        } catch (RuntimeException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
+        } else if (key instanceof DSAKey) {
+            if (((DSAKey) key).getParams().getP().bitLength() < 2048) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
+            }
+        } else if (key instanceof ECKey) {
+            if (((ECKey) key).getParams().getCurve().getField().getFieldSize() < 224) {
+                throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeECInFIPSMode());
+            }
+        } else {
+            throw new IllegalArgumentException(Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
         }
     }
 
