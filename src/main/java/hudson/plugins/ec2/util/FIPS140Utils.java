@@ -4,10 +4,6 @@ import com.trilead.ssh2.signature.KeyAlgorithm;
 import com.trilead.ssh2.signature.KeyAlgorithmManager;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.plugins.ec2.Messages;
-import jenkins.bouncycastle.api.PEMEncodable;
-import jenkins.security.FIPS140;
-import org.apache.commons.lang.StringUtils;
-
 import java.io.IOException;
 import java.net.URL;
 import java.security.Key;
@@ -17,6 +13,9 @@ import java.security.UnrecoverableKeyException;
 import java.security.interfaces.DSAKey;
 import java.security.interfaces.ECKey;
 import java.security.interfaces.RSAKey;
+import jenkins.bouncycastle.api.PEMEncodable;
+import jenkins.security.FIPS140;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * FIPS related utility methods (check Private and Public keys, ...)
@@ -53,13 +52,13 @@ public class FIPS140Utils {
                     throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeECInFIPSMode());
                 }
             } else {
-                throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
+                throw new IllegalArgumentException(
+                        Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
             }
         } catch (RuntimeException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
     }
-
 
     /**
      * Password leak prevention when FIPS mode is requested. If FIPS mode is not requested, this method does nothing.
@@ -139,18 +138,17 @@ public class FIPS140Utils {
         }
     }
 
-    public static void ensurePublicKeyInFipsMode(@NonNull
-                                                 String algorithm, @NonNull byte[] key) {
+    public static void ensurePublicKeyInFipsMode(@NonNull String algorithm, @NonNull byte[] key) {
         if (!FIPS140.useCompliantAlgorithms()) {
             return;
         }
 
-        KeyAlgorithm<PublicKey, PrivateKey> publicKeyPrivateKeyKeyAlgorithm = KeyAlgorithmManager
-                .getSupportedAlgorithms()
-                .stream()
-                .filter((keyAlgorithm) -> keyAlgorithm.getKeyFormat().equals(algorithm))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(algorithm)));
+        KeyAlgorithm<PublicKey, PrivateKey> publicKeyPrivateKeyKeyAlgorithm =
+                KeyAlgorithmManager.getSupportedAlgorithms().stream()
+                        .filter((keyAlgorithm) -> keyAlgorithm.getKeyFormat().equals(algorithm))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(algorithm)));
         try {
             Key publicKey = publicKeyPrivateKeyKeyAlgorithm.decodePublicKey(key);
             ensureKeyInFipsMode(publicKey);

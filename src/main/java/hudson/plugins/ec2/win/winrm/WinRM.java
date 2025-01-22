@@ -1,9 +1,6 @@
 package hudson.plugins.ec2.win.winrm;
 
-import hudson.plugins.ec2.Messages;
 import hudson.plugins.ec2.util.FIPS140Utils;
-import jenkins.security.FIPS140;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;

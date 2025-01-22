@@ -1,20 +1,19 @@
 package hudson.plugins.ec2.win.winrm;
 
+import static org.junit.Assert.fail;
+
+import java.net.MalformedURLException;
+import java.net.URL;
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-
-import static org.junit.Assert.fail;
-
 public class WinRMClientWithFIPSTest {
 
     @ClassRule
-    public static FlagRule<String>
-            fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+    public static FlagRule<String> fipsSystemPropertyRule =
+            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
@@ -54,12 +53,9 @@ public class WinRMClientWithFIPSTest {
      */
     @Test
     public void testSetUseHTTPSTrue() throws MalformedURLException {
-        new WinRMClient(new URL("https://localhost"), "username", "password", false)
-                .setUseHTTPS(true);
-        new WinRMClient(new URL("http://localhost"), "username", null, false)
-                .setUseHTTPS(true);
-        new WinRMClient(new URL("https://localhost"), "username", null, false)
-                .setUseHTTPS(true);
+        new WinRMClient(new URL("https://localhost"), "username", "password", false).setUseHTTPS(true);
+        new WinRMClient(new URL("http://localhost"), "username", null, false).setUseHTTPS(true);
+        new WinRMClient(new URL("https://localhost"), "username", null, false).setUseHTTPS(true);
     }
 
     /**
@@ -67,10 +63,8 @@ public class WinRMClientWithFIPSTest {
      */
     @Test
     public void testSetUseHTTPSFalseWithoutPassword() throws MalformedURLException {
-        new WinRMClient(new URL("http://localhost"), "username", null, false)
-                .setUseHTTPS(false);
-        new WinRMClient(new URL("https://localhost"), "username", null, false)
-                .setUseHTTPS(false);
+        new WinRMClient(new URL("http://localhost"), "username", null, false).setUseHTTPS(false);
+        new WinRMClient(new URL("https://localhost"), "username", null, false).setUseHTTPS(false);
     }
 
     /**
@@ -78,8 +72,7 @@ public class WinRMClientWithFIPSTest {
      */
     @Test(expected = IllegalArgumentException.class)
     public void testSetUseHTTPSFalseWithPassword() throws MalformedURLException {
-        new WinRMClient(new URL("https://localhost"), "username", "password", false)
-                .setUseHTTPS(false);
+        new WinRMClient(new URL("https://localhost"), "username", "password", false).setUseHTTPS(false);
     }
 
     /**
@@ -95,5 +88,4 @@ public class WinRMClientWithFIPSTest {
             fail("The client should not attempt to connect");
         }
     }
-
 }

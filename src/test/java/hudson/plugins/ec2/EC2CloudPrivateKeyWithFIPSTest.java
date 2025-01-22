@@ -1,6 +1,11 @@
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.fail;
+
 import hudson.plugins.ec2.util.FIPS140Utils;
+import java.security.Security;
+import java.util.Arrays;
+import java.util.Collection;
 import jenkins.security.FIPS140;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -9,17 +14,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.jvnet.hudson.test.FlagRule;
 
-import java.security.Security;
-import java.util.Arrays;
-import java.util.Collection;
-
-import static org.junit.Assert.fail;
-
 @RunWith(Parameterized.class)
 public class EC2CloudPrivateKeyWithFIPSTest {
 
     @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+    public static FlagRule<String> fipsSystemPropertyRule =
+            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
     public static String PRIVATE_KEY_DSA_1024 = "-----BEGIN DSA PRIVATE KEY-----\n"
             + "MIIBuwIBAAKBgQDdxPbkTmoDD5cK4W9bE5OVKO1Qu7vw32ZOAFHEdOCjK/JxLEyu\n"
@@ -212,14 +212,14 @@ public class EC2CloudPrivateKeyWithFIPSTest {
     @Parameterized.Parameters
     public static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {
-                { "DSA with key size 1024", PRIVATE_KEY_DSA_1024, false },
-                { "RSA with key size 1024", PRIVATE_KEY_RSA_1024, false },
-                { "RSA with key size 2048", PRIVATE_KEY_RSA_2048, true },
-                { "RSA with key size 3072", PRIVATE_KEY_RSA_3072, true },
-                { "RSA with key size 4096", PRIVATE_KEY_RSA_4096, true },
-                { "ECDSA with key size 256", PRIVATE_KEY_ECDSA_256, true },
-                { "ECDSA with key size 384", PRIVATE_KEY_ECDSA_384, true },
-                { "ECDSA with key size 521", PRIVATE_KEY_ECDSA_521, true }
+            {"DSA with key size 1024", PRIVATE_KEY_DSA_1024, false},
+            {"RSA with key size 1024", PRIVATE_KEY_RSA_1024, false},
+            {"RSA with key size 2048", PRIVATE_KEY_RSA_2048, true},
+            {"RSA with key size 3072", PRIVATE_KEY_RSA_3072, true},
+            {"RSA with key size 4096", PRIVATE_KEY_RSA_4096, true},
+            {"ECDSA with key size 256", PRIVATE_KEY_ECDSA_256, true},
+            {"ECDSA with key size 384", PRIVATE_KEY_ECDSA_384, true},
+            {"ECDSA with key size 521", PRIVATE_KEY_ECDSA_521, true}
         });
     }
 
@@ -236,5 +236,4 @@ public class EC2CloudPrivateKeyWithFIPSTest {
             }
         }
     }
-
 }

@@ -1,31 +1,24 @@
 package hudson.plugins.ec2.win;
 
-import hudson.plugins.ec2.win.winrm.WinRMConnectException;
-import hudson.plugins.ec2.win.winrm.WindowsProcess;
+import static org.junit.Assert.fail;
+
 import jenkins.security.FIPS140;
-import org.apache.commons.io.IOUtils;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeThat;
-
 public class WinConnectionWithFIPSTest {
 
     @ClassRule
-    public static FlagRule<String>
-            fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+    public static FlagRule<String> fipsSystemPropertyRule =
+            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
      */
     @Test(expected = IllegalArgumentException.class)
     public void testSelfSignedCertificateNotAllowed() throws Exception {
-        new WinConnection("", "" , "", true);
+        new WinConnection("", "", "", true);
     }
 
     /**
@@ -33,7 +26,7 @@ public class WinConnectionWithFIPSTest {
      */
     @Test
     public void testValidCreation() {
-        new WinConnection("", "" , "", false);
+        new WinConnection("", "", "", false);
     }
 
     /**
@@ -41,8 +34,7 @@ public class WinConnectionWithFIPSTest {
      */
     @Test
     public void testSetUseHTTPSFalseWithoutPassword() {
-        new WinConnection("", "" , "", false)
-                .setUseHTTPS(false);
+        new WinConnection("", "", "", false).setUseHTTPS(false);
     }
 
     /**
@@ -50,8 +42,7 @@ public class WinConnectionWithFIPSTest {
      */
     @Test(expected = IllegalArgumentException.class)
     public void testSetUseHTTPSFalseWithPassword() {
-        new WinConnection("", "alice" , "yes", false)
-                .setUseHTTPS(false);
+        new WinConnection("", "alice", "yes", false).setUseHTTPS(false);
     }
 
     /**

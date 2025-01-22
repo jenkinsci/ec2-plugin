@@ -8,8 +8,8 @@ import org.jvnet.hudson.test.FlagRule;
 public class WinRMWithoutFIPSTest {
 
     @ClassRule
-    public static FlagRule<String>
-            fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
+    public static FlagRule<String> fipsSystemPropertyRule =
+            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
 
     /**
      * When FIPS mode is not activated, no FIPS check should be performed, an {@link IllegalArgumentException} is not expected

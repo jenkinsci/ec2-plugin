@@ -8,8 +8,8 @@ import org.jvnet.hudson.test.FlagRule;
 public class WinRMWithFIPSTest {
 
     @ClassRule
-    public static FlagRule<String>
-            fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+    public static FlagRule<String> fipsSystemPropertyRule =
+            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected

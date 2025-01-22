@@ -2,18 +2,15 @@ package hudson.plugins.ec2;
 
 import hudson.Extension;
 import hudson.model.Descriptor;
-
 import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.security.FIPS140;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
-
 
 public class WindowsData extends AMITypeData {
 

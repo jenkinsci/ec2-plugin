@@ -1,6 +1,5 @@
 package hudson.plugins.ec2.win.winrm;
 
-import hudson.plugins.ec2.Messages;
 import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.plugins.ec2.win.winrm.request.RequestFactory;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
@@ -16,7 +15,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jenkins.security.FIPS140;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;

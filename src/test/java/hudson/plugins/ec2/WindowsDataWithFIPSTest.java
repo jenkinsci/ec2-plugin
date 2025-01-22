@@ -1,7 +1,9 @@
 package hudson.plugins.ec2;
 
-import hudson.model.Descriptor;
+import static org.junit.Assert.*;
+
 import hudson.ExtensionList;
+import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
@@ -12,11 +14,10 @@ import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.WithoutJenkins;
 
-import static org.junit.Assert.*;
-
 public class WindowsDataWithFIPSTest {
     @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule = FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+    public static FlagRule<String> fipsSystemPropertyRule =
+            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -68,42 +69,48 @@ public class WindowsDataWithFIPSTest {
     @Test
     @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPSWithPassword() {
-        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "yes");
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "yes");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPSWithoutPassword() {
-        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "");
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPWithPassword() {
-        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "yes");
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "yes");
         assertEquals(FormValidation.Kind.ERROR, formValidation.kind);
     }
 
     @Test
     @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPWithoutPassword() {
-        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "");
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
     @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckAllowSelfSignedCertificateChecked() {
-        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(true);
+        FormValidation formValidation =
+                ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(true);
         assertEquals(FormValidation.Kind.ERROR, formValidation.kind);
     }
 
     @Test
     @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckAllowSelfSignedCertificateNotChecked() {
-        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(false);
+        FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class)
+                .doCheckAllowSelfSignedCertificate(false);
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 }
