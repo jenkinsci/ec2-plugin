@@ -23,6 +23,15 @@
  */
 package hudson.plugins.ec2;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
@@ -53,6 +62,13 @@ import hudson.Util;
 import hudson.model.Node;
 import hudson.plugins.ec2.SlaveTemplate.ProvisionOptions;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.htmlunit.html.HtmlForm;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -61,22 +77,6 @@ import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.ArgumentCaptor;
 import org.xml.sax.SAXException;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Basic test to validate SlaveTemplate.
@@ -91,7 +91,8 @@ public class SlaveTemplateTest {
     private final boolean TEST_EBSO = false;
     private final String TEST_LABEL = "ttt";
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
     @Test
     public void testConfigRoundtrip() throws Exception {
@@ -102,17 +103,64 @@ public class SlaveTemplateTest {
         List<EC2Tag> tags = new ArrayList<>();
         tags.add(tag1);
         tags.add(tag2);
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", tags, null, 0, 0, null, "iamInstanceProfile", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default, EbsEncryptRootVolume.DEFAULT);
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                tags,
+                null,
+                0,
+                0,
+                null,
+                "iamInstanceProfile",
+                true,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
+        r.assertEqualBeans(
+                orig,
+                received,
+                "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,iamInstanceProfile,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy,tenancy,ebsEncryptRootVolume");
         // For already existing strategies, the default is this one
         assertEquals(HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT, received.getHostKeyVerificationStrategy());
     }
@@ -124,17 +172,64 @@ public class SlaveTemplateTest {
         // We check this one is set
         final HostKeyVerificationStrategyEnum STRATEGY_TO_CHECK = HostKeyVerificationStrategyEnum.OFF;
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, STRATEGY_TO_CHECK);
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                null,
+                STRATEGY_TO_CHECK,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
+        r.assertEqualBeans(
+                orig,
+                received,
+                "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,useDedicatedTenancy,connectionStrategy,hostKeyVerificationStrategy");
         assertEquals(STRATEGY_TO_CHECK, received.getHostKeyVerificationStrategy());
     }
 
@@ -154,16 +249,63 @@ public class SlaveTemplateTest {
         spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(0);
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                spotConfig,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "foo ami",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                false,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_DNS,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+        r.assertEqualBeans(
+                orig,
+                received,
+                "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     /**
@@ -178,28 +320,119 @@ public class SlaveTemplateTest {
 
         SpotConfiguration spotConfig = new SpotConfiguration(false);
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, true, null, "", false, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                spotConfig,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "foo ami",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                false,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_DNS,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
-        r.assertEqualBeans(orig, received, "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
+        r.assertEqualBeans(
+                orig,
+                received,
+                "ami,zone,spotConfig,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,tags,usePrivateDnsName");
     }
 
     @Test
     public void testWindowsConfigRoundTrip() throws Exception {
         String description = "foo ami";
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, null, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new WindowsData("password", false, ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                null,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "rrr",
+                new WindowsData("password", false, "", false, true),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                false,
+                true,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -213,11 +446,55 @@ public class SlaveTemplateTest {
     public void testUnixConfigRoundTrip() throws Exception {
         String description = "foo ami";
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "rrr", new UnixData("sudo", "", "", "22", ""), "-Xmx1g", false, "subnet 456", null, null, false, null, "", true, false, "", false, "");
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "rrr",
+                new UnixData("sudo", "", "", "22", ""),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                false,
+                true,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -227,7 +504,8 @@ public class SlaveTemplateTest {
 
     @Test
     public void testMinimumNumberOfInstancesActiveRangeConfig() throws Exception {
-        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig = new MinimumNumberOfInstancesTimeRangeConfig();
+        MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
+                new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeTo("15:00");
         minimumNumberOfInstancesTimeRangeConfig.setMonday(false);
@@ -236,23 +514,68 @@ public class SlaveTemplateTest {
         spotConfig.setSpotMaxBidPrice("22");
         spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(1);
-        SlaveTemplate slaveTemplate = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 2, null, null, true, true, false, "", false, "", false, false, true, ConnectionStrategy.PRIVATE_IP, 0);
+        SlaveTemplate slaveTemplate = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                spotConfig,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "foo ami",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                2,
+                0,
+                null,
+                null,
+                true,
+                true,
+                "",
+                false,
+                "",
+                false,
+                false,
+                true,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(slaveTemplate);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.configRoundtrip();
 
-        MinimumNumberOfInstancesTimeRangeConfig stored = r.jenkins.clouds.get(AmazonEC2Cloud.class).getTemplates().get(0).getMinimumNumberOfInstancesTimeRangeConfig();
+        MinimumNumberOfInstancesTimeRangeConfig stored =
+                r.jenkins.clouds.get(EC2Cloud.class).getTemplates().get(0).getMinimumNumberOfInstancesTimeRangeConfig();
         Assert.assertNotNull(stored);
         Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
         Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
-        Assert.assertEquals(false, stored.getDay("monday"));
-        Assert.assertEquals(true, stored.getDay("tuesday"));
+        Assert.assertFalse(stored.getDay("monday"));
+        Assert.assertTrue(stored.getDay("tuesday"));
     }
 
     @Test
@@ -263,8 +586,96 @@ public class SlaveTemplateTest {
         String securityGroups = "some security group";
         String iamInstanceProfile = "some instance profile";
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
-        SlaveTemplate noSubnet = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                subnetId,
+                null,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associatePublicIp,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+        SlaveTemplate noSubnet = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "",
+                null,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associatePublicIp,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -284,9 +695,13 @@ public class SlaveTemplateTest {
             String templateSubnet = Util.fixEmpty(template.getSubnetId());
             assertEquals(actualRequest.getSubnetId(), templateSubnet);
             if (templateSubnet != null) {
-                assertEquals(actualRequest.getSecurityGroupIds(), Stream.of("some-group-id").collect(Collectors.toList()));
+                assertEquals(
+                        actualRequest.getSecurityGroupIds(),
+                        Stream.of("some-group-id").collect(Collectors.toList()));
             } else {
-                assertEquals(actualRequest.getSecurityGroups(), Stream.of(securityGroups).collect(Collectors.toList()));
+                assertEquals(
+                        actualRequest.getSecurityGroups(),
+                        Stream.of(securityGroups).collect(Collectors.toList()));
             }
         }
     }
@@ -305,8 +720,96 @@ public class SlaveTemplateTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate orig = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
-        SlaveTemplate noSubnet = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "", tags, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                subnetId,
+                tags,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associatePublicIp,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+        SlaveTemplate noSubnet = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "",
+                tags,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associatePublicIp,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -320,11 +823,12 @@ public class SlaveTemplateTest {
             verify(mockedEC2).runInstances(riRequestCaptor.capture());
 
             RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-            InstanceNetworkInterfaceSpecification actualNet = actualRequest.getNetworkInterfaces().get(0);
+            InstanceNetworkInterfaceSpecification actualNet =
+                    actualRequest.getNetworkInterfaces().get(0);
 
             assertEquals(actualNet.getSubnetId(), Util.fixEmpty(template.getSubnetId()));
             assertEquals(actualNet.getGroups(), Stream.of("some-group-id").collect(Collectors.toList()));
-            assertEquals(actualRequest.getSubnetId(), null);
+            assertNull(actualRequest.getSubnetId());
             assertEquals(actualRequest.getSecurityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.getSecurityGroups(), Collections.emptyList());
         }
@@ -344,7 +848,51 @@ public class SlaveTemplateTest {
         spotConfig.setFallbackToOndemand(true);
         spotConfig.setSpotBlockReservationDuration(0);
 
-        SlaveTemplate template = new SlaveTemplate(TEST_AMI, TEST_ZONE, spotConfig, securityGroups, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, subnetId, null, null, false, null, iamInstanceProfile, true, false, "", associatePublicIp, "");
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                spotConfig,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                subnetId,
+                null,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associatePublicIp,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -353,7 +901,8 @@ public class SlaveTemplateTest {
         quotaExceededException.setStatusCode(400);
         quotaExceededException.setErrorCode("MaxSpotInstanceCountExceeded");
         quotaExceededException.setRequestId("00000000-0000-0000-0000-000000000000");
-        when(mockedEC2.requestSpotInstances(any(RequestSpotInstancesRequest.class))).thenThrow(quotaExceededException);
+        when(mockedEC2.requestSpotInstances(any(RequestSpotInstancesRequest.class)))
+                .thenThrow(quotaExceededException);
 
         template.provision(2, EnumSet.of(ProvisionOptions.ALLOW_CREATE));
 
@@ -361,7 +910,7 @@ public class SlaveTemplateTest {
     }
 
     private AmazonEC2 setupTestForProvisioning(SlaveTemplate template) throws Exception {
-        AmazonEC2Cloud mockedCloud = mock(AmazonEC2Cloud.class);
+        EC2Cloud mockedCloud = mock(EC2Cloud.class);
         AmazonEC2 mockedEC2 = mock(AmazonEC2.class);
         EC2PrivateKey mockedPrivateKey = mock(EC2PrivateKey.class);
         KeyPair mockedKeyPair = new KeyPair();
@@ -383,9 +932,11 @@ public class SlaveTemplateTest {
         mockedSecurityGroup.setVpcId("some-vpc-id");
         mockedSecurityGroup.setGroupId("some-group-id");
 
-        List<SecurityGroup> mockedSecurityGroups = Stream.of(mockedSecurityGroup).collect(Collectors.toList());
+        List<SecurityGroup> mockedSecurityGroups =
+                Stream.of(mockedSecurityGroup).collect(Collectors.toList());
         when(mockedSecurityGroupsResult.getSecurityGroups()).thenReturn(mockedSecurityGroups);
-        when(mockedEC2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class))).thenReturn(mockedSecurityGroupsResult);
+        when(mockedEC2.describeSecurityGroups(any(DescribeSecurityGroupsRequest.class)))
+                .thenReturn(mockedSecurityGroupsResult);
 
         DescribeSubnetsResult mockedDescribeSubnetsResult = mock(DescribeSubnetsResult.class);
         Subnet mockedSubnet = new Subnet();
@@ -405,7 +956,8 @@ public class SlaveTemplateTest {
         List<Reservation> mockedReservations = Stream.of(mockedReservation).collect(Collectors.toList());
         DescribeInstancesResult mockedDescribedInstancesResult = mock(DescribeInstancesResult.class);
         when(mockedDescribedInstancesResult.getReservations()).thenReturn(mockedReservations);
-        when(mockedEC2.describeInstances(any(DescribeInstancesRequest.class))).thenReturn(mockedDescribedInstancesResult);
+        when(mockedEC2.describeInstances(any(DescribeInstancesRequest.class)))
+                .thenReturn(mockedDescribedInstancesResult);
 
         RunInstancesResult mockedResult = mock(RunInstancesResult.class);
         when(mockedResult.getReservation()).thenReturn(mockedReservation);
@@ -417,12 +969,56 @@ public class SlaveTemplateTest {
     @Test
     public void testMacConfig() throws Exception {
         String description = "foo ami";
-        SlaveTemplate orig = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, "foo", InstanceType.Mac1Metal, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, description, "bar", "bbb", "aaa", "10", "fff", new MacData("sudo", null, null, "22", null), "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                "foo",
+                InstanceType.Mac1Metal,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                new MacData("sudo", null, null, "22", null),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(getConfigForm(ac));
@@ -433,15 +1029,105 @@ public class SlaveTemplateTest {
     @Issue("JENKINS-65569")
     @Test
     public void testAgentName() {
-        SlaveTemplate broken = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "broken/description", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
-        SlaveTemplate working = new SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "working", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", false, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, null, Tenancy.Default);
+        SlaveTemplate broken = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "broken/description",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+        SlaveTemplate working = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "working",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(broken);
         templates.add(working);
-        AmazonEC2Cloud brokenCloud = new AmazonEC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud brokenCloud =
+                new EC2Cloud("broken/cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         assertThat(broken.getSlaveName("test"), is("test"));
         assertThat(working.getSlaveName("test"), is("test"));
-        AmazonEC2Cloud workingCloud = new AmazonEC2Cloud("cloud", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud workingCloud =
+                new EC2Cloud("cloud", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         assertThat(broken.getSlaveName("test"), is("test"));
         assertThat(working.getSlaveName("test"), is("EC2 (cloud) - working (test)"));
     }
@@ -449,21 +1135,112 @@ public class SlaveTemplateTest {
     @Test
     public void testMetadataV2Config() throws Exception {
         final String slaveDescription = "foobar";
-        SlaveTemplate orig = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, slaveDescription, "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2, true);
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                slaveDescription,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                true,
+                2,
+                true);
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
-        AmazonEC2Cloud ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
         r.jenkins.clouds.add(ac);
 
         r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(slaveDescription);
-        r.assertEqualBeans(orig, received, "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,metadataEndpointEnabled,metadataTokensRequired,metadataHopsLimit");
+        r.assertEqualBeans(
+                orig,
+                received,
+                "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,useEphemeralDevices,connectionStrategy,hostKeyVerificationStrategy,metadataEndpointEnabled,metadataTokensRequired,metadataHopsLimit");
     }
 
     @Test
     public void provisionOnDemandWithUnsupportedInstanceMetadata() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, false, 2, false);
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                false,
+                2,
+                false);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -474,12 +1251,56 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.getMetadataOptions();
-        assertEquals(metadataOptionsRequest, null);
+        assertNull(metadataOptionsRequest);
     }
 
     @Test
     public void provisionOnDemandSetsMetadataV1Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, false, 2, true);
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                false,
+                2,
+                true);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -497,7 +1318,51 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataV2Options() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, true, true, 2, true);
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                true,
+                2,
+                true);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -515,7 +1380,51 @@ public class SlaveTemplateTest {
 
     @Test
     public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
-        SlaveTemplate template = new  SlaveTemplate(TEST_AMI, TEST_ZONE, TEST_SPOT_CFG, TEST_SEC_GROUPS, TEST_REMOTE_FS, TEST_INSTANCE_TYPE, TEST_EBSO, TEST_LABEL, Node.Mode.NORMAL, "", "bar", "bbb", "aaa", "10", "fff", null, "java", "-Xmx1g", false, "subnet 456", null, null, 0, 0, null, "", true, false, "", false, "", true, false, false, ConnectionStrategy.PUBLIC_IP, -1, null, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD, Tenancy.Default, EbsEncryptRootVolume.DEFAULT, null, true, null, true);
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true);
 
         AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
 
@@ -531,7 +1440,62 @@ public class SlaveTemplateTest {
         assertEquals(metadataOptionsRequest.getHttpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
-    private HtmlForm getConfigForm(AmazonEC2Cloud ac) throws IOException, SAXException {
+    @Test(expected = AmazonEC2Exception.class)
+    public void provisionOnDemandSetsMetadataDefaultOptionsWithEC2Exception() throws Exception {
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true);
+
+        AmazonEC2 mockedEC2 = setupTestForProvisioning(template);
+        when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
+                .thenThrow(new AmazonEC2Exception("InsufficientInstanceCapacity"));
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+    }
+
+    private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
     }
 }

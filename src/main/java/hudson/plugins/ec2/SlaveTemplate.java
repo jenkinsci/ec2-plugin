@@ -17,11 +17,6 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 package hudson.plugins.ec2;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
-import static hudson.plugins.ec2.EC2AbstractSlave.DEFAULT_JAVA_PATH;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -70,6 +65,7 @@ import com.amazonaws.services.ec2.model.StartInstancesResult;
 import com.amazonaws.services.ec2.model.Subnet;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TagSpecification;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
@@ -98,22 +94,6 @@ import hudson.util.DescribableList;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.model.JenkinsLocationConfiguration;
-import jenkins.slaves.iterators.api.NodeIterator;
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import org.kohsuke.stapler.verb.POST;
-
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
@@ -136,6 +116,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.servlet.ServletException;
+import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
+import jenkins.slaves.iterators.api.NodeIterator;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * Template of {@link EC2AbstractSlave} to launch.
@@ -243,9 +236,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private Integer metadataHopsLimit;
 
-    private transient/* almost final */ Set<LabelAtom> labelSet;
+    private transient /* almost final */ Set<LabelAtom> labelSet;
 
-    private transient/* almost final */Set<String> securityGroupSet;
+    private transient /* almost final */ Set<String> securityGroupSet;
 
     /* FIXME: Ideally these would be List<String>, but Jenkins currently
      * doesn't offer a usable way to represent those in forms. Instead
@@ -287,23 +280,61 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public transient boolean useDedicatedTenancy;
 
     @DataBoundConstructor
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String javaPath, String jvmopts,
-                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
-                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
-                         Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit, Boolean metadataSupported) {
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties,
+            HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
+            Tenancy tenancy,
+            EbsEncryptRootVolume ebsEncryptRootVolume,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit,
+            Boolean metadataSupported) {
 
-        if(StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)){
-            LOGGER.log(Level.FINE, "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
+        if (StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)) {
+            LOGGER.log(
+                    Level.FINE,
+                    "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
             // Can be null during tests
             Jenkins j = Jenkins.getInstanceOrNull();
-            if (j != null)
+            if (j != null) {
                 j.checkPermission(Jenkins.ADMINISTER);
+            }
         }
 
         this.ami = ami;
@@ -326,7 +357,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (StringUtils.isNotBlank(javaPath)) {
             this.javaPath = javaPath;
         } else {
-            this.javaPath = DEFAULT_JAVA_PATH;
+            this.javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
 
         this.jvmopts = jvmopts;
@@ -367,243 +398,1014 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.customDeviceMapping = customDeviceMapping;
         this.t2Unlimited = t2Unlimited;
 
-        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+        this.hostKeyVerificationStrategy = hostKeyVerificationStrategy != null
+                ? hostKeyVerificationStrategy
+                : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
         this.tenancy = tenancy != null ? tenancy : Tenancy.Default;
         this.ebsEncryptRootVolume = ebsEncryptRootVolume != null ? ebsEncryptRootVolume : EbsEncryptRootVolume.DEFAULT;
-        this.metadataSupported = metadataSupported != null ? metadataSupported : DEFAULT_METADATA_SUPPORTED;
-        this.metadataEndpointEnabled = metadataEndpointEnabled != null ? metadataEndpointEnabled : DEFAULT_METADATA_ENDPOINT_ENABLED;
-        this.metadataTokensRequired = metadataTokensRequired != null ? metadataTokensRequired : DEFAULT_METADATA_TOKENS_REQUIRED;
-        this.metadataHopsLimit = metadataHopsLimit != null ? metadataHopsLimit : DEFAULT_METADATA_HOPS_LIMIT;
+        this.metadataSupported =
+                metadataSupported != null ? metadataSupported : EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED;
+        this.metadataEndpointEnabled = metadataEndpointEnabled != null
+                ? metadataEndpointEnabled
+                : EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED;
+        this.metadataTokensRequired = metadataTokensRequired != null
+                ? metadataTokensRequired
+                : EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
+        this.metadataHopsLimit =
+                metadataHopsLimit != null ? metadataHopsLimit : EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         readResolve(); // initialize
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String javaPath, String jvmopts,
-                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
-                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume,
-                         Boolean metadataSupported, Boolean metadataEndpointEnabled, Boolean metadataTokensRequired, Integer metadataHopsLimit) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS,
-               type, ebsOptimized, labelString, mode, description, initScript,
-               tmpDir, userData, numExecutors, remoteAdmin, amiType, DEFAULT_JAVA_PATH, jvmopts,
-               stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
-               minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-               useEphemeralDevices, launchTimeoutStr, associatePublicIp,
-               customDeviceMapping, connectBySSHProcess, monitoring,
-               t2Unlimited, connectionStrategy, maxTotalUses,
-               nodeProperties, hostKeyVerificationStrategy, tenancy, null, metadataEndpointEnabled,
-               metadataTokensRequired, metadataHopsLimit, DEFAULT_METADATA_SUPPORTED);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties,
+            HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
+            Tenancy tenancy,
+            EbsEncryptRootVolume ebsEncryptRootVolume,
+            Boolean metadataSupported,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                minimumNumberOfSpareInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties,
+                hostKeyVerificationStrategy,
+                tenancy,
+                null,
+                metadataEndpointEnabled,
+                metadataTokensRequired,
+                metadataHopsLimit,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
-                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy, EbsEncryptRootVolume ebsEncryptRootVolume) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS,
-                type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, DEFAULT_JAVA_PATH, jvmopts,
-                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
-                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
-                customDeviceMapping, connectBySSHProcess, monitoring,
-                t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, hostKeyVerificationStrategy, tenancy, null, DEFAULT_METADATA_ENDPOINT_ENABLED,
-                DEFAULT_METADATA_TOKENS_REQUIRED, DEFAULT_METADATA_HOPS_LIMIT, DEFAULT_METADATA_SUPPORTED);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties,
+            HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
+            Tenancy tenancy,
+            EbsEncryptRootVolume ebsEncryptRootVolume) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                minimumNumberOfSpareInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties,
+                hostKeyVerificationStrategy,
+                tenancy,
+                null,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, String launchTimeoutStr, boolean associatePublicIp,
-                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy, Tenancy tenancy) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS,
-                type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
-                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
-                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
-                customDeviceMapping, connectBySSHProcess, monitoring,
-                t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, hostKeyVerificationStrategy, tenancy, null);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties,
+            HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
+            Tenancy tenancy) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                minimumNumberOfSpareInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties,
+                hostKeyVerificationStrategy,
+                tenancy,
+                null);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-                         int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
-                         List<? extends NodeProperty<?>> nodeProperties, HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS,
-                type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
-                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
-                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, launchTimeoutStr, associatePublicIp,
-                customDeviceMapping, connectBySSHProcess, monitoring,
-                t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, hostKeyVerificationStrategy, Tenancy.backwardsCompatible(useDedicatedTenancy));
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties,
+            HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                minimumNumberOfSpareInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties,
+                hostKeyVerificationStrategy,
+                Tenancy.backwardsCompatible(useDedicatedTenancy));
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            int minimumNumberOfSpareInstances, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
             List<? extends NodeProperty<?>> nodeProperties) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS,
-                type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts,
-                stopOnTerminate, subnetId, tags, idleTerminationMinutes, minimumNumberOfInstances,
-                minimumNumberOfSpareInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp,
-                customDeviceMapping, connectBySSHProcess, monitoring,
-                t2Unlimited, connectionStrategy, maxTotalUses,
-                nodeProperties, null);
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                minimumNumberOfSpareInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties,
+                null);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses,List<? extends NodeProperty<?>> nodeProperties ) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, minimumNumberOfInstances, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
-                connectBySSHProcess, monitoring, t2Unlimited, connectionStrategy, maxTotalUses, nodeProperties);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                0,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes, int minimumNumberOfInstances,
-            String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-            boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, minimumNumberOfInstances, instanceCapStr, iamInstanceProfile, deleteRootOnTermination,
-                useEphemeralDevices, useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping,
-                connectBySSHProcess, monitoring, t2Unlimited, connectionStrategy, maxTotalUses, Collections.emptyList());
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                Collections.emptyList());
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-                         InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-                         String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-                         boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-                         String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-                         boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-                         String customDeviceMapping, boolean connectBySSHProcess, boolean monitoring,
-                         boolean t2Unlimited, ConnectionStrategy connectionStrategy, int maxTotalUses) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-          tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-          idleTerminationMinutes, 0, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-          useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
-          monitoring, t2Unlimited, connectionStrategy, maxTotalUses);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                0,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp, boolean monitoring,
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            boolean usePrivateDnsName,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean connectUsingPublicIp,
+            boolean monitoring,
             boolean t2Unlimited) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
-                monitoring, t2Unlimited, ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp), -1);
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp),
+                -1);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean deleteRootOnTermination,
-            boolean useEphemeralDevices, boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp,
-            String customDeviceMapping, boolean connectBySSHProcess, boolean connectUsingPublicIp) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, deleteRootOnTermination, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess,
-                connectUsingPublicIp, false, false);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            boolean usePrivateDnsName,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean connectUsingPublicIp) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                usePrivateDnsName,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                connectUsingPublicIp,
+                false,
+                false);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping,
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            boolean usePrivateDnsName,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
             boolean connectBySSHProcess) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, false, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, connectBySSHProcess, false);
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                usePrivateDnsName,
+                instanceCapStr,
+                iamInstanceProfile,
+                false,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                connectBySSHProcess,
+                false);
     }
 
     @Deprecated
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description, String initScript,
-            String tmpDir, String userData, String numExecutors, String remoteAdmin, AMITypeData amiType, String jvmopts,
-            boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
-            boolean useDedicatedTenancy, String launchTimeoutStr, boolean associatePublicIp, String customDeviceMapping) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, amiType, jvmopts, stopOnTerminate, subnetId, tags,
-                idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile, useEphemeralDevices,
-                useDedicatedTenancy, launchTimeoutStr, associatePublicIp, customDeviceMapping, false);
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            boolean usePrivateDnsName,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean useEphemeralDevices,
+            boolean useDedicatedTenancy,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                usePrivateDnsName,
+                instanceCapStr,
+                iamInstanceProfile,
+                useEphemeralDevices,
+                useDedicatedTenancy,
+                launchTimeoutStr,
+                associatePublicIp,
+                customDeviceMapping,
+                false);
     }
 
     /**
      * Backward compatible constructor for reloading previous version data
      */
-    public SlaveTemplate(String ami, String zone, SpotConfiguration spotConfig, String securityGroups, String remoteFS,
-            String sshPort, InstanceType type, boolean ebsOptimized, String labelString, Node.Mode mode, String description,
-            String initScript, String tmpDir, String userData, String numExecutors, String remoteAdmin, String rootCommandPrefix,
-            String slaveCommandPrefix, String slaveCommandSuffix, String jvmopts, boolean stopOnTerminate, String subnetId, List<EC2Tag> tags, String idleTerminationMinutes,
-            boolean usePrivateDnsName, String instanceCapStr, String iamInstanceProfile, boolean useEphemeralDevices,
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            String sshPort,
+            InstanceType type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            String rootCommandPrefix,
+            String slaveCommandPrefix,
+            String slaveCommandSuffix,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            boolean usePrivateDnsName,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean useEphemeralDevices,
             String launchTimeoutStr) {
-        this(ami, zone, spotConfig, securityGroups, remoteFS, type, ebsOptimized, labelString, mode, description, initScript,
-                tmpDir, userData, numExecutors, remoteAdmin, new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, null),
-                jvmopts, stopOnTerminate, subnetId, tags, idleTerminationMinutes, usePrivateDnsName, instanceCapStr, iamInstanceProfile,
-                useEphemeralDevices, false, launchTimeoutStr, false, null);
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                type,
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, null),
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                usePrivateDnsName,
+                instanceCapStr,
+                iamInstanceProfile,
+                useEphemeralDevices,
+                false,
+                launchTimeoutStr,
+                false,
+                null);
     }
 
     public boolean isConnectBySSHProcess() {
@@ -651,7 +1453,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Set<String> parseSecurityGroups() {
-        if (securityGroups == null || "".equals(securityGroups.trim())) {
+        if (securityGroups == null || securityGroups.trim().isEmpty()) {
             return Collections.emptySet();
         } else {
             return new HashSet<>(Arrays.asList(securityGroups.split("\\s*,\\s*")));
@@ -686,22 +1488,28 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getRootCommandPrefix() {
-        return (amiType.isUnix() ? ((UnixData) amiType).getRootCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix():""));
+        return (amiType.isUnix()
+                ? ((UnixData) amiType).getRootCommandPrefix()
+                : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
     }
 
     public String getSlaveCommandPrefix() {
-        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandPrefix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
+        return (amiType.isUnix()
+                ? ((UnixData) amiType).getSlaveCommandPrefix()
+                : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
     }
 
     public String getSlaveCommandSuffix() {
-        return (amiType.isUnix() ? ((UnixData) amiType).getSlaveCommandSuffix() : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
+        return (amiType.isUnix()
+                ? ((UnixData) amiType).getSlaveCommandSuffix()
+                : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
     }
 
     public String chooseSubnetId() {
         if (StringUtils.isBlank(subnetId)) {
             return null;
         } else {
-            String[] subnetIdList= getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS);
+            String[] subnetIdList = getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS);
 
             // Round-robin subnet selection.
             currentSubnetId = subnetIdList[nextSubnet];
@@ -735,14 +1543,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     @DataBoundSetter
     public void setConnectUsingPublicIp(boolean connectUsingPublicIp) {
         this.connectUsingPublicIp = connectUsingPublicIp;
-        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(
+                this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
     }
 
     @Deprecated
     @DataBoundSetter
     public void setUsePrivateDnsName(boolean usePrivateDnsName) {
         this.usePrivateDnsName = usePrivateDnsName;
-        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+        this.connectionStrategy = ConnectionStrategy.backwardsCompatible(
+                this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
     }
 
     @Deprecated
@@ -756,8 +1566,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public List<EC2Tag> getTags() {
-        if (null == tags)
+        if (null == tags) {
             return null;
+        }
         return Collections.unmodifiableList(tags);
     }
 
@@ -801,7 +1612,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @DataBoundSetter
-    public void setMinimumNumberOfInstancesTimeRangeConfig(MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig) {
+    public void setMinimumNumberOfInstancesTimeRangeConfig(
+            MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig) {
         this.minimumNumberOfInstancesTimeRangeConfig = minimumNumberOfInstancesTimeRangeConfig;
     }
 
@@ -810,8 +1622,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public int getSpotBlockReservationDuration() {
-        if (spotConfig == null)
+        if (spotConfig == null) {
             return 0;
+        }
         return spotConfig.getSpotBlockReservationDuration();
     }
 
@@ -820,8 +1633,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return "";
         } else {
             int dur = getSpotBlockReservationDuration();
-            if (dur == 0)
+            if (dur == 0) {
                 return "";
+            }
             return String.valueOf(getSpotBlockReservationDuration());
         }
     }
@@ -835,8 +1649,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getSpotMaxBidPrice() {
-        if (spotConfig == null)
+        if (spotConfig == null) {
             return null;
+        }
         return SpotConfiguration.normalizeBid(spotConfig.getSpotMaxBidPrice());
     }
 
@@ -846,12 +1661,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @DataBoundSetter
     public void setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
-        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null) ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+        this.hostKeyVerificationStrategy = (hostKeyVerificationStrategy != null)
+                ? hostKeyVerificationStrategy
+                : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
 
     @NonNull
     public HostKeyVerificationStrategyEnum getHostKeyVerificationStrategy() {
-        return hostKeyVerificationStrategy != null ? hostKeyVerificationStrategy : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
+        return hostKeyVerificationStrategy != null
+                ? hostKeyVerificationStrategy
+                : HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT;
     }
 
     @CheckForNull
@@ -886,10 +1705,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @Override
     public String toString() {
-        return "SlaveTemplate{" +
-                "description='" + description + '\'' +
-                ", labels='" + labels + '\'' +
-                '}';
+        return "SlaveTemplate{" + "description='" + description + '\'' + ", labels='" + labels + '\'' + '}';
     }
 
     public int getMaxTotalUses() {
@@ -897,7 +1713,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public Boolean getMetadataSupported() {
-      return metadataSupported;
+        return metadataSupported;
     }
 
     public Boolean getMetadataEndpointEnabled() {
@@ -920,7 +1736,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return Objects.requireNonNull(nodeProperties);
     }
 
-    public enum ProvisionOptions { ALLOW_CREATE, FORCE_CREATE }
+    public enum ProvisionOptions {
+        ALLOW_CREATE,
+        FORCE_CREATE
+    }
 
     /**
      * Provisions a new EC2 agent or starts a previously stopped on-demand instance.
@@ -928,11 +1747,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return always non-null. This needs to be then added to {@link Hudson#addNode(Node)}.
      */
     @NonNull
-    public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions) throws AmazonClientException, IOException {
+    public List<EC2AbstractSlave> provision(int number, EnumSet<ProvisionOptions> provisionOptions)
+            throws AmazonClientException, IOException {
         final Image image = getImage();
         if (this.spotConfig != null) {
-            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE) || provisionOptions.contains(ProvisionOptions.FORCE_CREATE))
+            if (provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)
+                    || provisionOptions.contains(ProvisionOptions.FORCE_CREATE)) {
                 return provisionSpot(image, number, provisionOptions);
+            }
             return Collections.emptyList();
         }
         return provisionOndemand(image, number, provisionOptions);
@@ -943,11 +1765,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     private boolean checkInstance(Instance instance) {
         for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
-            if ( (node.getInstanceId().equals(instance.getInstanceId())) &&
-                    (! (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())
-                ))
-               ){
-                logInstanceCheck(instance, ". false - found existing corresponding Jenkins agent: " + node.getInstanceId());
+            if ((node.getInstanceId().equals(instance.getInstanceId()))
+                    && (!(instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())))) {
+                logInstanceCheck(
+                        instance, ". false - found existing corresponding Jenkins agent: " + node.getInstanceId());
                 return false;
             }
         }
@@ -960,10 +1781,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private boolean isSameIamInstanceProfile(Instance instance) {
-        return StringUtils.isBlank(getIamInstanceProfile()) ||
-                (instance.getIamInstanceProfile() != null &&
-                        instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile()));
-
+        return StringUtils.isBlank(getIamInstanceProfile())
+                || (instance.getIamInstanceProfile() != null
+                        && instance.getIamInstanceProfile().getArn().equals(getIamInstanceProfile()));
     }
 
     private boolean isTerminatingOrShuttindDown(String instanceStateName) {
@@ -975,22 +1795,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info(this + ". " + message);
     }
 
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2)
+            throws IOException {
         return makeRunInstancesRequestAndFilters(image, number, ec2, true);
     }
 
     @Deprecated
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2)
+            throws IOException {
         return makeRunInstancesRequestAndFilters(getImage(), number, ec2);
     }
 
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(
+            Image image, int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
         String imageId = image.getImageId();
         RunInstancesRequest riRequest = new RunInstancesRequest(imageId, 1, number).withInstanceType(type);
         riRequest.setEbsOptimized(ebsOptimized);
         riRequest.setMonitoring(monitoring);
 
-        if (t2Unlimited){
+        if (t2Unlimited) {
             CreditSpecificationRequest creditRequest = new CreditSpecificationRequest();
             creditRequest.setCpuCredits("unlimited");
             riRequest.setCreditSpecification(creditRequest);
@@ -998,10 +1821,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         setupBlockDeviceMappings(image, riRequest.getBlockDeviceMappings());
 
-        if(stopOnTerminate){
+        if (stopOnTerminate) {
             riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Stop);
             logProvisionInfo("Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Stop");
-        }else{
+        } else {
             riRequest.setInstanceInitiatedShutdownBehavior(ShutdownBehavior.Terminate);
             logProvisionInfo("Setting Instance Initiated Shutdown Behavior : ShutdownBehavior.Terminate");
         }
@@ -1011,14 +1834,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         diFilters.add(new Filter("instance-type").withValues(type.toString()));
 
         KeyPair keyPair = getKeyPair(ec2);
-        if (keyPair == null){
+        if (keyPair == null) {
             logProvisionInfo("Could not retrieve a valid key pair.");
             return null;
         }
         riRequest.setUserData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
         riRequest.setKeyName(keyPair.getKeyName());
         diFilters.add(new Filter("key-name").withValues(keyPair.getKeyName()));
-
 
         if (StringUtils.isNotBlank(getZone())) {
             Placement placement = new Placement(getZone());
@@ -1029,12 +1851,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             diFilters.add(new Filter("availability-zone").withValues(getZone()));
         }
 
-        if(getTenancyAttribute().equals(Tenancy.Host)){
+        if (getTenancyAttribute().equals(Tenancy.Host)) {
             Placement placement = new Placement();
             placement.setTenancy("host");
             riRequest.setPlacement(placement);
             diFilters.add(new Filter("tenancy").withValues(placement.getTenancy()));
-        }else if(getTenancyAttribute().equals(Tenancy.Default)){
+        } else if (getTenancyAttribute().equals(Tenancy.Default)) {
             Placement placement = new Placement();
             placement.setTenancy("default");
             riRequest.setPlacement(placement);
@@ -1071,10 +1893,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
-                                            .getSecurityGroups()
-                                            .stream().map(SecurityGroup::getGroupId)
-                                            .collect(Collectors.toList());
+            List<String> groupIds =
+                    getSecurityGroupsBy("group-name", securityGroupSet, ec2).getSecurityGroups().stream()
+                            .map(SecurityGroup::getGroupId)
+                            .collect(Collectors.toList());
             if (getAssociatePublicIp()) {
                 net.setGroups(groupIds);
             } else {
@@ -1111,10 +1933,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         if (metadataSupported) {
             InstanceMetadataOptionsRequest instanceMetadataOptionsRequest = new InstanceMetadataOptionsRequest();
-            instanceMetadataOptionsRequest.setHttpEndpoint(metadataEndpointEnabled ? InstanceMetadataEndpointState.Enabled.toString() : InstanceMetadataEndpointState.Disabled.toString());
-            instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
+            instanceMetadataOptionsRequest.setHttpEndpoint(
+                    metadataEndpointEnabled
+                            ? InstanceMetadataEndpointState.Enabled.toString()
+                            : InstanceMetadataEndpointState.Disabled.toString());
+            instanceMetadataOptionsRequest.setHttpPutResponseHopLimit(
+                    metadataHopsLimit == null ? EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT : metadataHopsLimit);
             instanceMetadataOptionsRequest.setHttpTokens(
-                metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
+                    metadataTokensRequired ? HttpTokensState.Required.toString() : HttpTokensState.Optional.toString());
             riRequest.setMetadataOptions(instanceMetadataOptionsRequest);
         }
 
@@ -1124,29 +1950,37 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @Deprecated
-    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
+    HashMap<RunInstancesRequest, List<Filter>> makeRunInstancesRequestAndFilters(
+            int number, AmazonEC2 ec2, boolean rotateSubnet) throws IOException {
         return makeRunInstancesRequestAndFilters(getImage(), number, ec2, rotateSubnet);
     }
 
     /**
      * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
-            throws IOException {
+    private List<EC2AbstractSlave> provisionOndemand(
+            Image image, int number, EnumSet<ProvisionOptions> provisionOptions) throws IOException {
         return provisionOndemand(image, number, provisionOptions, false, false);
     }
 
     /**
      * Provisions an On-demand EC2 agent by launching a new instance or starting a previously-stopped instance.
      */
-    private List<EC2AbstractSlave> provisionOndemand(Image image, int number, EnumSet<ProvisionOptions> provisionOptions, boolean spotWithoutBidPrice, boolean fallbackSpotToOndemand)
+    private List<EC2AbstractSlave> provisionOndemand(
+            Image image,
+            int number,
+            EnumSet<ProvisionOptions> provisionOptions,
+            boolean spotWithoutBidPrice,
+            boolean fallbackSpotToOndemand)
             throws IOException {
         AmazonEC2 ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
 
-        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(image, number, ec2);
-        Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap =
+                makeRunInstancesRequestAndFilters(image, number, ec2);
+        Map.Entry<RunInstancesRequest, List<Filter>> entry =
+                runInstancesRequestFilterMap.entrySet().iterator().next();
         RunInstancesRequest riRequest = entry.getKey();
         List<Filter> diFilters = entry.getValue();
 
@@ -1157,8 +1991,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         DescribeInstancesResult diResult = ec2.describeInstances(diRequest);
         List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
 
-        if (orphansOrStopped.isEmpty() && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE) &&
-                !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+        if (orphansOrStopped.isEmpty()
+                && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
+                && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
             logProvisionInfo("No existing instance found - but cannot create new instance");
             return null;
         }
@@ -1173,9 +2008,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
-            InstanceMarketOptionsRequest instanceMarketOptionsRequest = new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
+            InstanceMarketOptionsRequest instanceMarketOptionsRequest =
+                    new InstanceMarketOptionsRequest().withMarketType(MarketType.Spot);
             if (getSpotBlockReservationDuration() != 0) {
-                SpotMarketOptions spotOptions = new SpotMarketOptions().withBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
+                SpotMarketOptions spotOptions =
+                        new SpotMarketOptions().withBlockDurationMinutes(getSpotBlockReservationDuration() * 60);
                 instanceMarketOptionsRequest.setSpotOptions(spotOptions);
             }
             riRequest.setInstanceMarketOptions(instanceMarketOptionsRequest);
@@ -1183,7 +2020,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
             } catch (AmazonEC2Exception e) {
                 if (fallbackSpotToOndemand && e.getErrorCode().equals("InsufficientInstanceCapacity")) {
-                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                    logProvisionInfo(
+                            "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     riRequest.setInstanceMarketOptions(new InstanceMarketOptionsRequest());
                     newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
                 } else {
@@ -1191,7 +2029,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            try {
+                newInstances = ec2.runInstances(riRequest).getReservation().getInstances();
+            } catch (AmazonEC2Exception e) {
+                logProvisionInfo("Jenkins attempted to reserve "
+                        + riRequest.getMaxCount()
+                        + " instances and received this EC2 exception: " + e.getMessage());
+                throw e;
+            }
         }
         // Have to create a new instance
 
@@ -1206,14 +2051,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     void wakeOrphansOrStoppedUp(AmazonEC2 ec2, List<Instance> orphansOrStopped) {
         List<String> instances = new ArrayList<>();
-        for(Instance instance : orphansOrStopped) {
+        for (Instance instance : orphansOrStopped) {
             if (instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopping.toString())
                     || instance.getState().getName().equalsIgnoreCase(InstanceStateName.Stopped.toString())) {
                 logProvisionInfo("Found stopped instances - will start it: " + instance);
                 instances.add(instance.getInstanceId());
             } else {
                 // Should be pending or running at this point, just let it come up
-                logProvisionInfo("Found existing pending or running: " + instance.getState().getName() + " instance: " + instance);
+                logProvisionInfo("Found existing pending or running: "
+                        + instance.getState().getName() + " instance: " + instance);
             }
         }
 
@@ -1222,7 +2068,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             StartInstancesResult siResult = ec2.startInstances(siRequest);
             logProvisionInfo("Result of starting stopped instances:" + siResult);
         }
-
     }
 
     List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
@@ -1245,7 +2090,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         for (Reservation reservation : diResult.getReservations()) {
             for (Instance instance : reservation.getInstances()) {
                 if (!isSameIamInstanceProfile(instance)) {
-                    logInstanceCheck(instance, ". false - IAM Instance profile does not match: " + instance.getIamInstanceProfile());
+                    logInstanceCheck(
+                            instance,
+                            ". false - IAM Instance profile does not match: " + instance.getIamInstanceProfile());
                     continue;
                 }
 
@@ -1275,7 +2122,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         // get the root device (only one expected in the blockmappings)
         final List<BlockDeviceMapping> rootDeviceMappings = image.getBlockDeviceMappings();
-        if (rootDeviceMappings.size() == 0) {
+        if (rootDeviceMappings.isEmpty()) {
             LOGGER.warning("AMI missing block devices");
             return;
         }
@@ -1301,10 +2148,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         newMapping.getEbs().setEncrypted(ebsEncryptRootVolume.getValue());
-        String message = String.format("EBS default encryption value set to: %s (%s)", ebsEncryptRootVolume.getDisplayText(), ebsEncryptRootVolume.getValue());
+        String message = String.format(
+                "EBS default encryption value set to: %s (%s)",
+                ebsEncryptRootVolume.getDisplayText(), ebsEncryptRootVolume.getValue());
         logProvisionInfo(message);
         deviceMappings.add(0, newMapping);
-
     }
 
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping(Image image) {
@@ -1317,19 +2165,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             occupiedDevices.add(mapping.getDeviceName());
         }
 
-        final List<String> available = new ArrayList<>(
-                Arrays.asList("ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"));
+        final List<String> available =
+                new ArrayList<>(Arrays.asList("ephemeral0", "ephemeral1", "ephemeral2", "ephemeral3"));
 
         final List<BlockDeviceMapping> newDeviceMapping = new ArrayList<>(4);
         for (char suffix = 'b'; suffix <= 'z' && !available.isEmpty(); suffix++) {
 
             final String deviceName = String.format("/dev/xvd%s", suffix);
 
-            if (occupiedDevices.contains(deviceName))
+            if (occupiedDevices.contains(deviceName)) {
                 continue;
+            }
 
-            final BlockDeviceMapping newMapping = new BlockDeviceMapping().withDeviceName(deviceName).withVirtualName(
-                    available.get(0));
+            final BlockDeviceMapping newMapping =
+                    new BlockDeviceMapping().withDeviceName(deviceName).withVirtualName(available.get(0));
 
             newDeviceMapping.add(newMapping);
             available.remove(0);
@@ -1345,15 +2194,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @NonNull
     private static List<String> makeImageAttributeList(@CheckForNull String attr) {
-        return Stream.of(Util.tokenize(Util.fixNull(attr)))
-            .collect(Collectors.toList());
+        return Stream.of(Util.tokenize(Util.fixNull(attr))).collect(Collectors.toList());
     }
 
     @NonNull
     private DescribeImagesRequest makeDescribeImagesRequest() throws AmazonClientException {
-        List<String> imageIds = Util.fixEmptyAndTrim(ami) == null ?
-            Collections.emptyList() :
-            Collections.singletonList(ami);
+        List<String> imageIds =
+                Util.fixEmptyAndTrim(ami) == null ? Collections.emptyList() : Collections.singletonList(ami);
         List<String> owners = makeImageAttributeList(amiOwners);
         List<String> users = makeImageAttributeList(amiUsers);
         List<Filter> filters = EC2Filter.toFilterList(amiFilters);
@@ -1361,17 +2208,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         // Raise an exception if there were no search attributes.
         // This is legal but not what anyone wants - it will
         // launch random recently created public AMIs.
-        int numAttrs = Stream.of(imageIds, owners, users, filters)
-            .collect(Collectors.summingInt(List::size));
+        int numAttrs =
+                Stream.of(imageIds, owners, users, filters).mapToInt(List::size).sum();
         if (numAttrs == 0) {
             throw new AmazonClientException("Neither AMI ID nor AMI search attributes provided");
         }
 
         return new DescribeImagesRequest()
-            .withImageIds(imageIds)
-            .withOwners(owners)
-            .withExecutableUsers(users)
-            .withFilters(filters);
+                .withImageIds(imageIds)
+                .withOwners(owners)
+                .withExecutableUsers(users)
+                .withFilters(filters);
     }
 
     @NonNull
@@ -1388,7 +2235,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         images.sort(Comparator.comparing(Image::getCreationDate).reversed());
         return images.get(0);
     }
-
 
     private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
         if (StringUtils.isNotBlank(customDeviceMapping)) {
@@ -1452,10 +2298,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             } else {
                 if (!securityGroupSet.isEmpty()) {
-                    List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2)
-                                                    .getSecurityGroups()
-                                                    .stream().map(SecurityGroup::getGroupId)
-                                                    .collect(Collectors.toList());
+                    List<String> groupIds =
+                            getSecurityGroupsBy("group-name", securityGroupSet, ec2).getSecurityGroups().stream()
+                                    .map(SecurityGroup::getGroupId)
+                                    .collect(Collectors.toList());
                     net.setGroups(groupIds);
                 }
             }
@@ -1473,7 +2319,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-                launchSpecification.setIamInstanceProfile(new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
+                launchSpecification.setIamInstanceProfile(
+                        new IamInstanceProfileSpecification().withArn(getIamInstanceProfile()));
             }
 
             setupBlockDeviceMappings(image, launchSpecification.getBlockDeviceMappings());
@@ -1490,7 +2337,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 reqResult = ec2.requestSpotInstances(spotRequest);
             } catch (AmazonEC2Exception e) {
                 if (spotConfig.getFallbackToOndemand() && e.getErrorCode().equals("MaxSpotInstanceCountExceeded")) {
-                    logProvisionInfo("There is no spot capacity available matching your request, falling back to on-demand instance.");
+                    logProvisionInfo(
+                            "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     return provisionOndemand(image, number, provisionOptions);
                 } else {
                     throw e;
@@ -1503,7 +2351,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
 
             List<EC2AbstractSlave> slaves = new ArrayList<>(reqInstances.size());
-            for(SpotInstanceRequest spotInstReq : reqInstances) {
+            for (SpotInstanceRequest spotInstReq : reqInstances) {
                 if (spotInstReq == null) {
                     throw new AmazonClientException("Spot instance request is null");
                 }
@@ -1514,22 +2362,31 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         LOGGER.info("Spot request " + slaveName + " is still pending evaluation");
                         Thread.sleep(5000);
                         LOGGER.info("Fetching info about spot request " + slaveName);
-                        DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(slaveName);
-                        spotInstReq = ec2.describeSpotInstanceRequests(describeRequest).getSpotInstanceRequests().get(0);
+                        DescribeSpotInstanceRequestsRequest describeRequest =
+                                new DescribeSpotInstanceRequestsRequest().withSpotInstanceRequestIds(slaveName);
+                        spotInstReq = ec2.describeSpotInstanceRequests(describeRequest)
+                                .getSpotInstanceRequests()
+                                .get(0);
                     }
 
-                    List<String> spotRequestBadCodes = Arrays.asList("capacity-not-available", "capacity-oversubscribed", "price-too-low");
+                    List<String> spotRequestBadCodes =
+                            Arrays.asList("capacity-not-available", "capacity-oversubscribed", "price-too-low");
                     if (spotRequestBadCodes.contains(spotInstReq.getStatus().getCode())) {
-                        LOGGER.info("There is no spot capacity available matching your request, falling back to on-demand instance.");
-                        List<String> requestsToCancel = reqInstances.stream().map(SpotInstanceRequest::getSpotInstanceRequestId).collect(Collectors.toList());
-                        CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(requestsToCancel);
+                        LOGGER.info(
+                                "There is no spot capacity available matching your request, falling back to on-demand instance.");
+                        List<String> requestsToCancel = reqInstances.stream()
+                                .map(SpotInstanceRequest::getSpotInstanceRequestId)
+                                .collect(Collectors.toList());
+                        CancelSpotInstanceRequestsRequest cancelRequest =
+                                new CancelSpotInstanceRequestsRequest(requestsToCancel);
                         ec2.cancelSpotInstanceRequests(cancelRequest);
                         return provisionOndemand(image, number, provisionOptions);
                     }
                 }
 
                 // Now that we have our Spot request, we can set tags on it
-                updateRemoteTags(ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
+                updateRemoteTags(
+                        ec2, instTags, "InvalidSpotInstanceRequestID.NotFound", spotInstReq.getSpotInstanceRequestId());
 
                 // That was a remote request - we should also update our local instance data
                 spotInstReq.setTags(instTags);
@@ -1543,7 +2400,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
-                                        // configuration issues upfront
+            // configuration issues upfront
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
@@ -1575,8 +2432,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
         if (!hasCustomTypeTag) {
-            instTags.add(new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(
-                    slaveType, description)));
+            instTags.add(
+                    new Tag(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE, EC2Cloud.getSlaveTypeTagValue(slaveType, description)));
         }
         JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
         if (!hasJenkinsServerUrlTag && jenkinsLocation.getUrl() != null) {
@@ -1587,61 +2444,61 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     protected EC2OndemandSlave newOndemandSlave(Instance inst) throws FormException, IOException {
         EC2AgentConfig.OnDemand config = new EC2AgentConfig.OnDemandBuilder()
-            .withName(getSlaveName(inst.getInstanceId()))
-            .withInstanceId(inst.getInstanceId())
-            .withDescription(description)
-            .withRemoteFS(remoteFS)
-            .withNumExecutors(getNumExecutors())
-            .withLabelString(labels)
-            .withMode(mode)
-            .withInitScript(initScript)
-            .withTmpDir(tmpDir)
-            .withNodeProperties(nodeProperties.toList())
-            .withRemoteAdmin(remoteAdmin)
-            .withJavaPath(javaPath)
-            .withJvmopts(jvmopts)
-            .withStopOnTerminate(stopOnTerminate)
-            .withIdleTerminationMinutes(idleTerminationMinutes)
-            .withPublicDNS(inst.getPublicDnsName())
-            .withPrivateDNS(inst.getPrivateDnsName())
-            .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
-            .withCloudName(parent.name)
-            .withLaunchTimeout(getLaunchTimeout())
-            .withAmiType(amiType)
-            .withConnectionStrategy(connectionStrategy)
-            .withMaxTotalUses(maxTotalUses)
-            .withTenancyAttribute(tenancy)
-            .withMetadataSupported(metadataSupported)
-            .withMetadataEndpointEnabled(metadataEndpointEnabled)
-            .withMetadataTokensRequired(metadataTokensRequired)
-            .withMetadataHopsLimit(metadataHopsLimit)
-            .build();
+                .withName(getSlaveName(inst.getInstanceId()))
+                .withInstanceId(inst.getInstanceId())
+                .withDescription(description)
+                .withRemoteFS(remoteFS)
+                .withNumExecutors(getNumExecutors())
+                .withLabelString(labels)
+                .withMode(mode)
+                .withInitScript(initScript)
+                .withTmpDir(tmpDir)
+                .withNodeProperties(nodeProperties.toList())
+                .withRemoteAdmin(remoteAdmin)
+                .withJavaPath(javaPath)
+                .withJvmopts(jvmopts)
+                .withStopOnTerminate(stopOnTerminate)
+                .withIdleTerminationMinutes(idleTerminationMinutes)
+                .withPublicDNS(inst.getPublicDnsName())
+                .withPrivateDNS(inst.getPrivateDnsName())
+                .withTags(EC2Tag.fromAmazonTags(inst.getTags()))
+                .withCloudName(parent.name)
+                .withLaunchTimeout(getLaunchTimeout())
+                .withAmiType(amiType)
+                .withConnectionStrategy(connectionStrategy)
+                .withMaxTotalUses(maxTotalUses)
+                .withTenancyAttribute(tenancy)
+                .withMetadataSupported(metadataSupported)
+                .withMetadataEndpointEnabled(metadataEndpointEnabled)
+                .withMetadataTokensRequired(metadataTokensRequired)
+                .withMetadataHopsLimit(metadataHopsLimit)
+                .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
 
     protected EC2SpotSlave newSpotSlave(SpotInstanceRequest sir) throws FormException, IOException {
         EC2AgentConfig.Spot config = new EC2AgentConfig.SpotBuilder()
-            .withName(getSlaveName(sir.getSpotInstanceRequestId()))
-            .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
-            .withDescription(description)
-            .withRemoteFS(remoteFS)
-            .withNumExecutors(getNumExecutors())
-            .withMode(mode)
-            .withInitScript(initScript)
-            .withTmpDir(tmpDir)
-            .withLabelString(labels)
-            .withNodeProperties(nodeProperties.toList())
-            .withRemoteAdmin(remoteAdmin)
-            .withJavaPath(javaPath)
-            .withJvmopts(jvmopts)
-            .withIdleTerminationMinutes(idleTerminationMinutes)
-            .withTags(EC2Tag.fromAmazonTags(sir.getTags()))
-            .withCloudName(parent.name)
-            .withLaunchTimeout(getLaunchTimeout())
-            .withAmiType(amiType)
-            .withConnectionStrategy(connectionStrategy)
-            .withMaxTotalUses(maxTotalUses)
-            .build();
+                .withName(getSlaveName(sir.getSpotInstanceRequestId()))
+                .withSpotInstanceRequestId(sir.getSpotInstanceRequestId())
+                .withDescription(description)
+                .withRemoteFS(remoteFS)
+                .withNumExecutors(getNumExecutors())
+                .withMode(mode)
+                .withInitScript(initScript)
+                .withTmpDir(tmpDir)
+                .withLabelString(labels)
+                .withNodeProperties(nodeProperties.toList())
+                .withRemoteAdmin(remoteAdmin)
+                .withJavaPath(javaPath)
+                .withJvmopts(jvmopts)
+                .withIdleTerminationMinutes(idleTerminationMinutes)
+                .withTags(EC2Tag.fromAmazonTags(sir.getTags()))
+                .withCloudName(parent.name)
+                .withLaunchTimeout(getLaunchTimeout())
+                .withAmiType(amiType)
+                .withConnectionStrategy(connectionStrategy)
+                .withMaxTotalUses(maxTotalUses)
+                .build();
         return EC2AgentFactory.getInstance().createSpotAgent(config);
     }
 
@@ -1652,7 +2509,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private KeyPair getKeyPair(AmazonEC2 ec2) throws IOException, AmazonClientException {
         EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
         if (ec2PrivateKey == null) {
-            throw new AmazonClientException("No keypair credential found. Please configure a credential in the Jenkins configuration.");
+            throw new AmazonClientException(
+                    "No keypair credential found. Please configure a credential in the Jenkins configuration.");
         }
         KeyPair keyPair = ec2PrivateKey.find(ec2);
         if (keyPair == null) {
@@ -1694,17 +2552,23 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * Get a list of security group ids for the agent
      */
     private List<String> getEc2SecurityGroups(AmazonEC2 ec2) throws AmazonClientException {
-        LOGGER.log(Level.FINE, () -> String.format("Get security group %s for EC2Cloud %s with currentSubnetId %s",
-            securityGroupSet, this.getParent().name, getCurrentSubnetId()));
+        LOGGER.log(
+                Level.FINE,
+                () -> String.format(
+                        "Get security group %s for EC2Cloud %s with currentSubnetId %s",
+                        securityGroupSet, this.getParent().name, getCurrentSubnetId()));
         List<String> groupIds = new ArrayList<>();
         DescribeSecurityGroupsResult groupResult = getSecurityGroupsBy("group-name", securityGroupSet, ec2);
-        if (groupResult.getSecurityGroups().size() == 0) {
+        if (groupResult.getSecurityGroups().isEmpty()) {
             groupResult = getSecurityGroupsBy("group-id", securityGroupSet, ec2);
         }
 
         for (SecurityGroup group : groupResult.getSecurityGroups()) {
-            LOGGER.log(Level.FINE, () -> String.format("Checking security group %s (vpc-id = %s, subnet-id = %s)",
-                group.getGroupId(), group.getVpcId(), getCurrentSubnetId()));
+            LOGGER.log(
+                    Level.FINE,
+                    () -> String.format(
+                            "Checking security group %s (vpc-id = %s, subnet-id = %s)",
+                            group.getGroupId(), group.getVpcId(), getCurrentSubnetId()));
             if (group.getVpcId() != null && !group.getVpcId().isEmpty()) {
                 List<Filter> filters = new ArrayList<>();
                 filters.add(new Filter("vpc-id").withValues(group.getVpcId()));
@@ -1730,7 +2594,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return groupIds;
     }
 
-    private DescribeSecurityGroupsResult getSecurityGroupsBy(String filterName, Set<String> filterValues, AmazonEC2 ec2) {
+    private DescribeSecurityGroupsResult getSecurityGroupsBy(
+            String filterName, Set<String> filterValues, AmazonEC2 ec2) {
         DescribeSecurityGroupsRequest groupReq = new DescribeSecurityGroupsRequest();
         groupReq.withFilters(new Filter(filterName).withValues(filterValues));
         return ec2.describeSecurityGroups(groupReq);
@@ -1748,11 +2613,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             LOGGER.info("Attaching to " + instanceId);
             DescribeInstancesRequest request = new DescribeInstancesRequest();
             request.setInstanceIds(Collections.singletonList(instanceId));
-            Instance inst = ec2.describeInstances(request).getReservations().get(0).getInstances().get(0);
+            Instance inst = ec2.describeInstances(request)
+                    .getReservations()
+                    .get(0)
+                    .getInstances()
+                    .get(0);
             return newOndemandSlave(inst);
         } catch (FormException e) {
             throw new AssertionError(); // we should have discovered all
-                                        // configuration issues upfront
+            // configuration issues upfront
         }
     }
 
@@ -1761,9 +2630,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     protected Object readResolve() {
         Jenkins j = Jenkins.getInstanceOrNull();
-         if (j != null) {
-             j.checkPermission(Jenkins.ADMINISTER);
-         }
+        if (j != null) {
+            j.checkPermission(Jenkins.ADMINISTER);
+        }
 
         securityGroupSet = parseSecurityGroups();
 
@@ -1783,9 +2652,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             amiType = new UnixData(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, null);
         }
 
-         // 1.43 new parameters
-        if (connectionStrategy == null )  {
-            connectionStrategy = ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
+        // 1.43 new parameters
+        if (connectionStrategy == null) {
+            connectionStrategy =
+                    ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
         }
 
         if (maxTotalUses == 0) {
@@ -1822,12 +2692,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         }
         if (StringUtils.isBlank(javaPath)) {
-            javaPath = DEFAULT_JAVA_PATH;
+            javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
 
         return this;
     }
 
+    @Override
     public Descriptor<SlaveTemplate> getDescriptor() {
         return Jenkins.get().getDescriptor(getClass());
     }
@@ -1871,8 +2742,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @return DescribeInstancesResult of DescribeInstanceRequst constructed from this SlaveTemplate's configs
      */
     DescribeInstancesResult getDescribeInstanceResult(AmazonEC2 ec2, boolean allSubnets) throws IOException {
-        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap = makeRunInstancesRequestAndFilters(getImage(), 1, ec2, false);
-        Map.Entry<RunInstancesRequest, List<Filter>> entry = runInstancesRequestFilterMap.entrySet().iterator().next();
+        HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap =
+                makeRunInstancesRequestAndFilters(getImage(), 1, ec2, false);
+        Map.Entry<RunInstancesRequest, List<Filter>> entry =
+                runInstancesRequestFilterMap.entrySet().iterator().next();
         List<Filter> diFilters = entry.getValue();
 
         if (allSubnets) {
@@ -1929,17 +2802,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         @Override
         public String getHelpFile(String fieldName) {
             String p = super.getHelpFile(fieldName);
-            if (p != null)
+            if (p != null) {
                 return p;
+            }
             Descriptor slaveDescriptor = Jenkins.get().getDescriptor(EC2OndemandSlave.class);
             if (slaveDescriptor != null) {
                 p = slaveDescriptor.getHelpFile(fieldName);
-                if (p != null)
+                if (p != null) {
                     return p;
+                }
             }
             slaveDescriptor = Jenkins.get().getDescriptor(EC2SpotSlave.class);
-            if (slaveDescriptor != null)
+            if (slaveDescriptor != null) {
                 return slaveDescriptor.getHelpFile(fieldName);
+            }
             return null;
         }
 
@@ -1958,15 +2834,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          * Check that the AMI requested is available in the cloud and can be used.
          */
         @RequirePOST
-        public FormValidation doValidateAmi(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String ec2endpoint,
-                @QueryParameter String region, final @QueryParameter String ami, @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName) throws IOException {
+        public FormValidation doValidateAmi(
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId,
+                @QueryParameter String ec2endpoint,
+                @QueryParameter String region,
+                final @QueryParameter String ami,
+                @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName)
+                throws IOException {
             checkPermission(EC2Cloud.PROVISION);
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
+                    useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             AmazonEC2 ec2;
             if (region != null) {
-                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+                ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.getEc2EndpointUrl(region));
             } else {
                 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, new URL(ec2endpoint));
             }
@@ -2003,12 +2885,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @POST
         public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
-            if (value == null || value.trim().isEmpty())
+            if (value == null || value.trim().isEmpty()) {
                 return FormValidation.ok();
+            }
             try {
                 int val = Integer.parseInt(value);
-                if (val >= -59)
+                if (val >= -59) {
                     return FormValidation.ok();
+                }
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("Idle Termination time must be a greater than -59 (or null)");
@@ -2018,17 +2902,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         public FormValidation doCheckMaxTotalUses(@QueryParameter String value) {
             try {
                 int val = Integer.parseInt(value);
-                if (val >= -1)
+                if (val >= -1) {
                     return FormValidation.ok();
+                }
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
         }
 
         @POST
-        public FormValidation doCheckMinimumNumberOfInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
-            if (value == null || value.trim().isEmpty())
+        public FormValidation doCheckMinimumNumberOfInstances(
+                @QueryParameter String value, @QueryParameter String instanceCapStr) {
+            if (value == null || value.trim().isEmpty()) {
                 return FormValidation.ok();
+            }
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) {
@@ -2039,9 +2926,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         instanceCap = Integer.MAX_VALUE;
                     }
                     if (val > instanceCap) {
-                        return FormValidation
-                          .error("Minimum number of instances must not be larger than AMI Instance Cap %d",
-                            instanceCap);
+                        return FormValidation.error(
+                                "Minimum number of instances must not be larger than AMI Instance Cap %d", instanceCap);
                     }
                     return FormValidation.ok();
                 }
@@ -2072,23 +2958,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         // For some reason, all days will validate against this method so no need to repeat for each day.
         @POST
-        public FormValidation doCheckMonday(@QueryParameter boolean monday,
-                                            @QueryParameter boolean tuesday,
-                                            @QueryParameter boolean wednesday,
-                                            @QueryParameter boolean thursday,
-                                            @QueryParameter boolean friday,
-                                            @QueryParameter boolean saturday,
-                                            @QueryParameter boolean sunday) {
+        public FormValidation doCheckMonday(
+                @QueryParameter boolean monday,
+                @QueryParameter boolean tuesday,
+                @QueryParameter boolean wednesday,
+                @QueryParameter boolean thursday,
+                @QueryParameter boolean friday,
+                @QueryParameter boolean saturday,
+                @QueryParameter boolean sunday) {
             if (!(monday || tuesday || wednesday || thursday || friday || saturday || sunday)) {
-                return FormValidation.warning("At least one day should be checked or minimum number of instances won't be active");
+                return FormValidation.warning(
+                        "At least one day should be checked or minimum number of instances won't be active");
             }
             return FormValidation.ok();
         }
 
         @POST
-        public FormValidation doCheckMinimumNumberOfSpareInstances(@QueryParameter String value, @QueryParameter String instanceCapStr) {
-            if (value == null || value.trim().isEmpty())
+        public FormValidation doCheckMinimumNumberOfSpareInstances(
+                @QueryParameter String value, @QueryParameter String instanceCapStr) {
+            if (value == null || value.trim().isEmpty()) {
                 return FormValidation.ok();
+            }
             try {
                 int val = Integer.parseInt(value);
                 if (val >= 0) {
@@ -2099,9 +2989,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         instanceCap = Integer.MAX_VALUE;
                     }
                     if (val > instanceCap) {
-                        return FormValidation
-                          .error("Minimum number of spare instances must not be larger than AMI Instance Cap %d",
-                            instanceCap);
+                        return FormValidation.error(
+                                "Minimum number of spare instances must not be larger than AMI Instance Cap %d",
+                                instanceCap);
                     }
                     return FormValidation.ok();
                 }
@@ -2112,12 +3002,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @POST
         public FormValidation doCheckInstanceCapStr(@QueryParameter String value) {
-            if (value == null || value.trim().isEmpty())
+            if (value == null || value.trim().isEmpty()) {
                 return FormValidation.ok();
+            }
             try {
                 int val = Integer.parseInt(value);
-                if (val > 0)
+                if (val > 0) {
                     return FormValidation.ok();
+                }
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("InstanceCap must be a non-negative integer (or null)");
@@ -2128,12 +3020,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
          */
         @POST
         public FormValidation doCheckSpotBlockReservationDurationStr(@QueryParameter String value) {
-            if (value == null || value.trim().isEmpty())
+            if (value == null || value.trim().isEmpty()) {
                 return FormValidation.ok();
+            }
             try {
                 int val = Integer.parseInt(value);
-                if (val >= 0 && val <= 6)
+                if (val >= 0 && val <= 6) {
                     return FormValidation.ok();
+                }
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("Spot Block Reservation Duration must be an integer between 0 & 6");
@@ -2141,24 +3035,30 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @POST
         public FormValidation doCheckLaunchTimeoutStr(@QueryParameter String value) {
-            if (value == null || value.trim().isEmpty())
+            if (value == null || value.trim().isEmpty()) {
                 return FormValidation.ok();
+            }
             try {
                 int val = Integer.parseInt(value);
-                if (val >= 0)
+                if (val >= 0) {
                     return FormValidation.ok();
+                }
             } catch (NumberFormatException nfe) {
             }
             return FormValidation.error("Launch Timeout must be a non-negative integer (or null)");
         }
 
         @RequirePOST
-        public ListBoxModel doFillZoneItems(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region, @QueryParameter String roleArn,
+        public ListBoxModel doFillZoneItems(
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId,
+                @QueryParameter String region,
+                @QueryParameter String roleArn,
                 @QueryParameter String roleSessionName)
                 throws IOException, ServletException {
             checkPermission(EC2Cloud.PROVISION);
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
+                    useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return EC2AbstractSlave.fillZoneItems(credentialsProvider, region);
         }
 
@@ -2229,10 +3129,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         @POST
         public FormValidation doCheckHostKeyVerificationStrategy(@QueryParameter String hostKeyVerificationStrategy) {
             Stream<HostKeyVerificationStrategyEnum> stream = Stream.of(HostKeyVerificationStrategyEnum.values());
-            Stream<HostKeyVerificationStrategyEnum> filteredStream = stream.filter(v -> v.name().equals(hostKeyVerificationStrategy));
+            Stream<HostKeyVerificationStrategyEnum> filteredStream =
+                    stream.filter(v -> v.name().equals(hostKeyVerificationStrategy));
             Optional<HostKeyVerificationStrategyEnum> matched = filteredStream.findFirst();
             Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
-            return okResult.orElse(FormValidation.error(String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
+            return okResult.orElse(FormValidation.error(
+                    String.format("Could not find selected host key verification (%s)", hostKeyVerificationStrategy)));
         }
 
         @POST
@@ -2247,12 +3149,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     })
                     .collect(Collectors.toCollection(ListBoxModel::new));
         }
+
         public String getDefaultEbsEncryptRootVolume() {
             return EbsEncryptRootVolume.DEFAULT.getDisplayText();
         }
 
         @POST
-        public ListBoxModel doFillEbsEncryptRootVolumeItems(@QueryParameter String ebsEncryptRootVolume ) {
+        public ListBoxModel doFillEbsEncryptRootVolumeItems(@QueryParameter String ebsEncryptRootVolume) {
             return Stream.of(EbsEncryptRootVolume.values())
                     .map(v -> {
                         if (v.name().equals(ebsEncryptRootVolume)) {
@@ -2267,10 +3170,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         @POST
         public FormValidation doEbsEncryptRootVolume(@QueryParameter String ebsEncryptRootVolume) {
             Stream<EbsEncryptRootVolume> stream = Stream.of(EbsEncryptRootVolume.values());
-            Stream<EbsEncryptRootVolume> filteredStream = stream.filter(v -> v.name().equals(ebsEncryptRootVolume));
+            Stream<EbsEncryptRootVolume> filteredStream =
+                    stream.filter(v -> v.name().equals(ebsEncryptRootVolume));
             Optional<EbsEncryptRootVolume> matched = filteredStream.findFirst();
             Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
-            return okResult.orElse(FormValidation.error(String.format("Could not find selected option (%s)", ebsEncryptRootVolume)));
+            return okResult.orElse(
+                    FormValidation.error(String.format("Could not find selected option (%s)", ebsEncryptRootVolume)));
         }
     }
 }

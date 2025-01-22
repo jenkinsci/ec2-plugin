@@ -30,23 +30,21 @@ import hudson.plugins.ec2.HostKeyVerificationStrategyEnum;
 import hudson.plugins.ec2.PluginImpl;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.slaves.Cloud;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import java.io.IOException;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.stream.Collectors;
-
 @Extension
 public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeMonitor {
-    private final static int MAX_TEMPLATES_FOUND = 5;
-    
+    private static final int MAX_TEMPLATES_FOUND = 5;
+
     List<String> veryInsecureTemplates = new ArrayList<>(MAX_TEMPLATES_FOUND);
     List<String> insecureTemplates = new ArrayList<>(MAX_TEMPLATES_FOUND);
 
@@ -56,11 +54,11 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
     }
 
     public String getVeryInsecureTemplates() {
-        return veryInsecureTemplates.stream().collect(Collectors.joining(", "));
+        return String.join(", ", veryInsecureTemplates);
     }
 
     public String getInsecureTemplates() {
-        return insecureTemplates.stream().collect(Collectors.joining(", "));
+        return String.join(", ", insecureTemplates);
     }
 
     public boolean showVeryInsecureTemplates() {
@@ -73,9 +71,11 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
         if (plugin == null) {
             return true;
         }
-        
-        Instant whenDismissed = Instant.ofEpochMilli(plugin.getDismissInsecureMessages()); // if not dismissed, it is EPOCH
-        return (whenDismissed.equals(Instant.EPOCH) || Instant.now().isBefore(whenDismissed)) && !insecureTemplates.isEmpty();
+
+        Instant whenDismissed =
+                Instant.ofEpochMilli(plugin.getDismissInsecureMessages()); // if not dismissed, it is EPOCH
+        return (whenDismissed.equals(Instant.EPOCH) || Instant.now().isBefore(whenDismissed))
+                && !insecureTemplates.isEmpty();
     }
 
     /**
@@ -85,16 +85,16 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
     @Override
     public boolean isActivated() {
         boolean maxTemplatesReached = false;
-        
+
         ListIterator<Cloud> cloudIterator = Jenkins.get().clouds.listIterator();
-        
+
         // Let's clear the previously calculated wrong templates to populate the lists with them again
         veryInsecureTemplates.clear();
         insecureTemplates.clear();
-        
+
         while (cloudIterator.hasNext() && !maxTemplatesReached) {
             Cloud cloud = cloudIterator.next();
-            if (cloud instanceof  EC2Cloud) {
+            if (cloud instanceof EC2Cloud) {
                 maxTemplatesReached = gatherInsecureTemplate((EC2Cloud) cloud);
             }
         }
@@ -115,29 +115,33 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
             }
 
             HostKeyVerificationStrategyEnum strategy = template.getHostKeyVerificationStrategy();
-            if (veryInsecureTemplates.size() < MAX_TEMPLATES_FOUND && strategy.equals(HostKeyVerificationStrategyEnum.OFF)) {
+            if (veryInsecureTemplates.size() < MAX_TEMPLATES_FOUND
+                    && strategy.equals(HostKeyVerificationStrategyEnum.OFF)) {
                 veryInsecureTemplates.add(template.getDisplayName());
-            } else if (insecureTemplates.size() < MAX_TEMPLATES_FOUND && (!strategy.equals(HostKeyVerificationStrategyEnum.CHECK_NEW_HARD))) {
+            } else if (insecureTemplates.size() < MAX_TEMPLATES_FOUND
+                    && (!strategy.equals(HostKeyVerificationStrategyEnum.CHECK_NEW_HARD))) {
                 // it is check-new-soft or accept-new
                 insecureTemplates.add(template.getDisplayName());
             }
 
             // stop collecting the status of the computers, we already have 5 each type
-            if (veryInsecureTemplates.size() >= MAX_TEMPLATES_FOUND || insecureTemplates.size() >= MAX_TEMPLATES_FOUND) {
+            if (veryInsecureTemplates.size() >= MAX_TEMPLATES_FOUND
+                    || insecureTemplates.size() >= MAX_TEMPLATES_FOUND) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     @RequirePOST
-    public HttpResponse doAct(@QueryParameter String dismiss, @QueryParameter String dismissAllMessages) throws IOException {
+    public HttpResponse doAct(@QueryParameter String dismiss, @QueryParameter String dismissAllMessages)
+            throws IOException {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (dismiss != null) {
             PluginImpl.get().saveDismissInsecureMessages(System.currentTimeMillis());
-        } 
-        
+        }
+
         if (dismissAllMessages != null) {
             disable(true);
         }

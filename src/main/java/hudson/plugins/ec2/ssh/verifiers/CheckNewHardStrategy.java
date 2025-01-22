@@ -27,7 +27,6 @@ import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.slaves.OfflineCause;
-
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -43,22 +42,40 @@ import java.util.logging.Logger;
  */
 public class CheckNewHardStrategy extends SshHostKeyVerificationStrategy {
     private static final Logger LOGGER = Logger.getLogger(CheckNewHardStrategy.class.getName());
-    
+
     @Override
     public boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws IOException {
         HostKey existingHostKey = HostKeyHelper.getInstance().getHostKey(computer);
         if (null == existingHostKey) {
             HostKey consoleHostKey = getHostKeyFromConsole(LOGGER, computer, hostKey.getAlgorithm());
-            
+
             if (hostKey.equals(consoleHostKey)) {
                 HostKeyHelper.getInstance().saveHostKey(computer, hostKey);
-                EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("The SSH key %s %s has been successfully checked against the instance console for connections to %s", hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
+                EC2Cloud.log(
+                        LOGGER,
+                        Level.INFO,
+                        computer.getListener(),
+                        String.format(
+                                "The SSH key %s %s has been successfully checked against the instance console for connections to %s",
+                                hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
                 return true;
             } else if (consoleHostKey == null) {
-                EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("The instance console is blank. Cannot check the key. The connection to %s is not allowed", computer.getName()));
+                EC2Cloud.log(
+                        LOGGER,
+                        Level.INFO,
+                        computer.getListener(),
+                        String.format(
+                                "The instance console is blank. Cannot check the key. The connection to %s is not allowed",
+                                computer.getName()));
                 return false; // waiting for next retry to have the console filled up
             } else if (consoleHostKey.getKey().length == 0) {
-                EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("The SSH key (%s %s) presented by the instance has not been found on the instance console. Cannot check the key. The connection to %s is not allowed", hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
+                EC2Cloud.log(
+                        LOGGER,
+                        Level.INFO,
+                        computer.getListener(),
+                        String.format(
+                                "The SSH key (%s %s) presented by the instance has not been found on the instance console. Cannot check the key. The connection to %s is not allowed",
+                                hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
                 // it is the difference with the soft strategy, the key is not accepted
                 boolean stop = false;
                 try {
@@ -68,21 +85,41 @@ public class CheckNewHardStrategy extends SshHostKeyVerificationStrategy {
 
                 }
                 if (stop) {
-                    computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed())); // avoid next try
+                    computer.setTemporarilyOffline(
+                            true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed())); // avoid next try
                 }
                 return false;
             } else {
-                EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), String.format("The SSH key (%s %s) presented by the instance is different from the one printed out on the instance console (%s %s). The connection to %s is closed to prevent a possible man-in-the-middle attack", 
-                        hostKey.getAlgorithm(), hostKey.getFingerprint(), consoleHostKey.getAlgorithm(), consoleHostKey.getFingerprint(), computer.getName()));
+                EC2Cloud.log(
+                        LOGGER,
+                        Level.WARNING,
+                        computer.getListener(),
+                        String.format(
+                                "The SSH key (%s %s) presented by the instance is different from the one printed out on the instance console (%s %s). The connection to %s is closed to prevent a possible man-in-the-middle attack",
+                                hostKey.getAlgorithm(),
+                                hostKey.getFingerprint(),
+                                consoleHostKey.getAlgorithm(),
+                                consoleHostKey.getFingerprint(),
+                                computer.getName()));
                 // To avoid reconnecting continuously
                 computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed()));
                 return false;
             }
         } else if (existingHostKey.equals(hostKey)) {
-            EC2Cloud.log(LOGGER, Level.INFO, computer.getListener(), String.format("Connection allowed after the host key has been verified"));
+            EC2Cloud.log(
+                    LOGGER,
+                    Level.INFO,
+                    computer.getListener(),
+                    "Connection allowed after the host key has been verified");
             return true;
         } else {
-            EC2Cloud.log(LOGGER, Level.WARNING, computer.getListener(), String.format("The SSH key (%s) presented by the instance has changed since first saved (%s). The connection to %s is closed to prevent a possible man-in-the-middle attack", hostKey.getFingerprint(), existingHostKey.getFingerprint(), computer.getName()));
+            EC2Cloud.log(
+                    LOGGER,
+                    Level.WARNING,
+                    computer.getListener(),
+                    String.format(
+                            "The SSH key (%s) presented by the instance has changed since first saved (%s). The connection to %s is closed to prevent a possible man-in-the-middle attack",
+                            hostKey.getFingerprint(), existingHostKey.getFingerprint(), computer.getName()));
             // To avoid reconnecting continuously
             computer.setTemporarilyOffline(true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed()));
             return false;

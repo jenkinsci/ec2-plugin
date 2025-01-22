@@ -1,53 +1,52 @@
 /*
- * The MIT License
- *
- * Original work from ssh-slaves-plugin Copyright (c) 2016, Michael Clarke
- * Modified work Copyright (c) 2020-, M Ramon Leon, CloudBees, Inc.
- * Modified work:
- * - Just the since annotation
+* The MIT License
+*
+* Original work from ssh-slaves-plugin Copyright (c) 2016, Michael Clarke
+* Modified work Copyright (c) 2020-, M Ramon Leon, CloudBees, Inc.
+* Modified work:
+* - Just the since annotation
 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+* THE SOFTWARE.
+*/
 package hudson.plugins.ec2.ssh.verifiers;
 
 import hudson.XmlFile;
 import hudson.model.Computer;
 import hudson.model.Node;
-import jenkins.model.Jenkins;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.WeakHashMap;
+import jenkins.model.Jenkins;
 
 /**
  * Helper methods to allow loading and saving of host keys for a computer. Verifiers
  * don't have a reference to the Node or Computer that they're running for at the point
  * they're created, so can only load the existing key to run comparisons against at the
- * point the verifier is invoked during the connection attempt. 
+ * point the verifier is invoked during the connection attempt.
  * @author Michael Clarke, M Ramon Leon
  * @since TODO
  */
 public final class HostKeyHelper {
 
     private static final HostKeyHelper INSTANCE = new HostKeyHelper();
-    
+
     private final Map<Computer, HostKey> cache = new WeakHashMap<>();
 
     private HostKeyHelper() {
@@ -57,7 +56,6 @@ public final class HostKeyHelper {
     public static HostKeyHelper getInstance() {
         return INSTANCE;
     }
-
 
     /**
      * Retrieve the currently trusted host key for the requested computer, or null if
@@ -81,7 +79,6 @@ public final class HostKeyHelper {
         return key;
     }
 
-    
     /**
      * Persists an SSH key to disk for the requested host. This effectively marks
      * the requested key as trusted for all future connections to the host, until
@@ -95,18 +92,18 @@ public final class HostKeyHelper {
         xmlHostKeyFile.write(hostKey);
         cache.put(host, hostKey);
     }
-    
+
     private File getSshHostKeyFile(Node node) throws IOException {
         return new File(getNodeDirectory(node), "ssh-host-key.xml");
     }
-    
+
     private File getNodeDirectory(Node node) throws IOException {
         if (null == node) {
             throw new IOException("Could not load key for the requested node");
         }
         return new File(getNodesDirectory(), node.getNodeName());
     }
-    
+
     private File getNodesDirectory() throws IOException {
         // jenkins.model.Nodes#getNodesDirectory() is private, so we have to duplicate it here.
         File nodesDir = new File(Jenkins.get().getRootDir(), "nodes");

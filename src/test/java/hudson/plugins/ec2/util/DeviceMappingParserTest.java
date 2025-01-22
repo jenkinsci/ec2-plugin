@@ -23,21 +23,22 @@
  */
 package hudson.plugins.ec2.util;
 
+import static org.junit.Assert.assertEquals;
+
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 public class DeviceMappingParserTest {
 
     @Test
     public void testParserWithAmi() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdb").withEbs(new EbsBlockDevice().withSnapshotId("snap-7eb96d16")));
+        expected.add(new BlockDeviceMapping()
+                .withDeviceName("/dev/sdb")
+                .withEbs(new EbsBlockDevice().withSnapshotId("snap-7eb96d16")));
 
         String customDeviceMappings = "/dev/sdb=snap-7eb96d16";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
@@ -47,7 +48,12 @@ public class DeviceMappingParserTest {
     @Test
     public void testParserWithTermination() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdc").withEbs(new EbsBlockDevice().withSnapshotId("snap-7eb96d16").withVolumeSize(80).withDeleteOnTermination(false)));
+        expected.add(new BlockDeviceMapping()
+                .withDeviceName("/dev/sdc")
+                .withEbs(new EbsBlockDevice()
+                        .withSnapshotId("snap-7eb96d16")
+                        .withVolumeSize(80)
+                        .withDeleteOnTermination(false)));
 
         String customDeviceMappings = "/dev/sdc=snap-7eb96d16:80:false";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
@@ -57,7 +63,14 @@ public class DeviceMappingParserTest {
     @Test
     public void testParserWithIo() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdc").withEbs(new EbsBlockDevice().withSnapshotId("snap-7eb96d16").withVolumeSize(80).withDeleteOnTermination(false).withVolumeType("io1").withIops(100)));
+        expected.add(new BlockDeviceMapping()
+                .withDeviceName("/dev/sdc")
+                .withEbs(new EbsBlockDevice()
+                        .withSnapshotId("snap-7eb96d16")
+                        .withVolumeSize(80)
+                        .withDeleteOnTermination(false)
+                        .withVolumeType("io1")
+                        .withIops(100)));
 
         String customDeviceMappings = "/dev/sdc=snap-7eb96d16:80:false:io1:100";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
@@ -67,7 +80,8 @@ public class DeviceMappingParserTest {
     @Test
     public void testParserWithSize() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120)));
+        expected.add(
+                new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120)));
 
         String customDeviceMappings = "/dev/sdd=:120";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
@@ -77,7 +91,9 @@ public class DeviceMappingParserTest {
     @Test
     public void testParserWithEncrypted() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120).withEncrypted(true)));
+        expected.add(new BlockDeviceMapping()
+                .withDeviceName("/dev/sdd")
+                .withEbs(new EbsBlockDevice().withVolumeSize(120).withEncrypted(true)));
 
         String customDeviceMappings = "/dev/sdd=:120::::encrypted";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
@@ -87,7 +103,9 @@ public class DeviceMappingParserTest {
     @Test
     public void testParserWithThroughput() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120).withThroughput(1000)));
+        expected.add(new BlockDeviceMapping()
+                .withDeviceName("/dev/sdd")
+                .withEbs(new EbsBlockDevice().withVolumeSize(120).withThroughput(1000)));
 
         String customDeviceMappings = "/dev/sdd=:120:::::1000";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);
@@ -97,8 +115,11 @@ public class DeviceMappingParserTest {
     @Test
     public void testParserWithMultiple() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdd").withEbs(new EbsBlockDevice().withVolumeSize(120).withEncrypted(true)));
-        expected.add(new BlockDeviceMapping().withDeviceName("/dev/sdc").withEbs(new EbsBlockDevice().withVolumeSize(120)));
+        expected.add(new BlockDeviceMapping()
+                .withDeviceName("/dev/sdd")
+                .withEbs(new EbsBlockDevice().withVolumeSize(120).withEncrypted(true)));
+        expected.add(
+                new BlockDeviceMapping().withDeviceName("/dev/sdc").withEbs(new EbsBlockDevice().withVolumeSize(120)));
 
         String customDeviceMappings = "/dev/sdd=:120::::encrypted,/dev/sdc=:120";
         List<BlockDeviceMapping> actual = DeviceMappingParser.parse(customDeviceMappings);

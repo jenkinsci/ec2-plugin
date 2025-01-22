@@ -1,11 +1,9 @@
 package hudson.plugins.ec2.util;
 
-import java.net.URL;
-
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
-
 import hudson.ExtensionPoint;
+import java.net.URL;
 import jenkins.model.Jenkins;
 
 public interface AmazonEC2Factory extends ExtensionPoint {
@@ -23,5 +21,4 @@ public interface AmazonEC2Factory extends ExtensionPoint {
     }
 
     AmazonEC2 connect(AWSCredentialsProvider credentialsProvider, URL ec2Endpoint);
-
 }

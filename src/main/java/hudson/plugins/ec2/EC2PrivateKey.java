@@ -23,6 +23,11 @@
  */
 package hudson.plugins.ec2;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import hudson.util.Secret;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -31,24 +36,13 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.UnrecoverableKeyException;
 import java.util.Base64;
-
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.KeyPairInfo;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import hudson.util.Secret;
-import jenkins.bouncycastle.api.PEMEncodable;
-import javax.crypto.Cipher;
-import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import javax.crypto.Cipher;
+import jenkins.bouncycastle.api.PEMEncodable;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-
-import static hudson.plugins.ec2.EC2Cloud.SSH_PRIVATE_KEY_FILEPATH;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
@@ -110,8 +104,9 @@ public class EC2PrivateKey {
         BufferedReader br = new BufferedReader(new StringReader(privateKey.getPlainText()));
         String line;
         while ((line = br.readLine()) != null) {
-            if (line.equals("-----BEGIN RSA PRIVATE KEY-----"))
+            if (line.equals("-----BEGIN RSA PRIVATE KEY-----")) {
                 return true;
+            }
         }
         return false;
     }
@@ -144,10 +139,12 @@ public class EC2PrivateKey {
     public String decryptWindowsPassword(String encodedPassword) throws AmazonClientException {
         try {
             Cipher cipher = Cipher.getInstance("RSA/NONE/PKCS1Padding");
-            cipher.init(Cipher.DECRYPT_MODE, PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
+            cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
             byte[] cipherText = Base64.getDecoder().decode(StringUtils.deleteWhitespace(encodedPassword));
             byte[] plainText = cipher.doFinal(cipherText);
-            return new String(plainText, Charset.forName("ASCII"));
+            return new String(plainText, StandardCharsets.US_ASCII);
         } catch (Exception e) {
             throw new AmazonClientException("Unable to decode password:\n" + e.toString());
         }
@@ -156,7 +153,7 @@ public class EC2PrivateKey {
     /* visible for testing */
     @CheckForNull
     public static EC2PrivateKey fetchFromDisk() {
-        return fetchFromDisk(System.getProperty(SSH_PRIVATE_KEY_FILEPATH, ""));
+        return fetchFromDisk(System.getProperty(EC2Cloud.SSH_PRIVATE_KEY_FILEPATH, ""));
     }
 
     @CheckForNull
@@ -179,8 +176,9 @@ public class EC2PrivateKey {
 
     @Override
     public boolean equals(Object that) {
-        if (that != null && this.getClass() == that.getClass())
+        if (that != null && this.getClass() == that.getClass()) {
             return this.privateKey.equals(((EC2PrivateKey) that).privateKey);
+        }
         return false;
     }
 

@@ -23,12 +23,10 @@
  */
 package hudson.plugins.ec2.ssh;
 
+import java.security.MessageDigest;
 import java.util.logging.Logger;
 
-import com.trilead.ssh2.ServerHostKeyVerifier;
-import java.security.MessageDigest;
-
-public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
+public class HostKeyVerifierImpl {
     private static final Logger LOGGER = Logger.getLogger(HostKeyVerifierImpl.class.getName());
 
     private final String console;
@@ -44,8 +42,9 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
 
         StringBuilder buf = new StringBuilder();
         for (byte b : fingerprint) {
-            if (buf.length() > 0)
+            if (buf.length() > 0) {
                 buf.append(':');
+            }
             buf.append(String.format("%02x", b));
         }
         return buf.toString();
@@ -59,10 +58,10 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
 
         boolean matches = console.contains(fingerprint);
 
-        if (!matches)
+        if (!matches) {
             LOGGER.severe("No matching fingerprint found in the console output: " + console);
+        }
 
         return matches;
     }
-
 }

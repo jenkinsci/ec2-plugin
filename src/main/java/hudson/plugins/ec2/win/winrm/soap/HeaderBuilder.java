@@ -17,8 +17,7 @@ public class HeaderBuilder {
     private String resourceURI;
     private List<Option> optionSet;
 
-    HeaderBuilder() {
-    }
+    HeaderBuilder() {}
 
     public HeaderBuilder to(URI address) {
         to = address.toString();
@@ -66,7 +65,8 @@ public class HeaderBuilder {
     }
 
     public HeaderBuilder options(List<Option> options) {
-        this.optionSet = options != null ? Collections.unmodifiableList(new ArrayList<>(options)) : Collections.emptyList();
+        this.optionSet =
+                options != null ? Collections.unmodifiableList(new ArrayList<>(options)) : Collections.emptyList();
         return this;
     }
 

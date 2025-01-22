@@ -1,33 +1,28 @@
 package hudson.plugins.ec2;
 
-import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import jenkins.model.Jenkins;
-import hudson.util.Secret;
-import hudson.model.labels.LabelAtom;
-import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
-import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
-import io.jenkins.plugins.casc.ConfiguratorRegistry;
-import io.jenkins.plugins.casc.ConfigurationContext;
-import io.jenkins.plugins.casc.model.CNode;
-
-import static io.jenkins.plugins.casc.misc.Util.getJenkinsRoot;
-import static io.jenkins.plugins.casc.misc.Util.toYamlString;
-import static io.jenkins.plugins.casc.misc.Util.toStringFromYamlFile;
-
-import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
-
-import org.junit.Rule;
-import org.junit.Test;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
+
+import hudson.model.labels.LabelAtom;
+import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
+import hudson.util.Secret;
+import io.jenkins.plugins.casc.ConfigurationContext;
+import io.jenkins.plugins.casc.ConfiguratorRegistry;
+import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
+import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
+import io.jenkins.plugins.casc.misc.Util;
+import io.jenkins.plugins.casc.model.CNode;
+import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import jenkins.model.Jenkins;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class ConfigurationAsCodeTest {
 
@@ -37,7 +32,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("EC2CloudEmpty.yml")
     public void testEmptyConfig() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("empty");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("empty");
         assertNotNull(ec2Cloud);
         assertEquals(0, ec2Cloud.getTemplates().size());
     }
@@ -45,7 +40,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("UnixData.yml")
     public void testUnixData() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("production");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
@@ -68,7 +63,6 @@ public class ConfigurationAsCodeTest {
         assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
         assertTrue(spotConfig.useBidPrice);
 
-
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isUnix());
         assertTrue(amiType instanceof UnixData);
@@ -83,7 +77,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("Unix.yml")
     public void testUnix() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("staging");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("staging");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
@@ -105,7 +99,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("WindowsData.yml")
     public void testWindowsData() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("development");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("development");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
@@ -134,13 +128,13 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("BackwardsCompatibleConnectionStrategy.yml")
     public void testBackwardsCompatibleConnectionStrategy() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("us-east-1");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("us-east-1");
         assertNotNull(ec2Cloud);
 
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
-        assertEquals(ConnectionStrategy.PRIVATE_DNS,slaveTemplate.connectionStrategy);
+        assertEquals(ConnectionStrategy.PRIVATE_DNS, slaveTemplate.connectionStrategy);
     }
 
     @Test
@@ -148,9 +142,9 @@ public class ConfigurationAsCodeTest {
     public void testConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode clouds = getJenkinsRoot(context).get("clouds");
-        String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "UnixDataExport.yml");
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "UnixDataExport.yml");
         assertEquals(expected, exported);
     }
 
@@ -159,16 +153,16 @@ public class ConfigurationAsCodeTest {
     public void testConfigAsCodeWithAltEndpointAndJavaPathExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode clouds = getJenkinsRoot(context).get("clouds");
-        String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "UnixDataExport-withAltEndpointAndJavaPath.yml");
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "UnixDataExport-withAltEndpointAndJavaPath.yml");
         assertEquals(expected, exported);
     }
 
     @Test
     @ConfiguredWithCode("Unix-withMinimumInstancesTimeRange.yml")
     public void testConfigAsCodeWithMinimumInstancesTimeRange() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("timed");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("timed");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
@@ -181,14 +175,14 @@ public class ConfigurationAsCodeTest {
         assertEquals("linux ubuntu", slaveTemplate.getLabelString());
         assertEquals(2, slaveTemplate.getLabelSet().size());
 
-        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig = slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
+        final MinimumNumberOfInstancesTimeRangeConfig timeRangeConfig =
+                slaveTemplate.getMinimumNumberOfInstancesTimeRangeConfig();
         assertNotNull(timeRangeConfig);
         assertEquals(LocalTime.parse("01:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeFromAsTime());
         assertEquals(LocalTime.parse("13:00"), timeRangeConfig.getMinimumNoInstancesActiveTimeRangeToAsTime());
         assertFalse(timeRangeConfig.getDay("monday"));
         assertTrue(timeRangeConfig.getDay("tuesday"));
         assertFalse(timeRangeConfig.getDay("wednesday"));
-
 
         assertTrue(ec2Cloud.canProvision(new LabelAtom("ubuntu")));
         assertTrue(ec2Cloud.canProvision(new LabelAtom("linux")));
@@ -197,7 +191,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("Ami.yml")
     public void testAmi() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("test");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("test");
         assertNotNull(ec2Cloud);
 
         final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
@@ -216,8 +210,7 @@ public class ConfigurationAsCodeTest {
         assertNull(slaveTemplate.ami);
         assertEquals("self", slaveTemplate.getAmiOwners());
         assertEquals("self", slaveTemplate.getAmiUsers());
-        expectedFilters = Arrays.asList(new EC2Filter("name", "foo-*"),
-                                        new EC2Filter("architecture", "x86_64"));
+        expectedFilters = Arrays.asList(new EC2Filter("name", "foo-*"), new EC2Filter("architecture", "x86_64"));
         assertEquals(expectedFilters, slaveTemplate.getAmiFilters());
 
         slaveTemplate = templates.get(2);
@@ -231,7 +224,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("MacData.yml")
     public void testMacData() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("production");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
@@ -261,7 +254,7 @@ public class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("Mac.yml")
     public void testMac() throws Exception {
-        final AmazonEC2Cloud ec2Cloud = (AmazonEC2Cloud) Jenkins.get().getCloud("staging");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("staging");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 
@@ -285,9 +278,9 @@ public class ConfigurationAsCodeTest {
     public void testMacCloudConfigAsCodeExport() throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
-        CNode clouds = getJenkinsRoot(context).get("clouds");
-        String exported = toYamlString(clouds);
-        String expected = toStringFromYamlFile(this, "MacDataExport.yml");
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "MacDataExport.yml");
         assertEquals(expected, exported);
     }
 }

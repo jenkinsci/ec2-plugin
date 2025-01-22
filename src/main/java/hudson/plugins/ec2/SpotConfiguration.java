@@ -9,6 +9,7 @@ import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.InstanceType;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import hudson.Extension;
+import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
@@ -24,16 +25,18 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
-import static hudson.Functions.checkPermission;
-
-public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfiguration>  {
+public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfiguration> {
     public final boolean useBidPrice;
     private String spotMaxBidPrice;
     private boolean fallbackToOndemand;
     private int spotBlockReservationDuration;
 
     @Deprecated
-    public SpotConfiguration(boolean useBidPrice, String spotMaxBidPrice, boolean fallbackToOndemand, String spotBlockReservationDurationStr) {
+    public SpotConfiguration(
+            boolean useBidPrice,
+            String spotMaxBidPrice,
+            boolean fallbackToOndemand,
+            String spotBlockReservationDurationStr) {
         this.useBidPrice = useBidPrice;
         this.spotMaxBidPrice = spotMaxBidPrice;
         this.fallbackToOndemand = fallbackToOndemand;
@@ -77,7 +80,8 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
         this.spotBlockReservationDuration = spotBlockReservationDuration;
     }
 
-    @Override public boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (obj == null || (this.getClass() != obj.getClass())) {
             return false;
         }
@@ -85,18 +89,20 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
 
         String normalizedBid = normalizeBid(this.spotMaxBidPrice);
         String otherNormalizedBid = normalizeBid(config.spotMaxBidPrice);
-        boolean normalizedBidsAreEqual =
-                normalizedBid == null ? (otherNormalizedBid == null) : normalizedBid.equals(otherNormalizedBid);
+        boolean normalizedBidsAreEqual = Objects.equals(normalizedBid, otherNormalizedBid);
         boolean blockReservationIsEqual = true;
         if (this.spotBlockReservationDuration != config.spotBlockReservationDuration) {
             blockReservationIsEqual = false;
         }
 
-        return this.useBidPrice == config.useBidPrice && this.fallbackToOndemand == config.fallbackToOndemand
-                && normalizedBidsAreEqual && blockReservationIsEqual;
+        return this.useBidPrice == config.useBidPrice
+                && this.fallbackToOndemand == config.fallbackToOndemand
+                && normalizedBidsAreEqual
+                && blockReservationIsEqual;
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
         return Objects.hash(useBidPrice, spotMaxBidPrice, fallbackToOndemand);
     }
 
@@ -119,7 +125,6 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
         } catch (NumberFormatException ex) {
             return null;
         }
-
     }
 
     @Extension
@@ -133,20 +138,28 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
          * Check the current Spot price of the selected instance type for the selected region
          */
         @RequirePOST
-        public FormValidation doCurrentSpotPrice(@QueryParameter boolean useInstanceProfileForCredentials,
-                @QueryParameter String credentialsId, @QueryParameter String region,
-                @QueryParameter String type, @QueryParameter String zone, @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName, @QueryParameter String ami) throws IOException, ServletException {
+        public FormValidation doCurrentSpotPrice(
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId,
+                @QueryParameter String region,
+                @QueryParameter String type,
+                @QueryParameter String zone,
+                @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName,
+                @QueryParameter String ami)
+                throws IOException, ServletException {
 
-            checkPermission(EC2Cloud.PROVISION);
+            Functions.checkPermission(EC2Cloud.PROVISION);
 
             String cp = "";
             String zoneStr = "";
 
             // Connect to the EC2 cloud with the access id, secret key, and
             // region queried from the created cloud
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-            AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, AmazonEC2Cloud.getEc2EndpointUrl(region));
+            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
+                    useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+            AmazonEC2 ec2 =
+                    AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.getEc2EndpointUrl(region));
 
             if (ec2 != null) {
 
@@ -191,7 +204,7 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                         Image img = CloudHelper.getAmiImage(ec2, ami);
                         if (img != null) {
                             Collection<String> productDescriptions = new ArrayList<>();
-                            productDescriptions.add(img.getPlatform() == "Windows" ? "Windows" : "Linux/UNIX");
+                            productDescriptions.add("Windows".equals(img.getPlatform()) ? "Windows" : "Linux/UNIX");
                             request.setProductDescriptions(productDescriptions);
                         }
                     }

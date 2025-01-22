@@ -23,25 +23,26 @@
  */
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 public class TemplateLabelsTest {
 
     @Rule
     public JenkinsRule r = new JenkinsRule();
 
-    private AmazonEC2Cloud ac;
+    private EC2Cloud ac;
     private final String LABEL1 = "label1";
     private final String LABEL2 = "label2";
 
@@ -56,57 +57,100 @@ public class TemplateLabelsTest {
         tags.add(tag1);
         tags.add(tag2);
 
-        SlaveTemplate template = new SlaveTemplate("ami", "foo", null, "default", "zone", InstanceType.M1Large, false, label, mode, "foo ami", "bar", "bbb", "aaa", "10", "fff", null, "-Xmx1g", true, "subnet 456", tags, null, false, null, "", false, false, null, false, "");
+        SlaveTemplate template = new SlaveTemplate(
+                "ami",
+                "foo",
+                null,
+                "default",
+                "zone",
+                InstanceType.M1Large,
+                false,
+                label,
+                mode,
+                "foo ami",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                true,
+                "subnet 456",
+                tags,
+                null,
+                0,
+                0,
+                null,
+                "",
+                false,
+                false,
+                null,
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(template);
 
-        ac = new AmazonEC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", "3", templates, null, null);
+        ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
     }
 
     @Test
     public void testLabelAtom() throws Exception {
         setUpCloud(LABEL1 + " " + LABEL2);
 
-        assertEquals(true, ac.canProvision(new LabelAtom(LABEL1)));
-        assertEquals(true, ac.canProvision(new LabelAtom(LABEL2)));
-        assertEquals(false, ac.canProvision(new LabelAtom("aaa")));
-        assertEquals(true, ac.canProvision((Label) null));
+        assertTrue(ac.canProvision(new LabelAtom(LABEL1)));
+        assertTrue(ac.canProvision(new LabelAtom(LABEL2)));
+        assertFalse(ac.canProvision(new LabelAtom("aaa")));
+        assertTrue(ac.canProvision((Label) null));
     }
 
     @Test
     public void testLabelExpression() throws Exception {
         setUpCloud(LABEL1 + " " + LABEL2);
 
-        assertEquals(true, ac.canProvision(Label.parseExpression(LABEL1 + " || " + LABEL2)));
-        assertEquals(true, ac.canProvision(Label.parseExpression(LABEL1 + " && " + LABEL2)));
-        assertEquals(true, ac.canProvision(Label.parseExpression(LABEL1 + " || aaa")));
-        assertEquals(false, ac.canProvision(Label.parseExpression(LABEL1 + " && aaa")));
-        assertEquals(false, ac.canProvision(Label.parseExpression("aaa || bbb")));
-        assertEquals(false, ac.canProvision(Label.parseExpression("aaa || bbb")));
+        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " || " + LABEL2)));
+        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " && " + LABEL2)));
+        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " || aaa")));
+        assertFalse(ac.canProvision(Label.parseExpression(LABEL1 + " && aaa")));
+        assertFalse(ac.canProvision(Label.parseExpression("aaa || bbb")));
+        assertFalse(ac.canProvision(Label.parseExpression("aaa || bbb")));
     }
 
     @Test
     public void testEmptyLabel() throws Exception {
         setUpCloud("");
 
-        assertEquals(true, ac.canProvision((Label) null));
+        assertTrue(ac.canProvision((Label) null));
     }
 
     @Test
     public void testExclusiveMode() throws Exception {
         setUpCloud(LABEL1 + " " + LABEL2, Node.Mode.EXCLUSIVE);
 
-        assertEquals(true, ac.canProvision(new LabelAtom(LABEL1)));
-        assertEquals(true, ac.canProvision(new LabelAtom(LABEL2)));
-        assertEquals(false, ac.canProvision(new LabelAtom("aaa")));
-        assertEquals(false, ac.canProvision((Label) null));
+        assertTrue(ac.canProvision(new LabelAtom(LABEL1)));
+        assertTrue(ac.canProvision(new LabelAtom(LABEL2)));
+        assertFalse(ac.canProvision(new LabelAtom("aaa")));
+        assertFalse(ac.canProvision((Label) null));
     }
 
     @Test
     public void testExclusiveModeEmptyLabel() throws Exception {
         setUpCloud("", Node.Mode.EXCLUSIVE);
 
-        assertEquals(false, ac.canProvision((Label) null));
+        assertFalse(ac.canProvision((Label) null));
     }
-
 }

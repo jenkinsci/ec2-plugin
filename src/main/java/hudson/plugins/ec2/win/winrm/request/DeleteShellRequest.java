@@ -16,12 +16,14 @@ public class DeleteShellRequest extends AbstractWinRMRequest {
     @Override
     protected void construct() {
         try {
-            defaultHeader().action(new URI("http://schemas.xmlsoap.org/ws/2004/09/transfer/Delete")).shellId(shellId).resourceURI(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd"));
+            defaultHeader()
+                    .action(new URI("http://schemas.xmlsoap.org/ws/2004/09/transfer/Delete"))
+                    .shellId(shellId)
+                    .resourceURI(new URI("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/cmd"));
 
             setBody(null);
         } catch (URISyntaxException e) {
             throw new RuntimeException("Error while building request content", e);
         }
     }
-
 }

@@ -1,11 +1,8 @@
 package hudson.plugins.ec2;
 
 import com.amazonaws.services.ec2.model.Instance;
-import org.apache.commons.lang.StringUtils;
-
 import java.util.Optional;
-
-import static hudson.plugins.ec2.ConnectionStrategy.*;
+import org.apache.commons.lang.StringUtils;
 
 public class EC2HostAddressProvider {
     public static String unix(Instance instance, ConnectionStrategy strategy) {
@@ -34,17 +31,17 @@ public class EC2HostAddressProvider {
             case PRIVATE_IP:
                 return getPrivateIpAddress(instance);
             default:
-                throw new IllegalArgumentException("Could not mac host address for strategy = " + strategy.toString());
+                throw new IllegalArgumentException("Could not mac host address for strategy = " + strategy);
         }
     }
 
     public static String windows(Instance instance, ConnectionStrategy strategy) {
-        if (strategy.equals(PRIVATE_DNS) || strategy.equals(PRIVATE_IP)) {
+        if (strategy.equals(ConnectionStrategy.PRIVATE_DNS) || strategy.equals(ConnectionStrategy.PRIVATE_IP)) {
             return getPrivateIpAddress(instance);
-        } else if (strategy.equals(PUBLIC_DNS) || strategy.equals(PUBLIC_IP)) {
+        } else if (strategy.equals(ConnectionStrategy.PUBLIC_DNS) || strategy.equals(ConnectionStrategy.PUBLIC_IP)) {
             return getPublicIpAddress(instance);
         } else {
-            throw new IllegalArgumentException("Could not windows host address for strategy = " + strategy.toString());
+            throw new IllegalArgumentException("Could not windows host address for strategy = " + strategy);
         }
     }
 

@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import jenkins.security.FIPS140;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -25,10 +24,10 @@ import org.apache.http.auth.AuthSchemeProvider;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.Lookup;
 import org.apache.http.config.RegistryBuilder;
@@ -69,7 +68,7 @@ public class WinRMClient {
     private boolean useHTTPS;
     private BasicCredentialsProvider credsProvider;
     private final boolean allowSelfSignedCertificate;
-    
+
     @Deprecated
     public WinRMClient(URL url, String username, String password) {
         this(url, username, password, false);
@@ -84,7 +83,7 @@ public class WinRMClient {
         this.password = password;
         this.factory = new RequestFactory(url);
         this.allowSelfSignedCertificate = allowSelfSignedCertificate;
-        
+
         setupHTTPClient();
     }
 
@@ -99,7 +98,7 @@ public class WinRMClient {
         LOGGER.log(Level.FINE, () -> "winrm execute on " + shellId + " command: " + command);
         Document request = factory.newExecuteCommandRequest(shellId, command).build();
         commandId = first(sendRequest(request), "//" + Namespaces.NS_WIN_SHELL.getPrefix() + ":CommandId");
-        LOGGER.log(Level.FINER, ()-> "winrm started execution on " + shellId + " commandId: " + commandId);
+        LOGGER.log(Level.FINER, () -> "winrm started execution on " + shellId + " commandId: " + commandId);
     }
 
     public void deleteShell() {
@@ -111,7 +110,6 @@ public class WinRMClient {
 
         Document request = factory.newDeleteShellRequest(shellId).build();
         sendRequest(request);
-
     }
 
     public void signal() {
@@ -128,13 +126,16 @@ public class WinRMClient {
     public void sendInput(byte[] input) {
         LOGGER.log(Level.FINE, () -> "--> sending " + input.length);
 
-        Document request = factory.newSendInputRequest(input, shellId, commandId).build();
+        Document request =
+                factory.newSendInputRequest(input, shellId, commandId).build();
         sendRequest(request);
     }
 
     public boolean slurpOutput(FastPipedOutputStream stdout, FastPipedOutputStream stderr) throws IOException {
         LOGGER.log(Level.FINE, () -> "--> SlurpOutput");
-        Map<String, FastPipedOutputStream> streams = new HashMap<>(); streams.put("stdout", stdout); streams.put("stderr", stderr);
+        Map<String, FastPipedOutputStream> streams = new HashMap<>();
+        streams.put("stdout", stdout);
+        streams.put("stderr", stderr);
 
         Document request = factory.newGetOutputRequest(shellId, commandId).build();
         Document response = sendRequest(request);
@@ -147,16 +148,20 @@ public class WinRMClient {
         for (Node node : xpath.selectNodes(response)) {
             if (node instanceof Element) {
                 Element e = (Element) node;
-                FastPipedOutputStream stream = streams.get(e.attribute("Name").getText().toLowerCase());
+                FastPipedOutputStream stream =
+                        streams.get(e.attribute("Name").getText().toLowerCase());
                 final byte[] decode = Base64.getDecoder().decode(e.getText());
-                LOGGER.log(Level.FINE, () -> "piping " + decode.length + " bytes from "
-                        + e.attribute("Name").getText().toLowerCase());
+                LOGGER.log(
+                        Level.FINE,
+                        () -> "piping " + decode.length + " bytes from "
+                                + e.attribute("Name").getText().toLowerCase());
 
                 stream.write(decode);
             }
         }
 
-        XPath done = DocumentHelper.createXPath("//*[@State='http://schemas.microsoft.com/wbem/wsman/1/windows/shell/CommandState/Done']");
+        XPath done = DocumentHelper.createXPath(
+                "//*[@State='http://schemas.microsoft.com/wbem/wsman/1/windows/shell/CommandState/Done']");
         done.setNamespaceContext(namespaceContext);
         final List<Node> nodes = done.selectNodes(response);
         if (nodes != null && nodes.isEmpty()) {
@@ -184,7 +189,9 @@ public class WinRMClient {
 
     private void setupHTTPClient() {
         credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials(username, password));
+        credsProvider.setCredentials(
+                new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
+                new UsernamePasswordCredentials(username, password));
     }
 
     private HttpClient buildHTTPClient() {
@@ -196,41 +203,37 @@ public class WinRMClient {
         FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
 
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultCredentialsProvider(credsProvider);
-        if(! (username.contains("\\")|| username.contains("/"))) {
-            //user is not a domain user
+        if (!(username.contains("\\") || username.contains("/"))) {
+            // user is not a domain user
             Lookup<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider>create()
-                                                            .register(AuthSchemes.BASIC, new BasicSchemeFactory())
-                                                            .register(AuthSchemes.SPNEGO,new NegotiateNTLMSchemaFactory())
-                                                            .build();
+                    .register(AuthSchemes.BASIC, new BasicSchemeFactory())
+                    .register(AuthSchemes.SPNEGO, new NegotiateNTLMSchemaFactory())
+                    .build();
             builder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
         }
         if (useHTTPS) {
-            WinRMConnectionManagerFactory.WinRMHttpConnectionManager connectionManager =
-                    allowSelfSignedCertificate ? WinRMConnectionManagerFactory.SSL_ALLOW_SELF_SIGNED
-                            : WinRMConnectionManagerFactory.SSL;
+            WinRMConnectionManagerFactory.WinRMHttpConnectionManager connectionManager = allowSelfSignedCertificate
+                    ? WinRMConnectionManagerFactory.SSL_ALLOW_SELF_SIGNED
+                    : WinRMConnectionManagerFactory.SSL;
             builder.setSSLSocketFactory(connectionManager.getSocketFactory());
             builder.setConnectionManager(connectionManager.getConnectionManager());
         } else {
             builder.setConnectionManager(WinRMConnectionManagerFactory.DEFAULT.getConnectionManager());
         }
         RequestConfig requestConfig = RequestConfig.custom()
-                                      .setConnectTimeout(5000)
-                                      .setSocketTimeout(0)
-                                      .build();
+                .setConnectTimeout(5000)
+                .setSocketTimeout(0)
+                .build();
         builder.setDefaultRequestConfig(requestConfig);
-        SocketConfig socketConfig = SocketConfig.custom()
-                                    .setTcpNoDelay(true)
-                                    .build();
+        SocketConfig socketConfig = SocketConfig.custom().setTcpNoDelay(true).build();
         builder.setDefaultSocketConfig(socketConfig);
         // Add sleep between re-tries, by-default the call gets retried immediately.
         builder.setRetryHandler(new DefaultHttpRequestRetryHandler() {
             @Override
             public boolean retryRequest(
-                    final IOException exception,
-                    final int executionCount,
-                    final HttpContext context) {
+                    final IOException exception, final int executionCount, final HttpContext context) {
                 boolean retryRequest = super.retryRequest(exception, executionCount, context);
-                if ( retryRequest ) {
+                if (retryRequest) {
                     // sleep before retrying, increase the sleep time on each re-try
                     int sleepTime = executionCount * 5;
                     try {
@@ -279,7 +282,10 @@ public class WinRMClient {
                 // check for possible timeout
 
                 if (response.getStatusLine().getStatusCode() == 500
-                        && (responseEntity.getContentType() != null && entity.getContentType().getValue().startsWith(ContentType.APPLICATION_SOAP_XML.getMimeType()))) {
+                        && (responseEntity.getContentType() != null
+                                && entity.getContentType()
+                                        .getValue()
+                                        .startsWith(ContentType.APPLICATION_SOAP_XML.getMimeType()))) {
                     String respStr = EntityUtils.toString(responseEntity);
                     if (respStr.contains("TimedOut")) {
                         return DocumentHelper.parseText(respStr);
@@ -292,7 +298,8 @@ public class WinRMClient {
                     if (response.getStatusLine().getStatusCode() == 401) {
                         // we need to force using new connections here
                         // throw away our auth cache
-                        LOGGER.log(Level.WARNING, "winrm returned 401 - shouldn't happen though - retrying in 2 minutes");
+                        LOGGER.log(
+                                Level.WARNING, "winrm returned 401 - shouldn't happen though - retrying in 2 minutes");
                         try {
                             Thread.sleep(TimeUnit.MINUTES.toMillis(2));
                         } catch (InterruptedException e) {
@@ -302,12 +309,15 @@ public class WinRMClient {
                         LOGGER.log(Level.WARNING, "winrm returned 401 - retrying now");
                         return sendRequest(request, ++retry);
                     }
-                    LOGGER.log(Level.WARNING, "winrm service " + shellId + " unexpected HTTP Response ("
-                            + response.getStatusLine().getReasonPhrase() + "): "
-                            + EntityUtils.toString(response.getEntity()));
+                    LOGGER.log(
+                            Level.WARNING,
+                            "winrm service " + shellId + " unexpected HTTP Response ("
+                                    + response.getStatusLine().getReasonPhrase() + "): "
+                                    + EntityUtils.toString(response.getEntity()));
 
-                    throw new RuntimeException("Unexpected HTTP response " + response.getStatusLine().getStatusCode()
-                            + " on " + url + ": " + response.getStatusLine().getReasonPhrase());
+                    throw new RuntimeException("Unexpected HTTP response "
+                            + response.getStatusLine().getStatusCode() + " on " + url + ": "
+                            + response.getStatusLine().getReasonPhrase());
                 }
             }
 

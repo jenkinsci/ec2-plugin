@@ -1,16 +1,17 @@
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import java.util.Optional;
 import jenkins.model.Jenkins;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
-
-import java.util.Optional;
-
-import static org.junit.Assert.*;
 
 public class EC2CloudMigrationTest {
 
@@ -26,14 +27,16 @@ public class EC2CloudMigrationTest {
         String credsId = cloud.getSshKeysCredentialsId();
         assertNotNull(credsId);
 
-        Optional<BasicSSHUserPrivateKey> keyCredential = SystemCredentialsProvider.getInstance().getCredentials()
-                .stream()
-                .filter((cred) -> cred instanceof BasicSSHUserPrivateKey)
-                .filter((cred) -> ((BasicSSHUserPrivateKey)cred).getPrivateKey().trim().equals("myPrivateKey"))
-                    .map(cred -> (BasicSSHUserPrivateKey)cred)
-                .findFirst();
+        Optional<BasicSSHUserPrivateKey> keyCredential =
+                SystemCredentialsProvider.getInstance().getCredentials().stream()
+                        .filter(BasicSSHUserPrivateKey.class::isInstance)
+                        .filter(cred -> ((BasicSSHUserPrivateKey) cred)
+                                .getPrivateKey()
+                                .trim()
+                                .equals("myPrivateKey"))
+                        .map(cred -> (BasicSSHUserPrivateKey) cred)
+                        .findFirst();
 
         assertTrue(keyCredential.isPresent());
     }
-
 }

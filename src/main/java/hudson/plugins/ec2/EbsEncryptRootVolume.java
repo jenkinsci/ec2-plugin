@@ -23,5 +23,4 @@ public enum EbsEncryptRootVolume {
     public Boolean getValue() {
         return value;
     }
-
 }

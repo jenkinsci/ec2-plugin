@@ -23,21 +23,18 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.model.Descriptor;
-import hudson.model.AbstractDescribableImpl;
+import com.amazonaws.services.ec2.model.Filter;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.Util;
-import org.kohsuke.stapler.DataBoundConstructor;
-
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import com.amazonaws.services.ec2.model.Filter;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
     @NonNull
@@ -65,10 +62,12 @@ public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null)
+        if (o == null) {
             return false;
-        if (this.getClass() != o.getClass())
+        }
+        if (this.getClass() != o.getClass()) {
             return false;
+        }
 
         EC2Filter other = (EC2Filter) o;
         return name.equals(other.name) && getValuesList().equals(other.getValuesList());
@@ -91,8 +90,7 @@ public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
 
     @NonNull
     private List<String> getValuesList() {
-        return Stream.of(Util.tokenize(values))
-            .collect(Collectors.toList());
+        return Stream.of(Util.tokenize(values)).collect(Collectors.toList());
     }
 
     /* Helper method to convert EC2Filter to Filter */
@@ -104,9 +102,7 @@ public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
     /* Helper method to convert list of EC2Filter to list of Filter */
     @NonNull
     public static List<Filter> toFilterList(@CheckForNull List<EC2Filter> filters) {
-        return Util.fixNull(filters).stream()
-            .map(EC2Filter::toFilter)
-            .collect(Collectors.toList());
+        return Util.fixNull(filters).stream().map(EC2Filter::toFilter).collect(Collectors.toList());
     }
 
     @Extension

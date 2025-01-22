@@ -1,39 +1,43 @@
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.assertEquals;
+
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-
 import org.mockito.Mockito;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
-
-
-import java.util.Collections;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CloudHelperTest {
 
     @Mock
-    private AmazonEC2Cloud cloud;
+    private EC2Cloud cloud;
 
     @Before
     public void init() throws Exception {
-        cloud = new AmazonEC2Cloud("us-east-1", true,
-                "abc", "us-east-1", null, "ghi",
-                "3", Collections.emptyList(), "roleArn", "roleSessionName");
+        cloud = new EC2Cloud(
+                "us-east-1",
+                true,
+                "abc",
+                "us-east-1",
+                null,
+                "ghi",
+                "3",
+                Collections.emptyList(),
+                "roleArn",
+                "roleSessionName");
     }
 
     @Test
@@ -70,8 +74,10 @@ public class CloudHelperTest {
         AmazonServiceException amazonServiceException = new AmazonServiceException("test exception");
         amazonServiceException.setErrorCode("InvalidInstanceID.NotFound");
 
-        Answer<DescribeInstancesResult> answerWithRetry = new Answer<DescribeInstancesResult>() {
+        Answer<DescribeInstancesResult> answerWithRetry = new Answer<>() {
             private boolean first = true;
+
+            @Override
             public DescribeInstancesResult answer(InvocationOnMock invocation) throws Throwable {
                 if (first) {
                     first = false;
@@ -104,9 +110,10 @@ public class CloudHelperTest {
         AmazonServiceException amazonServiceException = new AmazonServiceException("test exception");
         amazonServiceException.setErrorCode("RequestExpired");
 
-        Answer<DescribeInstancesResult> answerWithRetry = new Answer<DescribeInstancesResult>() {
+        Answer<DescribeInstancesResult> answerWithRetry = new Answer<>() {
             private boolean first = true;
 
+            @Override
             public DescribeInstancesResult answer(InvocationOnMock invocation) throws Throwable {
                 if (first) {
                     first = false;

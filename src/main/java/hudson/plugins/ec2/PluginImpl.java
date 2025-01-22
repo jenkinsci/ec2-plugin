@@ -28,12 +28,9 @@ import hudson.Plugin;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
-import jenkins.model.Jenkins;
-
 import java.io.IOException;
 import java.util.logging.Logger;
-
-import java.io.IOException;
+import jenkins.model.Jenkins;
 
 /**
  * Added to handle backwards compatibility of xstream class name mapping.
@@ -41,17 +38,18 @@ import java.io.IOException;
 @Extension
 public class PluginImpl extends Plugin implements Describable<PluginImpl> {
     private static final Logger LOGGER = Logger.getLogger(PluginImpl.class.getName());
-    
+
     // Whether the SshHostKeyVerificationAdministrativeMonitor should show messages when we have templates using
     // accept-new or check-new-soft strategies
-    private long dismissInsecureMessages; 
+    private long dismissInsecureMessages;
 
     public void saveDismissInsecureMessages(long dismissInsecureMessages) {
         this.dismissInsecureMessages = dismissInsecureMessages;
         try {
             save();
-        } catch(IOException io) {
-            LOGGER.warning("There was a problem saving that you want to dismiss all messages related to insecure EC2 templates");
+        } catch (IOException io) {
+            LOGGER.warning(
+                    "There was a problem saving that you want to dismiss all messages related to insecure EC2 templates");
         }
     }
 
@@ -59,6 +57,7 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         return dismissInsecureMessages;
     }
 
+    @Override
     public DescriptorImpl getDescriptor() {
         return (DescriptorImpl) Jenkins.get().getDescriptorOrDie(getClass());
     }
@@ -78,13 +77,13 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
     @Override
     public void postInitialize() throws IOException {
         // backward compatibility with the legacy class name
-        Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Cloud", AmazonEC2Cloud.class);
+        Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Cloud", AmazonEC2Cloud.class, EC2Cloud.class);
         Jenkins.XSTREAM.alias("hudson.plugins.ec2.EC2Slave", EC2OndemandSlave.class);
         // backward compatibility with the legacy instance type
         Jenkins.XSTREAM.registerConverter(new InstanceTypeConverter());
 
         load();
-        
+
         MinimumInstanceChecker.checkForMinimumInstances();
     }
 }

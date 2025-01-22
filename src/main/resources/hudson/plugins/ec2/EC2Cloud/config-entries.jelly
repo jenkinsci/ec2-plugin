@@ -22,17 +22,19 @@ THE SOFTWARE.
   <f:entry title="${%Name}" field="name">
     <f:textbox />
   </f:entry>
-  <f:entry title="${%Eucalyptus EC2 URL}" field="ec2EndpointUrl">
-    <f:textbox />
-  </f:entry>
-  <f:entry title="${%Eucalyptus S3 URL}" field="s3EndpointUrl">
-    <f:textbox />
-  </f:entry>
   <f:entry field="credentialsId" title="${%Amazon EC2 Credentials}" description="AWS IAM Access Key used to connect to EC2. If not specified, implicit authentication mechanisms are used (IAM roles...)">
     <c:select />
   </f:entry>
   <f:entry title="${%Use EC2 instance profile to obtain credentials}" field="useInstanceProfileForCredentials">
     <f:checkbox />
+  </f:entry>
+  <f:entry title="${%Alternate EC2 Endpoint}" field="altEC2Endpoint" description="Used to populate the available regions dropdown. Only set this if you're using a different EC2 endpoint (i.e. operating in govcloud).">
+    <f:textbox />
+  </f:entry>
+  <f:description>The regions will be populated once the keys above are entered.
+  </f:description>
+  <f:entry title="${%Region}" field="region">
+    <f:select/>
   </f:entry>
   <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
     <c:select includeUser="false" checkMethod="post"/>
@@ -41,6 +43,15 @@ THE SOFTWARE.
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
     </f:entry>
+    <f:entry title="${%No delay provisioning}" field="noDelayProvisioning">
+      <f:checkbox/>
+    </f:entry>
+    <f:entry title="${%Arn Role}" field="roleArn">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="${%Session Name}" field="roleSessionName">
+      <f:textbox checkDependsOn="roleArn"/>
+    </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="ec2endpoint,useInstanceProfileForCredentials,credentialsId,privateKey" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />
 </j:jelly>

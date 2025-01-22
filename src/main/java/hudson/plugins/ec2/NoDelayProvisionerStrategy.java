@@ -5,11 +5,10 @@ import hudson.model.Label;
 import hudson.model.LoadStatistics;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
-import jenkins.model.Jenkins;
-
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jenkins.model.Jenkins;
 
 /**
  * Implementation of {@link NodeProvisioner.Strategy} which will provision a new node immediately as
@@ -28,27 +27,37 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         final Label label = strategyState.getLabel();
 
         LoadStatistics.LoadStatisticsSnapshot snapshot = strategyState.getSnapshot();
-        int availableCapacity =
-                  snapshot.getAvailableExecutors()   // live executors
-                + snapshot.getConnectingExecutors()  // executors present but not yet connected
-                + strategyState.getPlannedCapacitySnapshot()     // capacity added by previous strategies from previous rounds
-                + strategyState.getAdditionalPlannedCapacity();  // capacity added by previous strategies _this round_
+        int availableCapacity = snapshot.getAvailableExecutors() // live executors
+                + snapshot.getConnectingExecutors() // executors present but not yet connected
+                + strategyState
+                        .getPlannedCapacitySnapshot() // capacity added by previous strategies from previous rounds
+                + strategyState.getAdditionalPlannedCapacity(); // capacity added by previous strategies _this round_
         int currentDemand = snapshot.getQueueLength();
-        LOGGER.log(Level.FINE, "Available capacity={0}, currentDemand={1}",
-                new Object[]{availableCapacity, currentDemand});
+        LOGGER.log(
+                Level.FINE, "Available capacity={0}, currentDemand={1}", new Object[] {availableCapacity, currentDemand
+                });
         if (availableCapacity < currentDemand) {
             Jenkins jenkinsInstance = Jenkins.get();
             for (Cloud cloud : jenkinsInstance.clouds) {
-                if (!(cloud instanceof AmazonEC2Cloud)) continue;
-                if (!cloud.canProvision(label)) continue;
-                AmazonEC2Cloud ec2 = (AmazonEC2Cloud) cloud;
-                if (!ec2.isNoDelayProvisioning()) continue;
+                if (!(cloud instanceof EC2Cloud)) {
+                    continue;
+                }
+                if (!cloud.canProvision(label)) {
+                    continue;
+                }
+                EC2Cloud ec2 = (EC2Cloud) cloud;
+                if (!ec2.isNoDelayProvisioning()) {
+                    continue;
+                }
 
-                Collection<NodeProvisioner.PlannedNode> plannedNodes = cloud.provision(label, currentDemand - availableCapacity);
+                Collection<NodeProvisioner.PlannedNode> plannedNodes =
+                        cloud.provision(label, currentDemand - availableCapacity);
                 LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
                 strategyState.recordPendingLaunches(plannedNodes);
                 availableCapacity += plannedNodes.size();
-                LOGGER.log(Level.FINE, "After provisioning, available capacity={0}, currentDemand={1}", new Object[]{availableCapacity, currentDemand});
+                LOGGER.log(Level.FINE, "After provisioning, available capacity={0}, currentDemand={1}", new Object[] {
+                    availableCapacity, currentDemand
+                });
                 break;
             }
         }
@@ -60,5 +69,4 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
             return NodeProvisioner.StrategyDecision.CONSULT_REMAINING_STRATEGIES;
         }
     }
-
 }

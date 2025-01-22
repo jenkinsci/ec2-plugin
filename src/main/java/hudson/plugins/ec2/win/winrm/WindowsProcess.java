@@ -102,7 +102,7 @@ public class WindowsProcess {
             @Override
             public void run() {
                 try {
-                    for (;;) {
+                    for (; ; ) {
                         if (!client.slurpOutput(toCallersStdout, toCallersStderr)) {
                             LOGGER.log(Level.FINE, () -> "no more output for " + command);
                             break;
@@ -127,13 +127,15 @@ public class WindowsProcess {
             public void run() {
                 try {
                     byte[] buf = new byte[INPUT_BUFFER];
-                    for (;;) {
+                    for (; ; ) {
                         int n = toCallersStdin.read(buf);
 
-                        if (n == -1)
+                        if (n == -1) {
                             break;
-                        if (n == 0)
+                        }
+                        if (n == 0) {
                             continue;
+                        }
 
                         byte[] bufToSend = new byte[n];
                         System.arraycopy(buf, 0, bufToSend, 0, n);

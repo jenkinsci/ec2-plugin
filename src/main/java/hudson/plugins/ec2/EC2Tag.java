@@ -23,17 +23,14 @@
  */
 package hudson.plugins.ec2;
 
-import hudson.model.Descriptor;
-import hudson.model.AbstractDescribableImpl;
-import hudson.Extension;
-import org.kohsuke.stapler.DataBoundConstructor;
-
-import java.util.List;
-import java.util.LinkedList;
-import java.util.Objects;
-
-
 import com.amazonaws.services.ec2.model.Tag;
+import hudson.Extension;
+import hudson.model.AbstractDescribableImpl;
+import hudson.model.Descriptor;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
     private final String name;
@@ -43,6 +40,7 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
      * Tag name for the specific jenkins agent type tag, used to identify the EC2 instances provisioned by this plugin.
      */
     public static final String TAG_NAME_JENKINS_SLAVE_TYPE = "jenkins_slave_type";
+
     public static final String TAG_NAME_JENKINS_SERVER_URL = "jenkins_server_url";
 
     @DataBoundConstructor
@@ -72,16 +70,20 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null)
+        if (o == null) {
             return false;
-        if (this.getClass() != o.getClass())
+        }
+        if (this.getClass() != o.getClass()) {
             return false;
+        }
 
         EC2Tag other = (EC2Tag) o;
-        if ((name == null && other.name != null) || (name != null && !name.equals(other.name)))
+        if ((name == null && other.name != null) || (name != null && !name.equals(other.name))) {
             return false;
-        if ((value == null && other.value != null) || (value != null && !value.equals(other.value)))
+        }
+        if ((value == null && other.value != null) || (value != null && !value.equals(other.value))) {
             return false;
+        }
 
         return true;
     }
@@ -105,7 +107,7 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
             return null;
         }
 
-        LinkedList<EC2Tag> result = new LinkedList<EC2Tag>();
+        LinkedList<EC2Tag> result = new LinkedList<>();
         for (Tag t : amazonTags) {
             result.add(new EC2Tag(t));
         }

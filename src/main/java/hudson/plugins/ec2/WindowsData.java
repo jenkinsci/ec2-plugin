@@ -1,8 +1,5 @@
 package hudson.plugins.ec2;
 
-import java.util.concurrent.TimeUnit;
-import java.util.Objects;
-
 import hudson.Extension;
 import hudson.model.Descriptor;
 
@@ -11,6 +8,8 @@ import hudson.util.FormValidation;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
@@ -22,10 +21,16 @@ public class WindowsData extends AMITypeData {
     private final boolean useHTTPS;
     private final String bootDelay;
     private final boolean specifyPassword;
-    private final Boolean allowSelfSignedCertificate; //Boolean to allow nulls when the saved template doesn't have the field
+    private final Boolean
+            allowSelfSignedCertificate; // Boolean to allow nulls when the saved template doesn't have the field
 
     @DataBoundConstructor
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword, boolean allowSelfSignedCertificate)
+    public WindowsData(
+            String password,
+            boolean useHTTPS,
+            String bootDelay,
+            boolean specifyPassword,
+            boolean allowSelfSignedCertificate)
             throws Descriptor.FormException {
         try {
             FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
@@ -37,11 +42,10 @@ public class WindowsData extends AMITypeData {
         } catch (IllegalArgumentException e) {
             throw new Descriptor.FormException(e, "allowSelfSignedCertificate");
         }
-
         this.password = Secret.fromString(password);
         this.useHTTPS = useHTTPS;
         this.bootDelay = bootDelay;
-        //Backwards compatibility
+        // Backwards compatibility
         if (!specifyPassword && !this.password.getPlainText().isEmpty()) {
             specifyPassword = true;
         }
@@ -49,9 +53,9 @@ public class WindowsData extends AMITypeData {
 
         this.allowSelfSignedCertificate = allowSelfSignedCertificate;
     }
-    
+
     @Deprecated
-    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean  specifyPassword)
+    public WindowsData(String password, boolean useHTTPS, String bootDelay, boolean specifyPassword)
             throws Descriptor.FormException {
         this(password, useHTTPS, bootDelay, specifyPassword, true);
     }
@@ -83,6 +87,7 @@ public class WindowsData extends AMITypeData {
         return useHTTPS;
     }
 
+    @Override
     public String getBootDelay() {
         return bootDelay;
     }
@@ -91,6 +96,7 @@ public class WindowsData extends AMITypeData {
         return specifyPassword;
     }
 
+    @Override
     public int getBootDelayInMillis() {
         try {
             return (int) TimeUnit.SECONDS.toMillis(Integer.parseInt(bootDelay));
@@ -99,10 +105,10 @@ public class WindowsData extends AMITypeData {
         }
     }
 
-    public boolean isAllowSelfSignedCertificate(){
+    public boolean isAllowSelfSignedCertificate() {
         return allowSelfSignedCertificate == null || allowSelfSignedCertificate;
     }
-    
+
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
@@ -143,33 +149,42 @@ public class WindowsData extends AMITypeData {
 
     @Override
     public int hashCode() {
-        return Objects.hash(password,useHTTPS, bootDelay, specifyPassword);
+        return Objects.hash(password, useHTTPS, bootDelay, specifyPassword);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-        if (obj == null)
+        }
+        if (obj == null) {
             return false;
-        if (this.getClass() != obj.getClass())
+        }
+        if (this.getClass() != obj.getClass()) {
             return false;
+        }
         final WindowsData other = (WindowsData) obj;
         if (bootDelay == null) {
-            if (other.bootDelay != null)
+            if (other.bootDelay != null) {
                 return false;
-        } else if (!bootDelay.equals(other.bootDelay))
+            }
+        } else if (!bootDelay.equals(other.bootDelay)) {
             return false;
+        }
         if (password == null) {
-            if (other.password != null)
+            if (other.password != null) {
                 return false;
-        } else if (!password.equals(other.password))
+            }
+        } else if (!password.equals(other.password)) {
             return false;
+        }
         if (allowSelfSignedCertificate == null) {
-            if (other.allowSelfSignedCertificate != null)
+            if (other.allowSelfSignedCertificate != null) {
                 return false;
-        } else if (!allowSelfSignedCertificate.equals(other.allowSelfSignedCertificate))
+            }
+        } else if (!allowSelfSignedCertificate.equals(other.allowSelfSignedCertificate)) {
             return false;
+        }
         return useHTTPS == other.useHTTPS && specifyPassword == other.specifyPassword;
     }
 }

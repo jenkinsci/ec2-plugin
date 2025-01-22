@@ -1,11 +1,18 @@
 package hudson.plugins.ec2.win;
 
+import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.mssmb2.SMB2CreateDisposition;
+import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.protocol.transport.TransportException;
 import hudson.plugins.ec2.Messages;
 import hudson.plugins.ec2.util.FIPS140Utils;
+import com.hierynomus.smbj.SMBClient;
+import com.hierynomus.smbj.auth.AuthenticationContext;
+import com.hierynomus.smbj.connection.Connection;
+import com.hierynomus.smbj.session.Session;
+import com.hierynomus.smbj.share.DiskShare;
 import hudson.plugins.ec2.win.winrm.WinRM;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,6 +33,7 @@ import jenkins.security.FIPS140;
 import javax.net.ssl.SSLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.SSLException;
 
 public class WinConnection {
     private static final Logger LOGGER = Logger.getLogger(WinConnection.class.getName());
@@ -41,14 +49,14 @@ public class WinConnection {
     private Session session;
 
     private boolean useHTTPS;
-    private static final int TIMEOUT=8000; //8 seconds
+    private static final int TIMEOUT = 8000; // 8 seconds
     private boolean allowSelfSignedCertificate;
 
     @Deprecated
     public WinConnection(String host, String username, String password) {
         this(host, username, password, true);
     }
-    
+
     public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
         FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
 
@@ -84,31 +92,31 @@ public class WinConnection {
     }
 
     private DiskShare getSmbShare(String path) throws IOException {
-        if(this.connection == null) {
+        if (this.connection == null) {
             this.connection = smbclient.connect(host);
         }
-        if(this.session == null) {
+        if (this.session == null) {
             this.session = connection.authenticate(this.authentication);
         }
         return (DiskShare) session.connectShare(toAdministrativeShare(path));
     }
 
     public OutputStream putFile(String path) throws IOException {
-        return getSmbShare(path).openFile(toFilePath(path),
-                                            EnumSet.of(AccessMask.GENERIC_READ,
-                                            AccessMask.GENERIC_WRITE),
-                                            null,
-                                            SMB2ShareAccess.ALL,
-                                            SMB2CreateDisposition.FILE_OVERWRITE_IF,
-                                            null).getOutputStream();
+        return getSmbShare(path)
+                .openFile(
+                        toFilePath(path),
+                        EnumSet.of(AccessMask.GENERIC_READ, AccessMask.GENERIC_WRITE),
+                        null,
+                        SMB2ShareAccess.ALL,
+                        SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                        null)
+                .getOutputStream();
     }
 
     public InputStream getFile(String path) throws IOException {
-        return getSmbShare(path).openFile(toFilePath(path),
-                                            EnumSet.of(AccessMask.GENERIC_READ),
-                                            null, SMB2ShareAccess.ALL,
-                                            null,
-                                            null).getInputStream();
+        return getSmbShare(path)
+                .openFile(toFilePath(path), EnumSet.of(AccessMask.GENERIC_READ), null, SMB2ShareAccess.ALL, null, null)
+                .getInputStream();
     }
 
     public boolean exists(String path) throws IOException {
@@ -117,11 +125,11 @@ public class WinConnection {
 
     private static String toAdministrativeShare(String path) {
         // administrative windows share are DRIVE$path like
-        return path.substring(0, 1) + "$";
+        return path.charAt(0) + "$";
     }
 
     private static String toFilePath(String path) {
-        //Strip drive and leading forward slash
+        // Strip drive and leading forward slash
         return path.substring(3);
     }
 
@@ -133,14 +141,12 @@ public class WinConnection {
             return false;
         }
     }
-    
+
     public boolean pingFailingIfSSHHandShakeError() throws IOException {
         LOGGER.log(Level.FINE, () -> "checking SMB connection to " + host);
-        try (
-            Socket socket = new Socket();
-            Connection connection = smbclient.connect(host);
-            Session session = connection.authenticate(authentication);
-        ) {
+        try (Socket socket = new Socket();
+                Connection connection = smbclient.connect(host);
+                Session session = connection.authenticate(authentication)) {
             socket.connect(new InetSocketAddress(host, 445), TIMEOUT);
             winrm().ping();
             session.connectShare("IPC$");
@@ -160,21 +166,21 @@ public class WinConnection {
     }
 
     public void close() {
-        if(this.session != null) {
+        if (this.session != null) {
             try {
                 this.session.close();
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Failed to close session", e);
             }
         }
-        if(this.connection != null) {
+        if (this.connection != null) {
             try {
                 this.connection.close();
             } catch (Exception e) {
                 LOGGER.log(Level.SEVERE, "Failed to close connection", e);
             }
         }
-        if(this.smbclient != null) {
+        if (this.smbclient != null) {
             try {
                 this.smbclient.close();
             } catch (Exception e) {

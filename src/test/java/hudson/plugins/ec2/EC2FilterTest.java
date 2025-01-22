@@ -23,17 +23,16 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Filter;
-
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.Collections;
-
-import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+
+import com.amazonaws.services.ec2.model.Filter;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.junit.Test;
 
 public class EC2FilterTest {
     @Test
@@ -45,7 +44,7 @@ public class EC2FilterTest {
         Filter filter = ec2Filter.toFilter();
         assertNotNull(filter);
         assertEquals("name", filter.getName());
-        assertEquals(Arrays.asList("value"), filter.getValues());
+        assertEquals(List.of("value"), filter.getValues());
     }
 
     @Test

@@ -23,15 +23,22 @@
  */
 package hudson.plugins.ec2;
 
+import static org.apache.sshd.client.session.ClientSession.REMOTE_COMMAND_WAIT_EVENTS;
+
+import com.amazonaws.AmazonClientException;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
-
 import java.io.IOException;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.amazonaws.AmazonClientException;
+import org.apache.sshd.client.channel.ClientChannel;
+import org.apache.sshd.client.channel.ClientChannelEvent;
+import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.scp.client.CloseableScpClient;
+import org.apache.sshd.scp.client.ScpClient;
+import org.apache.sshd.scp.client.ScpClientCreator;
 
 /**
  * {@link ComputerLauncher} for EC2 that wraps the real user-specified {@link ComputerLauncher}.
@@ -48,8 +55,13 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
             launchScript(computer, listener);
         } catch (AmazonClientException | IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
-            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
-                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
+            if (slaveComputer.getNode() instanceof EC2AbstractSlave) {
+                LOGGER.log(
+                        Level.FINE,
+                        String.format(
+                                "Terminating the ec2 agent %s due a problem launching or connecting to it",
+                                slaveComputer.getName()),
+                        e);
                 EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
                 if (ec2AbstractSlave != null) {
                     ec2AbstractSlave.terminate();
@@ -58,15 +70,19 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             e.printStackTrace(listener.error(e.getMessage()));
-            if (slaveComputer.getNode() instanceof  EC2AbstractSlave) {
-                LOGGER.log(Level.FINE, String.format("Terminating the ec2 agent %s due a problem launching or connecting to it", slaveComputer.getName()), e);
+            if (slaveComputer.getNode() instanceof EC2AbstractSlave) {
+                LOGGER.log(
+                        Level.FINE,
+                        String.format(
+                                "Terminating the ec2 agent %s due a problem launching or connecting to it",
+                                slaveComputer.getName()),
+                        e);
                 EC2AbstractSlave ec2AbstractSlave = (EC2AbstractSlave) slaveComputer.getNode();
                 if (ec2AbstractSlave != null) {
                     ec2AbstractSlave.terminate();
                 }
             }
         }
-
     }
 
     /**
@@ -75,4 +91,18 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
             throws AmazonClientException, IOException, InterruptedException;
 
+    protected int waitCompletion(ClientChannel clientChannel, long timeout) {
+        Set<ClientChannelEvent> clientChannelEvents = clientChannel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
+        if (clientChannelEvents.contains(ClientChannelEvent.TIMEOUT)) {
+            return -1;
+        } else {
+            return clientChannel.getExitStatus();
+        }
+    }
+
+    protected CloseableScpClient createScpClient(ClientSession session) {
+        ScpClientCreator creator = ScpClientCreator.instance();
+        ScpClient client = creator.createScpClient(session);
+        return CloseableScpClient.singleSessionInstance(client);
+    }
 }

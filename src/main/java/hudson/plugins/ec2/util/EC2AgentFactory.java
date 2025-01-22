@@ -1,9 +1,9 @@
 package hudson.plugins.ec2.util;
 
-import java.io.IOException;
-
 import hudson.model.Descriptor;
-import hudson.plugins.ec2.*;
+import hudson.plugins.ec2.EC2OndemandSlave;
+import hudson.plugins.ec2.EC2SpotSlave;
+import java.io.IOException;
 import jenkins.model.Jenkins;
 
 public interface EC2AgentFactory {
@@ -23,5 +23,4 @@ public interface EC2AgentFactory {
     EC2OndemandSlave createOnDemandAgent(EC2AgentConfig.OnDemand config) throws Descriptor.FormException, IOException;
 
     EC2SpotSlave createSpotAgent(EC2AgentConfig.Spot config) throws Descriptor.FormException, IOException;
-
 }

@@ -1,10 +1,21 @@
 package hudson.plugins.ec2;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.model.PeriodicWork;
 import hudson.model.Result;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -17,18 +28,6 @@ import org.mockito.Mock;
 import org.mockito.internal.stubbing.answers.ThrowsException;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
-
 /**
  * @author Alicia Doblas
  */
@@ -38,7 +37,7 @@ public class EC2StepTest {
     public JenkinsRule r = new JenkinsRule();
 
     @Mock
-    private AmazonEC2Cloud cl;
+    private EC2Cloud cl;
 
     @Mock
     private SlaveTemplate st;
@@ -60,7 +59,7 @@ public class EC2StepTest {
 
         when(instance.getNodeName()).thenReturn("nodeName");
         List<EC2AbstractSlave> slaves = Collections.singletonList(instance);
-        when(st.provision(anyInt(),any())).thenReturn(slaves);
+        when(st.provision(anyInt(), any())).thenReturn(slaves);
     }
 
     @Test
@@ -76,14 +75,16 @@ public class EC2StepTest {
 
         // expired ec2 client
         //  based on a real exception
-        //  > Request has expired. (Service: AmazonEC2; Status Code: 400; Error Code: RequestExpired; Request ID: 00000000-0000-0000-0000-000000000000)
+        //  > Request has expired. (Service: AmazonEC2; Status Code: 400; Error Code: RequestExpired; Request ID:
+        // 00000000-0000-0000-0000-000000000000)
         AmazonEC2Exception expiredException = new AmazonEC2Exception("Request has expired");
         expiredException.setServiceName("AmazonEC2");
         expiredException.setStatusCode(400);
         expiredException.setErrorCode("RequestExpired");
         expiredException.setRequestId("00000000-0000-0000-0000-000000000000");
 
-        AmazonEC2Client expiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock(new ThrowsException(expiredException));
+        AmazonEC2Client expiredClient =
+                AmazonEC2FactoryMockImpl.createAmazonEC2Mock(new ThrowsException(expiredException));
         AmazonEC2FactoryMockImpl.mock = expiredClient;
         PeriodicWork work = PeriodicWork.all().get(EC2Cloud.EC2ConnectionUpdater.class);
         assertNotNull(work);
@@ -96,9 +97,9 @@ public class EC2StepTest {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
         String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('" + builtInNodeLabel + "') {\n" +
-                        "    def X = ec2 cloud: 'myCloud', template: 'aws-CentOS-7'\n" +
-                        "}" , true));
+                " node('" + builtInNodeLabel + "') {\n" + "    def X = ec2 cloud: 'myCloud', template: 'aws-CentOS-7'\n"
+                        + "}",
+                true));
         WorkflowRun b = r.buildAndAssertSuccess(boot);
         r.assertLogContains("SUCCESS", b);
     }
@@ -108,15 +109,15 @@ public class EC2StepTest {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
         String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('" + builtInNodeLabel + "') {\n" +
-                        "    def X = ec2 cloud: 'dummyCloud', template: 'aws-CentOS-7'\n" +
-                        "    X.boot()\n" +
-                        "}" , true));
+                " node('" + builtInNodeLabel + "') {\n"
+                        + "    def X = ec2 cloud: 'dummyCloud', template: 'aws-CentOS-7'\n"
+                        + "    X.boot()\n"
+                        + "}",
+                true));
         WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, boot);
         r.assertLogContains("Error in AWS Cloud. Please review EC2 settings in Jenkins configuration.", b);
         r.assertLogContains("FAILURE", b);
     }
-
 
     @Test
     public void boot_noTemplate() throws Exception {
@@ -125,10 +126,11 @@ public class EC2StepTest {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
         String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
-                " node('" + builtInNodeLabel + "') {\n" +
-                        "    def X = ec2 cloud: 'myCloud', template: 'dummyTemplate'\n" +
-                        "    X.boot()\n" +
-                        "}" , true));
+                " node('" + builtInNodeLabel + "') {\n"
+                        + "    def X = ec2 cloud: 'myCloud', template: 'dummyTemplate'\n"
+                        + "    X.boot()\n"
+                        + "}",
+                true));
         WorkflowRun b = r.buildAndAssertStatus(Result.FAILURE, boot);
         r.assertLogContains("Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.", b);
         r.assertLogContains("FAILURE", b);

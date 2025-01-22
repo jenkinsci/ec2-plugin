@@ -35,12 +35,15 @@ public enum HostKeyVerificationStrategyEnum {
     CHECK_NEW_SOFT("check-new-soft", "accept-new", new CheckNewSoftStrategy()),
     ACCEPT_NEW("accept-new", "accept-new", new AcceptNewStrategy()),
     OFF("off", "no", new NonVerifyingKeyVerificationStrategy());
-    
+
     private final String displayText;
     private final SshHostKeyVerificationStrategy strategy;
     private final String sshCommandEquivalentFlag;
-    
-    HostKeyVerificationStrategyEnum(@NonNull String displayText, @NonNull String sshCommandEquivalentFlag, @NonNull SshHostKeyVerificationStrategy strategy) {
+
+    HostKeyVerificationStrategyEnum(
+            @NonNull String displayText,
+            @NonNull String sshCommandEquivalentFlag,
+            @NonNull SshHostKeyVerificationStrategy strategy) {
         this.displayText = displayText;
         this.sshCommandEquivalentFlag = sshCommandEquivalentFlag;
         this.strategy = strategy;
@@ -50,7 +53,7 @@ public enum HostKeyVerificationStrategyEnum {
     public SshHostKeyVerificationStrategy getStrategy() {
         return strategy;
     }
-    
+
     public boolean equalsDisplayText(String other) {
         return this.displayText.equals(other);
     }
