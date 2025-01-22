@@ -41,9 +41,9 @@ public class FIPS140UtilsWithFIPSTest {
     private void assertTLSIsNonCompliant(CheckedRunnable block) {
         try {
             block.run();
-            fail("Should be invalid with message: " + Messages.AmazonEC2Cloud_tlsIsRequiredInFIPSMode());
+            fail("Should be invalid with message: " + Messages.EC2Cloud_tlsIsRequiredInFIPSMode());
         } catch (IllegalArgumentException e) {
-            assertEquals(Messages.AmazonEC2Cloud_tlsIsRequiredInFIPSMode(), e.getMessage());
+            assertEquals(Messages.EC2Cloud_tlsIsRequiredInFIPSMode(), e.getMessage());
         } catch (Throwable e) {
             fail("Unexpected error: " + e.getMessage());
         }
@@ -64,7 +64,7 @@ public class FIPS140UtilsWithFIPSTest {
         DSAPublicKey key = Mockito.mock(DSAPublicKey.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(key.getParams().getP().bitLength()).thenReturn(2047);
 
-        assertInvalidKey(key, Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
+        assertInvalidKey(key, Messages.EC2Cloud_invalidKeySizeInFIPSMode());
     }
 
     @Test
@@ -80,7 +80,7 @@ public class FIPS140UtilsWithFIPSTest {
         RSAPublicKey key = Mockito.mock(RSAPublicKey.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(key.getModulus().bitLength()).thenReturn(2047);
 
-        assertInvalidKey(key, Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
+        assertInvalidKey(key, Messages.EC2Cloud_invalidKeySizeInFIPSMode());
     }
 
     @Test
@@ -98,7 +98,7 @@ public class FIPS140UtilsWithFIPSTest {
                 Mockito.withSettings().extraInterfaces(Key.class).defaultAnswer(Mockito.RETURNS_DEEP_STUBS));
         Mockito.when(key.getParams().getCurve().getField().getFieldSize()).thenReturn(223);
 
-        assertInvalidKey((Key) key, Messages.AmazonEC2Cloud_invalidKeySizeECInFIPSMode());
+        assertInvalidKey((Key) key, Messages.EC2Cloud_invalidKeySizeECInFIPSMode());
     }
 
     @Test
@@ -117,7 +117,7 @@ public class FIPS140UtilsWithFIPSTest {
         Key key = Mockito.mock(Key.class);
         Mockito.when(key.getAlgorithm()).thenReturn(message);
 
-        assertInvalidKey(key, Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(message));
+        assertInvalidKey(key, Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(message));
     }
 
     @Test
@@ -170,7 +170,7 @@ public class FIPS140UtilsWithFIPSTest {
 
     @Test
     public void testAllowSelfSignedCertificate() {
-        String expectedMessage = Messages.AmazonEC2Cloud_selfSignedCertificateNotAllowedInFIPSMode();
+        String expectedMessage = Messages.EC2Cloud_selfSignedCertificateNotAllowedInFIPSMode();
         try {
             FIPS140Utils.ensureNoSelfSignedCertificate(true);
             fail("Should be invalid with message: " + expectedMessage);

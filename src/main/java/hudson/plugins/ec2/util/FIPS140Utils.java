@@ -41,19 +41,19 @@ public class FIPS140Utils {
         try {
             if (key instanceof RSAKey) {
                 if (((RSAKey) key).getModulus().bitLength() < 2048) {
-                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
+                    throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
                 }
             } else if (key instanceof DSAKey) {
                 if (((DSAKey) key).getParams().getP().bitLength() < 2048) {
-                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeInFIPSMode());
+                    throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
                 }
             } else if (key instanceof ECKey) {
                 if (((ECKey) key).getParams().getCurve().getField().getFieldSize() < 224) {
-                    throw new IllegalArgumentException(Messages.AmazonEC2Cloud_invalidKeySizeECInFIPSMode());
+                    throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeECInFIPSMode());
                 }
             } else {
                 throw new IllegalArgumentException(
-                        Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
+                        Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(key.getAlgorithm()));
             }
         } catch (RuntimeException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
@@ -92,7 +92,7 @@ public class FIPS140Utils {
     public static void ensureNoPasswordLeak(boolean useHTTPS, boolean usePassword) {
         if (FIPS140.useCompliantAlgorithms()) {
             if (!useHTTPS && usePassword) {
-                throw new IllegalArgumentException(Messages.AmazonEC2Cloud_tlsIsRequiredInFIPSMode());
+                throw new IllegalArgumentException(Messages.EC2Cloud_tlsIsRequiredInFIPSMode());
             }
         }
     }
@@ -106,7 +106,7 @@ public class FIPS140Utils {
     public static void ensureNoSelfSignedCertificate(boolean allowSelfSignedCertificate) {
         if (FIPS140.useCompliantAlgorithms()) {
             if (allowSelfSignedCertificate) {
-                throw new IllegalArgumentException(Messages.AmazonEC2Cloud_selfSignedCertificateNotAllowedInFIPSMode());
+                throw new IllegalArgumentException(Messages.EC2Cloud_selfSignedCertificateNotAllowedInFIPSMode());
             }
         }
     }
@@ -128,7 +128,7 @@ public class FIPS140Utils {
             return;
         }
         if (StringUtils.isBlank(privateKeyString)) {
-            throw new IllegalArgumentException(Messages.AmazonEC2Cloud_keyIsMandatoryInFIPSMode());
+            throw new IllegalArgumentException(Messages.EC2Cloud_keyIsMandatoryInFIPSMode());
         }
         try {
             Key privateKey = PEMEncodable.decode(privateKeyString).toPrivateKey();
@@ -148,7 +148,7 @@ public class FIPS140Utils {
                         .filter((keyAlgorithm) -> keyAlgorithm.getKeyFormat().equals(algorithm))
                         .findFirst()
                         .orElseThrow(() -> new IllegalArgumentException(
-                                Messages.AmazonEC2Cloud_keyIsNotApprovedInFIPSMode(algorithm)));
+                                Messages.EC2Cloud_keyIsNotApprovedInFIPSMode(algorithm)));
         try {
             Key publicKey = publicKeyPrivateKeyKeyAlgorithm.decodePublicKey(key);
             ensureKeyInFipsMode(publicKey);
