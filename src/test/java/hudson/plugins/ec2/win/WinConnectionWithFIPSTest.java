@@ -17,7 +17,7 @@ public class WinConnectionWithFIPSTest {
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
      */
     @Test(expected = IllegalArgumentException.class)
-    public void testSelfSignedCertificateNotAllowed() throws Exception {
+    public void testSelfSignedCertificateNotAllowed() {
         new WinConnection("", "", "", true);
     }
 
