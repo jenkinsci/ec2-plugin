@@ -67,7 +67,6 @@ public class WindowsDataWithFIPSTest {
     }
 
     @Test
-    @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPSWithPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "yes");
@@ -75,7 +74,6 @@ public class WindowsDataWithFIPSTest {
     }
 
     @Test
-    @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPSWithoutPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "");
@@ -83,7 +81,6 @@ public class WindowsDataWithFIPSTest {
     }
 
     @Test
-    @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPWithPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "yes");
@@ -91,7 +88,6 @@ public class WindowsDataWithFIPSTest {
     }
 
     @Test
-    @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckUseHTTPWithoutPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "");
@@ -99,7 +95,6 @@ public class WindowsDataWithFIPSTest {
     }
 
     @Test
-    @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckAllowSelfSignedCertificateChecked() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(true);
@@ -107,7 +102,6 @@ public class WindowsDataWithFIPSTest {
     }
 
     @Test
-    @Ignore("Disabled until the plugins dependencies are FIPS compliant")
     public void testDoCheckAllowSelfSignedCertificateNotChecked() {
         FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class)
                 .doCheckAllowSelfSignedCertificate(false);
