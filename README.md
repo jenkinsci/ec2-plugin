@@ -1,3 +1,25 @@
+I can't file this as an issue because repo has issues disabled but after upgrading to newest plugin version (replacing trilead with mina) my Jenkins controller is no longer able to connect to agents, I had to downgrade the plugin to restore functionality.
+
+```
+Jan 23, 2025 11:15:28 AM hudson.plugins.ec2.EC2Cloud
+INFO: Connection allowed after the host key has been verified
+ERROR: unexpected stream termination
+java.io.EOFException: unexpected stream termination
+	at hudson.remoting.ChannelBuilder.negotiate(ChannelBuilder.java:478)
+	at hudson.remoting.ChannelBuilder.build(ChannelBuilder.java:422)
+	at hudson.slaves.SlaveComputer.setChannel(SlaveComputer.java:440)
+	at PluginClassLoader for ec2//hudson.plugins.ec2.ssh.EC2UnixLauncher.launchRemotingAgent(EC2UnixLauncher.java:453)
+	at PluginClassLoader for ec2//hudson.plugins.ec2.ssh.EC2UnixLauncher.launchScript(EC2UnixLauncher.java:402)
+	at PluginClassLoader for ec2//hudson.plugins.ec2.EC2ComputerLauncher.launch(EC2ComputerLauncher.java:55)
+	at hudson.slaves.SlaveComputer.lambda$_connect$0(SlaveComputer.java:297)
+	at jenkins.util.ContextResettingExecutorService$2.call(ContextResettingExecutorService.java:46)
+	at jenkins.security.ImpersonatingExecutorService$2.call(ImpersonatingExecutorService.java:80)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+```
+
 # ec2-plugin
 [![Jenkins](https://ci.jenkins.io/job/Plugins/job/ec2-plugin/job/master/badge/icon)](https://ci.jenkins.io/job/Plugins/job/ec2-plugin/job/master/)
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/ec2.svg)](https://plugins.jenkins.io/ec2)
