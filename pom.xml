@@ -87,7 +87,7 @@ THE SOFTWARE.
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>3761.vd922730f0fd2</version>
+        <version>3944.v1a_e4f8b_452db_</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -109,6 +109,14 @@ THE SOFTWARE.
           <artifactId>slf4j-api</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+      <artifactId>aws-java-sdk2-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+      <artifactId>aws-java-sdk2-ec2</artifactId>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins.mina-sshd-api</groupId>
@@ -145,16 +153,6 @@ THE SOFTWARE.
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
-      <artifactId>aws-java-sdk-ec2</artifactId>
-      <version>1.12.696-451.v0651a_da_9ca_ec</version>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
-      <artifactId>aws-java-sdk-minimal</artifactId>
-      <version>1.12.767-467.vb_e93f0c614b_6</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>

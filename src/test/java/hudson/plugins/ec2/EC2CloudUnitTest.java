@@ -32,16 +32,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.Tag;
 import hudson.model.Node;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,21 +50,17 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 /**
  * Unit tests related to {@link EC2Cloud}, but do not require a Jenkins instance.
  */
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class EC2CloudUnitTest {
-
-    @Test
-    public void testEC2EndpointURLCreation() throws MalformedURLException {
-        EC2Cloud.DescriptorImpl descriptor = new EC2Cloud.DescriptorImpl();
-
-        assertEquals(new URL(EC2Cloud.DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(null));
-        assertEquals(new URL(EC2Cloud.DEFAULT_EC2_ENDPOINT), descriptor.determineEC2EndpointURL(""));
-        assertEquals(new URL("https://www.abc.com"), descriptor.determineEC2EndpointURL("https://www.abc.com"));
-    }
 
     @Test
     public void testInstaceCap() throws Exception {
@@ -130,9 +119,13 @@ public class EC2CloudUnitTest {
 
             List<Instance> instances = new ArrayList<>();
             for (int i = 0; i <= numberOfSpotInstanceRequests; i++) {
-                instances.add(new Instance()
-                        .withInstanceId("id" + i)
-                        .withTags(new Tag().withKey("jenkins_slave_type").withValue("spot")));
+                instances.add(Instance.builder()
+                        .instanceId("id" + i)
+                        .tags(Tag.builder()
+                                .key("jenkins_slave_type")
+                                .value("spot")
+                                .build())
+                        .build());
             }
 
             AmazonEC2FactoryMockImpl.instances = instances;
@@ -150,20 +143,6 @@ public class EC2CloudUnitTest {
             // Should equal number of spot instance requests + 1 for spot nodes not having a spot instance request
             assertEquals(numberOfSpotInstanceRequests + 1, n);
         }
-    }
-
-    @Test
-    public void testCNPartition() {
-        assertEquals(
-                EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "ec2"), "ec2.cn-northwest-1.amazonaws.com.cn");
-        assertEquals(
-                EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "s3"), "s3.cn-northwest-1.amazonaws.com.cn");
-    }
-
-    @Test
-    public void testNormalPartition() {
-        assertEquals(EC2Cloud.getAwsPartitionHostForService("us-east-1", "ec2"), "ec2.us-east-1.amazonaws.com");
-        assertEquals(EC2Cloud.getAwsPartitionHostForService("us-east-1", "s3"), "s3.us-east-1.amazonaws.com");
     }
 
     @Test
@@ -185,7 +164,7 @@ public class EC2CloudUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -247,7 +226,7 @@ public class EC2CloudUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -292,7 +271,7 @@ public class EC2CloudUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -339,7 +318,7 @@ public class EC2CloudUnitTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -401,11 +380,11 @@ public class EC2CloudUnitTest {
                 "roleArn",
                 "roleSessionName");
         EC2Cloud spyCloud = Mockito.spy(cloud);
-        AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);
+        Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
         Jenkins mockJenkins = Mockito.mock(Jenkins.class);
         EC2AbstractSlave mockOrphanNode = Mockito.mock(EC2AbstractSlave.class);
         SlaveTemplate mockSlaveTemplate = Mockito.mock(SlaveTemplate.class);
-        DescribeInstancesResult mockedDIResult = Mockito.mock(DescribeInstancesResult.class);
+        DescribeInstancesResponse mockedDIResult = Mockito.mock(DescribeInstancesResponse.class);
         Instance mockedInstance = Mockito.mock(Instance.class);
         List<Instance> listOfMockedInstances = new ArrayList<>();
         listOfMockedInstances.add(mockedInstance);
@@ -432,20 +411,20 @@ public class EC2CloudUnitTest {
             Mockito.doReturn(mockEc2).when(spyCloud).connect();
             Mockito.doReturn(mockedDIResult)
                     .when(mockSlaveTemplate)
-                    .getDescribeInstanceResult(Mockito.any(AmazonEC2.class), eq(true));
+                    .getDescribeInstanceResult(Mockito.any(Ec2Client.class), eq(true));
             Mockito.doReturn(listOfMockedInstances)
                     .when(mockSlaveTemplate)
                     .findOrphansOrStopped(eq(mockedDIResult), Mockito.anyInt());
             Mockito.doNothing()
                     .when(mockSlaveTemplate)
-                    .wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
+                    .wakeOrphansOrStoppedUp(Mockito.any(Ec2Client.class), eq(listOfMockedInstances));
 
             /* Actual call to test*/
             spyCloud.attemptReattachOrphanOrStoppedNodes(mockJenkins, mockSlaveTemplate, 1);
 
             /* Checks */
             Mockito.verify(mockSlaveTemplate, times(1))
-                    .wakeOrphansOrStoppedUp(Mockito.any(AmazonEC2.class), eq(listOfMockedInstances));
+                    .wakeOrphansOrStoppedUp(Mockito.any(Ec2Client.class), eq(listOfMockedInstances));
             Node[] expectedNodes = {mockOrphanNode};
             assertArrayEquals(expectedNodes, listOfJenkinsNodes.toArray());
         }
