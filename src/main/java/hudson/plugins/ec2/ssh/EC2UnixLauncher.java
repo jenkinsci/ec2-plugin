@@ -312,33 +312,33 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             }
                             IOUtils.copy(channel.getInvertedOut(), logger);
                         }
-
-                        executeRemote(
-                                computer,
-                                clientSession,
-                                javaPath + " -fullversion",
-                                "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
-                                logger,
-                                listener);
-                        executeRemote(
-                                computer,
-                                clientSession,
-                                "which scp",
-                                "sudo yum install -y openssh-clients",
-                                logger,
-                                listener);
-
-                        // Always copy so we get the most recent remoting.jar
-                        logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-                        scp.upload(
-                                Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                                tmpDir + "/remoting.jar",
-                                List.of(
-                                        PosixFilePermission.OWNER_READ,
-                                        PosixFilePermission.GROUP_READ,
-                                        PosixFilePermission.OTHERS_READ),
-                                scpTimestamp);
                     }
+
+                    executeRemote(
+                            computer,
+                            clientSession,
+                            javaPath + " -fullversion",
+                            "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
+                            logger,
+                            listener);
+                    executeRemote(
+                            computer,
+                            clientSession,
+                            "which scp",
+                            "sudo yum install -y openssh-clients",
+                            logger,
+                            listener);
+
+                    // Always copy so we get the most recent remoting.jar
+                    logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                    scp.upload(
+                            Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                            tmpDir + "/remoting.jar",
+                            List.of(
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.GROUP_READ,
+                                    PosixFilePermission.OTHERS_READ),
+                            scpTimestamp);
                 }
             }
             client.stop();

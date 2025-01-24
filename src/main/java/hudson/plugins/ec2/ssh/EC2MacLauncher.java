@@ -310,46 +310,46 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                             }
                             IOUtils.copy(channel.getInvertedOut(), logger);
                         }
-
-                        try {
-                            Instance nodeInstance = computer.describeInstance();
-                            if (nodeInstance.getInstanceType().equals("mac2.metal")) {
-                                LOGGER.info("Running Command for mac2.metal");
-                                executeRemote(
-                                        computer,
-                                        clientSession,
-                                        javaPath + " -fullversion",
-                                        "curl -L -O "
-                                                + CORRETTO_LATEST_URL
-                                                + "/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
-                                        logger,
-                                        listener);
-                            } else {
-                                executeRemote(
-                                        computer,
-                                        clientSession,
-                                        javaPath + " -fullversion",
-                                        "curl -L -O "
-                                                + CORRETTO_LATEST_URL
-                                                + "/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
-                                        logger,
-                                        listener);
-                            }
-                        } catch (InterruptedException ex) {
-                            LOGGER.warning(ex.getMessage());
-                        }
-
-                        // Always copy so we get the most recent remoting.jar
-                        logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-                        scp.upload(
-                                Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                                tmpDir + "/remoting.jar",
-                                List.of(
-                                        PosixFilePermission.OWNER_READ,
-                                        PosixFilePermission.GROUP_READ,
-                                        PosixFilePermission.OTHERS_READ),
-                                scpTimestamp);
                     }
+
+                    try {
+                        Instance nodeInstance = computer.describeInstance();
+                        if (nodeInstance.getInstanceType().equals("mac2.metal")) {
+                            LOGGER.info("Running Command for mac2.metal");
+                            executeRemote(
+                                    computer,
+                                    clientSession,
+                                    javaPath + " -fullversion",
+                                    "curl -L -O "
+                                            + CORRETTO_LATEST_URL
+                                            + "/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
+                                    logger,
+                                    listener);
+                        } else {
+                            executeRemote(
+                                    computer,
+                                    clientSession,
+                                    javaPath + " -fullversion",
+                                    "curl -L -O "
+                                            + CORRETTO_LATEST_URL
+                                            + "/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
+                                    logger,
+                                    listener);
+                        }
+                    } catch (InterruptedException ex) {
+                        LOGGER.warning(ex.getMessage());
+                    }
+
+                    // Always copy so we get the most recent remoting.jar
+                    logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                    scp.upload(
+                            Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                            tmpDir + "/remoting.jar",
+                            List.of(
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.GROUP_READ,
+                                    PosixFilePermission.OTHERS_READ),
+                            scpTimestamp);
                 }
             }
             client.stop();
