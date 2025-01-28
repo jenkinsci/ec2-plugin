@@ -86,6 +86,9 @@ import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -694,10 +697,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
             SlaveTemplate template = computer.getSlaveTemplate();
             try {
+                AsymmetricKeyParameter parameters = PublicKeyFactory.createKey(serverKey.getEncoded());
+                byte[] openSSHBytes = OpenSSHPublicKeyUtil.encodePublicKey(parameters);
+
                 return template != null
                         && template.getHostKeyVerificationStrategy()
                                 .getStrategy()
-                                .verify(computer, new HostKey(sshAlgorithm, serverKey.getEncoded()), listener);
+                                .verify(computer, new HostKey(sshAlgorithm, openSSHBytes), listener);
             } catch (Exception exception) {
                 // false will trigger a SSHException which is a subclass of IOException.
                 // Therefore, it is not needed to throw a RuntimeException.
