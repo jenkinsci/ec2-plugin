@@ -30,6 +30,11 @@ public class WindowsData extends AMITypeData {
             boolean allowSelfSignedCertificate)
             throws Descriptor.FormException {
         try {
+            FIPS140Utils.ensurePasswordLength(password);
+        } catch (IllegalArgumentException e) {
+            throw new Descriptor.FormException(e, "password");
+        }
+        try {
             FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
         } catch (IllegalArgumentException e) {
             throw new Descriptor.FormException(e, "password");
