@@ -36,7 +36,16 @@ public class WindowsDataWithFIPSTest {
     @Test(expected = Descriptor.FormException.class)
     @WithoutJenkins
     public void testCreateWindowsDataWithPasswordWithoutTLS() throws Descriptor.FormException {
-        new WindowsData("yes", false, "", true, false);
+        new WindowsData("01234567890123456789", false, "", true, false);
+    }
+
+    /**
+     * Using a password less than 14 chars, an {@link Descriptor.FormException} is expected
+     */
+    @Test(expected = Descriptor.FormException.class)
+    @WithoutJenkins
+    public void testCreateWindowsDataWithShortPassword() throws Descriptor.FormException {
+        new WindowsData("0123", true, "", true, false);
     }
 
     /**
@@ -45,9 +54,9 @@ public class WindowsDataWithFIPSTest {
     @Test
     @WithoutJenkins
     public void testCreateWindowsDataWithPasswordWithTLS() throws Descriptor.FormException {
-        new WindowsData("yes", true, "", true, false);
+        new WindowsData("01234567890123456789", true, "", true, false);
         // specifyPassword is set to true in the constructor
-        new WindowsData("yes", true, "", false, false);
+        new WindowsData("01234567890123456789", true, "", false, false);
     }
 
     /**
@@ -56,12 +65,7 @@ public class WindowsDataWithFIPSTest {
     @Test
     @WithoutJenkins
     public void testCreateWindowsDataWithoutPassword() throws Descriptor.FormException {
-        new WindowsData("", false, "", true, false);
-        // specifyPassword is set to true in the constructor
         new WindowsData("", false, "", false, false);
-
-        new WindowsData("", true, "", true, false);
-        // specifyPassword is set to true in the constructor
         new WindowsData("", true, "", false, false);
     }
 

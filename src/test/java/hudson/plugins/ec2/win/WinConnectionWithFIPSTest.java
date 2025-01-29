@@ -26,15 +26,7 @@ public class WinConnectionWithFIPSTest {
      */
     @Test
     public void testValidCreation() {
-        new WinConnection("", "", "", false);
-    }
-
-    /**
-     * It should be allowed to disable useHTTPS only when no password is used, an {@link IllegalArgumentException} is not expected
-     */
-    @Test
-    public void testSetUseHTTPSFalseWithoutPassword() {
-        new WinConnection("", "", "", false).setUseHTTPS(false);
+        new WinConnection("", "", "0123456790123456789", false);
     }
 
     /**
@@ -42,7 +34,7 @@ public class WinConnectionWithFIPSTest {
      */
     @Test(expected = IllegalArgumentException.class)
     public void testSetUseHTTPSFalseWithPassword() {
-        new WinConnection("", "alice", "yes", false).setUseHTTPS(false);
+        new WinConnection("", "alice", "0123456790123456789", false).setUseHTTPS(false);
     }
 
     /**
@@ -50,8 +42,16 @@ public class WinConnectionWithFIPSTest {
      */
     @Test(expected = IllegalArgumentException.class)
     public void testBuildWinRMClientWithoutTLS() {
-        WinConnection winConnection = new WinConnection("", "alice", "yes", false);
+        WinConnection winConnection = new WinConnection("", "alice", "0123456790123456789", false);
         winConnection.winrm();
         fail("The creation of the WinRMClient should fail");
+    }
+
+    /**
+     * When using a password less than 14 chars, an {@link IllegalArgumentException} is expected
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testSetShortPassword() {
+        new WinConnection("", "alice", "0123", false).setUseHTTPS(false);
     }
 }

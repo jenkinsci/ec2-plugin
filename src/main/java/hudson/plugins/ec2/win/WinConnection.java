@@ -46,6 +46,7 @@ public class WinConnection {
 
     public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
         FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+        FIPS140Utils.ensurePasswordLength(password);
 
         this.host = host;
         this.username = username;
