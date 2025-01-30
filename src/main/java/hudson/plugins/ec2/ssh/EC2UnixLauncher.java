@@ -86,6 +86,9 @@ import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -312,33 +315,33 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             }
                             IOUtils.copy(channel.getInvertedOut(), logger);
                         }
-
-                        executeRemote(
-                                computer,
-                                clientSession,
-                                javaPath + " -fullversion",
-                                "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
-                                logger,
-                                listener);
-                        executeRemote(
-                                computer,
-                                clientSession,
-                                "which scp",
-                                "sudo yum install -y openssh-clients",
-                                logger,
-                                listener);
-
-                        // Always copy so we get the most recent remoting.jar
-                        logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-                        scp.upload(
-                                Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                                tmpDir + "/remoting.jar",
-                                List.of(
-                                        PosixFilePermission.OWNER_READ,
-                                        PosixFilePermission.GROUP_READ,
-                                        PosixFilePermission.OTHERS_READ),
-                                scpTimestamp);
                     }
+
+                    executeRemote(
+                            computer,
+                            clientSession,
+                            javaPath + " -fullversion",
+                            "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
+                            logger,
+                            listener);
+                    executeRemote(
+                            computer,
+                            clientSession,
+                            "which scp",
+                            "sudo yum install -y openssh-clients",
+                            logger,
+                            listener);
+
+                    // Always copy so we get the most recent remoting.jar
+                    logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                    scp.upload(
+                            Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                            tmpDir + "/remoting.jar",
+                            List.of(
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.GROUP_READ,
+                                    PosixFilePermission.OTHERS_READ),
+                            scpTimestamp);
                 }
             }
             client.stop();
@@ -694,10 +697,13 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
             }
             SlaveTemplate template = computer.getSlaveTemplate();
             try {
+                AsymmetricKeyParameter parameters = PublicKeyFactory.createKey(serverKey.getEncoded());
+                byte[] openSSHBytes = OpenSSHPublicKeyUtil.encodePublicKey(parameters);
+
                 return template != null
                         && template.getHostKeyVerificationStrategy()
                                 .getStrategy()
-                                .verify(computer, new HostKey(sshAlgorithm, serverKey.getEncoded()), listener);
+                                .verify(computer, new HostKey(sshAlgorithm, openSSHBytes), listener);
             } catch (Exception exception) {
                 // false will trigger a SSHException which is a subclass of IOException.
                 // Therefore, it is not needed to throw a RuntimeException.

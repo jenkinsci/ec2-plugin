@@ -84,6 +84,9 @@ import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -310,46 +313,46 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                             }
                             IOUtils.copy(channel.getInvertedOut(), logger);
                         }
-
-                        try {
-                            Instance nodeInstance = computer.describeInstance();
-                            if (nodeInstance.getInstanceType().equals("mac2.metal")) {
-                                LOGGER.info("Running Command for mac2.metal");
-                                executeRemote(
-                                        computer,
-                                        clientSession,
-                                        javaPath + " -fullversion",
-                                        "curl -L -O "
-                                                + CORRETTO_LATEST_URL
-                                                + "/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
-                                        logger,
-                                        listener);
-                            } else {
-                                executeRemote(
-                                        computer,
-                                        clientSession,
-                                        javaPath + " -fullversion",
-                                        "curl -L -O "
-                                                + CORRETTO_LATEST_URL
-                                                + "/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
-                                        logger,
-                                        listener);
-                            }
-                        } catch (InterruptedException ex) {
-                            LOGGER.warning(ex.getMessage());
-                        }
-
-                        // Always copy so we get the most recent remoting.jar
-                        logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
-                        scp.upload(
-                                Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                                tmpDir + "/remoting.jar",
-                                List.of(
-                                        PosixFilePermission.OWNER_READ,
-                                        PosixFilePermission.GROUP_READ,
-                                        PosixFilePermission.OTHERS_READ),
-                                scpTimestamp);
                     }
+
+                    try {
+                        Instance nodeInstance = computer.describeInstance();
+                        if (nodeInstance.getInstanceType().equals("mac2.metal")) {
+                            LOGGER.info("Running Command for mac2.metal");
+                            executeRemote(
+                                    computer,
+                                    clientSession,
+                                    javaPath + " -fullversion",
+                                    "curl -L -O "
+                                            + CORRETTO_LATEST_URL
+                                            + "/amazon-corretto-11-aarch64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-aarch64-macos-jdk.pkg -target /",
+                                    logger,
+                                    listener);
+                        } else {
+                            executeRemote(
+                                    computer,
+                                    clientSession,
+                                    javaPath + " -fullversion",
+                                    "curl -L -O "
+                                            + CORRETTO_LATEST_URL
+                                            + "/amazon-corretto-11-x64-macos-jdk.pkg; sudo installer -pkg amazon-corretto-11-x64-macos-jdk.pkg -target /",
+                                    logger,
+                                    listener);
+                        }
+                    } catch (InterruptedException ex) {
+                        LOGGER.warning(ex.getMessage());
+                    }
+
+                    // Always copy so we get the most recent remoting.jar
+                    logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                    scp.upload(
+                            Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                            tmpDir + "/remoting.jar",
+                            List.of(
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.GROUP_READ,
+                                    PosixFilePermission.OTHERS_READ),
+                            scpTimestamp);
                 }
             }
             client.stop();
@@ -670,10 +673,13 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             }
             SlaveTemplate template = computer.getSlaveTemplate();
             try {
+                AsymmetricKeyParameter parameters = PublicKeyFactory.createKey(serverKey.getEncoded());
+                byte[] openSSHBytes = OpenSSHPublicKeyUtil.encodePublicKey(parameters);
+
                 return template != null
                         && template.getHostKeyVerificationStrategy()
                                 .getStrategy()
-                                .verify(computer, new HostKey(sshAlgorithm, serverKey.getEncoded()), listener);
+                                .verify(computer, new HostKey(sshAlgorithm, openSSHBytes), listener);
             } catch (Exception exception) {
                 // false will trigger a SSHException which is a subclass of IOException.
                 // Therefore, it is not needed to throw a RuntimeException.
