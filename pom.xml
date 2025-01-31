@@ -75,8 +75,8 @@ THE SOFTWARE.
   <properties>
     <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-    <jenkins.baseline>2.452</jenkins.baseline>
-    <jenkins.version>${jenkins.baseline}.4</jenkins.version>
+    <jenkins.baseline>2.462</jenkins.baseline>
+    <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <hpi.compatibleSinceVersion>1626</hpi.compatibleSinceVersion>
     <spotless.check.skip>false</spotless.check.skip>
@@ -87,7 +87,7 @@ THE SOFTWARE.
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>3761.vd922730f0fd2</version>
+        <version>3722.vcc62e7311580</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

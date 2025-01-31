@@ -59,20 +59,26 @@ public abstract class KeyHelper {
                 PEMKeyPair decryptedKeyPair = ((PEMEncryptedKeyPair) object)
                         .decryptKeyPair(new JcePEMDecryptorProviderBuilder().build(password.toCharArray()));
                 PrivateKey privateKey = converter.getPrivateKey(decryptedKeyPair.getPrivateKeyInfo());
+                FIPS140Utils.ensureKeyInFipsMode(privateKey);
                 PublicKey publicKey = converter.getPublicKey(decryptedKeyPair.getPublicKeyInfo());
                 return new KeyPair(publicKey, privateKey);
             } else if (object instanceof PrivateKeyInfo) {
                 PrivateKeyInfo privateKeyInfo = (PrivateKeyInfo) object;
                 PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
+                FIPS140Utils.ensureKeyInFipsMode(privateKey);
                 PublicKey publicKey = generatePublicKeyFromPrivateKey(privateKeyInfo, privateKey);
                 return new KeyPair(publicKey, privateKey);
             } else if (object instanceof SubjectPublicKeyInfo) {
                 PublicKey publicKey = converter.getPublicKey((SubjectPublicKeyInfo) object);
+                FIPS140Utils.ensureKeyInFipsMode(publicKey);
                 return new KeyPair(publicKey, null);
             } else if (object instanceof PEMKeyPair) {
                 SubjectPublicKeyInfo publicKeyInfo = ((PEMKeyPair) object).getPublicKeyInfo();
                 PrivateKeyInfo privateKeyInfo = ((PEMKeyPair) object).getPrivateKeyInfo();
-                return new KeyPair(converter.getPublicKey(publicKeyInfo), converter.getPrivateKey(privateKeyInfo));
+                PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
+                FIPS140Utils.ensureKeyInFipsMode(privateKey);
+                PublicKey publicKey = converter.getPublicKey(publicKeyInfo);
+                return new KeyPair(publicKey, privateKey);
             } else {
                 throw new IllegalArgumentException(
                         "Unsupported PEM object type: " + object.getClass().getName());

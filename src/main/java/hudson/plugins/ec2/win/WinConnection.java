@@ -9,6 +9,7 @@ import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
+import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.plugins.ec2.win.winrm.WinRM;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
 import java.io.IOException;
@@ -44,6 +45,9 @@ public class WinConnection {
     }
 
     public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+        FIPS140Utils.ensurePasswordLength(password);
+
         this.host = host;
         this.username = username;
         this.password = password;
@@ -53,6 +57,9 @@ public class WinConnection {
     }
 
     public WinRM winrm() {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+
         WinRM winrm = new WinRM(host, username, password, allowSelfSignedCertificate);
         winrm.setUseHTTPS(useHTTPS);
         return winrm;
@@ -171,6 +178,7 @@ public class WinConnection {
     }
 
     public void setUseHTTPS(boolean useHTTPS) {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
         this.useHTTPS = useHTTPS;
     }
 }
