@@ -1,6 +1,6 @@
 package hudson.plugins.ec2.win;
 
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
@@ -16,9 +16,9 @@ public class WinConnectionWithFIPSTest {
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSelfSignedCertificateNotAllowed() {
-        new WinConnection("", "", "", true);
+        assertThrows(IllegalArgumentException.class, () -> new WinConnection("", "", "", true));
     }
 
     /**
@@ -32,26 +32,29 @@ public class WinConnectionWithFIPSTest {
     /**
      * It should not be allowed to disable useHTTPS only when a password is used, an {@link IllegalArgumentException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetUseHTTPSFalseWithPassword() {
-        new WinConnection("", "alice", "0123456790123456789", false).setUseHTTPS(false);
+        assertThrows(IllegalArgumentException.class, () -> new WinConnection("", "alice", "0123456790123456789", false)
+                .setUseHTTPS(false));
     }
 
     /**
      * Password leak prevention when setUseHTTPS is not called
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuildWinRMClientWithoutTLS() {
-        WinConnection winConnection = new WinConnection("", "alice", "0123456790123456789", false);
-        winConnection.winrm();
-        fail("The creation of the WinRMClient should fail");
+        assertThrows(IllegalArgumentException.class, () -> {
+            WinConnection winConnection = new WinConnection("", "alice", "0123456790123456789", false);
+            winConnection.winrm();
+        });
     }
 
     /**
      * When using a password less than 14 chars, an {@link IllegalArgumentException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetShortPassword() {
-        new WinConnection("", "alice", "0123", false).setUseHTTPS(false);
+        assertThrows(
+                IllegalArgumentException.class, () -> new WinConnection("", "alice", "0123", false).setUseHTTPS(false));
     }
 }

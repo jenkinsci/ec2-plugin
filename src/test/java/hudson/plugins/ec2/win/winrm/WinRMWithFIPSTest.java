@@ -1,5 +1,7 @@
 package hudson.plugins.ec2.win.winrm;
 
+import static org.junit.Assert.assertThrows;
+
 import jenkins.security.FIPS140;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -14,9 +16,9 @@ public class WinRMWithFIPSTest {
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSelfSignedCertificateNotAllowed() {
-        new WinRM("host", "username", "password", true);
+        assertThrows(IllegalArgumentException.class, () -> new WinRM("host", "username", "password", true));
     }
 
     /**
@@ -32,10 +34,12 @@ public class WinRMWithFIPSTest {
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link IllegalArgumentException} is expected
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetUseHTTPSWithPasswordLeak() {
-        WinRM winRM = new WinRM("host", "username", "password", false);
-        winRM.setUseHTTPS(false);
+        assertThrows(IllegalArgumentException.class, () -> {
+            WinRM winRM = new WinRM("host", "username", "password", false);
+            winRM.setUseHTTPS(false);
+        });
     }
 
     /**

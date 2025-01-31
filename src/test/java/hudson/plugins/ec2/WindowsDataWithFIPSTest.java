@@ -24,28 +24,29 @@ public class WindowsDataWithFIPSTest {
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link Descriptor.FormException} is expected
      */
-    @Test(expected = Descriptor.FormException.class)
+    @Test
     @WithoutJenkins
-    public void testSelfSignedCertificateNotAllowed() throws Descriptor.FormException {
-        new WindowsData("", true, "", true, true);
+    public void testSelfSignedCertificateNotAllowed() {
+        assertThrows(Descriptor.FormException.class, () -> new WindowsData("", true, "", true, true));
     }
 
     /**
      * Using a password without using TLS, an {@link Descriptor.FormException} is expected
      */
-    @Test(expected = Descriptor.FormException.class)
+    @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithPasswordWithoutTLS() throws Descriptor.FormException {
-        new WindowsData("01234567890123456789", false, "", true, false);
+    public void testCreateWindowsDataWithPasswordWithoutTLS() {
+        assertThrows(
+                Descriptor.FormException.class, () -> new WindowsData("01234567890123456789", false, "", true, false));
     }
 
     /**
      * Using a password less than 14 chars, an {@link Descriptor.FormException} is expected
      */
-    @Test(expected = Descriptor.FormException.class)
+    @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithShortPassword() throws Descriptor.FormException {
-        new WindowsData("0123", true, "", true, false);
+    public void testCreateWindowsDataWithShortPassword() {
+        assertThrows(Descriptor.FormException.class, () -> new WindowsData("0123", true, "", true, false));
     }
 
     /**
