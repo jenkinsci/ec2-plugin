@@ -23,11 +23,10 @@
  */
 package hudson.plugins.ec2.ssh;
 
-import com.trilead.ssh2.ServerHostKeyVerifier;
 import java.security.MessageDigest;
 import java.util.logging.Logger;
 
-public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
+public class HostKeyVerifierImpl {
     private static final Logger LOGGER = Logger.getLogger(HostKeyVerifierImpl.class.getName());
 
     private final String console;
@@ -51,7 +50,6 @@ public class HostKeyVerifierImpl implements ServerHostKeyVerifier {
         return buf.toString();
     }
 
-    @Override
     public boolean verifyServerHostKey(String hostname, int port, String serverHostKeyAlgorithm, byte[] serverHostKey)
             throws Exception {
         String fingerprint = getFingerprint(serverHostKey);

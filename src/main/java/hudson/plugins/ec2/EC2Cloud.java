@@ -77,6 +77,7 @@ import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -300,7 +301,9 @@ public class EC2Cloud extends Cloud {
             LOGGER.fine(() -> "(resolvePrivateKey) Using jenkins ssh credential");
             SSHUserPrivateKey privateKeyCredential = getSshCredential(sshKeysCredentialsId, Jenkins.get());
             if (privateKeyCredential != null) {
-                return new EC2PrivateKey(privateKeyCredential.getPrivateKey());
+                String privateKey = privateKeyCredential.getPrivateKey();
+                FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
+                return new EC2PrivateKey(privateKey);
             }
         }
         return null;
@@ -433,7 +436,9 @@ public class EC2Cloud extends Cloud {
         }
 
         if (this.sshKeysCredentialsId == null && this.privateKey != null) {
-            migratePrivateSshKeyToCredential(this.privateKey.getPrivateKey());
+            String privateKey = this.privateKey.getPrivateKey();
+            FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
+            migratePrivateSshKeyToCredential(privateKey);
         }
         this.privateKey =
                 null; // This enforces it not to be persisted and that CasC will never output privateKey on export
@@ -1483,6 +1488,12 @@ public class EC2Cloud extends Cloud {
                 }
             }
 
+            try {
+                FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
+            } catch (IllegalArgumentException ex) {
+                validations.add(FormValidation.error(ex, ex.getLocalizedMessage()));
+            }
+
             validations.add(FormValidation.ok("SSH key validation successful"));
             return FormValidation.aggregate(validations);
         }
@@ -1570,6 +1581,13 @@ public class EC2Cloud extends Cloud {
                         validations.add(FormValidation.ok("Using private key file"));
                     }
                 }
+
+                try {
+                    FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
+                } catch (IllegalArgumentException ex) {
+                    validations.add(FormValidation.error(ex, ex.getLocalizedMessage()));
+                }
+
                 validations.add(FormValidation.ok(Messages.EC2Cloud_Success()));
                 return FormValidation.aggregate(validations);
             } catch (AmazonClientException e) {

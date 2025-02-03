@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.win.winrm;
 
+import hudson.plugins.ec2.util.FIPS140Utils;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,6 +23,8 @@ public class WinRM {
     }
 
     public WinRM(String host, String username, String password, boolean allowSelfSignedCertificate) {
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+
         this.host = host;
         this.username = username;
         this.password = password;
@@ -57,6 +60,8 @@ public class WinRM {
     }
 
     public URL buildURL() {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+
         String scheme = useHTTPS ? "https" : "http";
         int port = useHTTPS ? 5986 : 5985;
 
@@ -79,6 +84,7 @@ public class WinRM {
      *            the useHTTPS to set
      */
     public void setUseHTTPS(boolean useHTTPS) {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
         this.useHTTPS = useHTTPS;
     }
 

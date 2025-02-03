@@ -1,5 +1,6 @@
 package hudson.plugins.ec2.win.winrm;
 
+import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.plugins.ec2.win.winrm.request.RequestFactory;
 import hudson.plugins.ec2.win.winrm.soap.Namespaces;
 import hudson.remoting.FastPipedOutputStream;
@@ -72,6 +73,9 @@ public class WinRMClient {
     }
 
     public WinRMClient(URL url, String username, String password, boolean allowSelfSignedCertificate) {
+        FIPS140Utils.ensureNoPasswordLeak(url, password);
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+
         this.url = url;
         this.username = username;
         this.password = password;
@@ -189,6 +193,13 @@ public class WinRMClient {
     }
 
     private HttpClient buildHTTPClient() {
+        // This can occur if setUseHTTPS is not called
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
+        // This is a double check and should be caught by the check in the constructor
+        FIPS140Utils.ensureNoPasswordLeak(url, password);
+        // This is a double check and should be caught by the check in the constructor
+        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
+
         HttpClientBuilder builder = HttpClientBuilder.create().setDefaultCredentialsProvider(credsProvider);
         if (!(username.contains("\\") || username.contains("/"))) {
             // user is not a domain user
@@ -347,6 +358,7 @@ public class WinRMClient {
     }
 
     public void setUseHTTPS(boolean useHTTPS) {
+        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
         this.useHTTPS = useHTTPS;
     }
 }

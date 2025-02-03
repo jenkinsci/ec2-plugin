@@ -1,12 +1,16 @@
 package hudson.plugins.ec2.util;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import com.trilead.ssh2.Connection;
-import com.trilead.ssh2.ServerHostKeyVerifier;
 import hudson.plugins.ec2.win.winrm.RuntimeIOException;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.logging.Logger;
+import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.future.ConnectFuture;
+import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
+import org.apache.sshd.client.session.ClientSession;
 import org.junit.AssumptionViolatedException;
 import org.junit.rules.ExternalResource;
 import org.testcontainers.containers.Container;
@@ -55,24 +59,29 @@ public class ConnectionRule extends ExternalResource {
     // The public ed-25510 host key of the server
     public String ED255219_PUB_KEY;
 
-    private Connection connection;
+    private SshClient sshClient = SshClient.setUpDefaultClient();
 
-    public Connection connect(ServerHostKeyVerifier verifier) throws Exception {
+    private ClientSession connection;
+
+    public ClientSession connect(ServerKeyVerifier verifier) throws Exception {
         int port = sshContainer.getMappedPort(SSH_PORT);
         String ip = sshContainer.getContainerIpAddress();
         Logger log = Logger.getLogger(this.getClass().getName());
-        connection = new Connection(ip, port);
-        connection.setTCPNoDelay(true);
 
-        connection.connect(verifier, 0, 0);
+        sshClient.setServerKeyVerifier(verifier);
 
-        connection.authenticateWithPublicKey(USER, privateKey.toCharArray(), null);
-        assertTrue(connection.isAuthenticationComplete());
+        ConnectFuture connectFuture = sshClient.connect(USER, ip, port);
+
+        connection = connectFuture.verify().getSession();
+        connection.addPublicKeyIdentity(KeyHelper.decodeKeyPair(privateKey, ""));
+        connection.auth().await(Duration.ofSeconds(10));
+
+        assertTrue(connection.isAuthenticated());
 
         return connection;
     }
 
-    public void close() {
+    public void close() throws IOException {
         if (connection != null) {
             connection.close();
             connection = null;
@@ -93,6 +102,8 @@ public class ConnectionRule extends ExternalResource {
 
             sshContainer.start();
 
+            sshClient.start();
+
         } catch (RuntimeException re) {
             throw new AssumptionViolatedException("The container to connect to cannot be started", re);
         }
@@ -110,10 +121,15 @@ public class ConnectionRule extends ExternalResource {
 
     @Override
     public void after() {
+        sshClient.start();
         sshContainer.stop();
 
         if (connection != null) {
-            connection.close();
+            try {
+                connection.close();
+            } catch (IOException e) {
+                fail(e.getMessage());
+            }
         }
 
         if (sshContainer.isRunning()) {
