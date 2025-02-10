@@ -243,7 +243,16 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                         scp.upload(
                                 initScript.getBytes(StandardCharsets.UTF_8),
                                 tmpDir + "/init.sh",
-                                List.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.OWNER_READ),
+                                List.of(
+                                        PosixFilePermission.OWNER_READ,
+                                        PosixFilePermission.OWNER_WRITE,
+                                        PosixFilePermission.OWNER_EXECUTE,
+                                        PosixFilePermission.GROUP_READ,
+                                        PosixFilePermission.GROUP_WRITE,
+                                        PosixFilePermission.GROUP_EXECUTE,
+                                        PosixFilePermission.OTHERS_READ,
+                                        PosixFilePermission.OTHERS_WRITE,
+                                        PosixFilePermission.OTHERS_EXECUTE),
                                 scpTimestamp);
 
                         logInfo(computer, listener, "Executing init script");
@@ -277,8 +286,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
                             tmpDir + "/remoting.jar",
                             List.of(
                                     PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.OWNER_WRITE,
                                     PosixFilePermission.GROUP_READ,
-                                    PosixFilePermission.OTHERS_READ),
+                                    PosixFilePermission.GROUP_WRITE,
+                                    PosixFilePermission.OTHERS_READ,
+                                    PosixFilePermission.OTHERS_WRITE),
                             scpTimestamp);
                 }
             }
