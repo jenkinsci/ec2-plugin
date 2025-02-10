@@ -245,13 +245,14 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                     if (StringUtils.isNotBlank(initScript)
                             && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
-                        logInfo(computer, listener, "Executing init script");
+                        logInfo(computer, listener, "Upload init script");
                         scp.upload(
                                 initScript.getBytes(StandardCharsets.UTF_8),
                                 tmpDir + "/init.sh",
                                 List.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.OWNER_READ),
                                 scpTimestamp);
 
+                        logInfo(computer, listener, "Executing init script");
                         String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
                         try (ClientChannel channel = clientSession.createExecChannel(
                                 initCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
