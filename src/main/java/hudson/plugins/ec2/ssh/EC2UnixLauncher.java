@@ -23,8 +23,6 @@
  */
 package hudson.plugins.ec2.ssh;
 
-import static org.apache.sshd.client.session.ClientSession.REMOTE_COMMAND_WAIT_EVENTS;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.KeyPair;
@@ -68,19 +66,15 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.security.PublicKey;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.channel.ChannelExec;
-import org.apache.sshd.client.channel.ClientChannel;
-import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
@@ -254,68 +248,11 @@ public class EC2UnixLauncher extends EC2ComputerLauncher {
 
                         logInfo(computer, listener, "Executing init script");
                         String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
-                        try (ClientChannel channel = clientSession.createExecChannel(
-                                initCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
-
-                            channel.open().await(timeout);
-
-                            OutputStream invertedIn = channel.getInvertedIn();
-                            if (invertedIn != null) {
-                                invertedIn.close(); // nothing to write here
-                            }
-
-                            Collection<ClientChannelEvent> waitMask =
-                                    channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
-
-                            if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
-                                logWarning(computer, listener, "init script timed out");
-                                return;
-                            }
-
-                            int exitStatus = waitCompletion(channel, timeout);
-                            if (exitStatus != 0) {
-                                logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
-                                return;
-                            }
-
-                            InputStream invertedErr = channel.getInvertedErr();
-                            if (invertedErr != null) {
-                                invertedErr.close(); // we are not supposed to get anything from stderr
-                            }
-                            IOUtils.copy(channel.getInvertedOut(), logger);
-                        }
+                        executeRemote(clientSession, initCommand, logger);
 
                         logInfo(computer, listener, "Creating ~/.hudson-run-init");
-
                         String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
-                        try (ClientChannel channel = clientSession.createExecChannel(
-                                createHudsonRunInitCommand, StandardCharsets.US_ASCII, null, Collections.emptyMap())) {
-                            OutputStream invertedIn = channel.getInvertedIn();
-                            if (invertedIn != null) {
-                                invertedIn.close(); // nothing to write here
-                            }
-                            channel.open().await(timeout);
-
-                            Collection<ClientChannelEvent> waitMask =
-                                    channel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);
-
-                            if (waitMask.contains(ClientChannelEvent.TIMEOUT)) {
-                                logWarning(computer, listener, "init script timed out");
-                                return;
-                            }
-
-                            int exitStatus = waitCompletion(channel, timeout);
-                            if (exitStatus != 0) {
-                                logWarning(computer, listener, "init script failed: exit code=" + exitStatus);
-                                return;
-                            }
-
-                            InputStream invertedErr = channel.getInvertedErr();
-                            if (invertedErr != null) {
-                                invertedErr.close(); // we are not supposed to get anything from stderr
-                            }
-                            IOUtils.copy(channel.getInvertedOut(), logger);
-                        }
+                        executeRemote(clientSession, createHudsonRunInitCommand, logger);
                     }
 
                     executeRemote(
