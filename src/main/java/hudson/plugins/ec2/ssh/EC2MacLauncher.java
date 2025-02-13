@@ -245,13 +245,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                                 List.of(
                                         PosixFilePermission.OWNER_READ,
                                         PosixFilePermission.OWNER_WRITE,
-                                        PosixFilePermission.OWNER_EXECUTE,
-                                        PosixFilePermission.GROUP_READ,
-                                        PosixFilePermission.GROUP_WRITE,
-                                        PosixFilePermission.GROUP_EXECUTE,
-                                        PosixFilePermission.OTHERS_READ,
-                                        PosixFilePermission.OTHERS_WRITE,
-                                        PosixFilePermission.OTHERS_EXECUTE),
+                                        PosixFilePermission.OWNER_EXECUTE),
                                 scpTimestamp);
 
                         logInfo(computer, listener, "Executing init script");
@@ -296,13 +290,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     scp.upload(
                             Jenkins.get().getJnlpJars("remoting.jar").readFully(),
                             tmpDir + "/remoting.jar",
-                            List.of(
-                                    PosixFilePermission.OWNER_READ,
-                                    PosixFilePermission.OWNER_WRITE,
-                                    PosixFilePermission.GROUP_READ,
-                                    PosixFilePermission.GROUP_WRITE,
-                                    PosixFilePermission.OTHERS_READ,
-                                    PosixFilePermission.OTHERS_WRITE),
+                            List.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
                             scpTimestamp);
                 }
             }
