@@ -45,6 +45,7 @@ import hudson.plugins.ec2.ssh.proxy.ProxyCONNECTListener;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.plugins.ec2.util.KeyHelper;
+import hudson.plugins.ec2.util.SSHClientHelper;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.CommandLauncher;
@@ -192,7 +193,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         final String javaPath = node.javaPath;
         String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
-        try (SshClient client = SshClient.setUpDefaultClient()) {
+        try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer)) {
             boolean isBootstrapped = bootstrap(computer, listener, template);
             if (!isBootstrapped) {
                 logWarning(computer, listener, "bootstrapresult failed");
@@ -367,7 +368,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             throws InterruptedException, IOException {
         logInfo(computer, listener, "Launching remoting agent (via SSH2 Connection): " + launchString);
 
-        final SshClient remotingClient = SshClient.setUpDefaultClient();
+        final SshClient remotingClient = SSHClientHelper.getInstance().setupSshClient(computer);
         final ClientSession remotingSession = connectToSsh(remotingClient, computer, listener, template);
         KeyPair key = computer.getCloud().getKeyPair();
         if (key != null) {
@@ -457,7 +458,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         ClientSession bootstrapSession = null;
-        try (SshClient client = SshClient.setUpDefaultClient()) {
+        try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer)) {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
