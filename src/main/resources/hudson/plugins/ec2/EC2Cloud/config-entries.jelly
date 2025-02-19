@@ -53,5 +53,5 @@ THE SOFTWARE.
       <f:textbox checkDependsOn="roleArn"/>
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,altEC2Endpoint,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />
 </j:jelly>

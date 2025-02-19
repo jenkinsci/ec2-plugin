@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Tag;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
@@ -31,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
     private final String name;
@@ -51,8 +51,8 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
 
     /* Constructor from Amazon Tag */
     public EC2Tag(Tag t) {
-        name = t.getKey();
-        value = t.getValue();
+        name = t.key();
+        value = t.value();
     }
 
     public String getName() {
