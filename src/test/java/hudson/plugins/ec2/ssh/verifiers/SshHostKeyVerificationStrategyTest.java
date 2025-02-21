@@ -4,22 +4,14 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.InstanceType;
-import hudson.model.Node;
-import hudson.plugins.ec2.ConnectionStrategy;
-import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.EbsEncryptRootVolume;
 import hudson.plugins.ec2.InstanceState;
-import hudson.plugins.ec2.SlaveTemplate;
-import hudson.plugins.ec2.Tenancy;
+import hudson.plugins.ec2.MockEC2Computer;
 import hudson.plugins.ec2.util.ConnectionRule;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
@@ -32,8 +24,6 @@ import org.jvnet.hudson.test.LoggerRule;
 import org.testcontainers.containers.Container;
 
 public class SshHostKeyVerificationStrategyTest {
-    private static final String COMPUTER_NAME = "MockInstanceForTest";
-
     @ClassRule
     public static ConnectionRule conRule = new ConnectionRule();
 
@@ -244,8 +234,8 @@ public class SshHostKeyVerificationStrategyTest {
             loggerRule = new LoggerRule();
             loggerRule.recordPackage(CheckNewHardStrategy.class, Level.INFO).capture(10);
 
-            computer.console = console;
-            computer.state = state;
+            computer.setConsole(console);
+            computer.setState(state);
 
             if (changeHostKey) {
                 // Regenerate all the keys in the container
@@ -334,126 +324,6 @@ public class SshHostKeyVerificationStrategyTest {
                 connectionAttempt.verifier = verifier;
                 return connectionAttempt;
             }
-        }
-    }
-
-    // A mock ec2 computer returning the data we want
-    private static class MockEC2Computer extends EC2Computer {
-        InstanceState state = InstanceState.PENDING;
-        String console = null;
-        EC2AbstractSlave slave;
-
-        public MockEC2Computer(EC2AbstractSlave slave) {
-            super(slave);
-            this.slave = slave;
-        }
-
-        // Create a computer
-        private static MockEC2Computer createComputer(String suffix) throws Exception {
-            final EC2AbstractSlave slave =
-                    new EC2AbstractSlave(
-                            COMPUTER_NAME + suffix,
-                            "id" + suffix,
-                            "description" + suffix,
-                            "fs",
-                            1,
-                            null,
-                            "label",
-                            null,
-                            null,
-                            "init",
-                            "tmpDir",
-                            new ArrayList<>(),
-                            "remote",
-                            EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                            "jvm",
-                            false,
-                            "idle",
-                            null,
-                            "cloud",
-                            Integer.MAX_VALUE,
-                            null,
-                            ConnectionStrategy.PRIVATE_IP,
-                            -1,
-                            Tenancy.Default,
-                            EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                            EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                            EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                            EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
-                        @Override
-                        public void terminate() {}
-
-                        @Override
-                        public String getEc2Type() {
-                            return null;
-                        }
-                    };
-
-            return new MockEC2Computer(slave);
-        }
-
-        @Override
-        public String getDecodedConsoleOutput() throws AmazonClientException {
-            return console;
-        }
-
-        @Override
-        public InstanceState getState() {
-            return state;
-        }
-
-        @Override
-        public EC2AbstractSlave getNode() {
-            return slave;
-        }
-
-        @Override
-        public SlaveTemplate getSlaveTemplate() {
-            return new SlaveTemplate(
-                    "ami-123",
-                    EC2AbstractSlave.TEST_ZONE,
-                    null,
-                    "default",
-                    "foo",
-                    InstanceType.M1Large,
-                    false,
-                    "ttt",
-                    Node.Mode.NORMAL,
-                    "AMI description",
-                    "bar",
-                    "bbb",
-                    "aaa",
-                    "10",
-                    "fff",
-                    null,
-                    EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                    "-Xmx1g",
-                    false,
-                    "subnet-123 subnet-456",
-                    null,
-                    null,
-                    0,
-                    0,
-                    null,
-                    "",
-                    false,
-                    false,
-                    "",
-                    false,
-                    "",
-                    false,
-                    false,
-                    false,
-                    ConnectionStrategy.PRIVATE_DNS,
-                    -1,
-                    Collections.emptyList(),
-                    null,
-                    Tenancy.Default,
-                    EbsEncryptRootVolume.DEFAULT,
-                    EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                    EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                    EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                    EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         }
     }
 
