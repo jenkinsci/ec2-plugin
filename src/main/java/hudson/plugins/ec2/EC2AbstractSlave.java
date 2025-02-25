@@ -51,6 +51,7 @@ import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import java.io.IOException;
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -436,6 +437,7 @@ public abstract class EC2AbstractSlave extends Slave {
                 -1);
     }
 
+    @Serial
     @Override
     protected Object readResolve() {
         var o = (EC2AbstractSlave) super.readResolve();
@@ -486,174 +488,92 @@ public abstract class EC2AbstractSlave extends Slave {
      * See http://aws.amazon.com/ec2/instance-types/
      */
     /* package */ static int toNumExecutors(InstanceType it) {
-        switch (it) {
-            case T1Micro:
-                return 1;
-            case M1Small:
-                return 1;
-            case M1Medium:
-                return 2;
-            case M3Medium:
-                return 2;
-            case T3Nano:
-                return 2;
-            case T3aNano:
-                return 2;
-            case T3Micro:
-                return 2;
-            case T3aMicro:
-                return 2;
-            case T3Small:
-                return 2;
-            case T3aSmall:
-                return 2;
-            case T3Medium:
-                return 2;
-            case T3aMedium:
-                return 2;
-            case A1Large:
-                return 2;
-            case T3Large:
-                return 3;
-            case T3aLarge:
-                return 3;
-            case M1Large:
-                return 4;
-            case M3Large:
-                return 4;
-            case M4Large:
-                return 4;
-            case M5Large:
-                return 4;
-            case M5aLarge:
-                return 4;
-            case T3Xlarge:
-                return 5;
-            case T3aXlarge:
-                return 5;
-            case A1Xlarge:
-                return 5;
-            case C1Medium:
-                return 5;
-            case M2Xlarge:
-                return 6;
-            case C3Large:
-                return 7;
-            case C4Large:
-                return 7;
-            case C5Large:
-                return 7;
-            case C5dLarge:
-                return 7;
-            case M1Xlarge:
-                return 8;
-            case T32xlarge:
-                return 10;
-            case T3a2xlarge:
-                return 10;
-            case A12xlarge:
-                return 10;
-            case M22xlarge:
-                return 13;
-            case M3Xlarge:
-                return 13;
-            case M4Xlarge:
-                return 13;
-            case M5Xlarge:
-                return 13;
-            case M5aXlarge:
-                return 13;
-            case A14xlarge:
-                return 14;
-            case C3Xlarge:
-                return 14;
-            case C4Xlarge:
-                return 14;
-            case C5Xlarge:
-                return 14;
-            case C5dXlarge:
-                return 14;
-            case C1Xlarge:
-                return 20;
-            case M24xlarge:
-                return 26;
-            case M32xlarge:
-                return 26;
-            case M42xlarge:
-                return 26;
-            case M52xlarge:
-                return 26;
-            case M5a2xlarge:
-                return 26;
-            case G22xlarge:
-                return 26;
-            case C32xlarge:
-                return 28;
-            case C42xlarge:
-                return 28;
-            case C52xlarge:
-                return 28;
-            case C5d2xlarge:
-                return 28;
-            case Cc14xlarge:
-                return 33;
-            case Cg14xlarge:
-                return 33;
-            case Hi14xlarge:
-                return 35;
-            case Hs18xlarge:
-                return 35;
-            case C34xlarge:
-                return 55;
-            case C44xlarge:
-                return 55;
-            case C54xlarge:
-                return 55;
-            case C5d4xlarge:
-                return 55;
-            case M44xlarge:
-                return 55;
-            case M54xlarge:
-                return 55;
-            case M5a4xlarge:
-                return 55;
-            case Cc28xlarge:
-                return 88;
-            case Cr18xlarge:
-                return 88;
-            case C38xlarge:
-                return 108;
-            case C48xlarge:
-                return 108;
-            case C59xlarge:
-                return 108;
-            case C5d9xlarge:
-                return 108;
-            case M410xlarge:
-                return 120;
-            case M512xlarge:
-                return 120;
-            case M5a12xlarge:
-                return 120;
-            case M416xlarge:
-                return 160;
-            case C518xlarge:
-                return 216;
-            case C5d18xlarge:
-                return 216;
-            case M524xlarge:
-                return 240;
-            case M5a24xlarge:
-                return 240;
-            case Dl124xlarge:
-                return 250;
-            case Mac1Metal:
-                return 1;
+        return switch (it) {
+            case T1Micro -> 1;
+            case M1Small -> 1;
+            case M1Medium -> 2;
+            case M3Medium -> 2;
+            case T3Nano -> 2;
+            case T3aNano -> 2;
+            case T3Micro -> 2;
+            case T3aMicro -> 2;
+            case T3Small -> 2;
+            case T3aSmall -> 2;
+            case T3Medium -> 2;
+            case T3aMedium -> 2;
+            case A1Large -> 2;
+            case T3Large -> 3;
+            case T3aLarge -> 3;
+            case M1Large -> 4;
+            case M3Large -> 4;
+            case M4Large -> 4;
+            case M5Large -> 4;
+            case M5aLarge -> 4;
+            case T3Xlarge -> 5;
+            case T3aXlarge -> 5;
+            case A1Xlarge -> 5;
+            case C1Medium -> 5;
+            case M2Xlarge -> 6;
+            case C3Large -> 7;
+            case C4Large -> 7;
+            case C5Large -> 7;
+            case C5dLarge -> 7;
+            case M1Xlarge -> 8;
+            case T32xlarge -> 10;
+            case T3a2xlarge -> 10;
+            case A12xlarge -> 10;
+            case M22xlarge -> 13;
+            case M3Xlarge -> 13;
+            case M4Xlarge -> 13;
+            case M5Xlarge -> 13;
+            case M5aXlarge -> 13;
+            case A14xlarge -> 14;
+            case C3Xlarge -> 14;
+            case C4Xlarge -> 14;
+            case C5Xlarge -> 14;
+            case C5dXlarge -> 14;
+            case C1Xlarge -> 20;
+            case M24xlarge -> 26;
+            case M32xlarge -> 26;
+            case M42xlarge -> 26;
+            case M52xlarge -> 26;
+            case M5a2xlarge -> 26;
+            case G22xlarge -> 26;
+            case C32xlarge -> 28;
+            case C42xlarge -> 28;
+            case C52xlarge -> 28;
+            case C5d2xlarge -> 28;
+            case Cc14xlarge -> 33;
+            case Cg14xlarge -> 33;
+            case Hi14xlarge -> 35;
+            case Hs18xlarge -> 35;
+            case C34xlarge -> 55;
+            case C44xlarge -> 55;
+            case C54xlarge -> 55;
+            case C5d4xlarge -> 55;
+            case M44xlarge -> 55;
+            case M54xlarge -> 55;
+            case M5a4xlarge -> 55;
+            case Cc28xlarge -> 88;
+            case Cr18xlarge -> 88;
+            case C38xlarge -> 108;
+            case C48xlarge -> 108;
+            case C59xlarge -> 108;
+            case C5d9xlarge -> 108;
+            case M410xlarge -> 120;
+            case M512xlarge -> 120;
+            case M5a12xlarge -> 120;
+            case M416xlarge -> 160;
+            case C518xlarge -> 216;
+            case C5d18xlarge -> 216;
+            case M524xlarge -> 240;
+            case M5a24xlarge -> 240;
+            case Dl124xlarge -> 250;
+            case Mac1Metal -> 1;
                 // We don't have a suggestion, but we don't want to fail completely
                 // surely?
-            default:
-                return 1;
-        }
+            default -> 1;
+        };
     }
 
     /**

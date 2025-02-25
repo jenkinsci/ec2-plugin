@@ -167,7 +167,7 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                                     .connect()
                                     .getPasswordData(new GetPasswordDataRequest(instance.getInstanceId()));
                         } catch (Exception e) {
-                            logger.println("Unexpected Exception: " + e.toString());
+                            logger.println("Unexpected Exception: " + e);
                             Thread.sleep(sleepBetweenAttempts);
                             continue;
                         }

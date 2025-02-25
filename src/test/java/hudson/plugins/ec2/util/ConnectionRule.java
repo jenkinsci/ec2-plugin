@@ -65,7 +65,7 @@ public class ConnectionRule extends ExternalResource {
 
     public ClientSession connect(ServerKeyVerifier verifier) throws Exception {
         int port = sshContainer.getMappedPort(SSH_PORT);
-        String ip = sshContainer.getContainerIpAddress();
+        String ip = sshContainer.getHost();
         Logger log = Logger.getLogger(this.getClass().getName());
 
         sshClient.setServerKeyVerifier(verifier);

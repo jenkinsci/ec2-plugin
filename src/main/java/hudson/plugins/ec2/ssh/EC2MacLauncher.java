@@ -164,8 +164,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             throw new IOException("Could not find corresponding agent template for " + computer.getDisplayName());
         }
 
-        if (node instanceof EC2Readiness) {
-            EC2Readiness readinessNode = (EC2Readiness) node;
+        if (node instanceof EC2Readiness readinessNode) {
             int tries = readinessTries;
 
             while (tries-- > 0) {
@@ -554,10 +553,9 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
                 ProxyConfiguration proxyConfig = Jenkins.get().proxy;
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
-                if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
-                    InetSocketAddress address = (InetSocketAddress) proxy.address();
+                if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress address) {
                     String username = proxyConfig.getUserName();
-                    String password = proxyConfig.getPassword();
+                    String password = proxyConfig.getSecretPassword().getPlainText();
 
                     client.setClientProxyConnector(new ProxyCONNECTListener(host, port, username, password));
 
