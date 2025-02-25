@@ -626,21 +626,21 @@ public class EC2RetentionStrategyTest {
      * retention strategy timeout has not expired yet. The quirks with idle timeout
      * are now correctly accounted for nodes that have been stopped and started
      * again (i.e termination policy is stop, rather than terminate).
-     *
+     * <p>
      * How does the test below work: for our "mock" EC2Computer, idle start time
      * is always the time when the object has been created, and we cannot
      * easily control idle start time in a test suite as the relevant method to override
      * is declared final.
-     *
+     * <p>
      * We can achieve the same result where idle start time is < launch time
      * by manipulating the node launch time variables. Since, as we said, idle
      * start time is always now, what we end up doing is tricking the node
      * into returning a launch time in the future. To do this we pass a negative
      * value for minutes to {@link #computerWithUpTime(int, int, Boolean, Boolean)}.
-     *
+     * <p>
      * Now if we set retention time to something bigger than the computer uptime
      * we can reproduce the issue, and prove its resolution.
-     *
+     * <p>
      * The time at which we perform the check must be < than computer uptime
      * plus the retention interval.
      */
@@ -930,7 +930,7 @@ public class EC2RetentionStrategyTest {
         computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have two agents after check too
         assertEquals(2, computers.size());
@@ -1016,7 +1016,7 @@ public class EC2RetentionStrategyTest {
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have zero agents
         assertEquals(0, computers.size());
@@ -1114,7 +1114,7 @@ public class EC2RetentionStrategyTest {
         computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have two agents after check too
         assertEquals(2, computers.size());
@@ -1218,7 +1218,7 @@ public class EC2RetentionStrategyTest {
         computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have 1 agents after check
         assertEquals(1, computers.size());

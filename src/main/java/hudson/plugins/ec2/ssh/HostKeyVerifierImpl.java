@@ -42,7 +42,7 @@ public class HostKeyVerifierImpl {
 
         StringBuilder buf = new StringBuilder();
         for (byte b : fingerprint) {
-            if (buf.length() > 0) {
+            if (!buf.isEmpty()) {
                 buf.append(':');
             }
             buf.append(String.format("%02x", b));

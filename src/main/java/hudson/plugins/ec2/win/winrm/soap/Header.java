@@ -1,6 +1,5 @@
 package hudson.plugins.ec2.win.winrm.soap;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.dom4j.Element;
@@ -38,8 +37,7 @@ public class Header {
         this.action = action;
         this.shellId = shellId;
         this.resourceURI = resourceURI;
-        this.optionSet =
-                optionSet != null ? Collections.unmodifiableList(new ArrayList<>(optionSet)) : Collections.emptyList();
+        this.optionSet = optionSet != null ? List.copyOf(optionSet) : Collections.emptyList();
     }
 
     void toElement(Element header) {

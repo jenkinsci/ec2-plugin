@@ -155,18 +155,15 @@ public class FIPS140Utils {
 
         AsymmetricKeyParameter asymmetricKeyParameter = OpenSSHPublicKeyUtil.parsePublicKey(key);
 
-        if (asymmetricKeyParameter instanceof RSAKeyParameters) {
-            RSAKeyParameters rsaKeyParameters = (RSAKeyParameters) asymmetricKeyParameter;
+        if (asymmetricKeyParameter instanceof RSAKeyParameters rsaKeyParameters) {
             if (rsaKeyParameters.getModulus().bitLength() < 2048) {
                 throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
             }
-        } else if (asymmetricKeyParameter instanceof DSAPublicKeyParameters) {
-            DSAPublicKeyParameters dsaPublicKeyParameters = (DSAPublicKeyParameters) asymmetricKeyParameter;
+        } else if (asymmetricKeyParameter instanceof DSAPublicKeyParameters dsaPublicKeyParameters) {
             if (dsaPublicKeyParameters.getParameters().getP().bitLength() < 2048) {
                 throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeInFIPSMode());
             }
-        } else if (asymmetricKeyParameter instanceof ECPublicKeyParameters) {
-            ECPublicKeyParameters ecPublicKeyParameters = (ECPublicKeyParameters) asymmetricKeyParameter;
+        } else if (asymmetricKeyParameter instanceof ECPublicKeyParameters ecPublicKeyParameters) {
             if (ecPublicKeyParameters.getParameters().getCurve().getFieldSize() < 224) {
                 throw new IllegalArgumentException(Messages.EC2Cloud_invalidKeySizeECInFIPSMode());
             }
