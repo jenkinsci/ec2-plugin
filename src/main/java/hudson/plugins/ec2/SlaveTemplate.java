@@ -94,6 +94,7 @@ import hudson.util.DescribableList;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
@@ -116,7 +117,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
@@ -2865,7 +2865,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         private void checkPermission(Permission p) {
-            final EC2Cloud ancestorObject = Stapler.getCurrentRequest().findAncestorObject(EC2Cloud.class);
+            final EC2Cloud ancestorObject = Stapler.getCurrentRequest2().findAncestorObject(EC2Cloud.class);
             if (ancestorObject != null) {
                 ancestorObject.checkPermission(p);
             } else {
