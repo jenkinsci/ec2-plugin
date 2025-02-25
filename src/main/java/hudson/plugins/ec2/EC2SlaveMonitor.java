@@ -41,8 +41,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
 
     private void removeDeadNodes() {
         for (Node node : Jenkins.get().getNodes()) {
-            if (node instanceof EC2AbstractSlave) {
-                final EC2AbstractSlave ec2Slave = (EC2AbstractSlave) node;
+            if (node instanceof EC2AbstractSlave ec2Slave) {
                 try {
                     if (!ec2Slave.isAlive(true)) {
                         LOGGER.info("EC2 instance is dead: " + ec2Slave.getInstanceId());

@@ -54,7 +54,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
@@ -86,8 +85,8 @@ public class EC2CloudUnitTest {
                 Collections.emptyList(),
                 "roleArn",
                 "roleSessionName");
-        assertEquals(cloud.getInstanceCap(), Integer.MAX_VALUE);
-        assertEquals(cloud.getInstanceCapStr(), "");
+        assertEquals(Integer.MAX_VALUE, cloud.getInstanceCap());
+        assertEquals("", cloud.getInstanceCapStr());
 
         final int cap = 3;
         final String capStr = String.valueOf(cap);
@@ -102,7 +101,7 @@ public class EC2CloudUnitTest {
                 Collections.emptyList(),
                 "roleArn",
                 "roleSessionName");
-        assertEquals(cloud.getInstanceCap(), cap);
+        assertEquals(cap, cloud.getInstanceCap());
         assertEquals(cloud.getInstanceCapStr(), capStr);
     }
 
@@ -155,15 +154,15 @@ public class EC2CloudUnitTest {
     @Test
     public void testCNPartition() {
         assertEquals(
-                EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "ec2"), "ec2.cn-northwest-1.amazonaws.com.cn");
+                "ec2.cn-northwest-1.amazonaws.com.cn", EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "ec2"));
         assertEquals(
-                EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "s3"), "s3.cn-northwest-1.amazonaws.com.cn");
+                "s3.cn-northwest-1.amazonaws.com.cn", EC2Cloud.getAwsPartitionHostForService("cn-northwest-1", "s3"));
     }
 
     @Test
     public void testNormalPartition() {
-        assertEquals(EC2Cloud.getAwsPartitionHostForService("us-east-1", "ec2"), "ec2.us-east-1.amazonaws.com");
-        assertEquals(EC2Cloud.getAwsPartitionHostForService("us-east-1", "s3"), "s3.us-east-1.amazonaws.com");
+        assertEquals("ec2.us-east-1.amazonaws.com", EC2Cloud.getAwsPartitionHostForService("us-east-1", "ec2"));
+        assertEquals("s3.us-east-1.amazonaws.com", EC2Cloud.getAwsPartitionHostForService("us-east-1", "s3"));
     }
 
     @Test
@@ -416,13 +415,10 @@ public class EC2CloudUnitTest {
             Mockito.doReturn(Arrays.asList(orphanNodes)).when(mockSlaveTemplate).toSlaves(eq(listOfMockedInstances));
             List<Node> listOfJenkinsNodes = new ArrayList<>();
 
-            Mockito.doAnswer(new Answer<Void>() {
-                        @Override
-                        public Void answer(InvocationOnMock invocation) {
-                            Node n = (Node) invocation.getArguments()[0];
-                            listOfJenkinsNodes.add(n);
-                            return null;
-                        }
+            Mockito.doAnswer((Answer<Void>) invocation -> {
+                        Node n = (Node) invocation.getArguments()[0];
+                        listOfJenkinsNodes.add(n);
+                        return null;
                     })
                     .when(mockJenkins)
                     .addNode(Mockito.any(Node.class));

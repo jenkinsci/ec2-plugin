@@ -14,6 +14,7 @@ import hudson.plugins.ec2.EC2Tag;
 import hudson.plugins.ec2.Tenancy;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
+import java.io.Serial;
 import java.util.List;
 
 @Extension
@@ -75,6 +76,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     }
 
     private static class MockEC2OndemandSlave extends EC2OndemandSlave {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private MockEC2OndemandSlave(
@@ -194,6 +196,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     }
 
     private static class MockEC2SpotSlave extends EC2SpotSlave {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private MockEC2SpotSlave(

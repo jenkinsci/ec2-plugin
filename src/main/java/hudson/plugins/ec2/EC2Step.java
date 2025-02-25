@@ -46,7 +46,7 @@ import org.kohsuke.stapler.verb.POST;
 
 /**
  * Returns the instance provisioned.
- *
+ * <p>
  * Used like:
  *
  * <pre>
@@ -108,8 +108,7 @@ public class EC2Step extends Step {
             Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
             Cloud cloud = Jenkins.get().getCloud(Util.fixEmpty(cloudName));
-            if (cloud instanceof EC2Cloud) {
-                EC2Cloud ec2Cloud = (EC2Cloud) cloud;
+            if (cloud instanceof EC2Cloud ec2Cloud) {
                 for (SlaveTemplate template : ec2Cloud.getTemplates()) {
                     for (String labelList : template.labels.split(" ")) {
                         r.add(

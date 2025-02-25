@@ -62,8 +62,7 @@ public abstract class KeyHelper {
                 FIPS140Utils.ensureKeyInFipsMode(privateKey);
                 PublicKey publicKey = converter.getPublicKey(decryptedKeyPair.getPublicKeyInfo());
                 return new KeyPair(publicKey, privateKey);
-            } else if (object instanceof PrivateKeyInfo) {
-                PrivateKeyInfo privateKeyInfo = (PrivateKeyInfo) object;
+            } else if (object instanceof PrivateKeyInfo privateKeyInfo) {
                 PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
                 FIPS140Utils.ensureKeyInFipsMode(privateKey);
                 PublicKey publicKey = generatePublicKeyFromPrivateKey(privateKeyInfo, privateKey);
@@ -138,12 +137,10 @@ public abstract class KeyHelper {
      *         or {@code null} if the key type is unsupported or cannot be determined.
      */
     public static String getSshAlgorithm(@NonNull PublicKey serverKey) {
-        switch (serverKey.getAlgorithm()) {
-            case "RSA":
-                return "ssh-rsa";
-            case "EC":
-                if (serverKey instanceof ECPublicKey) {
-                    ECPublicKey ecPublicKey = (ECPublicKey) serverKey;
+        return switch (serverKey.getAlgorithm()) {
+            case "RSA" -> "ssh-rsa";
+            case "EC" -> {
+                if (serverKey instanceof ECPublicKey ecPublicKey) {
                     ECParameterSpec params = ecPublicKey.getParams();
                     if (params != null) {
 
@@ -152,16 +149,14 @@ public abstract class KeyHelper {
                         if (field != null) {
                             int fieldSize = field.getFieldSize();
                             // Assume NIST curve
-                            return "ecdsa-sha2-nistp" + fieldSize;
+                            yield "ecdsa-sha2-nistp" + fieldSize;
                         }
                     }
                 }
-                return null;
-            case "EdDSA":
-            case "Ed25519":
-                return "ssh-ed25519";
-            default:
-                return null;
-        }
+                yield null;
+            }
+            case "EdDSA", "Ed25519" -> "ssh-ed25519";
+            default -> null;
+        };
     }
 }

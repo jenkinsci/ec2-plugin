@@ -14,12 +14,12 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.util.FormValidation;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Objects;
-import javax.servlet.ServletException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -115,13 +115,13 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
      */
     public static String normalizeBid(String bid) {
         try {
-            Float spotPrice = Float.parseFloat(bid);
+            float spotPrice = Float.parseFloat(bid);
 
             /* The specified bid price cannot be less than 0.001 */
             if (spotPrice < 0.001) {
                 return null;
             }
-            return spotPrice.toString();
+            return Float.toString(spotPrice);
         } catch (NumberFormatException ex) {
             return null;
         }

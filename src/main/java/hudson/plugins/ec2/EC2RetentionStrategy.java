@@ -279,7 +279,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     /**
      * Called when a new {@link EC2Computer} object is introduced (such as when Hudson started, or when
      * a new agent is added.)
-     *
+     * <p>
      * When Jenkins has just started, we don't want to spin up all the instances, so we only start if
      * the EC2 instance is already running
      */

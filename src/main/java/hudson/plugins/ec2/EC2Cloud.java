@@ -86,6 +86,8 @@ import hudson.util.HttpResponses;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.StreamTaskListener;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -114,8 +116,6 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletResponse;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.lang.StringUtils;
@@ -127,8 +127,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
 
@@ -451,8 +451,7 @@ public class EC2Cloud extends Cloud {
 
             // ITERATE ON EXISTING CREDS AND DON'T CREATE IF EXIST
             for (Credentials credentials : systemCredentialsProvider.getCredentials()) {
-                if (credentials instanceof AmazonWebServicesCredentials) {
-                    AmazonWebServicesCredentials awsCreds = (AmazonWebServicesCredentials) credentials;
+                if (credentials instanceof AmazonWebServicesCredentials awsCreds) {
                     AWSCredentials awsCredentials = awsCreds.getCredentials();
                     if (accessId.equals(awsCredentials.getAWSAccessKeyId())
                             && Secret.toString(this.secretKey).equals(awsCredentials.getAWSSecretKey())) {
@@ -612,7 +611,7 @@ public class EC2Cloud extends Cloud {
      * Debug command to attach to a running instance.
      */
     @RequirePOST
-    public void doAttach(StaplerRequest req, StaplerResponse rsp, @QueryParameter String id)
+    public void doAttach(StaplerRequest2 req, StaplerResponse2 rsp, @QueryParameter String id)
             throws ServletException, IOException, AmazonClientException {
         checkPermission(PROVISION);
         SlaveTemplate t = getTemplates().get(0);
@@ -769,10 +768,9 @@ public class EC2Cloud extends Cloud {
                         // Cancelled or otherwise dead
                         for (Node node : Jenkins.get().getNodes()) {
                             try {
-                                if (!(node instanceof EC2SpotSlave)) {
+                                if (!(node instanceof EC2SpotSlave ec2Slave)) {
                                     continue;
                                 }
-                                EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
                                 if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
                                     LOGGER.log(
                                             Level.INFO,
@@ -806,10 +804,9 @@ public class EC2Cloud extends Cloud {
             throws AmazonClientException {
         int n = 0;
         for (Node node : Jenkins.get().getNodes()) {
-            if (!(node instanceof EC2SpotSlave)) {
+            if (!(node instanceof EC2SpotSlave ec2Slave)) {
                 continue;
             }
-            EC2SpotSlave ec2Slave = (EC2SpotSlave) node;
             SpotInstanceRequest sir = ec2Slave.getSpotRequest();
 
             if (sir == null) {
@@ -1265,13 +1262,12 @@ public class EC2Cloud extends Cloud {
         config.setSignerOverride("AWS4SignerType");
         ProxyConfiguration proxyConfig = Jenkins.get().proxy;
         Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
-        if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress) {
-            InetSocketAddress address = (InetSocketAddress) proxy.address();
+        if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress address) {
             config.setProxyHost(address.getHostName());
             config.setProxyPort(address.getPort());
             if (null != proxyConfig.getUserName()) {
                 config.setProxyUsername(proxyConfig.getUserName());
-                config.setProxyPassword(proxyConfig.getPassword());
+                config.setProxyPassword(proxyConfig.getSecretPassword().getPlainText());
             }
         }
         return config;
@@ -1341,7 +1337,7 @@ public class EC2Cloud extends Cloud {
     private static SSHUserPrivateKey getSshCredential(String id, ItemGroup context) {
 
         SSHUserPrivateKey credential = CredentialsMatchers.firstOrNull(
-                CredentialsProvider.lookupCredentials(
+                CredentialsProvider.lookupCredentialsInItemGroup(
                         SSHUserPrivateKey.class, // (1)
                         context,
                         null,
@@ -1500,7 +1496,7 @@ public class EC2Cloud extends Cloud {
 
         /**
          * Tests the connection settings.
-         *
+         * <p>
          * Overriding needs to {@code @RequirePOST}
          * @param region
          * @param useInstanceProfileForCredentials
@@ -1710,8 +1706,7 @@ public class EC2Cloud extends Cloud {
             Jenkins instance = Jenkins.get();
             if (instance.clouds != null) {
                 for (Cloud cloud : instance.clouds) {
-                    if (cloud instanceof EC2Cloud) {
-                        EC2Cloud ec2_cloud = (EC2Cloud) cloud;
+                    if (cloud instanceof EC2Cloud ec2_cloud) {
                         LOGGER.finer(() -> "Checking EC2 Connection on: " + ec2_cloud.getDisplayName());
                         try {
                             if (ec2_cloud.connection != null) {

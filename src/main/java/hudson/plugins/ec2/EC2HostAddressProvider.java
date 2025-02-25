@@ -6,33 +6,21 @@ import org.apache.commons.lang.StringUtils;
 
 public class EC2HostAddressProvider {
     public static String unix(Instance instance, ConnectionStrategy strategy) {
-        switch (strategy) {
-            case PUBLIC_DNS:
-                return filterNonEmpty(getPublicDnsName(instance)).orElse(getPublicIpAddress(instance));
-            case PUBLIC_IP:
-                return getPublicIpAddress(instance);
-            case PRIVATE_DNS:
-                return filterNonEmpty(getPrivateDnsName(instance)).orElse(getPrivateIpAddress(instance));
-            case PRIVATE_IP:
-                return getPrivateIpAddress(instance);
-            default:
-                throw new IllegalArgumentException("Could not unix host address for strategy = " + strategy.toString());
-        }
+        return switch (strategy) {
+            case PUBLIC_DNS -> filterNonEmpty(getPublicDnsName(instance)).orElse(getPublicIpAddress(instance));
+            case PUBLIC_IP -> getPublicIpAddress(instance);
+            case PRIVATE_DNS -> filterNonEmpty(getPrivateDnsName(instance)).orElse(getPrivateIpAddress(instance));
+            case PRIVATE_IP -> getPrivateIpAddress(instance);
+        };
     }
 
     public static String mac(Instance instance, ConnectionStrategy strategy) {
-        switch (strategy) {
-            case PUBLIC_DNS:
-                return filterNonEmpty(getPublicDnsName(instance)).orElse(getPublicIpAddress(instance));
-            case PUBLIC_IP:
-                return getPublicIpAddress(instance);
-            case PRIVATE_DNS:
-                return filterNonEmpty(getPrivateDnsName(instance)).orElse(getPrivateIpAddress(instance));
-            case PRIVATE_IP:
-                return getPrivateIpAddress(instance);
-            default:
-                throw new IllegalArgumentException("Could not mac host address for strategy = " + strategy);
-        }
+        return switch (strategy) {
+            case PUBLIC_DNS -> filterNonEmpty(getPublicDnsName(instance)).orElse(getPublicIpAddress(instance));
+            case PUBLIC_IP -> getPublicIpAddress(instance);
+            case PRIVATE_DNS -> filterNonEmpty(getPrivateDnsName(instance)).orElse(getPrivateIpAddress(instance));
+            case PRIVATE_IP -> getPrivateIpAddress(instance);
+        };
     }
 
     public static String windows(Instance instance, ConnectionStrategy strategy) {

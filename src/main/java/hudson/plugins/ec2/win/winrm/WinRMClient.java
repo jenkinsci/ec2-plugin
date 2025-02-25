@@ -144,8 +144,7 @@ public class WinRMClient {
         xpath.setNamespaceContext(namespaceContext);
 
         for (Node node : xpath.selectNodes(response)) {
-            if (node instanceof Element) {
-                Element e = (Element) node;
+            if (node instanceof Element e) {
                 FastPipedOutputStream stream =
                         streams.get(e.attribute("Name").getText().toLowerCase());
                 final byte[] decode = Base64.getDecoder().decode(e.getText());
