@@ -28,6 +28,7 @@ package hudson.plugins.ec2.ssh.verifiers;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.plugins.ec2.util.FIPS140Utils;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.sshd.common.digest.BuiltinDigests;
@@ -42,6 +43,7 @@ import org.apache.sshd.common.util.buffer.BufferUtils;
  */
 public final class HostKey implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = -3873284593211178494L;
 
     private final String algorithm;

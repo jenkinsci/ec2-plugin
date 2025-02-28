@@ -67,48 +67,46 @@ public class MinimumInstanceChecker {
     public static void checkForMinimumInstances() {
         Jenkins.get().clouds.stream()
                 .filter(EC2Cloud.class::isInstance)
-                .map(cloud -> (EC2Cloud) cloud)
-                .forEach(cloud -> {
-                    cloud.getTemplates().forEach(agentTemplate -> {
-                        // Minimum instances now have a time range, check to see
-                        // if we are within that time range and return early if not.
-                        if (!minimumInstancesActive(agentTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
-                            return;
-                        }
-                        int requiredMinAgents = agentTemplate.getMinimumNumberOfInstances();
-                        int requiredMinSpareAgents = agentTemplate.getMinimumNumberOfSpareInstances();
-                        int currentNumberOfAgentsForTemplate = countCurrentNumberOfAgents(agentTemplate);
-                        int currentNumberOfSpareAgentsForTemplate = countCurrentNumberOfSpareAgents(agentTemplate);
-                        int currentNumberOfProvisioningAgentsForTemplate =
-                                countCurrentNumberOfProvisioningAgents(agentTemplate);
-                        int currentBuildsWaitingForTemplate = countQueueItemsForAgentTemplate(agentTemplate);
-                        int provisionForMinAgents = 0;
-                        int provisionForMinSpareAgents = 0;
+                .map(EC2Cloud.class::cast)
+                .forEach(cloud -> cloud.getTemplates().forEach(agentTemplate -> {
+                    // Minimum instances now have a time range, check to see
+                    // if we are within that time range and return early if not.
+                    if (!minimumInstancesActive(agentTemplate.getMinimumNumberOfInstancesTimeRangeConfig())) {
+                        return;
+                    }
+                    int requiredMinAgents = agentTemplate.getMinimumNumberOfInstances();
+                    int requiredMinSpareAgents = agentTemplate.getMinimumNumberOfSpareInstances();
+                    int currentNumberOfAgentsForTemplate = countCurrentNumberOfAgents(agentTemplate);
+                    int currentNumberOfSpareAgentsForTemplate = countCurrentNumberOfSpareAgents(agentTemplate);
+                    int currentNumberOfProvisioningAgentsForTemplate =
+                            countCurrentNumberOfProvisioningAgents(agentTemplate);
+                    int currentBuildsWaitingForTemplate = countQueueItemsForAgentTemplate(agentTemplate);
+                    int provisionForMinAgents = 0;
+                    int provisionForMinSpareAgents = 0;
 
-                        // Check if we need to provision any agents because we
-                        // don't have the minimum number of agents
-                        provisionForMinAgents = requiredMinAgents - currentNumberOfAgentsForTemplate;
-                        if (provisionForMinAgents < 0) {
-                            provisionForMinAgents = 0;
-                        }
+                    // Check if we need to provision any agents because we
+                    // don't have the minimum number of agents
+                    provisionForMinAgents = requiredMinAgents - currentNumberOfAgentsForTemplate;
+                    if (provisionForMinAgents < 0) {
+                        provisionForMinAgents = 0;
+                    }
 
-                        // Check if we need to provision any agents because we
-                        // don't have the minimum number of spare agents.
-                        // Don't double provision if minAgents and minSpareAgents are set.
-                        provisionForMinSpareAgents = (requiredMinSpareAgents + currentBuildsWaitingForTemplate)
-                                - (currentNumberOfSpareAgentsForTemplate
-                                        + provisionForMinAgents
-                                        + currentNumberOfProvisioningAgentsForTemplate);
-                        if (provisionForMinSpareAgents < 0) {
-                            provisionForMinSpareAgents = 0;
-                        }
+                    // Check if we need to provision any agents because we
+                    // don't have the minimum number of spare agents.
+                    // Don't double provision if minAgents and minSpareAgents are set.
+                    provisionForMinSpareAgents = (requiredMinSpareAgents + currentBuildsWaitingForTemplate)
+                            - (currentNumberOfSpareAgentsForTemplate
+                                    + provisionForMinAgents
+                                    + currentNumberOfProvisioningAgentsForTemplate);
+                    if (provisionForMinSpareAgents < 0) {
+                        provisionForMinSpareAgents = 0;
+                    }
 
-                        int numberToProvision = provisionForMinAgents + provisionForMinSpareAgents;
-                        if (numberToProvision > 0) {
-                            cloud.provision(agentTemplate, numberToProvision);
-                        }
-                    });
-                });
+                    int numberToProvision = provisionForMinAgents + provisionForMinSpareAgents;
+                    if (numberToProvision > 0) {
+                        cloud.provision(agentTemplate, numberToProvision);
+                    }
+                }));
     }
 
     public static boolean minimumInstancesActive(

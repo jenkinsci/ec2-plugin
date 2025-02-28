@@ -84,10 +84,10 @@ public class EC2FilterTest {
         EC2Filter b;
 
         a = new EC2Filter("", "");
-        assertNotEquals(a, null);
+        assertNotEquals(null, a);
 
         a = new EC2Filter("", "");
-        assertNotEquals(a, new Object());
+        assertNotEquals(new Object(), a);
 
         a = new EC2Filter("", "");
         b = new EC2Filter("", "");

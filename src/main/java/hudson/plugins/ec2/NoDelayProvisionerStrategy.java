@@ -39,19 +39,18 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         if (availableCapacity < currentDemand) {
             Jenkins jenkinsInstance = Jenkins.get();
             for (Cloud cloud : jenkinsInstance.clouds) {
-                if (!(cloud instanceof EC2Cloud)) {
+                if (!(cloud instanceof EC2Cloud ec2)) {
                     continue;
                 }
-                if (!cloud.canProvision(label)) {
+                if (!cloud.canProvision(new Cloud.CloudState(label, 0))) {
                     continue;
                 }
-                EC2Cloud ec2 = (EC2Cloud) cloud;
                 if (!ec2.isNoDelayProvisioning()) {
                     continue;
                 }
 
                 Collection<NodeProvisioner.PlannedNode> plannedNodes =
-                        cloud.provision(label, currentDemand - availableCapacity);
+                        cloud.provision(new Cloud.CloudState(label, 0), currentDemand - availableCapacity);
                 LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
                 strategyState.recordPendingLaunches(plannedNodes);
                 availableCapacity += plannedNodes.size();
