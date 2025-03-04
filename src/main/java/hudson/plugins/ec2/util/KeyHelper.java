@@ -14,12 +14,10 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.DSAPublicKeySpec;
-import java.security.spec.ECField;
-import java.security.spec.ECParameterSpec;
-import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.bouncycastle.asn1.ASN1BitString;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -28,6 +26,7 @@ import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.util.Properties;
 
 /**
  * Utility class to parse PEM.
@@ -138,30 +137,20 @@ public abstract class KeyHelper {
      *         or {@code null} if the key type is unsupported or cannot be determined.
      */
     public static String getSshAlgorithm(@NonNull PublicKey serverKey) {
-        switch (serverKey.getAlgorithm()) {
-            case "RSA":
-                return "ssh-rsa";
-            case "EC":
-                if (serverKey instanceof ECPublicKey) {
-                    ECPublicKey ecPublicKey = (ECPublicKey) serverKey;
-                    ECParameterSpec params = ecPublicKey.getParams();
-                    if (params != null) {
-
-                        EllipticCurve curve = params.getCurve();
-                        ECField field = (curve != null) ? curve.getField() : null;
-                        if (field != null) {
-                            int fieldSize = field.getFieldSize();
-                            // Assume NIST curve
-                            return "ecdsa-sha2-nistp" + fieldSize;
-                        }
-                    }
-                }
-                return null;
-            case "EdDSA":
-            case "Ed25519":
-                return "ssh-ed25519";
-            default:
-                return null;
+        // Emulate Oracle so that the algorithm returned by
+        // org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPublicKey.getAlgorithm
+        // is the one expected by org.apache.sshd.common.config.keys.KeyUtils
+        try {
+            Properties.setThreadOverride(Properties.EMULATE_ORACLE, true);
+            String sshAlgorithm = KeyUtils.getKeyType(serverKey);
+            // java.security takes precedence over thread local configuration.
+            // Check the algorithm name used by BC when EMULATE_ORACLE is not set.
+            if (sshAlgorithm == null && "Ed25519".equals(serverKey.getAlgorithm())) {
+                sshAlgorithm = "ssh-ed25519";
+            }
+            return sshAlgorithm;
+        } finally {
+            Properties.removeThreadOverride(Properties.EMULATE_ORACLE);
         }
     }
 }

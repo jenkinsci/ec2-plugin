@@ -1,0 +1,20 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<hudson>
+  <numExecutors>4</numExecutors>
+  <clouds>
+    <hudson.plugins.ec2.EC2Cloud>
+      <name>ec2-myEc2Cloud</name>
+      <useInstanceProfileForCredentials>false</useInstanceProfileForCredentials>
+      <roleArn></roleArn>
+      <roleSessionName></roleSessionName>
+      <credentialsId></credentialsId>
+      <privateKey>
+        <privateKey>myPrivateKey</privateKey>
+      </privateKey>
+      <instanceCap>2147483647</instanceCap>
+      <templates class="empty-list"/>
+      <region></region>
+      <noDelayProvisioning>false</noDelayProvisioning>
+    </hudson.plugins.ec2.EC2Cloud>
+  </clouds>
+</hudson>
