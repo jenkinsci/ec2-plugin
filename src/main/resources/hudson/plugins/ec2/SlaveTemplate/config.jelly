@@ -37,7 +37,7 @@ THE SOFTWARE.
        validateButton only marshals simple types and can't handle the
        filters repeatableProperty.
   -->
-  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,ec2endpoint,ami,roleArn,roleSessionName" />
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,altEC2Endpoint,ami,roleArn,roleSessionName" />
 
   <f:entry title="${%AMI Owners}" field="amiOwners">
     <f:textbox />
@@ -58,7 +58,7 @@ THE SOFTWARE.
   </f:entry>
 
   <f:entry title="${%Instance Type}" field="type">
-    <f:enum>${it.name()}</f:enum>
+    <f:select />
   </f:entry>
 
   <f:entry title="${%EBS Optimized}" field="ebsOptimized">
