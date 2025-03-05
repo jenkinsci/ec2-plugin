@@ -151,15 +151,23 @@ public class MinimumNumberOfInstancesTimeRangeConfig {
     }
 
     public boolean getDay(String day) {
-        return switch (day.toLowerCase()) {
-            case "monday" -> Boolean.TRUE.equals(this.monday);
-            case "tuesday" -> Boolean.TRUE.equals(this.tuesday);
-            case "wednesday" -> Boolean.TRUE.equals(this.wednesday);
-            case "thursday" -> Boolean.TRUE.equals(this.thursday);
-            case "friday" -> Boolean.TRUE.equals(this.friday);
-            case "saturday" -> Boolean.TRUE.equals(this.saturday);
-            case "sunday" -> Boolean.TRUE.equals(this.sunday);
-            default -> throw new IllegalArgumentException("Can only get days");
-        };
+        switch (day.toLowerCase()) {
+            case "monday":
+                return Boolean.TRUE.equals(this.monday);
+            case "tuesday":
+                return Boolean.TRUE.equals(this.tuesday);
+            case "wednesday":
+                return Boolean.TRUE.equals(this.wednesday);
+            case "thursday":
+                return Boolean.TRUE.equals(this.thursday);
+            case "friday":
+                return Boolean.TRUE.equals(this.friday);
+            case "saturday":
+                return Boolean.TRUE.equals(this.saturday);
+            case "sunday":
+                return Boolean.TRUE.equals(this.sunday);
+            default:
+                throw new IllegalArgumentException("Can only get days");
+        }
     }
 }
