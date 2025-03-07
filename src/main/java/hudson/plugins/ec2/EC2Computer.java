@@ -164,7 +164,7 @@ public class EC2Computer extends SlaveComputer {
      * <p>
      * This method returns a cached state, so it's not suitable to check {@link Instance#getState()} from the returned
      * instance (but all the other fields are valid as it won't change.)
-     *
+     * <p>
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
     public Instance describeInstance() throws AmazonClientException, InterruptedException {

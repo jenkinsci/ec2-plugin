@@ -27,7 +27,10 @@ public class FileBasedSSHKeyTest {
 
     private static void verifyKeyFile(JenkinsRule r) throws Throwable {
         assertNotNull("file content should not have been empty", EC2PrivateKey.fetchFromDisk());
-        assertEquals("file content did not match", EC2PrivateKey.fetchFromDisk().getPrivateKey(), "hello, world!");
+        assertEquals(
+                "file content did not match",
+                "hello, world!",
+                EC2PrivateKey.fetchFromDisk().getPrivateKey());
     }
 
     private static void verifyCorrectKeyIsResolved(JenkinsRule r) throws Throwable {
@@ -44,6 +47,9 @@ public class FileBasedSSHKeyTest {
                 "roleSessionName");
         r.jenkins.clouds.add(cloud);
         EC2Cloud c = r.jenkins.clouds.get(EC2Cloud.class);
-        assertEquals("An unexpected key was returned!", c.resolvePrivateKey().getPrivateKey(), "hello, world!");
+        assertEquals(
+                "An unexpected key was returned!",
+                "hello, world!",
+                c.resolvePrivateKey().getPrivateKey());
     }
 }

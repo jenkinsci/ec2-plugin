@@ -51,6 +51,7 @@ import hudson.slaves.RetentionStrategy;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import java.io.IOException;
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -436,6 +437,7 @@ public abstract class EC2AbstractSlave extends Slave {
                 -1);
     }
 
+    @Serial
     @Override
     protected Object readResolve() {
         var o = (EC2AbstractSlave) super.readResolve();

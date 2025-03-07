@@ -911,7 +911,7 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
-        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
+        assertEquals(ConnectionStrategy.PUBLIC_IP, st.connectionStrategy);
     }
 
     @Test
@@ -961,7 +961,7 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
-        assertEquals(st.connectionStrategy, ConnectionStrategy.PUBLIC_IP);
+        assertEquals(ConnectionStrategy.PUBLIC_IP, st.connectionStrategy);
     }
 
     @Test
@@ -1068,9 +1068,9 @@ public class SlaveTemplateUnitTest {
         String subnet2 = slaveTemplate.chooseSubnetId();
         String subnet3 = slaveTemplate.chooseSubnetId();
 
-        assertEquals(subnet1, "subnet-123");
-        assertEquals(subnet2, "subnet-456");
-        assertEquals(subnet3, "subnet-123");
+        assertEquals("subnet-123", subnet1);
+        assertEquals("subnet-456", subnet2);
+        assertEquals("subnet-123", subnet3);
     }
 
     @Test
@@ -1125,9 +1125,9 @@ public class SlaveTemplateUnitTest {
         String subnet2 = slaveTemplate.chooseSubnetId();
         String subnet3 = slaveTemplate.chooseSubnetId();
 
-        assertEquals(subnet1, "subnet-123");
-        assertEquals(subnet2, "subnet-456");
-        assertEquals(subnet3, "subnet-123");
+        assertEquals("subnet-123", subnet1);
+        assertEquals("subnet-456", subnet2);
+        assertEquals("subnet-123", subnet3);
     }
 
     @Test
@@ -1182,9 +1182,9 @@ public class SlaveTemplateUnitTest {
         String subnet2 = slaveTemplate.chooseSubnetId();
         String subnet3 = slaveTemplate.chooseSubnetId();
 
-        assertEquals(subnet1, "subnet-123");
-        assertEquals(subnet2, "subnet-456");
-        assertEquals(subnet3, "subnet-123");
+        assertEquals("subnet-123", subnet1);
+        assertEquals("subnet-456", subnet2);
+        assertEquals("subnet-123", subnet3);
     }
 
     @Issue("JENKINS-59460")

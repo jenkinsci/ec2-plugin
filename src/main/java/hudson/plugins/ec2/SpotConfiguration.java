@@ -115,13 +115,13 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
      */
     public static String normalizeBid(String bid) {
         try {
-            Float spotPrice = Float.parseFloat(bid);
+            float spotPrice = Float.parseFloat(bid);
 
             /* The specified bid price cannot be less than 0.001 */
             if (spotPrice < 0.001) {
                 return null;
             }
-            return spotPrice.toString();
+            return Float.toString(spotPrice);
         } catch (NumberFormatException ex) {
             return null;
         }

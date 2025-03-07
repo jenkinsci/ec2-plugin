@@ -46,7 +46,7 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 
 /**
  * RSA private key (the one that you generate with ec2-add-keypair.)
- *
+ * <p>
  * Starts with "----- BEGIN RSA PRIVATE KEY------\n".
  *
  * @author Kohsuke Kawaguchi
@@ -146,7 +146,7 @@ public class EC2PrivateKey {
             byte[] plainText = cipher.doFinal(cipherText);
             return new String(plainText, StandardCharsets.US_ASCII);
         } catch (Exception e) {
-            throw new AmazonClientException("Unable to decode password:\n" + e.toString());
+            throw new AmazonClientException("Unable to decode password:\n" + e);
         }
     }
 

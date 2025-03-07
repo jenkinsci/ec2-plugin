@@ -61,8 +61,7 @@ public abstract class KeyHelper {
                 FIPS140Utils.ensureKeyInFipsMode(privateKey);
                 PublicKey publicKey = converter.getPublicKey(decryptedKeyPair.getPublicKeyInfo());
                 return new KeyPair(publicKey, privateKey);
-            } else if (object instanceof PrivateKeyInfo) {
-                PrivateKeyInfo privateKeyInfo = (PrivateKeyInfo) object;
+            } else if (object instanceof PrivateKeyInfo privateKeyInfo) {
                 PrivateKey privateKey = converter.getPrivateKey(privateKeyInfo);
                 FIPS140Utils.ensureKeyInFipsMode(privateKey);
                 PublicKey publicKey = generatePublicKeyFromPrivateKey(privateKeyInfo, privateKey);

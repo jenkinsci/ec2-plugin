@@ -691,7 +691,7 @@ public class SlaveTemplateTest {
             RunInstancesRequest actualRequest = riRequestCaptor.getValue();
             List<InstanceNetworkInterfaceSpecification> actualNets = actualRequest.getNetworkInterfaces();
 
-            assertEquals(actualNets.size(), 0);
+            assertEquals(0, actualNets.size());
             String templateSubnet = Util.fixEmpty(template.getSubnetId());
             assertEquals(actualRequest.getSubnetId(), templateSubnet);
             if (templateSubnet != null) {
