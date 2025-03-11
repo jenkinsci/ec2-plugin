@@ -6,7 +6,7 @@ import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-public class UnixData extends AMITypeData {
+public class WindowsSSHData extends AMITypeData {
     private final String rootCommandPrefix;
     private final String slaveCommandPrefix;
     private final String slaveCommandSuffix;
@@ -14,7 +14,7 @@ public class UnixData extends AMITypeData {
     private final String bootDelay;
 
     @DataBoundConstructor
-    public UnixData(
+    public WindowsSSHData(
             String rootCommandPrefix,
             String slaveCommandPrefix,
             String slaveCommandSuffix,
@@ -44,7 +44,7 @@ public class UnixData extends AMITypeData {
 
     @Override
     public boolean isUnix() {
-        return true;
+        return false;
     }
 
     @Override
@@ -54,14 +54,14 @@ public class UnixData extends AMITypeData {
 
     @Override
     public boolean isWindowsSSH() {
-        return false;
+        return true;
     }
 
     @Extension
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
         public String getDisplayName() {
-            return "unix";
+            return "windows-ssh";
         }
     }
 
@@ -109,7 +109,7 @@ public class UnixData extends AMITypeData {
         if (this.getClass() != obj.getClass()) {
             return false;
         }
-        final UnixData other = (UnixData) obj;
+        final WindowsSSHData other = (WindowsSSHData) obj;
         if (StringUtils.isEmpty(rootCommandPrefix)) {
             if (!StringUtils.isEmpty(other.rootCommandPrefix)) {
                 return false;

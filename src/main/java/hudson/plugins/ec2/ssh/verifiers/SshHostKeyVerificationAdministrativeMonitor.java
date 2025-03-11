@@ -109,8 +109,8 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
     private boolean gatherInsecureTemplate(EC2Cloud cloud) {
         List<SlaveTemplate> templates = cloud.getTemplates();
         for (SlaveTemplate template : templates) {
-            // It's only for unix templates
-            if (!template.isUnixSlave() || !template.isMacAgent()) {
+            // It's only for ssh templates
+            if (!template.isUnixSlave() || !template.isMacAgent() || !template.isWindowsSSHAgent()) {
                 continue;
             }
 

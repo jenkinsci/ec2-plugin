@@ -1495,6 +1495,66 @@ public class SlaveTemplateTest {
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
     }
 
+    @Test
+    public void testWindowsSSHConfigRoundTrip() throws Exception {
+        String description = "foo ami";
+
+        SlaveTemplate orig = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE,
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "rrr",
+                new WindowsSSHData("CMD /C", "", "", "22", ""),
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                false,
+                true,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(orig);
+
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(getConfigForm(ac));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+        r.assertEqualBeans(orig, received, "amiType");
+    }
+
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
     }
