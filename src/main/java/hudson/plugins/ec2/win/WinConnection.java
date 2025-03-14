@@ -51,9 +51,6 @@ public class WinConnection {
         if (FIPS140.useCompliantAlgorithms()) {
             throw new IllegalArgumentException(Messages.EC2Cloud_classNotAllowedInFIPSMode());
         }
-        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
-        FIPS140Utils.ensurePasswordLength(password);
-
         this.host = host;
         this.username = username;
         this.password = password;
@@ -63,9 +60,6 @@ public class WinConnection {
     }
 
     public WinRM winrm() {
-        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
-        FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
-
         WinRM winrm = new WinRM(host, username, password, allowSelfSignedCertificate);
         winrm.setUseHTTPS(useHTTPS);
         return winrm;
@@ -184,7 +178,6 @@ public class WinConnection {
     }
 
     public void setUseHTTPS(boolean useHTTPS) {
-        FIPS140Utils.ensureNoPasswordLeak(useHTTPS, password);
         this.useHTTPS = useHTTPS;
     }
 }
