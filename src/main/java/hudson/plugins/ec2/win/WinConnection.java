@@ -12,6 +12,8 @@ import com.hierynomus.smbj.share.DiskShare;
 import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.plugins.ec2.win.winrm.WinRM;
 import hudson.plugins.ec2.win.winrm.WindowsProcess;
+import jenkins.security.FIPS140;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -21,6 +23,7 @@ import java.util.EnumSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLException;
+import hudson.plugins.ec2.Messages;
 
 public class WinConnection {
     private static final Logger LOGGER = Logger.getLogger(WinConnection.class.getName());
@@ -45,6 +48,9 @@ public class WinConnection {
     }
 
     public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
+        if (FIPS140.useCompliantAlgorithms()) {
+            throw new IllegalArgumentException(Messages.EC2Cloud_classNotAllowedInFIPSMode());
+        }
         FIPS140Utils.ensureNoSelfSignedCertificate(allowSelfSignedCertificate);
         FIPS140Utils.ensurePasswordLength(password);
 

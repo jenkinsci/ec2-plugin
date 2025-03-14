@@ -22,14 +22,6 @@ public class WinConnectionWithFIPSTest {
     }
 
     /**
-     * Using a password with TLS, an {@link IllegalArgumentException} is not expected
-     */
-    @Test
-    public void testValidCreation() {
-        new WinConnection("", "", "0123456790123456789", false);
-    }
-
-    /**
      * It should not be allowed to disable useHTTPS only when a password is used, an {@link IllegalArgumentException} is expected
      */
     @Test
@@ -56,5 +48,13 @@ public class WinConnectionWithFIPSTest {
     public void testSetShortPassword() {
         assertThrows(
                 IllegalArgumentException.class, () -> new WinConnection("", "alice", "0123", false).setUseHTTPS(false));
+    }
+
+    /**
+     * WinConnection class cannot be instantiated in FIPS mode, an {@link IllegalArgumentException} is expected
+     */
+    @Test
+    public void testInstantiationWinConnection() {
+        assertThrows(IllegalArgumentException.class, () -> new WinConnection("", "", "", true));
     }
 }
