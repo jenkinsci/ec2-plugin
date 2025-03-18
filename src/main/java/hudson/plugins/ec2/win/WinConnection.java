@@ -47,7 +47,7 @@ public class WinConnection {
 
     public WinConnection(String host, String username, String password, boolean allowSelfSignedCertificate) {
         if (FIPS140.useCompliantAlgorithms()) {
-            throw new IllegalArgumentException(Messages.EC2Cloud_classNotAllowedInFIPSMode());
+            throw new IllegalArgumentException(Messages.EC2Cloud_ntlmNotAllowedInFIPSMode());
         }
         this.host = host;
         this.username = username;
