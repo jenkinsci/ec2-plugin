@@ -2,13 +2,13 @@ package hudson.plugins.ec2;
 
 import static org.junit.Assert.assertEquals;
 
-import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 public class EC2AbstractSlaveTest {
 
@@ -75,7 +75,7 @@ public class EC2AbstractSlaveTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
