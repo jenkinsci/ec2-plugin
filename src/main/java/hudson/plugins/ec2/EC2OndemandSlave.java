@@ -9,6 +9,7 @@ import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2MacLauncher;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
+import hudson.plugins.ec2.ssh.EC2WindowsSSHLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
@@ -376,7 +377,9 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 labelString,
                 (amiType.isWindows()
                         ? new EC2WindowsLauncher()
-                        : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher())),
+                        : (amiType.isWindowsSSH()
+                                ? new EC2WindowsSSHLauncher()
+                                : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher()))),
                 new EC2RetentionStrategy(idleTerminationMinutes),
                 initScript,
                 tmpDir,

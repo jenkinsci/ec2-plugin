@@ -50,6 +50,11 @@ public class MacData extends AMITypeData {
     }
 
     @Override
+    public boolean isWindowsSSH() {
+        return false;
+    }
+
+    @Override
     public String getBootDelay() {
         return bootDelay;
     }

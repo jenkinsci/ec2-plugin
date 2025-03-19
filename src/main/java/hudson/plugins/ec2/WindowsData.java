@@ -80,6 +80,11 @@ public class WindowsData extends AMITypeData {
         return false;
     }
 
+    @Override
+    public boolean isWindowsSSH() {
+        return false;
+    }
+
     public Secret getPassword() {
         return password;
     }

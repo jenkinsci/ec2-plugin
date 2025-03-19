@@ -1477,6 +1477,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (amiType.isMac()) {
                 sshPort = ((MacData) amiType).getSshPort();
             }
+            if (amiType.isWindowsSSH()) {
+                sshPort = ((WindowsSSHData) amiType).getSshPort();
+            }
             return Integer.parseInt(sshPort);
         } catch (NumberFormatException e) {
             return 22;
@@ -1490,19 +1493,25 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public String getRootCommandPrefix() {
         return (amiType.isUnix()
                 ? ((UnixData) amiType).getRootCommandPrefix()
-                : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
+                : (amiType.isMac()
+                        ? ((MacData) amiType).getRootCommandPrefix()
+                        : (amiType.isWindowsSSH() ? ((WindowsSSHData) amiType).getRootCommandPrefix() : "")));
     }
 
     public String getSlaveCommandPrefix() {
         return (amiType.isUnix()
                 ? ((UnixData) amiType).getSlaveCommandPrefix()
-                : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
+                : (amiType.isMac()
+                        ? ((MacData) amiType).getSlaveCommandPrefix()
+                        : (amiType.isWindowsSSH() ? ((WindowsSSHData) amiType).getSlaveCommandPrefix() : "")));
     }
 
     public String getSlaveCommandSuffix() {
         return (amiType.isUnix()
                 ? ((UnixData) amiType).getSlaveCommandSuffix()
-                : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
+                : (amiType.isMac()
+                        ? ((MacData) amiType).getSlaveCommandSuffix()
+                        : (amiType.isWindowsSSH() ? ((WindowsSSHData) amiType).getSlaveCommandSuffix() : "")));
     }
 
     public String chooseSubnetId() {
@@ -2725,6 +2734,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public boolean isMacAgent() {
         return amiType.isMac();
+    }
+
+    public boolean isWindowsSSHAgent() {
+        return amiType.isWindowsSSH();
     }
 
     public Secret getAdminPassword() {

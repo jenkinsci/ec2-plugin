@@ -768,7 +768,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public String getRemoteAdmin() {
         if (remoteAdmin == null || remoteAdmin.isEmpty()) {
-            return amiType.isWindows() ? "Administrator" : "root";
+            return amiType.isWindows() || amiType.isWindowsSSH() ? "Administrator" : "root";
         }
         return remoteAdmin;
     }
