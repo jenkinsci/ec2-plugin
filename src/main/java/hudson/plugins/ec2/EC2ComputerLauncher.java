@@ -25,7 +25,6 @@ package hudson.plugins.ec2;
 
 import static org.apache.sshd.client.session.ClientSession.REMOTE_COMMAND_WAIT_EVENTS;
 
-import com.amazonaws.AmazonClientException;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.SlaveComputer;
@@ -39,6 +38,7 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.client.ScpClient;
 import org.apache.sshd.scp.client.ScpClientCreator;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * {@link ComputerLauncher} for EC2 that wraps the real user-specified {@link ComputerLauncher}.
@@ -53,7 +53,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
         try {
             EC2Computer computer = (EC2Computer) slaveComputer;
             launchScript(computer, listener);
-        } catch (AmazonClientException | IOException e) {
+        } catch (SdkException | IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
             if (slaveComputer.getNode() instanceof EC2AbstractSlave ec2AbstractSlave) {
                 LOGGER.log(
@@ -83,7 +83,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
      * Stage 2 of the launch. Called after the EC2 instance comes up.
      */
     protected abstract void launchScript(EC2Computer computer, TaskListener listener)
-            throws AmazonClientException, IOException, InterruptedException;
+            throws SdkException, IOException, InterruptedException;
 
     protected int waitCompletion(ClientChannel clientChannel, long timeout) {
         Set<ClientChannelEvent> clientChannelEvents = clientChannel.waitFor(REMOTE_COMMAND_WAIT_EVENTS, timeout);

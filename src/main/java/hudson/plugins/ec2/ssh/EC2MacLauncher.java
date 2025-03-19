@@ -23,9 +23,6 @@
  */
 package hudson.plugins.ec2.ssh;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.KeyPair;
 import hudson.FilePath;
 import hudson.ProxyConfiguration;
 import hudson.Util;
@@ -45,6 +42,7 @@ import hudson.plugins.ec2.ssh.proxy.ProxyCONNECTListener;
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.plugins.ec2.util.KeyHelper;
+import hudson.plugins.ec2.util.KeyPair;
 import hudson.plugins.ec2.util.SSHClientHelper;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
@@ -82,6 +80,9 @@ import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 /**
  * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
@@ -149,7 +150,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
     @Override
     protected void launchScript(EC2Computer computer, TaskListener listener)
-            throws IOException, AmazonClientException, InterruptedException {
+            throws IOException, SdkException, InterruptedException {
         PrintStream logger = listener.getLogger();
         EC2AbstractSlave node = computer.getNode();
         SlaveTemplate template = computer.getSlaveTemplate();
@@ -180,9 +181,10 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
             }
 
             if (!readinessNode.isReady()) {
-                throw new AmazonClientException(
-                        "Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000)
-                                + "s with status " + readinessNode.getEc2ReadinessStatus());
+                throw SdkException.builder()
+                        .message("Node still not ready, timed out after " + (readinessTries * readinessSleepMs / 1000)
+                                + "s with status " + readinessNode.getEc2ReadinessStatus())
+                        .build();
             }
         }
 
@@ -217,7 +219,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 if (key == null) {
                     isAuthenticated = false;
                 } else {
-                    clientSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getKeyMaterial(), ""));
+                    clientSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
                     clientSession.auth().await(timeout);
                     isAuthenticated = clientSession.isAuthenticated();
                 }
@@ -259,7 +261,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
                     try {
                         Instance nodeInstance = computer.describeInstance();
-                        if (nodeInstance.getInstanceType().equals("mac2.metal")) {
+                        if (nodeInstance.instanceType().equals(InstanceType.MAC2_METAL)) {
                             LOGGER.info("Running Command for mac2.metal");
                             executeRemote(
                                     computer,
@@ -371,7 +373,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
         final ClientSession remotingSession = connectToSsh(remotingClient, computer, listener, template);
         KeyPair key = computer.getCloud().getKeyPair();
         if (key != null) {
-            remotingSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getKeyMaterial(), ""));
+            remotingSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
         }
         remotingSession.auth().await(timeout);
         ChannelExec agentExecChannel = remotingSession.createExecChannel(
@@ -452,7 +454,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
     }
 
     private boolean bootstrap(EC2Computer computer, TaskListener listener, SlaveTemplate template)
-            throws IOException, InterruptedException, AmazonClientException {
+            throws IOException, InterruptedException, SdkException {
         logInfo(computer, listener, "bootstrap()");
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
@@ -470,12 +472,13 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                     computer,
                     listener,
                     String.format(
-                            "Using private key %s (SHA-1 fingerprint %s)", key.getKeyName(), key.getKeyFingerprint()));
+                            "Using private key %s (SHA-1 fingerprint %s)",
+                            key.getKeyPairInfo().keyName(), key.getKeyPairInfo().keyFingerprint()));
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
                     bootstrapSession = connectToSsh(client, computer, listener, template);
-                    bootstrapSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getKeyMaterial(), ""));
+                    bootstrapSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
                     bootstrapSession.auth().await(timeout);
 
                     isAuthenticated = bootstrapSession.isAuthenticated();
@@ -503,7 +506,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
     private ClientSession connectToSsh(
             SshClient client, EC2Computer computer, TaskListener listener, SlaveTemplate template)
-            throws AmazonClientException, InterruptedException {
+            throws SdkException, InterruptedException {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
@@ -512,9 +515,11 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
 
                 long waitTime = System.currentTimeMillis() - startTime;
                 if (timeout > 0 && waitTime > timeout) {
-                    throw new AmazonClientException("Timed out after " + (waitTime / 1000)
-                            + " seconds of waiting for ssh to become available. (maximum timeout configured is "
-                            + (timeout / 1000) + ")");
+                    throw SdkException.builder()
+                            .message("Timed out after " + (waitTime / 1000)
+                                    + " seconds of waiting for ssh to become available. (maximum timeout configured is "
+                                    + (timeout / 1000) + ")")
+                            .build();
                 }
                 String host = getEC2HostAddress(computer, template);
 
@@ -581,7 +586,7 @@ public class EC2MacLauncher extends EC2ComputerLauncher {
                 if (computer.isOffline()
                         && StringUtils.isNotBlank(computer.getOfflineCauseReason())
                         && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
-                    throw new AmazonClientException(
+                    throw SdkException.create(
                             "The connection couldn't be established and the computer is now offline", e);
                 } else {
                     logInfo(computer, listener, "Waiting for SSH to come up. Sleeping 5.");
