@@ -154,7 +154,7 @@ THE SOFTWARE.
     <dependency>
       <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
       <artifactId>aws-java-sdk-minimal</artifactId>
-      <version>1.12.772-477.v650d756dcf6d</version>
+      <version>1.12.780-480.v4a_0819121a_9e</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
