@@ -293,7 +293,7 @@ console](https://wiki.jenkins.io/display/JENKINS/Jenkins+Script+Console),
 example:
 
 ```groovy
-import com.amazonaws.services.ec2.model.InstanceType
+import software.amazon.awssdk.services.ec2.model.InstanceType
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl
 import com.cloudbees.plugins.credentials.*
 import com.cloudbees.plugins.credentials.domains.Domain

@@ -25,12 +25,12 @@ package hudson.plugins.ec2;
 
 import static org.junit.Assert.assertEquals;
 
-import com.amazonaws.AmazonClientException;
 import java.io.IOException;
 import java.security.Security;
 import org.junit.Before;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -82,7 +82,7 @@ public class EC2PrivateKeyTest {
     }
 
     @Test
-    public void testDecryptPassword() throws AmazonClientException {
+    public void testDecryptPassword() throws SdkException {
         EC2PrivateKey k = getPrivateKey();
         final String password = k.decryptWindowsPassword(
                 "LXOVLWjPem85Gy3B/AbIQ2/aQKIT5PZuq+Egg97EJSLKXVkdxDSdP7XbfpkKSNSZdhLV8XAE/vfAvU7MU2FfKArxZ6vvN2Gy8ukSoQW2UC2p1xm8ygI4sr40+Op2Hva/Svcjka4sVLYJy/ySTZCEedFkEzxhPV7FM6KHhZZ9L56hxSJe1P/7E1dY2pxbJbj/QeAKu8ps/RYTHPgqvTw0oeq1/Sal362nNPPAG+aznocazp8g0gNhySg58/9i+xjtyqm4mjWsN0p8s4JhRKPZ/iHJSqu+ZfaJqURXd9OHLdnzkvHpyzKCbU3URmnY3dha4B8dlPGAX0z3hSEtaI0LJA==");
@@ -90,7 +90,7 @@ public class EC2PrivateKeyTest {
     }
 
     @Test
-    public void testDecryptPasswordwNewLines() throws AmazonClientException {
+    public void testDecryptPasswordwNewLines() throws SdkException {
         EC2PrivateKey k = getPrivateKey();
         final String password = k.decryptWindowsPassword(
                 "\r\nLXOVLWjPem85Gy3B/AbIQ2/aQKIT5PZuq+Egg97EJSLKXVkdxDSdP7XbfpkKSNSZdhLV8XAE/vfAvU7MU2FfKArxZ6vvN2Gy8ukSoQW2UC2p1xm8ygI4sr40+Op2Hva/Svcjka4sVLYJy/ySTZCEedFkEzxhPV7FM6KHhZZ9L56hxSJe1P/7E1dY2pxbJbj/QeAKu8ps/RYTHPgqvTw0oeq1/Sal362nNPPAG+aznocazp8g0gNhySg58/9i+xjtyqm4mjWsN0p8s4JhRKPZ/iHJSqu+ZfaJqURXd9OHLdnzkvHpyzKCbU3URmnY3dha4B8dlPGAX0z3hSEtaI0LJA==\r\n");

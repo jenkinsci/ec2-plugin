@@ -1,7 +1,5 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.AmazonEC2Exception;
 import hudson.Extension;
 import hudson.model.AsyncPeriodicWork;
 import hudson.model.Node;
@@ -12,6 +10,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 
 /**
  * @author Bruno Meneguello
@@ -47,10 +47,10 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                         LOGGER.info("EC2 instance is dead: " + ec2Slave.getInstanceId());
                         ec2Slave.terminate();
                     }
-                } catch (AmazonClientException e) {
-                    if (e instanceof AmazonEC2Exception
+                } catch (SdkException e) {
+                    if (e instanceof Ec2Exception
                             && EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE.equals(
-                                    ((AmazonEC2Exception) e).getErrorCode())) {
+                                    ((Ec2Exception) e).awsErrorDetails().errorCode())) {
                         LOGGER.info("EC2 request expired, skipping consideration of " + ec2Slave.getInstanceId()
                                 + " due to unknown state.");
                     } else {
