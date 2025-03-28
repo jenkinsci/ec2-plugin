@@ -34,6 +34,6 @@
       stopOnTerminate: false
       t2Unlimited: false
       tenancy: Host
-      type: Mac1Metal
+      type: "mac1.metal"
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true

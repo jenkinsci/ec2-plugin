@@ -18,36 +18,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.auth.InstanceProfileCredentialsProvider;
-import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeRegionsResult;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.KeyPair;
-import com.amazonaws.services.ec2.model.KeyPairInfo;
-import com.amazonaws.services.ec2.model.Region;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
@@ -64,7 +34,6 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
 import hudson.ProxyConfiguration;
 import hudson.Util;
@@ -78,6 +47,7 @@ import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
 import hudson.plugins.ec2.util.FIPS140Utils;
+import hudson.plugins.ec2.util.KeyPair;
 import hudson.security.ACL;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner.PlannedNode;
@@ -93,14 +63,15 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
-import java.net.Proxy;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -131,6 +102,40 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.signer.Aws4Signer;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.DescribeRegionsResponse;
+import software.amazon.awssdk.services.ec2.model.DescribeSpotInstanceRequestsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSpotInstanceRequestsResponse;
+import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceStateName;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.KeyPairInfo;
+import software.amazon.awssdk.services.ec2.model.Reservation;
+import software.amazon.awssdk.services.ec2.model.SpotInstanceRequest;
+import software.amazon.awssdk.services.ec2.model.SpotInstanceState;
+import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.StsClientBuilder;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 /**
  * Hudson's view of EC2.
@@ -142,12 +147,6 @@ public class EC2Cloud extends Cloud {
     private static final Logger LOGGER = Logger.getLogger(EC2Cloud.class.getName());
 
     public static final String DEFAULT_EC2_HOST = "us-east-1";
-
-    public static final String DEFAULT_EC2_ENDPOINT = "https://ec2.amazonaws.com";
-
-    public static final String AWS_URL_HOST = "amazonaws.com";
-
-    public static final String AWS_CN_URL_HOST = "amazonaws.com.cn";
 
     public static final String EC2_SLAVE_TYPE_SPOT = "spot";
 
@@ -208,7 +207,7 @@ public class EC2Cloud extends Cloud {
 
     private boolean noDelayProvisioning;
 
-    private transient volatile AmazonEC2 connection;
+    private transient volatile Ec2Client connection;
 
     @DataBoundConstructor
     public EC2Cloud(
@@ -329,23 +328,31 @@ public class EC2Cloud extends Cloud {
         return region;
     }
 
-    public static URL getEc2EndpointUrl(String region) {
-        try {
-            return new URL("https://" + getAwsPartitionHostForService(region, "ec2"));
-        } catch (MalformedURLException e) {
-            throw new Error(e); // Impossible
+    @CheckForNull
+    @Restricted(NoExternalUse.class)
+    public static Region parseRegion(@CheckForNull final String input) {
+        final String regionId = Util.fixEmpty(input);
+        if (regionId == null) {
+            return null;
         }
+        return Region.regions().stream()
+                .filter(r -> r.id().equals(regionId))
+                .findFirst()
+                .orElse(null);
     }
 
-    public URL getEc2EndpointUrl() {
-        return getEc2EndpointUrl(getRegion());
-    }
-
-    public URL getS3EndpointUrl() {
+    @CheckForNull
+    @Restricted(NoExternalUse.class)
+    public static URI parseEndpoint(@CheckForNull String input) {
+        final String endpoint = Util.fixEmpty(input);
+        if (endpoint == null) {
+            return null;
+        }
         try {
-            return new URL("https://" + getAwsPartitionHostForService(getRegion(), "s3") + "/");
-        } catch (MalformedURLException e) {
-            throw new Error(e); // Impossible
+            return new URI(endpoint);
+        } catch (URISyntaxException e) {
+            LOGGER.log(Level.WARNING, "The alternate EC2 endpoint is malformed ({0}).", endpoint);
+            return null;
         }
     }
 
@@ -452,9 +459,9 @@ public class EC2Cloud extends Cloud {
             // ITERATE ON EXISTING CREDS AND DON'T CREATE IF EXIST
             for (Credentials credentials : systemCredentialsProvider.getCredentials()) {
                 if (credentials instanceof AmazonWebServicesCredentials awsCreds) {
-                    AWSCredentials awsCredentials = awsCreds.getCredentials();
-                    if (accessId.equals(awsCredentials.getAWSAccessKeyId())
-                            && Secret.toString(this.secretKey).equals(awsCredentials.getAWSSecretKey())) {
+                    AwsCredentials awsCredentials = awsCreds.resolveCredentials();
+                    if (accessId.equals(awsCredentials.accessKeyId())
+                            && Secret.toString(this.secretKey).equals(awsCredentials.secretAccessKey())) {
 
                         this.credentialsId = awsCreds.getId();
                         this.accessId = null;
@@ -597,7 +604,7 @@ public class EC2Cloud extends Cloud {
      * Gets the {@link KeyPairInfo} used for the launch.
      */
     @CheckForNull
-    public synchronized KeyPair getKeyPair() throws AmazonClientException, IOException {
+    public synchronized KeyPair getKeyPair() throws SdkException, IOException {
         if (usableKeyPair == null) {
             EC2PrivateKey ec2PrivateKey = this.resolvePrivateKey();
             if (ec2PrivateKey != null) {
@@ -612,7 +619,7 @@ public class EC2Cloud extends Cloud {
      */
     @RequirePOST
     public void doAttach(StaplerRequest2 req, StaplerResponse2 rsp, @QueryParameter String id)
-            throws ServletException, IOException, AmazonClientException {
+            throws ServletException, IOException, SdkException {
         checkPermission(PROVISION);
         SlaveTemplate t = getTemplates().get(0);
 
@@ -659,7 +666,7 @@ public class EC2Cloud extends Cloud {
 
             return HttpResponses.redirectViaContextPath(
                     "/computer/" + nodes.get(0).getNodeName());
-        } catch (AmazonClientException e) {
+        } catch (SdkException e) {
             throw HttpResponses.error(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e);
         }
     }
@@ -670,7 +677,7 @@ public class EC2Cloud extends Cloud {
      *
      * @param template If left null, then all instances are counted.
      */
-    private int countCurrentEC2Slaves(SlaveTemplate template) throws AmazonClientException {
+    private int countCurrentEC2Slaves(SlaveTemplate template) throws SdkException {
         String jenkinsServerUrl = JenkinsLocationConfiguration.get().getUrl();
 
         if (jenkinsServerUrl == null) {
@@ -692,26 +699,33 @@ public class EC2Cloud extends Cloud {
         String description = template != null ? template.description : null;
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
-        filters.add(new Filter("instance-state-name").withValues("running", "pending", "stopping"));
-        DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
-        DescribeInstancesResult result = null;
+        filters.add(Filter.builder()
+                .name("instance-state-name")
+                .values("running", "pending", "stopping")
+                .build());
+        DescribeInstancesRequest dir =
+                DescribeInstancesRequest.builder().filters(filters).build();
+        DescribeInstancesResponse result = null;
         do {
             result = connect().describeInstances(dir);
-            dir.setNextToken(result.getNextToken());
-            for (Reservation r : result.getReservations()) {
-                for (Instance i : r.getInstances()) {
-                    if (isEc2ProvisionedAmiSlave(i.getTags(), description)) {
+            dir = DescribeInstancesRequest.builder()
+                    .filters(filters)
+                    .nextToken(result.nextToken())
+                    .build();
+            for (Reservation r : result.reservations()) {
+                for (Instance i : r.instances()) {
+                    if (isEc2ProvisionedAmiSlave(i.tags(), description)) {
                         LOGGER.log(
                                 Level.FINE,
-                                "Existing instance found: " + i.getInstanceId() + " AMI: " + i.getImageId()
+                                "Existing instance found: " + i.instanceId() + " AMI: " + i.imageId()
                                         + (template != null ? (" Template: " + description) : "") + " Jenkins Server: "
                                         + jenkinsServerUrl);
                         n++;
-                        instanceIds.add(i.getInstanceId());
+                        instanceIds.add(i.instanceId());
                     }
                 }
             }
-        } while (result.getNextToken() != null);
+        } while (result.nextToken() != null);
 
         n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, instanceIds);
 
@@ -725,43 +739,52 @@ public class EC2Cloud extends Cloud {
      * @param template If left null, then all spot instances are counted.
      */
     private int countCurrentEC2SpotSlaves(SlaveTemplate template, String jenkinsServerUrl, Set<String> instanceIds)
-            throws AmazonClientException {
+            throws SdkException {
         int n = 0;
         String description = template != null ? template.description : null;
         List<SpotInstanceRequest> sirs = null;
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         if (template != null) {
-            filters.add(new Filter("launch.image-id").withValues(template.getAmi()));
+            filters.add(Filter.builder()
+                    .name("launch.image-id")
+                    .values(template.getAmi())
+                    .build());
         }
 
-        DescribeSpotInstanceRequestsRequest dsir =
-                new DescribeSpotInstanceRequestsRequest().withFilters(filters).withMaxResults(100);
+        DescribeSpotInstanceRequestsRequest dsir = DescribeSpotInstanceRequestsRequest.builder()
+                .filters(filters)
+                .maxResults(100)
+                .build();
         Set<SpotInstanceRequest> sirSet = new HashSet<>();
-        DescribeSpotInstanceRequestsResult sirResp = null;
+        DescribeSpotInstanceRequestsResponse sirResp = null;
 
         do {
             sirResp = connect().describeSpotInstanceRequests(dsir);
-            sirs = sirResp.getSpotInstanceRequests();
-            dsir.setNextToken(sirResp.getNextToken());
+            sirs = sirResp.spotInstanceRequests();
+            dsir = DescribeSpotInstanceRequestsRequest.builder()
+                    .filters(filters)
+                    .maxResults(100)
+                    .nextToken(sirResp.nextToken())
+                    .build();
 
             if (sirs != null) {
                 for (SpotInstanceRequest sir : sirs) {
                     sirSet.add(sir);
-                    if (sir.getState().equals("open") || sir.getState().equals("active")) {
-                        if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId())) {
+                    if (sir.state() == SpotInstanceState.OPEN || sir.state() == SpotInstanceState.ACTIVE) {
+                        if (sir.instanceId() != null && instanceIds.contains(sir.instanceId())) {
                             continue;
                         }
 
-                        if (isEc2ProvisionedAmiSlave(sir.getTags(), description)) {
+                        if (isEc2ProvisionedAmiSlave(sir.tags(), description)) {
                             LOGGER.log(
                                     Level.FINE,
-                                    "Spot instance request found: " + sir.getSpotInstanceRequestId() + " AMI: "
-                                            + sir.getInstanceId() + " state: " + sir.getState() + " status: "
-                                            + sir.getStatus());
+                                    "Spot instance request found: " + sir.spotInstanceRequestId() + " AMI: "
+                                            + sir.instanceId() + " state: " + sir.state() + " status: "
+                                            + sir.status());
 
                             n++;
-                            if (sir.getInstanceId() != null) {
-                                instanceIds.add(sir.getInstanceId());
+                            if (sir.instanceId() != null) {
+                                instanceIds.add(sir.instanceId());
                             }
                         }
                     } else {
@@ -771,28 +794,28 @@ public class EC2Cloud extends Cloud {
                                 if (!(node instanceof EC2SpotSlave ec2Slave)) {
                                     continue;
                                 }
-                                if (ec2Slave.getSpotInstanceRequestId().equals(sir.getSpotInstanceRequestId())) {
+                                if (ec2Slave.getSpotInstanceRequestId().equals(sir.spotInstanceRequestId())) {
                                     LOGGER.log(
                                             Level.INFO,
-                                            "Removing dead request: " + sir.getSpotInstanceRequestId() + " AMI: "
-                                                    + sir.getInstanceId() + " state: " + sir.getState() + " status: "
-                                                    + sir.getStatus());
+                                            "Removing dead request: " + sir.spotInstanceRequestId() + " AMI: "
+                                                    + sir.instanceId() + " state: " + sir.state() + " status: "
+                                                    + sir.status());
                                     Jenkins.get().removeNode(node);
                                     break;
                                 }
                             } catch (IOException e) {
                                 LOGGER.log(
                                         Level.WARNING,
-                                        "Failed to remove node for dead request: " + sir.getSpotInstanceRequestId()
-                                                + " AMI: " + sir.getInstanceId() + " state: " + sir.getState()
-                                                + " status: " + sir.getStatus(),
+                                        "Failed to remove node for dead request: " + sir.spotInstanceRequestId()
+                                                + " AMI: " + sir.instanceId() + " state: " + sir.state()
+                                                + " status: " + sir.status(),
                                         e);
                             }
                         }
                     }
                 }
             }
-        } while (sirResp.getNextToken() != null);
+        } while (sirResp.nextToken() != null);
         n += countJenkinsNodeSpotInstancesWithoutRequests(template, sirSet, instanceIds);
         return n;
     }
@@ -800,8 +823,7 @@ public class EC2Cloud extends Cloud {
     // Count nodes where the spot request does not yet exist (sometimes it takes time for the request to appear
     // in the EC2 API)
     private int countJenkinsNodeSpotInstancesWithoutRequests(
-            SlaveTemplate template, Set<SpotInstanceRequest> sirSet, Set<String> instanceIds)
-            throws AmazonClientException {
+            SlaveTemplate template, Set<SpotInstanceRequest> sirSet, Set<String> instanceIds) throws SdkException {
         int n = 0;
         for (Node node : Jenkins.get().getNodes()) {
             if (!(node instanceof EC2SpotSlave ec2Slave)) {
@@ -821,28 +843,28 @@ public class EC2Cloud extends Cloud {
 
             sirSet.add(sir);
 
-            if (sir.getState().equals("open") || sir.getState().equals("active")) {
+            if (sir.state() == SpotInstanceState.OPEN || sir.state() == SpotInstanceState.ACTIVE) {
                 if (template != null) {
-                    List<Tag> instanceTags = sir.getTags();
+                    List<Tag> instanceTags = sir.tags();
                     for (Tag tag : instanceTags) {
-                        if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                        if (StringUtils.equals(tag.key(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
                                 && StringUtils.equals(
-                                        tag.getValue(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description))
-                                && sir.getLaunchSpecification().getImageId().equals(template.getAmi())) {
+                                        tag.value(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description))
+                                && sir.launchSpecification().imageId().equals(template.getAmi())) {
 
-                            if (sir.getInstanceId() != null && instanceIds.contains(sir.getInstanceId())) {
+                            if (sir.instanceId() != null && instanceIds.contains(sir.instanceId())) {
                                 continue;
                             }
 
                             LOGGER.log(
                                     Level.FINE,
-                                    "Spot instance request found (from node): " + sir.getSpotInstanceRequestId()
-                                            + " AMI: " + sir.getInstanceId() + " state: " + sir.getState() + " status: "
-                                            + sir.getStatus());
+                                    "Spot instance request found (from node): " + sir.spotInstanceRequestId()
+                                            + " AMI: " + sir.instanceId() + " state: " + sir.state() + " status: "
+                                            + sir.status());
                             n++;
 
-                            if (sir.getInstanceId() != null) {
-                                instanceIds.add(sir.getInstanceId());
+                            if (sir.instanceId() != null) {
+                                instanceIds.add(sir.instanceId());
                             }
                         }
                     }
@@ -854,12 +876,21 @@ public class EC2Cloud extends Cloud {
 
     private List<Filter> getGenericFilters(String jenkinsServerUrl, SlaveTemplate template) {
         List<Filter> filters = new ArrayList<>();
-        filters.add(new Filter("tag-key").withValues(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE));
+        filters.add(Filter.builder()
+                .name("tag-key")
+                .values(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                .build());
         if (jenkinsServerUrl != null) {
             // The instances must match the jenkins server url
-            filters.add(new Filter("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL).withValues(jenkinsServerUrl));
+            filters.add(Filter.builder()
+                    .name("tag:" + EC2Tag.TAG_NAME_JENKINS_SERVER_URL)
+                    .values(jenkinsServerUrl)
+                    .build());
         } else {
-            filters.add(new Filter("tag-key").withValues(EC2Tag.TAG_NAME_JENKINS_SERVER_URL));
+            filters.add(Filter.builder()
+                    .name("tag-key")
+                    .values(EC2Tag.TAG_NAME_JENKINS_SERVER_URL)
+                    .build());
         }
 
         if (template != null) {
@@ -867,7 +898,10 @@ public class EC2Cloud extends Cloud {
             if (tags != null) {
                 for (EC2Tag tag : tags) {
                     if (tag.getName() != null && tag.getValue() != null) {
-                        filters.add(new Filter("tag:" + tag.getName()).withValues(tag.getValue()));
+                        filters.add(Filter.builder()
+                                .name("tag:" + tag.getName())
+                                .values(tag.getValue())
+                                .build());
                     }
                 }
             }
@@ -877,17 +911,17 @@ public class EC2Cloud extends Cloud {
 
     private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
         for (Tag tag : tags) {
-            if (StringUtils.equals(tag.getKey(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+            if (StringUtils.equals(tag.key(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                 if (description == null) {
                     return true;
-                } else if (StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
-                        || StringUtils.equals(tag.getValue(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
+                } else if (StringUtils.equals(tag.value(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
+                        || StringUtils.equals(tag.value(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
                     // To handle cases where description is null and also upgrade cases for existing agent nodes.
                     return true;
                 } else if (StringUtils.equals(
-                                tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description))
+                                tag.value(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description))
                         || StringUtils.equals(
-                                tag.getValue(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description))) {
+                                tag.value(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description))) {
                     return true;
                 } else {
                     return false;
@@ -900,7 +934,7 @@ public class EC2Cloud extends Cloud {
     /**
      * Returns the maximum number of possible agents that can be created.
      */
-    private int getPossibleNewSlavesCount(SlaveTemplate template) throws AmazonClientException {
+    private int getPossibleNewSlavesCount(SlaveTemplate template) throws SdkException {
         int estimatedTotalSlaves = countCurrentEC2Slaves(null);
         int estimatedAmiSlaves = countCurrentEC2Slaves(template);
 
@@ -993,10 +1027,10 @@ public class EC2Cloud extends Cloud {
                 if (excessWorkload == 0) {
                     break;
                 }
-            } catch (AmazonServiceException e) {
+            } catch (AwsServiceException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-                if (e.getErrorCode().equals("RequestExpired")
-                        || e.getErrorCode().equals("ExpiredToken")) {
+                if (e.awsErrorDetails().errorCode().equals("RequestExpired")
+                        || e.awsErrorDetails().errorCode().equals("ExpiredToken")) {
                     // A RequestExpired or ExpiredToken error can indicate that credentials have expired so reconnect
                     LOGGER.log(Level.INFO, "Reconnecting to EC2 due to RequestExpired or ExpiredToken error");
                     try {
@@ -1005,7 +1039,7 @@ public class EC2Cloud extends Cloud {
                         LOGGER.log(Level.WARNING, "Failed to reconnect ec2", e2);
                     }
                 }
-            } catch (AmazonClientException | IOException e) {
+            } catch (SdkException | IOException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
             }
         }
@@ -1057,7 +1091,7 @@ public class EC2Cloud extends Cloud {
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more", new Object[] {
                 Jenkins.get().getComputers().length, number
             });
-        } catch (AmazonClientException | IOException e) {
+        } catch (SdkException | IOException e) {
             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
         }
     }
@@ -1072,8 +1106,8 @@ public class EC2Cloud extends Cloud {
     void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum)
             throws IOException {
         LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
-        AmazonEC2 ec2 = this.connect();
-        DescribeInstancesResult diResult = template.getDescribeInstanceResult(ec2, true);
+        Ec2Client ec2 = this.connect();
+        DescribeInstancesResponse diResult = template.getDescribeInstanceResult(ec2, true);
         List<Instance> orphansOrStopped = template.findOrphansOrStopped(diResult, requestedNum);
         template.wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
         /* If the number of possible nodes to re-attach is greater than the number of nodes requested, will only attempt to re-attach up to the number requested */
@@ -1122,9 +1156,8 @@ public class EC2Cloud extends Cloud {
                                 return null;
                             }
 
-                            InstanceStateName state = InstanceStateName.fromValue(
-                                    instance.getState().getName());
-                            if (state.equals(InstanceStateName.Running)) {
+                            InstanceStateName state = instance.state().name();
+                            if (state.equals(InstanceStateName.RUNNING)) {
                                 // Spot instance are not reconnected automatically,
                                 // but could be new orphans that has the option enable
                                 Computer c = slave.toComputer();
@@ -1132,16 +1165,15 @@ public class EC2Cloud extends Cloud {
                                     c.connect(false);
                                 }
 
-                                long startTime = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()
-                                        - instance.getLaunchTime().getTime());
+                                long secondsSinceStart = Instant.now().until(instance.launchTime(), ChronoUnit.SECONDS);
                                 LOGGER.log(
                                         Level.INFO,
                                         "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
-                                        new Object[] {t, slave.getNodeName(), startTime});
+                                        new Object[] {t, slave.getNodeName(), secondsSinceStart});
                                 return slave;
                             }
 
-                            if (!state.equals(InstanceStateName.Pending)) {
+                            if (!state.equals(InstanceStateName.PENDING)) {
 
                                 if (retryCount >= DESCRIBE_LIMIT) {
                                     LOGGER.log(
@@ -1170,7 +1202,7 @@ public class EC2Cloud extends Cloud {
         return !getTemplates(label).isEmpty();
     }
 
-    protected AWSCredentialsProvider createCredentialsProvider() {
+    protected AwsCredentialsProvider createCredentialsProvider() {
         return createCredentialsProvider(
                 isUseInstanceProfileForCredentials(),
                 getCredentialsId(),
@@ -1183,38 +1215,49 @@ public class EC2Cloud extends Cloud {
         return templateDescription != null ? slaveType + "_" + templateDescription : slaveType;
     }
 
-    public static AWSCredentialsProvider createCredentialsProvider(
+    public static AwsCredentialsProvider createCredentialsProvider(
             final boolean useInstanceProfileForCredentials, final String credentialsId) {
         if (useInstanceProfileForCredentials) {
-            return new InstanceProfileCredentialsProvider(false);
+            return InstanceProfileCredentialsProvider.create();
         } else if (StringUtils.isBlank(credentialsId)) {
-            return new DefaultAWSCredentialsProviderChain();
+            return DefaultCredentialsProvider.create();
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
             if (credentials != null) {
-                return new AWSStaticCredentialsProvider(credentials.getCredentials());
+                return StaticCredentialsProvider.create(credentials.resolveCredentials());
             }
         }
-        return new DefaultAWSCredentialsProviderChain();
+        return DefaultCredentialsProvider.create();
     }
 
-    public static AWSCredentialsProvider createCredentialsProvider(
+    public static AwsCredentialsProvider createCredentialsProvider(
             final boolean useInstanceProfileForCredentials,
             final String credentialsId,
             final String roleArn,
             final String roleSessionName,
             final String region) {
 
-        AWSCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+        AwsCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
 
         if (StringUtils.isNotEmpty(roleArn)) {
-            return new STSAssumeRoleSessionCredentialsProvider.Builder(
-                            roleArn, StringUtils.defaultIfBlank(roleSessionName, "Jenkins"))
-                    .withStsClient(AWSSecurityTokenServiceClientBuilder.standard()
-                            .withCredentials(provider)
-                            .withRegion(region)
-                            .withClientConfiguration(createClientConfiguration(convertHostName(region)))
-                            .build())
+            AssumeRoleRequest assumeRoleRequest = AssumeRoleRequest.builder()
+                    .roleArn(roleArn)
+                    .roleSessionName(StringUtils.defaultIfBlank(roleSessionName, "Jenkins"))
+                    .build();
+
+            StsClientBuilder stsClientBuilder = StsClient.builder()
+                    .credentialsProvider(provider)
+                    .httpClient(getHttpClient())
+                    .overrideConfiguration(createClientOverrideConfiguration());
+            Region parsed = parseRegion(region);
+            if (parsed != null) {
+                stsClientBuilder.region(parsed);
+            }
+            StsClient stsClient = stsClientBuilder.build();
+
+            return StsAssumeRoleCredentialsProvider.builder()
+                    .stsClient(stsClient)
+                    .refreshRequest(assumeRoleRequest)
                     .build();
         }
 
@@ -1232,17 +1275,18 @@ public class EC2Cloud extends Cloud {
                 CredentialsMatchers.withId(credentialsId));
     }
 
-    private AmazonEC2 reconnectToEc2() throws IOException {
+    private Ec2Client reconnectToEc2() throws IOException {
         synchronized (this) {
-            connection = AmazonEC2Factory.getInstance().connect(createCredentialsProvider(), getEc2EndpointUrl());
+            connection = AmazonEC2Factory.getInstance()
+                    .connect(createCredentialsProvider(), parseRegion(getRegion()), parseEndpoint(getAltEC2Endpoint()));
             return connection;
         }
     }
 
     /**
-     * Connects to EC2 and returns {@link AmazonEC2}, which can then be used to communicate with EC2.
+     * Connects to EC2 and returns {@link Ec2Client}, which can then be used to communicate with EC2.
      */
-    public AmazonEC2 connect() throws AmazonClientException {
+    public Ec2Client connect() throws SdkException {
         try {
             if (connection != null) {
                 return connection;
@@ -1250,78 +1294,36 @@ public class EC2Cloud extends Cloud {
                 return reconnectToEc2();
             }
         } catch (IOException e) {
-            throw new AmazonClientException("Failed to retrieve the endpoint", e);
+            throw SdkException.create("Failed to retrieve the endpoint", e);
         }
     }
 
-    public static ClientConfiguration createClientConfiguration(final String host) {
-        ClientConfiguration config = new ClientConfiguration();
-        config.setMaxErrorRetry(16); // Default retry limit (3) is low and often
-        // cause problems. Raise it a bit.
-        // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
-        config.setSignerOverride("AWS4SignerType");
-        ProxyConfiguration proxyConfig = Jenkins.get().proxy;
-        Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
-        if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress address) {
-            config.setProxyHost(address.getHostName());
-            config.setProxyPort(address.getPort());
-            if (null != proxyConfig.getUserName()) {
-                config.setProxyUsername(proxyConfig.getUserName());
-                config.setProxyPassword(proxyConfig.getSecretPassword().getPlainText());
+    public static SdkHttpClient getHttpClient() {
+        Jenkins instance = Jenkins.getInstanceOrNull();
+
+        ProxyConfiguration proxy = instance != null ? instance.proxy : null;
+        ApacheHttpClient.Builder builder = ApacheHttpClient.builder();
+        if (proxy != null && proxy.name != null && !proxy.name.isEmpty()) {
+            software.amazon.awssdk.http.apache.ProxyConfiguration.Builder proxyConfiguration =
+                    software.amazon.awssdk.http.apache.ProxyConfiguration.builder()
+                            .endpoint(URI.create(String.format("http://%s:%s", proxy.name, proxy.port)));
+            if (proxy.getUserName() != null) {
+                proxyConfiguration.username(proxy.getUserName());
+                proxyConfiguration.password(Secret.toString(proxy.getSecretPassword()));
             }
+            builder.proxyConfiguration(proxyConfiguration.build());
         }
+        return builder.build();
+    }
+
+    public static ClientOverrideConfiguration createClientOverrideConfiguration() {
+        // Default retry limit (3) is low and often cause problems. Raise it a bit.
+        // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
+        ClientOverrideConfiguration config = ClientOverrideConfiguration.builder()
+                .putAdvancedOption(SdkAdvancedClientOption.SIGNER, Aws4Signer.create())
+                .retryPolicy(RetryPolicy.builder().numRetries(16).build())
+                .build();
         return config;
-    }
-
-    /***
-     * Returns the DNS endpoint for a AWS service based on region provided
-     */
-    public static String getAwsPartitionHostForService(String region, String service) {
-        String host;
-        if (region != null && region.startsWith("cn-")) {
-            host = service + "." + region + "." + AWS_CN_URL_HOST;
-        } else {
-            host = service + "." + region + "." + AWS_URL_HOST;
-        }
-        return host;
-    }
-
-    /***
-     * Convert a configured hostname like 'us-east-1' to a FQDN or ip address
-     */
-    public static String convertHostName(String ec2HostName) {
-        if (ec2HostName == null || ec2HostName.isEmpty()) {
-            ec2HostName = DEFAULT_EC2_HOST;
-        }
-        if (!ec2HostName.contains(".")) {
-            ec2HostName = getAwsPartitionHostForService(ec2HostName, "ec2");
-        }
-        return ec2HostName;
-    }
-
-    /***
-     * Convert a user entered string into a port number "" -&gt; -1 to indicate default based on SSL setting
-     */
-    public static Integer convertPort(String ec2Port) {
-        if (ec2Port == null || ec2Port.isEmpty()) {
-            return -1;
-        }
-        return Integer.parseInt(ec2Port);
-    }
-
-    /**
-     * Computes the presigned URL for the given S3 resource.
-     *
-     * @param path String like "/bucketName/folder/folder/abc.txt" that represents the resource to request.
-     */
-    public URL buildPresignedURL(String path) throws AmazonClientException {
-        AWSCredentialsProvider provider = createCredentialsProvider();
-        AWSCredentials credentials = provider.getCredentials();
-        long expires = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(60);
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(path, credentials.getAWSSecretKey());
-        request.setExpiration(new Date(expires));
-        AmazonS3 s3 = AmazonS3ClientBuilder.standard().withCredentials(provider).build();
-        return s3.generatePresignedUrl(request);
     }
 
     /* Parse a url or return a sensible error */
@@ -1373,9 +1375,9 @@ public class EC2Cloud extends Cloud {
                 return FormValidation.ok();
             }
             try {
-                new InstanceProfileCredentialsProvider(false).getCredentials();
+                InstanceProfileCredentialsProvider.builder().build().resolveCredentials();
                 return FormValidation.ok();
-            } catch (AmazonClientException e) {
+            } catch (SdkException e) {
                 return FormValidation.error(Messages.EC2Cloud_FailedToObtainCredentialsFromEC2(), e.getMessage());
             }
         }
@@ -1512,6 +1514,7 @@ public class EC2Cloud extends Cloud {
         public FormValidation doTestConnection(
                 @AncestorInPath ItemGroup context,
                 @QueryParameter String region,
+                @QueryParameter String altEC2Endpoint,
                 @QueryParameter boolean useInstanceProfileForCredentials,
                 @QueryParameter String credentialsId,
                 @QueryParameter String sshKeysCredentialsId,
@@ -1554,9 +1557,10 @@ public class EC2Cloud extends Cloud {
                     region = DEFAULT_EC2_HOST;
                 }
 
-                AWSCredentialsProvider credentialsProvider = createCredentialsProvider(
+                AwsCredentialsProvider credentialsProvider = createCredentialsProvider(
                         useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
-                AmazonEC2 ec2 = AmazonEC2Factory.getInstance().connect(credentialsProvider, getEc2EndpointUrl(region));
+                Ec2Client ec2 = AmazonEC2Factory.getInstance()
+                        .connect(credentialsProvider, parseRegion(region), parseEndpoint(altEC2Endpoint));
                 ec2.describeInstances();
 
                 if (!privateKey.trim().isEmpty()) {
@@ -1586,7 +1590,7 @@ public class EC2Cloud extends Cloud {
 
                 validations.add(FormValidation.ok(Messages.EC2Cloud_Success()));
                 return FormValidation.aggregate(validations);
-            } catch (AmazonClientException e) {
+            } catch (SdkException e) {
                 LOGGER.log(Level.WARNING, "Failed to check EC2 credential", e);
                 return FormValidation.error(e.getMessage());
             }
@@ -1641,14 +1645,14 @@ public class EC2Cloud extends Cloud {
             ListBoxModel model = new ListBoxModel();
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 try {
-                    AWSCredentialsProvider credentialsProvider =
+                    AwsCredentialsProvider credentialsProvider =
                             createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
-                    AmazonEC2 client = AmazonEC2Factory.getInstance()
-                            .connect(credentialsProvider, determineEC2EndpointURL(altEC2Endpoint));
-                    DescribeRegionsResult regions = client.describeRegions();
-                    List<Region> regionList = regions.getRegions();
-                    for (Region r : regionList) {
-                        String name = r.getRegionName();
+                    Ec2Client client = AmazonEC2Factory.getInstance()
+                            .connect(credentialsProvider, null, parseEndpoint(altEC2Endpoint));
+                    DescribeRegionsResponse regions = client.describeRegions();
+                    List<software.amazon.awssdk.services.ec2.model.Region> regionList = regions.regions();
+                    for (software.amazon.awssdk.services.ec2.model.Region r : regionList) {
+                        String name = r.regionName();
                         model.add(name, name);
                     }
                 } catch (SdkClientException ex) {
@@ -1656,24 +1660,6 @@ public class EC2Cloud extends Cloud {
                 }
             }
             return model;
-        }
-
-        // Will use the alternate EC2 endpoint if provided by the UI (via a @QueryParameter field), or use the default
-        // value if not specified.
-        // VisibleForTesting
-        URL determineEC2EndpointURL(@Nullable String altEC2Endpoint) throws MalformedURLException {
-            if (Util.fixEmpty(altEC2Endpoint) == null) {
-                return new URL(DEFAULT_EC2_ENDPOINT);
-            }
-            try {
-                return new URL(altEC2Endpoint);
-            } catch (MalformedURLException e) {
-                LOGGER.log(
-                        Level.WARNING,
-                        "The alternate EC2 endpoint is malformed ({0}). Using the default endpoint ({1})",
-                        new Object[] {altEC2Endpoint, DEFAULT_EC2_ENDPOINT});
-                return new URL(DEFAULT_EC2_ENDPOINT);
-            }
         }
     }
 
@@ -1711,11 +1697,16 @@ public class EC2Cloud extends Cloud {
                         try {
                             if (ec2_cloud.connection != null) {
                                 List<Filter> filters = new ArrayList<>();
-                                filters.add(new Filter("tag-key").withValues("bogus-EC2ConnectionKeepalive"));
-                                DescribeInstancesRequest dir = new DescribeInstancesRequest().withFilters(filters);
+                                filters.add(Filter.builder()
+                                        .name("tag-key")
+                                        .values("bogus-EC2ConnectionKeepalive")
+                                        .build());
+                                DescribeInstancesRequest dir = DescribeInstancesRequest.builder()
+                                        .filters(filters)
+                                        .build();
                                 ec2_cloud.connection.describeInstances(dir);
                             }
-                        } catch (AmazonClientException e) {
+                        } catch (SdkException e) {
                             LOGGER.finer(() -> "Reconnecting to EC2 on: " + ec2_cloud.getDisplayName());
                             ec2_cloud.reconnectToEc2();
                         }

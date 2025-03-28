@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.InstanceType;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
@@ -31,6 +30,7 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import java.util.HashMap;
 import java.util.Map;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 /*
  * Note this is used only to handle the metadata for older versions of the ec2-plugin. The current
@@ -41,17 +41,17 @@ public class InstanceTypeConverter implements Converter {
     private static final Map<String, InstanceType> TYPICAL_INSTANCE_TYPES = new HashMap<>();
 
     static {
-        TYPICAL_INSTANCE_TYPES.put("DEFAULT", InstanceType.M1Small);
-        TYPICAL_INSTANCE_TYPES.put("LARGE", InstanceType.M1Large);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE", InstanceType.M1Xlarge);
-        TYPICAL_INSTANCE_TYPES.put("MEDIUM_HCPU", InstanceType.C1Medium);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_HCPU", InstanceType.C1Xlarge);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM", InstanceType.M2Xlarge);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM_M3", InstanceType.M3Xlarge);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_DOUBLE_HMEM", InstanceType.M22xlarge);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM", InstanceType.M24xlarge);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM_M3", InstanceType.M32xlarge);
-        TYPICAL_INSTANCE_TYPES.put("XLARGE_CLUSTER_COMPUTE", InstanceType.Cc14xlarge);
+        TYPICAL_INSTANCE_TYPES.put("DEFAULT", InstanceType.M1_SMALL);
+        TYPICAL_INSTANCE_TYPES.put("LARGE", InstanceType.M1_LARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE", InstanceType.M1_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("MEDIUM_HCPU", InstanceType.C1_MEDIUM);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_HCPU", InstanceType.C1_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM", InstanceType.M2_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_HMEM_M3", InstanceType.M3_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_DOUBLE_HMEM", InstanceType.M2_2_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM", InstanceType.M2_4_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_QUAD_HMEM_M3", InstanceType.M3_2_XLARGE);
+        TYPICAL_INSTANCE_TYPES.put("XLARGE_CLUSTER_COMPUTE", InstanceType.CC1_4_XLARGE);
     }
 
     @Override

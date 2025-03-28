@@ -8,8 +8,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.InstanceType;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Executor;
 import hudson.model.Label;
@@ -49,6 +47,8 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import org.springframework.security.core.Authentication;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 public class EC2RetentionStrategyTest {
 
@@ -262,9 +262,7 @@ public class EC2RetentionStrategyTest {
                 };
         EC2Computer computer = new EC2Computer(slave) {
 
-            private final long launchedAtMs = Instant.now()
-                    .minus(Duration.ofSeconds(minutes * 60L + seconds))
-                    .toEpochMilli();
+            private final Instant launchedAt = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds));
 
             @Override
             public EC2AbstractSlave getNode() {
@@ -272,13 +270,13 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long getUptime() throws AmazonClientException, InterruptedException {
+            public long getUptime() throws SdkException, InterruptedException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
 
             @Override
-            public long getLaunchTime() throws InterruptedException {
-                return this.launchedAtMs;
+            public Instant getLaunchTime() throws InterruptedException {
+                return this.launchedAt;
             }
 
             @Override
@@ -299,7 +297,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -406,9 +404,7 @@ public class EC2RetentionStrategyTest {
                     }
                 };
         EC2Computer computer = new EC2Computer(slave) {
-            private final long launchedAtMs = Instant.now()
-                    .minus(Duration.ofSeconds(minutes * 60L + seconds))
-                    .toEpochMilli();
+            private final Instant launchedAt = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds));
 
             @Override
             public EC2AbstractSlave getNode() {
@@ -416,13 +412,13 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long getUptime() throws AmazonClientException, InterruptedException {
+            public long getUptime() throws SdkException, InterruptedException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
 
             @Override
-            public long getLaunchTime() throws InterruptedException {
-                return this.launchedAtMs;
+            public Instant getLaunchTime() throws InterruptedException {
+                return this.launchedAt;
             }
 
             @Override
@@ -443,7 +439,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -737,7 +733,7 @@ public class EC2RetentionStrategyTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -846,7 +842,7 @@ public class EC2RetentionStrategyTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -945,7 +941,7 @@ public class EC2RetentionStrategyTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1030,7 +1026,7 @@ public class EC2RetentionStrategyTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1129,7 +1125,7 @@ public class EC2RetentionStrategyTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,

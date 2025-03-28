@@ -1,10 +1,10 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.InstanceType;
 import hudson.model.Node;
 import java.util.ArrayList;
 import java.util.Collections;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 // A mock ec2 computer returning the data we want
 public class MockEC2Computer extends EC2Computer {
@@ -66,7 +66,7 @@ public class MockEC2Computer extends EC2Computer {
     }
 
     @Override
-    public String getDecodedConsoleOutput() throws AmazonClientException {
+    public String getDecodedConsoleOutput() throws SdkException {
         return getConsole();
     }
 
@@ -88,7 +88,7 @@ public class MockEC2Computer extends EC2Computer {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
