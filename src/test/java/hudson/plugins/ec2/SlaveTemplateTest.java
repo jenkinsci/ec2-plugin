@@ -1516,7 +1516,7 @@ public class SlaveTemplateTest {
                 TEST_SPOT_CFG,
                 TEST_SEC_GROUPS,
                 TEST_REMOTE_FS,
-                TEST_INSTANCE_TYPE,
+                TEST_INSTANCE_TYPE.toString(),
                 TEST_EBSO,
                 TEST_LABEL,
                 Node.Mode.NORMAL,

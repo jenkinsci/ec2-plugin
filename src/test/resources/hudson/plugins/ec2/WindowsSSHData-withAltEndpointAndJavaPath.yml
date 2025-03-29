@@ -11,7 +11,7 @@ jenkins:
           - description:
             ami: "ami-12345"
             labelString: "windows server"
-            type: "T2Micro"
+            type: "t2.micro"
             remoteFS: "C:\\Users\\ec2-user"
             mode: "NORMAL"
             javaPath: "\"C:\\Program Files\\jdk-11\\bin\\java.exe\""
