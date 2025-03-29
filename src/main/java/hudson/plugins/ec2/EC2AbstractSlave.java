@@ -23,20 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.DeleteTagsRequest;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceBlockDeviceMapping;
-import com.amazonaws.services.ec2.model.InstanceStateName;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.StopInstancesRequest;
-import com.amazonaws.services.ec2.model.Tag;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -52,6 +38,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import java.io.IOException;
 import java.io.Serial;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -66,6 +53,20 @@ import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.AvailabilityZone;
+import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
+import software.amazon.awssdk.services.ec2.model.DeleteTagsRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeAvailabilityZonesResponse;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceBlockDeviceMapping;
+import software.amazon.awssdk.services.ec2.model.InstanceStateName;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.StopInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 
 /**
  * Agent running on EC2.
@@ -151,7 +152,7 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public transient String slaveCommandSuffix;
 
-    private transient long createdTime;
+    private transient Instant createdTime;
 
     public static final String TEST_ZONE = "testZone";
 
@@ -489,167 +490,167 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     /* package */ static int toNumExecutors(InstanceType it) {
         switch (it) {
-            case T1Micro:
+            case T1_MICRO:
                 return 1;
-            case M1Small:
+            case M1_SMALL:
                 return 1;
-            case M1Medium:
+            case M1_MEDIUM:
                 return 2;
-            case M3Medium:
+            case M3_MEDIUM:
                 return 2;
-            case T3Nano:
+            case T3_NANO:
                 return 2;
-            case T3aNano:
+            case T3_A_NANO:
                 return 2;
-            case T3Micro:
+            case T3_MICRO:
                 return 2;
-            case T3aMicro:
+            case T3_A_MICRO:
                 return 2;
-            case T3Small:
+            case T3_SMALL:
                 return 2;
-            case T3aSmall:
+            case T3_A_SMALL:
                 return 2;
-            case T3Medium:
+            case T3_MEDIUM:
                 return 2;
-            case T3aMedium:
+            case T3_A_MEDIUM:
                 return 2;
-            case A1Large:
+            case A1_LARGE:
                 return 2;
-            case T3Large:
+            case T3_LARGE:
                 return 3;
-            case T3aLarge:
+            case T3_A_LARGE:
                 return 3;
-            case M1Large:
+            case M1_LARGE:
                 return 4;
-            case M3Large:
+            case M3_LARGE:
                 return 4;
-            case M4Large:
+            case M4_LARGE:
                 return 4;
-            case M5Large:
+            case M5_LARGE:
                 return 4;
-            case M5aLarge:
+            case M5_A_LARGE:
                 return 4;
-            case T3Xlarge:
+            case T3_XLARGE:
                 return 5;
-            case T3aXlarge:
+            case T3_A_XLARGE:
                 return 5;
-            case A1Xlarge:
+            case A1_XLARGE:
                 return 5;
-            case C1Medium:
+            case C1_MEDIUM:
                 return 5;
-            case M2Xlarge:
+            case M2_XLARGE:
                 return 6;
-            case C3Large:
+            case C3_LARGE:
                 return 7;
-            case C4Large:
+            case C4_LARGE:
                 return 7;
-            case C5Large:
+            case C5_LARGE:
                 return 7;
-            case C5dLarge:
+            case C5_D_LARGE:
                 return 7;
-            case M1Xlarge:
+            case M1_XLARGE:
                 return 8;
-            case T32xlarge:
+            case T3_2_XLARGE:
                 return 10;
-            case T3a2xlarge:
+            case T3_A_2_XLARGE:
                 return 10;
-            case A12xlarge:
+            case A1_2_XLARGE:
                 return 10;
-            case M22xlarge:
+            case M2_2_XLARGE:
                 return 13;
-            case M3Xlarge:
+            case M3_XLARGE:
                 return 13;
-            case M4Xlarge:
+            case M4_XLARGE:
                 return 13;
-            case M5Xlarge:
+            case M5_XLARGE:
                 return 13;
-            case M5aXlarge:
+            case M5_A_XLARGE:
                 return 13;
-            case A14xlarge:
+            case A1_4_XLARGE:
                 return 14;
-            case C3Xlarge:
+            case C3_XLARGE:
                 return 14;
-            case C4Xlarge:
+            case C4_XLARGE:
                 return 14;
-            case C5Xlarge:
+            case C5_XLARGE:
                 return 14;
-            case C5dXlarge:
+            case C5_D_XLARGE:
                 return 14;
-            case C1Xlarge:
+            case C1_XLARGE:
                 return 20;
-            case M24xlarge:
+            case M2_4_XLARGE:
                 return 26;
-            case M32xlarge:
+            case M3_2_XLARGE:
                 return 26;
-            case M42xlarge:
+            case M4_2_XLARGE:
                 return 26;
-            case M52xlarge:
+            case M5_2_XLARGE:
                 return 26;
-            case M5a2xlarge:
+            case M5_A_2_XLARGE:
                 return 26;
-            case G22xlarge:
+            case G2_2_XLARGE:
                 return 26;
-            case C32xlarge:
+            case C3_2_XLARGE:
                 return 28;
-            case C42xlarge:
+            case C4_2_XLARGE:
                 return 28;
-            case C52xlarge:
+            case C5_2_XLARGE:
                 return 28;
-            case C5d2xlarge:
+            case C5_D_2_XLARGE:
                 return 28;
-            case Cc14xlarge:
+            case CC1_4_XLARGE:
                 return 33;
-            case Cg14xlarge:
+            case CG1_4_XLARGE:
                 return 33;
-            case Hi14xlarge:
+            case HI1_4_XLARGE:
                 return 35;
-            case Hs18xlarge:
+            case HS1_8_XLARGE:
                 return 35;
-            case C34xlarge:
+            case C3_4_XLARGE:
                 return 55;
-            case C44xlarge:
+            case C4_4_XLARGE:
                 return 55;
-            case C54xlarge:
+            case C5_4_XLARGE:
                 return 55;
-            case C5d4xlarge:
+            case C5_D_4_XLARGE:
                 return 55;
-            case M44xlarge:
+            case M4_4_XLARGE:
                 return 55;
-            case M54xlarge:
+            case M5_4_XLARGE:
                 return 55;
-            case M5a4xlarge:
+            case M5_A_4_XLARGE:
                 return 55;
-            case Cc28xlarge:
+            case CC2_8_XLARGE:
                 return 88;
-            case Cr18xlarge:
+            case CR1_8_XLARGE:
                 return 88;
-            case C38xlarge:
+            case C3_8_XLARGE:
                 return 108;
-            case C48xlarge:
+            case C4_8_XLARGE:
                 return 108;
-            case C59xlarge:
+            case C5_9_XLARGE:
                 return 108;
-            case C5d9xlarge:
+            case C5_D_9_XLARGE:
                 return 108;
-            case M410xlarge:
+            case M4_10_XLARGE:
                 return 120;
-            case M512xlarge:
+            case M5_12_XLARGE:
                 return 120;
-            case M5a12xlarge:
+            case M5_A_12_XLARGE:
                 return 120;
-            case M416xlarge:
+            case M4_16_XLARGE:
                 return 160;
-            case C518xlarge:
+            case C5_18_XLARGE:
                 return 216;
-            case C5d18xlarge:
+            case C5_D_18_XLARGE:
                 return 216;
-            case M524xlarge:
+            case M5_24_XLARGE:
                 return 240;
-            case M5a24xlarge:
+            case M5_A_24_XLARGE:
                 return 240;
-            case Dl124xlarge:
+            case DL1_24_XLARGE:
                 return 250;
-            case Mac1Metal:
+            case MAC1_METAL:
                 return 1;
                 // We don't have a suggestion, but we don't want to fail completely
                 // surely?
@@ -694,8 +695,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     void stop() {
         try {
-            AmazonEC2 ec2 = getCloud().connect();
-            StopInstancesRequest request = new StopInstancesRequest(Collections.singletonList(getInstanceId()));
+            Ec2Client ec2 = getCloud().connect();
+            StopInstancesRequest request = StopInstancesRequest.builder()
+                    .instanceIds(Collections.singletonList(getInstanceId()))
+                    .build();
             LOGGER.fine("Sending stop request for " + getInstanceId());
             ec2.stopInstances(request);
             LOGGER.info("EC2 instance stop request sent for " + getInstanceId());
@@ -703,21 +706,22 @@ public abstract class EC2AbstractSlave extends Slave {
             if (computer != null) {
                 computer.disconnect(null);
             }
-        } catch (AmazonClientException e) {
+        } catch (SdkException e) {
             LOGGER.log(Level.WARNING, "Failed to stop EC2 instance: " + getInstanceId(), e);
         }
     }
 
     boolean terminateInstance() {
         try {
-            AmazonEC2 ec2 = getCloud().connect();
-            TerminateInstancesRequest request =
-                    new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+            Ec2Client ec2 = getCloud().connect();
+            TerminateInstancesRequest request = TerminateInstancesRequest.builder()
+                    .instanceIds(Collections.singletonList(getInstanceId()))
+                    .build();
             LOGGER.fine("Sending terminate request for " + getInstanceId());
             ec2.terminateInstances(request);
             LOGGER.info("EC2 instance terminate request sent for " + getInstanceId());
             return true;
-        } catch (AmazonClientException e) {
+        } catch (SdkException e) {
             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
             return false;
         }
@@ -843,7 +847,7 @@ public abstract class EC2AbstractSlave extends Slave {
         if (lastFetchInstance == null) {
             return false;
         }
-        if (lastFetchInstance.getState().getName().equals(InstanceStateName.Terminated.toString())) {
+        if (lastFetchInstance.state().name().equals(InstanceStateName.TERMINATED)) {
             return false;
         }
         return true;
@@ -853,7 +857,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Much of the EC2 data is beyond our direct control, therefore we need to refresh it from time to time to ensure we
      * reflect the reality of the instances.
      */
-    private void fetchLiveInstanceData(boolean force) throws AmazonClientException {
+    private void fetchLiveInstanceData(boolean force) throws SdkException {
         /*
          * If we've grabbed the data recently, don't bother getting it again unless we are forced
          */
@@ -888,19 +892,19 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
-        publicDNS = i.getPublicDnsName();
-        privateDNS = i.getPrivateIpAddress();
-        createdTime = i.getLaunchTime().getTime();
-        instanceType = i.getInstanceType();
+        publicDNS = i.publicDnsName();
+        privateDNS = i.privateIpAddress();
+        createdTime = i.launchTime();
+        instanceType = i.instanceType().name();
 
         /*
          * Only fetch tags from live instance if tags are set. This check is required to mitigate a race condition
          * when fetchLiveInstanceData() is called before pushLiveInstancedata().
          */
-        if (!i.getTags().isEmpty()) {
+        if (!i.tags().isEmpty()) {
             tags = new LinkedList<>();
-            for (Tag t : i.getTags()) {
-                tags.add(new EC2Tag(t.getKey(), t.getValue()));
+            for (Tag t : i.tags()) {
+                tags.add(new EC2Tag(t.key(), t.value()));
             }
         }
     }
@@ -908,7 +912,7 @@ public abstract class EC2AbstractSlave extends Slave {
     /*
      * Clears all existing tag data so that we can force the instance into a known state
      */
-    protected void clearLiveInstancedata() throws AmazonClientException {
+    protected void clearLiveInstancedata() throws SdkException {
         Instance inst = null;
         try {
             inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
@@ -923,12 +927,14 @@ public abstract class EC2AbstractSlave extends Slave {
             HashSet<Tag> instTags = new HashSet<>();
 
             for (EC2Tag t : tags) {
-                instTags.add(new Tag(t.getName(), t.getValue()));
+                instTags.add(Tag.builder().key(t.getName()).value(t.getValue()).build());
             }
 
             List<String> resources = getResourcesToTag(inst);
-            DeleteTagsRequest tagRequest = new DeleteTagsRequest();
-            tagRequest.withResources(resources).setTags(instTags);
+            DeleteTagsRequest tagRequest = DeleteTagsRequest.builder()
+                    .resources(resources)
+                    .tags(instTags)
+                    .build();
             getCloud().connect().deleteTags(tagRequest);
         }
     }
@@ -937,7 +943,7 @@ public abstract class EC2AbstractSlave extends Slave {
      * Sets tags on an instance and on the volumes attached to it. This will not clear existing tag data, so call
      * clearLiveInstancedata if needed
      */
-    protected void pushLiveInstancedata() throws AmazonClientException {
+    protected void pushLiveInstancedata() throws SdkException {
         Instance inst = null;
         try {
             inst = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
@@ -951,12 +957,14 @@ public abstract class EC2AbstractSlave extends Slave {
             HashSet<Tag> instTags = new HashSet<>();
 
             for (EC2Tag t : tags) {
-                instTags.add(new Tag(t.getName(), t.getValue()));
+                instTags.add(Tag.builder().key(t.getName()).value(t.getValue()).build());
             }
 
             List<String> resources = getResourcesToTag(inst);
-            CreateTagsRequest tagRequest = new CreateTagsRequest();
-            tagRequest.withResources(resources).setTags(instTags);
+            CreateTagsRequest tagRequest = CreateTagsRequest.builder()
+                    .resources(resources)
+                    .tags(instTags)
+                    .build();
             getCloud().connect().createTags(tagRequest);
         }
     }
@@ -966,9 +974,9 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     private List<String> getResourcesToTag(Instance inst) {
         List<String> resources = new ArrayList<>();
-        resources.add(inst.getInstanceId());
-        for (InstanceBlockDeviceMapping blockDeviceMapping : inst.getBlockDeviceMappings()) {
-            resources.add(blockDeviceMapping.getEbs().getVolumeId());
+        resources.add(inst.instanceId());
+        for (InstanceBlockDeviceMapping blockDeviceMapping : inst.blockDeviceMappings()) {
+            resources.add(blockDeviceMapping.ebs().volumeId());
         }
         return resources;
     }
@@ -993,7 +1001,7 @@ public abstract class EC2AbstractSlave extends Slave {
         return Collections.unmodifiableList(tags);
     }
 
-    public long getCreatedTime() {
+    public Instant getCreatedTime() {
         fetchLiveInstanceData(false);
         return createdTime;
     }
@@ -1039,17 +1047,17 @@ public abstract class EC2AbstractSlave extends Slave {
         return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }
 
-    public static ListBoxModel fillZoneItems(AWSCredentialsProvider credentialsProvider, String region) {
+    public static ListBoxModel fillZoneItems(AwsCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
 
         if (!StringUtils.isEmpty(region)) {
-            AmazonEC2 client =
-                    AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.getEc2EndpointUrl(region));
-            DescribeAvailabilityZonesResult zones = client.describeAvailabilityZones();
-            List<AvailabilityZone> zoneList = zones.getAvailabilityZones();
+            Ec2Client client =
+                    AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.parseRegion(region), null);
+            DescribeAvailabilityZonesResponse zones = client.describeAvailabilityZones();
+            List<AvailabilityZone> zoneList = zones.availabilityZones();
             model.add("<not specified>", "");
             for (AvailabilityZone z : zoneList) {
-                model.add(z.getZoneName(), z.getZoneName());
+                model.add(z.zoneName(), z.zoneName());
             }
         }
         return model;
@@ -1080,7 +1088,7 @@ public abstract class EC2AbstractSlave extends Slave {
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 return new ListBoxModel();
             }
-            AWSCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
+            AwsCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
                     useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
             return fillZoneItems(credentialsProvider, region);
         }

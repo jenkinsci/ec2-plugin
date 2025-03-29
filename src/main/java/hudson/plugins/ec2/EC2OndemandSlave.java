@@ -1,8 +1,5 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
@@ -21,6 +18,9 @@ import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest2;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 
 /**
  * Agent running on EC2.
@@ -450,15 +450,16 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                                  */
                                 LOGGER.info("EC2 instance already terminated: " + getInstanceId());
                             } else {
-                                AmazonEC2 ec2 = getCloud().connect();
-                                TerminateInstancesRequest request =
-                                        new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+                                Ec2Client ec2 = getCloud().connect();
+                                TerminateInstancesRequest request = TerminateInstancesRequest.builder()
+                                        .instanceIds(Collections.singletonList(getInstanceId()))
+                                        .build();
                                 ec2.terminateInstances(request);
                                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
                             }
                             Jenkins.get().removeNode(this);
                             LOGGER.info("Removed EC2 instance from jenkins controller: " + getInstanceId());
-                        } catch (AmazonClientException | IOException e) {
+                        } catch (SdkException | IOException e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
                         } finally {
                             synchronized (terminateScheduled) {

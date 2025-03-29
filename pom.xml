@@ -76,9 +76,9 @@ THE SOFTWARE.
     <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
-    <jenkins.version>${jenkins.baseline}.1</jenkins.version>
+    <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-    <hpi.compatibleSinceVersion>1626</hpi.compatibleSinceVersion>
+    <hpi.compatibleSinceVersion>1885</hpi.compatibleSinceVersion>
     <spotless.check.skip>false</spotless.check.skip>
   </properties>
 
@@ -87,7 +87,7 @@ THE SOFTWARE.
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>4051.v78dce3ce8b_d6</version>
+        <version>4488.v7fe26526366e</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -109,6 +109,14 @@ THE SOFTWARE.
           <artifactId>slf4j-api</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+      <artifactId>aws-java-sdk2-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+      <artifactId>aws-java-sdk2-ec2</artifactId>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins.mina-sshd-api</groupId>
@@ -145,16 +153,6 @@ THE SOFTWARE.
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
-      <artifactId>aws-java-sdk-ec2</artifactId>
-      <version>1.12.772-477.v650d756dcf6d</version>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.plugins.aws-java-sdk</groupId>
-      <artifactId>aws-java-sdk-minimal</artifactId>
-      <version>1.12.772-477.v650d756dcf6d</version>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
