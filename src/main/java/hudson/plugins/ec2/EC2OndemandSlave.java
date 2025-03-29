@@ -375,9 +375,9 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 numExecutors,
                 mode,
                 labelString,
-                (amiType.isWindows()
+                (amiType.isWinRMAgent()
                         ? new EC2WindowsLauncher()
-                        : (amiType.isWindowsSSH()
+                        : (amiType.isWindows()
                                 ? new EC2WindowsSSHLauncher()
                                 : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher()))),
                 new EC2RetentionStrategy(idleTerminationMinutes),

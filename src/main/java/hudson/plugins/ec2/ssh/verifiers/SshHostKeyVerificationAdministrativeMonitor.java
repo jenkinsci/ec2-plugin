@@ -110,7 +110,7 @@ public class SshHostKeyVerificationAdministrativeMonitor extends AdministrativeM
         List<SlaveTemplate> templates = cloud.getTemplates();
         for (SlaveTemplate template : templates) {
             // It's only for ssh templates
-            if (!template.isUnixSlave() || !template.isMacAgent() || !template.isWindowsSSHAgent()) {
+            if (!template.isSSHAgent()) {
                 continue;
             }
 

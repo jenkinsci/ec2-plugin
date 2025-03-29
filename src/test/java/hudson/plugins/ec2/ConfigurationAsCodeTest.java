@@ -65,6 +65,7 @@ public class ConfigurationAsCodeTest {
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isUnix());
+        assertTrue(amiType.isSSHAgent());
         assertTrue(amiType instanceof UnixData);
         final UnixData unixData = (UnixData) amiType;
         assertEquals("sudo", unixData.getRootCommandPrefix());
@@ -118,6 +119,7 @@ public class ConfigurationAsCodeTest {
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertFalse(amiType.isUnix());
         assertTrue(amiType.isWindows());
+        assertTrue(amiType.isWinRMAgent());
         assertTrue(amiType instanceof WindowsData);
         final WindowsData windowsData = (WindowsData) amiType;
         assertEquals(Secret.fromString("password"), windowsData.getPassword());
@@ -242,6 +244,7 @@ public class ConfigurationAsCodeTest {
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isMac());
+        assertTrue(amiType.isSSHAgent());
         assertTrue(amiType instanceof MacData);
         final MacData macData = (MacData) amiType;
         assertEquals("sudo", macData.getRootCommandPrefix());
@@ -311,7 +314,8 @@ public class ConfigurationAsCodeTest {
         assertTrue(spotConfig.useBidPrice);
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
-        assertTrue(amiType.isWindowsSSH());
+        assertTrue(amiType.isWindows());
+        assertTrue(amiType.isSSHAgent());
         assertTrue(amiType instanceof WindowsSSHData);
         final WindowsSSHData windowsSSHData = (WindowsSSHData) amiType;
         assertEquals("CMD /C", windowsSSHData.getRootCommandPrefix());

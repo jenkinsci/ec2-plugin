@@ -1569,14 +1569,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int getSshPort() {
         try {
             String sshPort = "";
-            if (amiType.isUnix()) {
-                sshPort = ((UnixData) amiType).getSshPort();
-            }
-            if (amiType.isMac()) {
-                sshPort = ((MacData) amiType).getSshPort();
-            }
-            if (amiType.isWindowsSSH()) {
-                sshPort = ((WindowsSSHData) amiType).getSshPort();
+            if (amiType.isSSHAgent()) {
+                sshPort = ((SSHData) amiType).getSshPort();
             }
             return Integer.parseInt(sshPort);
         } catch (NumberFormatException e) {
@@ -1589,27 +1583,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getRootCommandPrefix() {
-        return (amiType.isUnix()
-                ? ((UnixData) amiType).getRootCommandPrefix()
-                : (amiType.isMac()
-                        ? ((MacData) amiType).getRootCommandPrefix()
-                        : (amiType.isWindowsSSH() ? ((WindowsSSHData) amiType).getRootCommandPrefix() : "")));
+        return amiType.isSSHAgent() ? ((SSHData) amiType).getRootCommandPrefix() : "";
     }
 
     public String getSlaveCommandPrefix() {
-        return (amiType.isUnix()
-                ? ((UnixData) amiType).getSlaveCommandPrefix()
-                : (amiType.isMac()
-                        ? ((MacData) amiType).getSlaveCommandPrefix()
-                        : (amiType.isWindowsSSH() ? ((WindowsSSHData) amiType).getSlaveCommandPrefix() : "")));
+        return amiType.isSSHAgent() ? ((SSHData) amiType).getSlaveCommandPrefix() : "";
     }
 
     public String getSlaveCommandSuffix() {
-        return (amiType.isUnix()
-                ? ((UnixData) amiType).getSlaveCommandSuffix()
-                : (amiType.isMac()
-                        ? ((MacData) amiType).getSlaveCommandSuffix()
-                        : (amiType.isWindowsSSH() ? ((WindowsSSHData) amiType).getSlaveCommandSuffix() : "")));
+        return amiType.isSSHAgent() ? ((SSHData) amiType).getSlaveCommandSuffix() : "";
     }
 
     public String chooseSubnetId() {
@@ -2924,16 +2906,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isMac();
     }
 
-    public boolean isWindowsSSHAgent() {
-        return amiType.isWindowsSSH();
+    public boolean isSSHAgent() {
+        return amiType.isSSHAgent();
+    }
+
+    public boolean isWinRMAgent() {
+        return amiType.isWinRMAgent();
     }
 
     public Secret getAdminPassword() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : Secret.fromString("");
+        return amiType.isWinRMAgent() ? ((WindowsData) amiType).getPassword() : Secret.fromString("");
     }
 
     public boolean isUseHTTPS() {
-        return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
+        return amiType.isWinRMAgent() && ((WindowsData) amiType).isUseHTTPS();
     }
 
     /**
@@ -2975,7 +2961,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public boolean isAllowSelfSignedCertificate() {
-        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+        return amiType.isWinRMAgent() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }
 
     @Extension

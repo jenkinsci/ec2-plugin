@@ -81,8 +81,13 @@ public class WindowsData extends AMITypeData {
     }
 
     @Override
-    public boolean isWindowsSSH() {
+    public boolean isSSHAgent() {
         return false;
+    }
+
+    @Override
+    public boolean isWinRMAgent() {
+        return true;
     }
 
     public Secret getPassword() {
