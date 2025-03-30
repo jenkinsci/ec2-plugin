@@ -61,14 +61,9 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
     private static final String BOOTSTRAP_AUTH_SLEEP_MS = "jenkins.ec2.bootstrapAuthSleepMs";
     private static final String BOOTSTRAP_AUTH_TRIES = "jenkins.ec2.bootstrapAuthTries";
-    private static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
-    private static final String READINESS_TRIES = "jenkins.ec2.readinessTries";
 
     private static int bootstrapAuthSleepMs = 30000;
     private static int bootstrapAuthTries = 30;
-
-    protected static int readinessSleepMs = 1000;
-    protected static int readinessTries = 120;
 
     static {
         String prop = System.getProperty(BOOTSTRAP_AUTH_SLEEP_MS);
@@ -78,14 +73,6 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         prop = System.getProperty(BOOTSTRAP_AUTH_TRIES);
         if (prop != null) {
             bootstrapAuthTries = Integer.parseInt(prop);
-        }
-        prop = System.getProperty(READINESS_TRIES);
-        if (prop != null) {
-            readinessTries = Integer.parseInt(prop);
-        }
-        prop = System.getProperty(READINESS_SLEEP_MS);
-        if (prop != null) {
-            readinessSleepMs = Integer.parseInt(prop);
         }
     }
 
@@ -106,8 +93,13 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     }
 
     protected String buildUpCommand(EC2Computer computer, String command) {
+        String defaultAdmin = "root";
+        SlaveTemplate template = computer.getSlaveTemplate();
+        if (template != null && template.isWindowsSlave()) {
+            defaultAdmin = "Administrator";
+        }
         String remoteAdmin = computer.getRemoteAdmin();
-        if (remoteAdmin != null && !remoteAdmin.equals("root")) {
+        if (remoteAdmin != null && !remoteAdmin.equals(defaultAdmin)) {
             command = computer.getRootCommandPrefix() + " " + command;
         }
         return command;
@@ -422,10 +414,15 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         }
     }
 
-    protected static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template) throws InterruptedException {
+    protected static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template)
+            throws InterruptedException {
         Instance instance = computer.updateInstanceDescription();
         ConnectionStrategy strategy = template.connectionStrategy;
-        return EC2HostAddressProvider.unix(instance, strategy);
+        return template.isMacAgent()
+                ? EC2HostAddressProvider.mac(instance, strategy)
+                : (template.isWindowsSlave()
+                        ? EC2HostAddressProvider.windows(instance, strategy)
+                        : EC2HostAddressProvider.unix(instance, strategy));
     }
 
     protected static String getEC2HostKeyAlgorithmFlag(EC2Computer computer) throws IOException {

@@ -62,7 +62,23 @@ public class EC2MacLauncher extends EC2SSHLauncher {
 
     private static final Logger LOGGER = Logger.getLogger(EC2MacLauncher.class.getName());
 
+    private static final String READINESS_SLEEP_MS = "jenkins.ec2.readinessSleepMs";
+    private static final String READINESS_TRIES = "jenkins.ec2.readinessTries";
     private static final String CORRETTO_LATEST_URL = "https://corretto.aws/downloads/latest";
+
+    private static int readinessSleepMs = 1000;
+    private static int readinessTries = 120;
+
+    static {
+        String prop = System.getProperty(READINESS_TRIES);
+        if (prop != null) {
+            readinessTries = Integer.parseInt(prop);
+        }
+        prop = System.getProperty(READINESS_SLEEP_MS);
+        if (prop != null) {
+            readinessSleepMs = Integer.parseInt(prop);
+        }
+    }
 
     @Override
     protected void launchScript(EC2Computer computer, TaskListener listener)
