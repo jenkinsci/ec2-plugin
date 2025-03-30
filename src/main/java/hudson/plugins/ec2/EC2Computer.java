@@ -130,7 +130,8 @@ public class EC2Computer extends SlaveComputer {
 
     private GetConsoleOutputResponse getDecodedConsoleOutputResponse() throws SdkException, InterruptedException {
         Ec2Client ec2 = getCloud().connect();
-        GetConsoleOutputRequest.Builder requestBuilder = GetConsoleOutputRequest.builder();
+        GetConsoleOutputRequest.Builder requestBuilder =
+                GetConsoleOutputRequest.builder().instanceId(getInstanceId());
         if (checkIfNitro()) {
             // Can only be used if instance has hypervisor Nitro
             requestBuilder.latest(true);
