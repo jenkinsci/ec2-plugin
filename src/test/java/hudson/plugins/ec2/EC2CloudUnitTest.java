@@ -201,7 +201,8 @@ public class EC2CloudUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         cloud.addTemplate(orig);
         assertNotNull(cloud.getTemplate(orig.description));
     }
@@ -263,7 +264,8 @@ public class EC2CloudUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SlaveTemplate secondSlaveTemplate = new SlaveTemplate(
                 "ami-123",
                 EC2AbstractSlave.TEST_ZONE,
@@ -308,7 +310,8 @@ public class EC2CloudUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         cloud.addTemplate(oldSlaveTemplate);
         cloud.addTemplate(secondSlaveTemplate);
         SlaveTemplate newSlaveTemplate = new SlaveTemplate(
@@ -355,7 +358,8 @@ public class EC2CloudUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         int index = cloud.getTemplates().indexOf(oldSlaveTemplate);
 
         cloud.updateTemplate(newSlaveTemplate, "OldSlaveDescription");

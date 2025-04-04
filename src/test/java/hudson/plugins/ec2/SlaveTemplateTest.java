@@ -64,6 +64,7 @@ import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeSubnetsRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeSubnetsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
+import software.amazon.awssdk.services.ec2.model.EnclaveOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.HttpTokensState;
 import software.amazon.awssdk.services.ec2.model.IamInstanceProfile;
 import software.amazon.awssdk.services.ec2.model.Image;
@@ -150,7 +151,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -219,7 +221,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -296,7 +299,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -367,7 +371,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -430,7 +435,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -493,7 +499,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -561,7 +568,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         List<SlaveTemplate> templates = new ArrayList<>();
@@ -633,7 +641,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SlaveTemplate noSubnet = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -678,7 +687,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -767,7 +777,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SlaveTemplate noSubnet = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -812,7 +823,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -895,7 +907,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
@@ -1022,7 +1035,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -1082,7 +1096,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SlaveTemplate working = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1127,7 +1142,8 @@ public class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(broken);
         templates.add(working);
@@ -1188,7 +1204,8 @@ public class SlaveTemplateTest {
                 true,
                 true,
                 2,
-                true);
+                true,
+                false);
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
 
@@ -1249,6 +1266,7 @@ public class SlaveTemplateTest {
                 true,
                 false,
                 2,
+                false,
                 false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
@@ -1309,7 +1327,8 @@ public class SlaveTemplateTest {
                 true,
                 false,
                 2,
-                true);
+                true,
+                false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
@@ -1371,7 +1390,8 @@ public class SlaveTemplateTest {
                 true,
                 true,
                 2,
-                true);
+                true,
+                false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
@@ -1433,7 +1453,8 @@ public class SlaveTemplateTest {
                 null,
                 true,
                 null,
-                true);
+                true,
+                false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
@@ -1495,7 +1516,8 @@ public class SlaveTemplateTest {
                 null,
                 true,
                 null,
-                true);
+                true,
+                false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
         when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
@@ -1504,6 +1526,67 @@ public class SlaveTemplateTest {
                         .build());
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+    }
+
+    @Test
+    public void provisionOnDemandWithEnclaveEnabled() throws Exception {
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                false,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true,
+                true);
+
+        Ec2Client mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        EnclaveOptionsRequest enclaveOptionsRequest = actualRequest.enclaveOptions();
+        assertEquals(enclaveOptionsRequest.enabled(), Boolean.TRUE);
     }
 
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {

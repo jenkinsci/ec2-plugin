@@ -52,7 +52,8 @@ public class MockEC2Computer extends EC2Computer {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     public void terminate() {}
 
@@ -126,7 +127,8 @@ public class MockEC2Computer extends EC2Computer {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
     }
 
     public void setState(InstanceState state) {

@@ -68,6 +68,8 @@ public abstract class EC2AgentConfig {
         final Boolean metadataTokensRequired;
         final Integer metadataHopsLimit;
 
+        final Boolean enclaveEnabled;
+
         private OnDemand(OnDemandBuilder builder) {
             super(builder);
             this.instanceId = builder.getInstanceId();
@@ -80,6 +82,7 @@ public abstract class EC2AgentConfig {
             this.metadataHopsLimit = builder.metadataHopsLimit;
             this.metadataEndpointEnabled = builder.metadataEndpointEnabled;
             this.metadataTokensRequired = builder.metadataTokensRequired;
+            this.enclaveEnabled = builder.enclaveEnabled;
         }
     }
 
@@ -235,6 +238,8 @@ public abstract class EC2AgentConfig {
         private Boolean metadataTokensRequired;
         private Integer metadataHopsLimit;
 
+        private Boolean enclaveEnabled;
+
         public OnDemandBuilder withInstanceId(String instanceId) {
             this.instanceId = instanceId;
             return this;
@@ -308,6 +313,11 @@ public abstract class EC2AgentConfig {
 
         public OnDemandBuilder withMetadataHopsLimit(Integer metadataHopsLimit) {
             this.metadataHopsLimit = metadataHopsLimit;
+            return this;
+        }
+
+        public OnDemandBuilder withEnclaveEnabled(Boolean enclaveEnabled) {
+            this.enclaveEnabled = enclaveEnabled;
             return this;
         }
 
