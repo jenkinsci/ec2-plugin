@@ -145,6 +145,10 @@ THE SOFTWARE.
           </f:entry>
         </f:optionalBlock>
 
+        <f:entry title="${%Enclave Enabled}" field="enclaveEnabled" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/enclaveEnabled">
+          <f:checkbox default="false"/>
+        </f:entry>
+
         <f:block>
           <f:submit value="${%Save}"/>
         </f:block>

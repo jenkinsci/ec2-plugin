@@ -102,6 +102,7 @@ import software.amazon.awssdk.services.ec2.model.DescribeSubnetsResponse;
 import software.amazon.awssdk.services.ec2.model.DeviceType;
 import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
+import software.amazon.awssdk.services.ec2.model.EnclaveOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.Filter;
 import software.amazon.awssdk.services.ec2.model.HttpTokensState;
 import software.amazon.awssdk.services.ec2.model.IamInstanceProfileSpecification;
@@ -239,6 +240,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private Integer metadataHopsLimit;
 
+    private Boolean enclaveEnabled;
+
     private transient /* almost final */ Set<LabelAtom> labelSet;
 
     private transient /* almost final */ Set<String> securityGroupSet;
@@ -327,7 +330,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Boolean metadataEndpointEnabled,
             Boolean metadataTokensRequired,
             Integer metadataHopsLimit,
-            Boolean metadataSupported) {
+            Boolean metadataSupported,
+            Boolean enclaveEnabled) {
 
         if (StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)) {
             LOGGER.log(
@@ -417,6 +421,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 : EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED;
         this.metadataHopsLimit =
                 metadataHopsLimit != null ? metadataHopsLimit : EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
+        this.enclaveEnabled = enclaveEnabled != null ? enclaveEnabled : EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED;
         readResolve(); // initialize
     }
 
@@ -510,7 +515,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataEndpointEnabled,
                 metadataTokensRequired,
                 metadataHopsLimit,
-                metadataSupported);
+                metadataSupported,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
     }
 
     @Deprecated
@@ -603,7 +609,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataEndpointEnabled,
                 metadataTokensRequired,
                 metadataHopsLimit,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
     }
 
     @Deprecated
@@ -691,7 +698,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
     }
 
     @Deprecated
@@ -1829,6 +1837,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return tenancy;
     }
 
+    public Boolean getEnclaveEnabled() {
+        return enclaveEnabled;
+    }
+
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
         return Objects.requireNonNull(nodeProperties);
     }
@@ -2073,6 +2085,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             instanceMetadataOptionsRequestBuilder.httpTokens(
                     metadataTokensRequired ? HttpTokensState.REQUIRED.toString() : HttpTokensState.OPTIONAL.toString());
             riRequestBuilder.metadataOptions(instanceMetadataOptionsRequestBuilder.build());
+        }
+
+        if (enclaveEnabled) {
+            EnclaveOptionsRequest.Builder enclaveOptionsRequestBuilder =
+                    EnclaveOptionsRequest.builder().enabled(true);
+            riRequestBuilder.enclaveOptions(enclaveOptionsRequestBuilder.build());
         }
 
         HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();

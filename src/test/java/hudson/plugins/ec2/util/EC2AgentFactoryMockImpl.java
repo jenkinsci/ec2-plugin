@@ -186,7 +186,8 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
                     DEFAULT_METADATA_ENDPOINT_ENABLED,
                     DEFAULT_METADATA_TOKENS_REQUIRED,
                     DEFAULT_METADATA_HOPS_LIMIT,
-                    DEFAULT_METADATA_SUPPORTED);
+                    DEFAULT_METADATA_SUPPORTED,
+                    DEFAULT_ENCLAVE_ENABLED);
         }
 
         @Override

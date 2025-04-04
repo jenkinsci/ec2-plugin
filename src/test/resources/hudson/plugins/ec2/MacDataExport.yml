@@ -17,6 +17,7 @@
       deleteRootOnTermination: false
       ebsEncryptRootVolume: DEFAULT
       ebsOptimized: false
+      enclaveEnabled: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       javaPath: "java"
       labelString: "mac metal"
