@@ -1,39 +1,82 @@
 package hudson.plugins.ec2;
 
-import hudson.Extension;
-import hudson.model.Descriptor;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
 
-public class MacData extends SSHData {
-    @DataBoundConstructor
-    public MacData(
+public abstract class SSHData extends AMITypeData {
+    protected final String rootCommandPrefix;
+    protected final String slaveCommandPrefix;
+    protected final String slaveCommandSuffix;
+    protected final String sshPort;
+    protected final String bootDelay;
+
+    protected SSHData(
             String rootCommandPrefix,
             String slaveCommandPrefix,
             String slaveCommandSuffix,
             String sshPort,
             String bootDelay) {
-        super(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, bootDelay);
+        this.rootCommandPrefix = rootCommandPrefix;
+        this.slaveCommandPrefix = slaveCommandPrefix;
+        this.slaveCommandSuffix = slaveCommandSuffix;
+        this.sshPort = sshPort;
+        this.bootDelay = bootDelay;
+
+        this.readResolve();
     }
 
-    @Override
     protected Object readResolve() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins j = Jenkins.getInstanceOrNull();
+        if (j != null) {
+            j.checkPermission(Jenkins.ADMINISTER);
+        }
         return this;
     }
 
     @Override
+    public boolean isWindows() {
+        return false;
+    }
+
+    @Override
+    public boolean isUnix() {
+        return false;
+    }
+
+    @Override
     public boolean isMac() {
+        return false;
+    }
+
+    @Override
+    public boolean isSSHAgent() {
         return true;
     }
 
-    @Extension
-    public static class DescriptorImpl extends Descriptor<AMITypeData> {
-        @Override
-        public String getDisplayName() {
-            return "mac";
-        }
+    @Override
+    public boolean isWinRMAgent() {
+        return false;
+    }
+
+    public String getRootCommandPrefix() {
+        return rootCommandPrefix;
+    }
+
+    public String getSlaveCommandPrefix() {
+        return slaveCommandPrefix;
+    }
+
+    public String getSlaveCommandSuffix() {
+        return slaveCommandSuffix;
+    }
+
+    public String getSshPort() {
+        return sshPort == null || sshPort.isEmpty() ? "22" : sshPort;
+    }
+
+    @Override
+    public String getBootDelay() {
+        return bootDelay;
     }
 
     @Override
@@ -44,6 +87,7 @@ public class MacData extends SSHData {
         result = prime * result + ((slaveCommandPrefix == null) ? 0 : slaveCommandPrefix.hashCode());
         result = prime * result + ((slaveCommandSuffix == null) ? 0 : slaveCommandSuffix.hashCode());
         result = prime * result + ((sshPort == null) ? 0 : sshPort.hashCode());
+        result = prime * result + ((bootDelay == null) ? 0 : bootDelay.hashCode());
         return result;
     }
 
@@ -58,7 +102,7 @@ public class MacData extends SSHData {
         if (this.getClass() != obj.getClass()) {
             return false;
         }
-        final MacData other = (MacData) obj;
+        final SSHData other = (SSHData) obj;
         if (StringUtils.isEmpty(rootCommandPrefix)) {
             if (!StringUtils.isEmpty(other.rootCommandPrefix)) {
                 return false;
@@ -85,6 +129,13 @@ public class MacData extends SSHData {
                 return false;
             }
         } else if (!sshPort.equals(other.sshPort)) {
+            return false;
+        }
+        if (bootDelay == null) {
+            if (other.bootDelay != null) {
+                return false;
+            }
+        } else if (!bootDelay.equals(other.bootDelay)) {
             return false;
         }
         return true;

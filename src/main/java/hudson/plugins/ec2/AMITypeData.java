@@ -10,6 +10,10 @@ public abstract class AMITypeData extends AbstractDescribableImpl<AMITypeData> {
 
     public abstract boolean isMac();
 
+    public abstract boolean isSSHAgent();
+
+    public abstract boolean isWinRMAgent();
+
     public abstract String getBootDelay();
 
     public int getBootDelayInMillis() {
