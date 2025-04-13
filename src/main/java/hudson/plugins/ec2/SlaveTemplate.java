@@ -346,9 +346,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.securityGroups = securityGroups;
         this.remoteFS = remoteFS;
         this.amiType = amiType;
-        this.type = type != null && !type.isEmpty()
-                ? (new InstanceTypeCompat(type)).getInstanceType().toString()
-                : null;
+        this.type =
+                type != null && !type.isEmpty() ? InstanceTypeCompat.of(type).toString() : null;
         this.ebsOptimized = ebsOptimized;
         this.labels = Util.fixNull(labelString);
         this.mode = mode != null ? mode : Node.Mode.NORMAL;
@@ -473,7 +472,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotConfig,
                 securityGroups,
                 remoteFS,
-                (new InstanceTypeCompat(type)).getInstanceType().toString(),
+                InstanceType.fromValue(type.toString()).toString(),
                 ebsOptimized,
                 labelString,
                 mode,
@@ -566,7 +565,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotConfig,
                 securityGroups,
                 remoteFS,
-                (new InstanceTypeCompat(type)).getInstanceType().toString(),
+                InstanceType.fromValue(type.toString()).toString(),
                 ebsOptimized,
                 labelString,
                 mode,
@@ -654,7 +653,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotConfig,
                 securityGroups,
                 remoteFS,
-                (new InstanceTypeCompat(type)).getInstanceType().toString(),
+                InstanceType.fromValue(type.toString()).toString(),
                 ebsOptimized,
                 labelString,
                 mode,
@@ -2828,7 +2827,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         if (type != null && !type.isEmpty()) {
-            type = (new InstanceTypeCompat(type)).getInstanceType().toString();
+            type = InstanceTypeCompat.of(type).toString();
         }
 
         // 1.43 new parameters
