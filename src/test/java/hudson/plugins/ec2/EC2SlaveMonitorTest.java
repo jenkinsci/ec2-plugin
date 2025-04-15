@@ -70,7 +70,8 @@ public class EC2SlaveMonitorTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
@@ -140,7 +141,8 @@ public class EC2SlaveMonitorTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",

@@ -283,4 +283,15 @@ public class ConfigurationAsCodeTest {
         String expected = Util.toStringFromYamlFile(this, "MacDataExport.yml");
         assertEquals(expected, exported);
     }
+
+    @Test
+    @ConfiguredWithCode("Unix-withEnclaveEnabled.yml")
+    public void testEnclaveEnabledConfigAsCodeExport() throws Exception {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
+        assertNotNull(ec2Cloud);
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertTrue(slaveTemplate.getEnclaveEnabled());
+    }
 }
