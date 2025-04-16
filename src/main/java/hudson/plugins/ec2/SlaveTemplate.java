@@ -2899,6 +2899,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (StringUtils.isBlank(javaPath)) {
             javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
+        if (enclaveEnabled == null) {
+            enclaveEnabled = EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED;
+        }
 
         return this;
     }
