@@ -720,8 +720,6 @@ public abstract class EC2AbstractSlave extends Slave {
                 return 250;
             case MAC1_METAL:
                 return 1;
-            // We don't have a suggestion, but we don't want to fail completely
-            // surely?
             default:
                 return 1;
         }
