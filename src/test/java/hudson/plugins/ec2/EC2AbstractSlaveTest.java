@@ -1,24 +1,30 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import hudson.model.Node;
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
-public class EC2AbstractSlaveTest {
+@WithJenkins
+class EC2AbstractSlaveTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private final int timeoutInSecs = Integer.MAX_VALUE;
 
-    private int timeoutInSecs = Integer.MAX_VALUE;
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
 
     @Test
-    public void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {
+    void testGetLaunchTimeoutInMillisShouldNotOverflow() throws Exception {
         EC2AbstractSlave slave =
                 new EC2AbstractSlave(
                         "name",
@@ -68,7 +74,7 @@ public class EC2AbstractSlaveTest {
     }
 
     @Test
-    public void testMaxUsesBackwardCompat() throws Exception {
+    void testMaxUsesBackwardCompat() throws Exception {
         final String description = "description";
         SlaveTemplate orig = new SlaveTemplate(
                 "ami-123",

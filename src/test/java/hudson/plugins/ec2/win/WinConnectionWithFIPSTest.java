@@ -1,23 +1,18 @@
 package hudson.plugins.ec2.win;
 
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import jenkins.security.FIPS140;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
-public class WinConnectionWithFIPSTest {
-
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "true")
+class WinConnectionWithFIPSTest {
 
     /**
      * WinConnection class cannot be instantiated in FIPS mode, an {@link IllegalArgumentException} is expected
      */
     @Test
-    public void testInstantiationWinConnection() {
+    void testInstantiationWinConnection() {
         assertThrows(IllegalArgumentException.class, () -> new WinConnection("", "", "", true));
     }
 }

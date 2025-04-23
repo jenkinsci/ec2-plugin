@@ -1,32 +1,35 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import hudson.ExtensionList;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
-import jenkins.security.FIPS140;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetSystemProperty;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.WithoutJenkins;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class WindowsDataWithFIPSTest {
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+@WithJenkins
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "true")
+class WindowsDataWithFIPSTest {
 
-    @Rule
-    public JenkinsRule j = new JenkinsRule();
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
 
     /**
      * Self-signed certificate should not be allowed in FIPS mode, an {@link Descriptor.FormException} is expected
      */
     @Test
     @WithoutJenkins
-    public void testSelfSignedCertificateNotAllowed() {
+    void testSelfSignedCertificateNotAllowed() {
         assertThrows(Descriptor.FormException.class, () -> new WindowsData("", true, "", true, true));
     }
 
@@ -35,7 +38,7 @@ public class WindowsDataWithFIPSTest {
      */
     @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithPasswordWithoutTLS() {
+    void testCreateWindowsDataWithPasswordWithoutTLS() {
         assertThrows(
                 Descriptor.FormException.class, () -> new WindowsData("01234567890123456789", false, "", true, false));
     }
@@ -45,7 +48,7 @@ public class WindowsDataWithFIPSTest {
      */
     @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithShortPassword() {
+    void testCreateWindowsDataWithShortPassword() {
         assertThrows(Descriptor.FormException.class, () -> new WindowsData("0123", true, "", true, false));
     }
 
@@ -54,7 +57,7 @@ public class WindowsDataWithFIPSTest {
      */
     @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithPasswordWithTLS() throws Descriptor.FormException {
+    void testCreateWindowsDataWithPasswordWithTLS() throws Descriptor.FormException {
         new WindowsData("01234567890123456789", true, "", true, false);
         // specifyPassword is set to true in the constructor
         new WindowsData("01234567890123456789", true, "", false, false);
@@ -65,62 +68,62 @@ public class WindowsDataWithFIPSTest {
      */
     @Test
     @WithoutJenkins
-    public void testCreateWindowsDataWithoutPassword() throws Descriptor.FormException {
+    void testCreateWindowsDataWithoutPassword() throws Descriptor.FormException {
         new WindowsData("", false, "", false, false);
         new WindowsData("", true, "", false, false);
     }
 
     @Test
-    public void testDoCheckUseHTTPSWithPassword() {
+    void testDoCheckUseHTTPSWithPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "yes");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckUseHTTPSWithoutPassword() {
+    void testDoCheckUseHTTPSWithoutPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(true, "");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckUseHTTPWithPassword() {
+    void testDoCheckUseHTTPWithPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "yes");
         assertEquals(FormValidation.Kind.ERROR, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckUseHTTPWithoutPassword() {
+    void testDoCheckUseHTTPWithoutPassword() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckUseHTTPS(false, "");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckAllowSelfSignedCertificateChecked() {
+    void testDoCheckAllowSelfSignedCertificateChecked() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckAllowSelfSignedCertificate(true);
         assertEquals(FormValidation.Kind.ERROR, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckAllowSelfSignedCertificateNotChecked() {
+    void testDoCheckAllowSelfSignedCertificateNotChecked() {
         FormValidation formValidation = ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class)
                 .doCheckAllowSelfSignedCertificate(false);
         assertEquals(FormValidation.Kind.OK, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckPasswordLengthLessThan14() {
+    void testDoCheckPasswordLengthLessThan14() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckPassword("123");
         assertEquals(FormValidation.Kind.ERROR, formValidation.kind);
     }
 
     @Test
-    public void testDoCheckPasswordLengthGreaterThan14() {
+    void testDoCheckPasswordLengthGreaterThan14() {
         FormValidation formValidation =
                 ExtensionList.lookupSingleton(WindowsData.DescriptorImpl.class).doCheckPassword("12345678901234567890");
         assertEquals(FormValidation.Kind.OK, formValidation.kind);

@@ -25,8 +25,7 @@ package hudson.plugins.ec2;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -45,11 +44,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.htmlunit.html.HtmlForm;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.ArgumentCaptor;
 import org.xml.sax.SAXException;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
@@ -85,7 +84,8 @@ import software.amazon.awssdk.services.ec2.model.Subnet;
 /**
  * Basic test to validate SlaveTemplate.
  */
-public class SlaveTemplateTest {
+@WithJenkins
+class SlaveTemplateTest {
     private final String TEST_AMI = "ami-123";
     private final String TEST_ZONE = EC2AbstractSlave.TEST_ZONE;
     private final SpotConfiguration TEST_SPOT_CFG = null;
@@ -95,11 +95,15 @@ public class SlaveTemplateTest {
     private final boolean TEST_EBSO = false;
     private final String TEST_LABEL = "ttt";
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
 
     @Test
-    public void testConfigRoundtrip() throws Exception {
+    void testConfigRoundtrip() throws Exception {
         String description = "foo ami";
 
         EC2Tag tag1 = new EC2Tag("name1", "value1");
@@ -171,7 +175,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testConfigRoundtripWithCustomSSHHostKeyVerificationStrategy() throws Exception {
+    void testConfigRoundtripWithCustomSSHHostKeyVerificationStrategy() throws Exception {
         String description = "foo ami";
 
         // We check this one is set
@@ -247,7 +251,7 @@ public class SlaveTemplateTest {
      *             - Exception that can be thrown by the Jenkins test harness
      */
     @Test
-    public void testConfigWithSpotBidPrice() throws Exception {
+    void testConfigWithSpotBidPrice() throws Exception {
         String description = "foo ami";
 
         SpotConfiguration spotConfig = new SpotConfiguration(true);
@@ -322,7 +326,7 @@ public class SlaveTemplateTest {
      * @throws Exception - Exception that can be thrown by the Jenkins test harness
      */
     @Test
-    public void testSpotConfigWithoutBidPrice() throws Exception {
+    void testSpotConfigWithoutBidPrice() throws Exception {
         String description = "foo ami";
 
         SpotConfiguration spotConfig = new SpotConfiguration(false);
@@ -388,7 +392,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testWindowsConfigRoundTrip() throws Exception {
+    void testWindowsConfigRoundTrip() throws Exception {
         String description = "foo ami";
 
         SlaveTemplate orig = new SlaveTemplate(
@@ -452,7 +456,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testUnixConfigRoundTrip() throws Exception {
+    void testUnixConfigRoundTrip() throws Exception {
         String description = "foo ami";
 
         SlaveTemplate orig = new SlaveTemplate(
@@ -513,7 +517,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testMinimumNumberOfInstancesActiveRangeConfig() throws Exception {
+    void testMinimumNumberOfInstancesActiveRangeConfig() throws Exception {
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
         minimumNumberOfInstancesTimeRangeConfig.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
@@ -582,15 +586,15 @@ public class SlaveTemplateTest {
 
         MinimumNumberOfInstancesTimeRangeConfig stored =
                 r.jenkins.clouds.get(EC2Cloud.class).getTemplates().get(0).getMinimumNumberOfInstancesTimeRangeConfig();
-        Assert.assertNotNull(stored);
-        Assert.assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
-        Assert.assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
-        Assert.assertFalse(stored.getDay("monday"));
-        Assert.assertTrue(stored.getDay("tuesday"));
+        assertNotNull(stored);
+        assertEquals("11:00", stored.getMinimumNoInstancesActiveTimeRangeFrom());
+        assertEquals("15:00", stored.getMinimumNoInstancesActiveTimeRangeTo());
+        assertFalse(stored.getDay("monday"));
+        assertTrue(stored.getDay("tuesday"));
     }
 
     @Test
-    public void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
+    void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
         boolean associatePublicIp = false;
         String description = "foo ami";
         String subnetId = "some-subnet";
@@ -720,7 +724,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
+    void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
         boolean associatePublicIp = true;
         String description = "foo ami";
         String subnetId = "some-subnet";
@@ -851,7 +855,7 @@ public class SlaveTemplateTest {
 
     @Issue("JENKINS-64571")
     @Test
-    public void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
+    void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
         boolean associatePublicIp = true;
         String description = "foo ami";
         String subnetId = "some-subnet";
@@ -989,7 +993,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testMacConfig() throws Exception {
+    void testMacConfig() throws Exception {
         String description = "foo ami";
         SlaveTemplate orig = new SlaveTemplate(
                 TEST_AMI,
@@ -1051,7 +1055,7 @@ public class SlaveTemplateTest {
 
     @Issue("JENKINS-65569")
     @Test
-    public void testAgentName() {
+    void testAgentName() {
         SlaveTemplate broken = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1158,7 +1162,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void testMetadataV2Config() throws Exception {
+    void testMetadataV2Config() throws Exception {
         final String slaveDescription = "foobar";
         SlaveTemplate orig = new SlaveTemplate(
                 TEST_AMI,
@@ -1221,7 +1225,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void provisionOnDemandWithUnsupportedInstanceMetadata() throws Exception {
+    void provisionOnDemandWithUnsupportedInstanceMetadata() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1282,7 +1286,7 @@ public class SlaveTemplateTest {
     }
 
     @Test
-    public void provisionOnDemandSetsMetadataV1Options() throws Exception {
+    void provisionOnDemandSetsMetadataV1Options() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1339,13 +1343,13 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertEquals(metadataOptionsRequest.httpEndpoint(), InstanceMetadataEndpointState.ENABLED);
-        assertEquals(metadataOptionsRequest.httpTokens(), HttpTokensState.OPTIONAL);
+        assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
+        assertEquals(HttpTokensState.OPTIONAL, metadataOptionsRequest.httpTokens());
         assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(2));
     }
 
     @Test
-    public void provisionOnDemandSetsMetadataV2Options() throws Exception {
+    void provisionOnDemandSetsMetadataV2Options() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1402,13 +1406,13 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertEquals(metadataOptionsRequest.httpEndpoint(), InstanceMetadataEndpointState.ENABLED);
-        assertEquals(metadataOptionsRequest.httpTokens(), HttpTokensState.REQUIRED);
+        assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
+        assertEquals(HttpTokensState.REQUIRED, metadataOptionsRequest.httpTokens());
         assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(2));
     }
 
     @Test
-    public void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
+    void provisionOnDemandSetsMetadataDefaultOptions() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1465,13 +1469,13 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertEquals(metadataOptionsRequest.httpEndpoint(), InstanceMetadataEndpointState.ENABLED);
-        assertEquals(metadataOptionsRequest.httpTokens(), HttpTokensState.REQUIRED);
+        assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
+        assertEquals(HttpTokensState.REQUIRED, metadataOptionsRequest.httpTokens());
         assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(1));
     }
 
-    @Test(expected = Ec2Exception.class)
-    public void provisionOnDemandSetsMetadataDefaultOptionsWithEC2Exception() throws Exception {
+    @Test
+    void provisionOnDemandSetsMetadataDefaultOptionsWithEC2Exception() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1518,18 +1522,16 @@ public class SlaveTemplateTest {
                 null,
                 true,
                 false);
-
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
         when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
                 .thenThrow(Ec2Exception.builder()
                         .message("InsufficientInstanceCapacity")
                         .build());
-
-        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        assertThrows(Ec2Exception.class, () -> template.provision(2, EnumSet.noneOf(ProvisionOptions.class)));
     }
 
     @Test
-    public void provisionOnDemandWithEnclaveEnabled() throws Exception {
+    void provisionOnDemandWithEnclaveEnabled() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1586,7 +1588,7 @@ public class SlaveTemplateTest {
 
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         EnclaveOptionsRequest enclaveOptionsRequest = actualRequest.enclaveOptions();
-        assertEquals(enclaveOptionsRequest.enabled(), Boolean.TRUE);
+        assertEquals(Boolean.TRUE, enclaveOptionsRequest.enabled());
     }
 
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {

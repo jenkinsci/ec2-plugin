@@ -23,8 +23,8 @@
  */
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.model.Label;
 import hudson.model.Node;
@@ -32,25 +32,77 @@ import hudson.model.labels.LabelAtom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
-public class TemplateLabelsTest {
+@WithJenkins
+class TemplateLabelsTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
-
-    private EC2Cloud ac;
     private final String LABEL1 = "label1";
     private final String LABEL2 = "label2";
 
-    private void setUpCloud(String label) throws Exception {
+    private JenkinsRule r;
+    private EC2Cloud ac;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
+
+    @Test
+    void testLabelAtom() {
+        setUpCloud(LABEL1 + " " + LABEL2);
+
+        assertTrue(ac.canProvision(new LabelAtom(LABEL1)));
+        assertTrue(ac.canProvision(new LabelAtom(LABEL2)));
+        assertFalse(ac.canProvision(new LabelAtom("aaa")));
+        assertTrue(ac.canProvision((Label) null));
+    }
+
+    @Test
+    void testLabelExpression() {
+        setUpCloud(LABEL1 + " " + LABEL2);
+
+        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " || " + LABEL2)));
+        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " && " + LABEL2)));
+        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " || aaa")));
+        assertFalse(ac.canProvision(Label.parseExpression(LABEL1 + " && aaa")));
+        assertFalse(ac.canProvision(Label.parseExpression("aaa || bbb")));
+        assertFalse(ac.canProvision(Label.parseExpression("aaa || bbb")));
+    }
+
+    @Test
+    void testEmptyLabel() {
+        setUpCloud("");
+
+        assertTrue(ac.canProvision((Label) null));
+    }
+
+    @Test
+    void testExclusiveMode() {
+        setUpCloud(LABEL1 + " " + LABEL2, Node.Mode.EXCLUSIVE);
+
+        assertTrue(ac.canProvision(new LabelAtom(LABEL1)));
+        assertTrue(ac.canProvision(new LabelAtom(LABEL2)));
+        assertFalse(ac.canProvision(new LabelAtom("aaa")));
+        assertFalse(ac.canProvision((Label) null));
+    }
+
+    @Test
+    void testExclusiveModeEmptyLabel() {
+        setUpCloud("", Node.Mode.EXCLUSIVE);
+
+        assertFalse(ac.canProvision((Label) null));
+    }
+
+    private void setUpCloud(String label) {
         setUpCloud(label, Node.Mode.NORMAL);
     }
 
-    private void setUpCloud(String label, Node.Mode mode) throws Exception {
+    private void setUpCloud(String label, Node.Mode mode) {
         EC2Tag tag1 = new EC2Tag("name1", "value1");
         EC2Tag tag2 = new EC2Tag("name2", "value2");
         List<EC2Tag> tags = new ArrayList<>();
@@ -107,51 +159,5 @@ public class TemplateLabelsTest {
         templates.add(template);
 
         ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
-    }
-
-    @Test
-    public void testLabelAtom() throws Exception {
-        setUpCloud(LABEL1 + " " + LABEL2);
-
-        assertTrue(ac.canProvision(new LabelAtom(LABEL1)));
-        assertTrue(ac.canProvision(new LabelAtom(LABEL2)));
-        assertFalse(ac.canProvision(new LabelAtom("aaa")));
-        assertTrue(ac.canProvision((Label) null));
-    }
-
-    @Test
-    public void testLabelExpression() throws Exception {
-        setUpCloud(LABEL1 + " " + LABEL2);
-
-        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " || " + LABEL2)));
-        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " && " + LABEL2)));
-        assertTrue(ac.canProvision(Label.parseExpression(LABEL1 + " || aaa")));
-        assertFalse(ac.canProvision(Label.parseExpression(LABEL1 + " && aaa")));
-        assertFalse(ac.canProvision(Label.parseExpression("aaa || bbb")));
-        assertFalse(ac.canProvision(Label.parseExpression("aaa || bbb")));
-    }
-
-    @Test
-    public void testEmptyLabel() throws Exception {
-        setUpCloud("");
-
-        assertTrue(ac.canProvision((Label) null));
-    }
-
-    @Test
-    public void testExclusiveMode() throws Exception {
-        setUpCloud(LABEL1 + " " + LABEL2, Node.Mode.EXCLUSIVE);
-
-        assertTrue(ac.canProvision(new LabelAtom(LABEL1)));
-        assertTrue(ac.canProvision(new LabelAtom(LABEL2)));
-        assertFalse(ac.canProvision(new LabelAtom("aaa")));
-        assertFalse(ac.canProvision((Label) null));
-    }
-
-    @Test
-    public void testExclusiveModeEmptyLabel() throws Exception {
-        setUpCloud("", Node.Mode.EXCLUSIVE);
-
-        assertFalse(ac.canProvision((Label) null));
     }
 }

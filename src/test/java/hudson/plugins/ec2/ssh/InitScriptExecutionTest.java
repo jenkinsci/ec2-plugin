@@ -1,7 +1,6 @@
 package hudson.plugins.ec2.ssh;
 
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import hudson.model.TaskListener;
@@ -28,16 +27,19 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.client.ScpClient;
 import org.apache.sshd.scp.client.ScpClientCreator;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.MockedStatic;
 import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.KeyPairInfo;
 
-public class InitScriptExecutionTest {
+@WithJenkins
+class InitScriptExecutionTest {
+
     private EC2Computer mockEC2Computer;
     private TaskListener mockListener;
     private PrintStream mockPS;
@@ -67,11 +69,128 @@ public class InitScriptExecutionTest {
     private final String mockHost = "example.com";
     private EC2UnixLauncher launcher;
 
-    @Rule
-    public JenkinsRule jenkins = new JenkinsRule();
+    private final LogRecorder loggerRule = new LogRecorder();
 
-    @Rule
-    public LoggerRule loggerRule = new LoggerRule();
+    private JenkinsRule jenkins;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        jenkins = rule;
+        // Set up the test environment
+        mockEC2Computer = mock(EC2Computer.class);
+        mockListener = mock(TaskListener.class);
+        mockPS = mock(PrintStream.class);
+        mockPW = new PrintWriter(System.out);
+        mockTemplate = mock(SlaveTemplate.class);
+        mockCloud = mock(EC2Cloud.class);
+        mockKp = mock(KeyPair.class);
+        mockKPInfo = mock(KeyPairInfo.class);
+        mockInstance = mock(Instance.class);
+        mockStaticSSHClientHelper = mockStatic(SSHClientHelper.class);
+        mockStaticKeyHelper = mockStatic(KeyHelper.class);
+        mockSSHClientHelper = mock(SSHClientHelper.class);
+        mockClientSession = mock(ClientSession.class);
+        mockSshClient = mock(SshClient.class);
+        mockScpClient = mock(ScpClient.class);
+        mockStaticClosableScpClient = mockStatic(CloseableScpClient.class);
+        mockClosableScpClient = mock(CloseableScpClient.class);
+        mockStaticScpClientCreator = mockStatic(ScpClientCreator.class);
+        mockScpClientCreator = mock(ScpClientCreator.class);
+        mockConnectFuture = mock(ConnectFuture.class);
+        mockAuthFuture = mock(AuthFuture.class);
+        mockKeyPair = mock(java.security.KeyPair.class);
+        mockAgentChannelExec = mock(ChannelExec.class);
+        mockOpenFuture = mock(OpenFuture.class);
+    }
+
+    @AfterEach
+    void tearDown() {
+        mockStaticSSHClientHelper.close();
+        mockStaticKeyHelper.close();
+        mockStaticClosableScpClient.close();
+        mockStaticScpClientCreator.close();
+    }
+
+    @Test
+    void testInitScriptExecutionSuccessful() throws Exception {
+        String initScript = "echo 'Hello World'";
+        mockNode = getMockNodeTemplate(initScript);
+        launcher = spy(new EC2UnixLauncher());
+
+        // Define behaviour.
+        defineBehaviourCommon();
+        doReturn(initScript).when(launcher).buildUpCommand(mockEC2Computer, "/tmp/init.sh");
+        doNothing().when(mockClientSession).executeRemoteCommand(initScript, mockPS, mockPS, null);
+        doReturn("touch ~/.hudson-run-init").when(launcher).buildUpCommand(mockEC2Computer, "touch ~/.hudson-run-init");
+        doNothing().when(mockClientSession).executeRemoteCommand("touch ~/.hudson-run-init", mockPS, mockPS, null);
+
+        // Execute test.
+        loggerRule.capture(3).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
+        launcher.launch(mockEC2Computer, mockListener);
+        // Test for marker doesn't exists.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message -> message.contains("Failed to execute remote command: test -e ~/.hudson-run-init")));
+        // Test for successful init script execution.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message ->
+                        message.contains("Init script executed successfully and creating ~/.hudson-run-init")));
+    }
+
+    @Test
+    void testInitScriptExecutionFailure() throws Exception {
+        String initScript = "exit 1";
+        mockNode = getMockNodeTemplate(initScript);
+        launcher = spy(new EC2UnixLauncher());
+
+        // Define behaviour.
+        defineBehaviourCommon();
+        doReturn(initScript).when(launcher).buildUpCommand(mockEC2Computer, "/tmp/init.sh");
+        doThrow(new IOException("Command failed"))
+                .when(mockClientSession)
+                .executeRemoteCommand(initScript, mockPS, mockPS, null);
+
+        // Execute test.
+        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
+        launcher.launch(mockEC2Computer, mockListener);
+        // Test for marker doesn't exists.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message -> message.contains("Failed to execute remote command: test -e ~/.hudson-run-init")));
+        // Test for failed init script execution.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message -> message.contains("Failed to execute remote command: exit 1")));
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message -> message.contains("Failed to execute init script on i-initscripttest")));
+    }
+
+    @Test
+    void testInitScriptExecutionSuccessfulButMarkerCreationFailure() throws Exception {
+        String initScript = "echo 'Hello World'";
+        mockNode = getMockNodeTemplate(initScript);
+        launcher = spy(new EC2UnixLauncher());
+
+        // Define behaviour.
+        defineBehaviourCommon();
+        doReturn(initScript).when(launcher).buildUpCommand(mockEC2Computer, "/tmp/init.sh");
+        doNothing().when(mockClientSession).executeRemoteCommand(initScript, mockPS, mockPS, null);
+        doReturn("touch ~/.hudson-run-init").when(launcher).buildUpCommand(mockEC2Computer, "touch ~/.hudson-run-init");
+        doThrow(new IOException("Command failed"))
+                .when(mockClientSession)
+                .executeRemoteCommand("touch ~/.hudson-run-init", mockPS, mockPS, null);
+
+        // Execute test.
+        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
+        launcher.launch(mockEC2Computer, mockListener);
+        // Test for marker doesn't exists.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message -> message.contains("Failed to execute remote command: test -e ~/.hudson-run-init")));
+        // Test for successful init script execution.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message ->
+                        message.contains("Init script executed successfully and creating ~/.hudson-run-init")));
+        // Test for failed marker creation.
+        assertTrue(loggerRule.getMessages().stream()
+                .anyMatch(message -> message.contains("Unable to create ~/.hudson-run-init")));
+    }
 
     private EC2AbstractSlave getMockNodeTemplate(String initScript) throws Exception {
         return new EC2AbstractSlave(
@@ -113,13 +232,13 @@ public class InitScriptExecutionTest {
         };
     }
 
-    private void defineBehaviourCommon() throws Exception, IOException {
+    private void defineBehaviourCommon() throws Exception {
         // Define the mock behaviour.
         when(mockListener.getLogger()).thenReturn(mockPS);
         when(mockListener.error(any())).thenReturn(mockPW);
         when(mockEC2Computer.getNode()).thenReturn(mockNode);
         when(mockEC2Computer.getSlaveTemplate()).thenReturn(mockTemplate);
-        mockStaticSSHClientHelper.when(() -> SSHClientHelper.getInstance()).thenReturn(mockSSHClientHelper);
+        mockStaticSSHClientHelper.when(SSHClientHelper::getInstance).thenReturn(mockSSHClientHelper);
         when(mockSSHClientHelper.setupSshClient(any())).thenReturn(mockSshClient);
         when(mockEC2Computer.getCloud()).thenReturn(mockCloud);
         when(mockCloud.getKeyPair()).thenReturn(mockKp);
@@ -129,7 +248,7 @@ public class InitScriptExecutionTest {
         mockTemplate.connectionStrategy = ConnectionStrategy.PUBLIC_DNS;
         when(mockEC2Computer.updateInstanceDescription()).thenReturn(mockInstance);
         when(mockInstance.publicDnsName()).thenReturn(mockHost);
-        mockStaticScpClientCreator.when(() -> ScpClientCreator.instance()).thenReturn(mockScpClientCreator);
+        mockStaticScpClientCreator.when(ScpClientCreator::instance).thenReturn(mockScpClientCreator);
         when(mockScpClientCreator.createScpClient(mockClientSession)).thenReturn(mockScpClient);
         mockStaticScpClientCreator
                 .when(() -> CloseableScpClient.singleSessionInstance(mockScpClient))
@@ -159,115 +278,5 @@ public class InitScriptExecutionTest {
                 .when(mockClientSession)
                 .executeRemoteCommand(markerChkCmd, mockPS, mockPS, null);
         doNothing().when(mockScpClient).upload(any(), any(), any(), any());
-    }
-
-    @Before
-    public void setUp() throws Exception, IOException {
-        // Set up the test environment
-        mockEC2Computer = mock(EC2Computer.class);
-        mockListener = mock(TaskListener.class);
-        mockPS = mock(PrintStream.class);
-        mockPW = new PrintWriter(System.out);
-        mockTemplate = mock(SlaveTemplate.class);
-        mockCloud = mock(EC2Cloud.class);
-        mockKp = mock(KeyPair.class);
-        mockKPInfo = mock(KeyPairInfo.class);
-        mockInstance = mock(Instance.class);
-        mockStaticSSHClientHelper = mockStatic(SSHClientHelper.class);
-        mockStaticKeyHelper = mockStatic(KeyHelper.class);
-        mockSSHClientHelper = mock(SSHClientHelper.class);
-        mockClientSession = mock(ClientSession.class);
-        mockSshClient = mock(SshClient.class);
-        mockScpClient = mock(ScpClient.class);
-        mockStaticClosableScpClient = mockStatic(CloseableScpClient.class);
-        mockClosableScpClient = mock(CloseableScpClient.class);
-        mockStaticScpClientCreator = mockStatic(ScpClientCreator.class);
-        mockScpClientCreator = mock(ScpClientCreator.class);
-        mockConnectFuture = mock(ConnectFuture.class);
-        mockAuthFuture = mock(AuthFuture.class);
-        mockKeyPair = mock(java.security.KeyPair.class);
-        mockAgentChannelExec = mock(ChannelExec.class);
-        mockOpenFuture = mock(OpenFuture.class);
-    }
-
-    @Test
-    public void testInitScriptExecutionSuccessful() throws Exception, IOException {
-        String initScript = "echo 'Hello World'";
-        mockNode = getMockNodeTemplate(initScript);
-        launcher = spy(new EC2UnixLauncher());
-
-        // Define behaviour.
-        defineBehaviourCommon();
-        doReturn(initScript).when(launcher).buildUpCommand(mockEC2Computer, "/tmp/init.sh");
-        doNothing().when(mockClientSession).executeRemoteCommand(initScript, mockPS, mockPS, null);
-        doReturn("touch ~/.hudson-run-init").when(launcher).buildUpCommand(mockEC2Computer, "touch ~/.hudson-run-init");
-        doNothing().when(mockClientSession).executeRemoteCommand("touch ~/.hudson-run-init", mockPS, mockPS, null);
-
-        // Execute test.
-        loggerRule.capture(3).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
-        launcher.launch(mockEC2Computer, mockListener);
-        // Test for marker doesn't exists.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message -> message.contains("Failed to execute remote command: test -e ~/.hudson-run-init")));
-        // Test for successful init script execution.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message ->
-                        message.contains("Init script executed successfully and creating ~/.hudson-run-init")));
-    }
-
-    @Test
-    public void testInitScriptExecutionFailure() throws Exception, IOException {
-        String initScript = "exit 1";
-        mockNode = getMockNodeTemplate(initScript);
-        launcher = spy(new EC2UnixLauncher());
-
-        // Define behaviour.
-        defineBehaviourCommon();
-        doReturn(initScript).when(launcher).buildUpCommand(mockEC2Computer, "/tmp/init.sh");
-        doThrow(new IOException("Command failed"))
-                .when(mockClientSession)
-                .executeRemoteCommand(initScript, mockPS, mockPS, null);
-
-        // Execute test.
-        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
-        launcher.launch(mockEC2Computer, mockListener);
-        // Test for marker doesn't exists.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message -> message.contains("Failed to execute remote command: test -e ~/.hudson-run-init")));
-        // Test for failed init script execution.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message -> message.contains("Failed to execute remote command: exit 1")));
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message -> message.contains("Failed to execute init script on i-initscripttest")));
-    }
-
-    @Test
-    public void testInitScriptExecutionSuccessfulButMarkerCreationFailure() throws Exception, IOException {
-        String initScript = "echo 'Hello World'";
-        mockNode = getMockNodeTemplate(initScript);
-        launcher = spy(new EC2UnixLauncher());
-
-        // Define behaviour.
-        defineBehaviourCommon();
-        doReturn(initScript).when(launcher).buildUpCommand(mockEC2Computer, "/tmp/init.sh");
-        doNothing().when(mockClientSession).executeRemoteCommand(initScript, mockPS, mockPS, null);
-        doReturn("touch ~/.hudson-run-init").when(launcher).buildUpCommand(mockEC2Computer, "touch ~/.hudson-run-init");
-        doThrow(new IOException("Command failed"))
-                .when(mockClientSession)
-                .executeRemoteCommand("touch ~/.hudson-run-init", mockPS, mockPS, null);
-
-        // Execute test.
-        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
-        launcher.launch(mockEC2Computer, mockListener);
-        // Test for marker doesn't exists.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message -> message.contains("Failed to execute remote command: test -e ~/.hudson-run-init")));
-        // Test for successful init script execution.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message ->
-                        message.contains("Init script executed successfully and creating ~/.hudson-run-init")));
-        // Test for failed marker creation.
-        assertTrue(loggerRule.getMessages().stream()
-                .anyMatch(message -> message.contains("Unable to create ~/.hudson-run-init")));
     }
 }

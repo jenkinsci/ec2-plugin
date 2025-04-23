@@ -8,48 +8,28 @@ import static hudson.plugins.ec2.HostKeyWithFIPSTest.PUBLIC_KEY_SSH_RSA_1024;
 import static hudson.plugins.ec2.HostKeyWithFIPSTest.PUBLIC_KEY_SSH_RSA_2048;
 import static hudson.plugins.ec2.HostKeyWithFIPSTest.PUBLIC_KEY_SSH_RSA_3072;
 import static hudson.plugins.ec2.HostKeyWithFIPSTest.PUBLIC_KEY_SSH_RSA_4096;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
-import jenkins.security.FIPS140;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
-@RunWith(Parameterized.class)
-public class HostKeyWithoutFIPSTest {
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "false")
+class HostKeyWithoutFIPSTest {
 
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
-
-    private final String description;
-
-    private final String algorithm;
-
-    private final String publicKey;
-
-    public HostKeyWithoutFIPSTest(String description, String algorithm, String publicKey) {
-        this.description = description;
-        this.algorithm = algorithm;
-        this.publicKey = publicKey;
-    }
-
-    @Before
-    public void before() {
+    @BeforeAll
+    static void setUp() {
         // Add provider manually to avoid requiring jenkinsrule
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> data() {
+    static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {
             {"SSH-DSS with key size 1024", "ssh-dss", PUBLIC_KEY_SSH_DSS_1024},
             {"SSH-RSA with key size 1024", "ssh-rsa", PUBLIC_KEY_SSH_RSA_1024},
@@ -62,8 +42,9 @@ public class HostKeyWithoutFIPSTest {
         });
     }
 
-    @Test
-    public void testPublicKeyValidation() {
+    @ParameterizedTest
+    @MethodSource("data")
+    void testPublicKeyValidation(String description, String algorithm, String publicKey) {
         try {
             new HostKey(algorithm, Base64.getDecoder().decode(publicKey));
         } catch (IllegalArgumentException e) {

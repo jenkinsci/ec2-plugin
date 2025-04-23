@@ -23,10 +23,7 @@
  */
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -42,12 +39,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import jenkins.model.Jenkins;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
@@ -58,11 +56,12 @@ import software.amazon.awssdk.services.ec2.model.Tag;
 /**
  * Unit tests related to {@link EC2Cloud}, but do not require a Jenkins instance.
  */
-@RunWith(MockitoJUnitRunner.Silent.class)
-public class EC2CloudUnitTest {
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class EC2CloudUnitTest {
 
     @Test
-    public void testInstaceCap() throws Exception {
+    void testInstanceCap() {
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
@@ -95,7 +94,7 @@ public class EC2CloudUnitTest {
     }
 
     @Test
-    public void testSpotInstanceCount() throws Exception {
+    void testSpotInstanceCount() throws Exception {
         final int numberOfSpotInstanceRequests = 105;
         EC2Cloud cloud = Mockito.spy(new EC2Cloud(
                 "us-east-1",
@@ -145,7 +144,7 @@ public class EC2CloudUnitTest {
     }
 
     @Test
-    public void testSlaveTemplateAddition() throws Exception {
+    void testSlaveTemplateAddition() throws Exception {
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
@@ -208,7 +207,7 @@ public class EC2CloudUnitTest {
     }
 
     @Test
-    public void testSlaveTemplateUpdate() throws Exception {
+    void testSlaveTemplateUpdate() throws Exception {
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,
@@ -365,11 +364,11 @@ public class EC2CloudUnitTest {
         cloud.updateTemplate(newSlaveTemplate, "OldSlaveDescription");
         assertNull(cloud.getTemplate("OldSlaveDescription"));
         assertNotNull(cloud.getTemplate("NewSlaveDescription"));
-        Assert.assertEquals(index, cloud.getTemplates().indexOf(newSlaveTemplate)); // assert order of templates is kept
+        assertEquals(index, cloud.getTemplates().indexOf(newSlaveTemplate)); // assert order of templates is kept
     }
 
     @Test
-    public void testReattachOrphanStoppedNodes() throws Exception {
+    void testReattachOrphanStoppedNodes() throws Exception {
         /* Mocked items */
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",

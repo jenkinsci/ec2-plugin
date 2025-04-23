@@ -5,13 +5,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.ec2.model.Instance;
 
-public class EC2HostAddressProviderTest {
+class EC2HostAddressProviderTest {
 
     @Test
-    public void unix_publicDnsStrategy_isPresent() {
+    void unix_publicDnsStrategy_isPresent() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PUBLIC_DNS;
 
@@ -21,7 +21,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void unix_publicDnsStrategy_notPresent() {
+    void unix_publicDnsStrategy_notPresent() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PUBLIC_DNS;
 
@@ -32,7 +32,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void unix_publicIpStrategy() {
+    void unix_publicIpStrategy() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PUBLIC_IP;
 
@@ -42,7 +42,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void unix_privateDnsStrategy_isPresent() {
+    void unix_privateDnsStrategy_isPresent() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PRIVATE_DNS;
 
@@ -52,7 +52,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void unix_privateDnsStrategy_notPresent() {
+    void unix_privateDnsStrategy_notPresent() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PRIVATE_DNS;
 
@@ -63,7 +63,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void unix_privateIpStrategy() {
+    void unix_privateIpStrategy() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PRIVATE_IP;
 
@@ -73,7 +73,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void windows_privateDnsStrategy() {
+    void windows_privateDnsStrategy() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PRIVATE_DNS;
 
@@ -84,7 +84,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void windows_privateIpStrategy() {
+    void windows_privateIpStrategy() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PRIVATE_IP;
 
@@ -95,7 +95,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void windows_publicDnsStrategy() {
+    void windows_publicDnsStrategy() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PUBLIC_DNS;
 
@@ -106,7 +106,7 @@ public class EC2HostAddressProviderTest {
     }
 
     @Test
-    public void windows_publicIpStrategy() {
+    void windows_publicIpStrategy() {
         Instance instance = mock(Instance.class);
         ConnectionStrategy strategy = ConnectionStrategy.PUBLIC_IP;
 
