@@ -1656,7 +1656,7 @@ public class EC2Cloud extends Cloud {
                         model.add(name, name);
                     }
                 } catch (SdkClientException ex) {
-                    // Ignore, as this may happen before the credentials are specified
+                    LOGGER.log(Level.WARNING, "Failed to check describe regions", ex);
                 }
             }
             return model;
