@@ -1,21 +1,16 @@
 package hudson.plugins.ec2.win;
 
-import jenkins.security.FIPS140;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
-public class WinConnectionWithoutFIPSTest {
-
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "false")
+class WinConnectionWithoutFIPSTest {
 
     /**
      * When FIPS is not enabled, it should always be allowed to create the {@link WinConnection}, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testWinConnectionCreation() {
+    void testWinConnectionCreation() {
         new WinConnection("", "", "", true).setUseHTTPS(false);
         new WinConnection("", "", "", true).setUseHTTPS(true);
         new WinConnection("", "alice", "yes", true).setUseHTTPS(false);
@@ -31,7 +26,7 @@ public class WinConnectionWithoutFIPSTest {
      * When FIPS is not enabled, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testBuildWinRMClientWithoutTLS() {
+    void testBuildWinRMClientWithoutTLS() {
         WinConnection winConnection = new WinConnection("", "alice", "yes", false);
         winConnection.winrm();
     }

@@ -7,7 +7,7 @@ import static org.hamcrest.Matchers.emptyString;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.InstanceState;
 import hudson.plugins.ec2.MockEC2Computer;
-import hudson.plugins.ec2.util.ConnectionRule;
+import hudson.plugins.ec2.util.ConnectionExtension;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.PublicKey;
@@ -17,28 +17,35 @@ import java.util.logging.Level;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.hamcrest.core.StringContains;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.testcontainers.containers.Container;
 
-public class SshHostKeyVerificationStrategyTest {
-    @ClassRule
-    public static ConnectionRule conRule = new ConnectionRule();
+@WithJenkins
+class SshHostKeyVerificationStrategyTest {
 
-    @ClassRule
-    public static LoggerRule loggerRule;
+    @RegisterExtension
+    private static final ConnectionExtension connection = new ConnectionExtension();
 
-    @ClassRule
-    public static JenkinsRule jenkins = new JenkinsRule();
+    private static LogRecorder loggerRule;
+
+    private static JenkinsRule jenkins;
+
+    @BeforeAll
+    static void setUp(JenkinsRule rule) {
+        jenkins = rule;
+    }
 
     /**
      * Check every defined strategy
      * @throws Exception
      */
     @Test
-    public void verifyAllStrategiesTest() throws Exception {
+    void verifyAllStrategiesTest() throws Exception {
         List<StrategyTest> strategiesToCheck = getStrategiesToTest();
 
         for (StrategyTest strategyToCheck : strategiesToCheck) {
@@ -93,7 +100,7 @@ public class SshHostKeyVerificationStrategyTest {
                     "The instance console is blank. Cannot check the key"
                 }))
                 .addConnectionAttempt(builder()
-                        .setConsole("A text before the key\n" + conRule.ED255219_PUB_KEY + "\n a bit more text")
+                        .setConsole("A text before the key\n" + connection.ED255219_PUB_KEY + "\n a bit more text")
                         .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}));
     }
 
@@ -109,7 +116,7 @@ public class SshHostKeyVerificationStrategyTest {
                     "The instance console is blank. Cannot check the key"
                 }))
                 .addConnectionAttempt(builder()
-                        .setConsole("A text before the key\n" + conRule.ED255219_PUB_KEY + "\n a bit more text")
+                        .setConsole("A text before the key\n" + connection.ED255219_PUB_KEY + "\n a bit more text")
                         .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}))
                 .addConnectionAttempt(builder()
                         .setConsole("The console doesn't matter, the key is already stored. We check against this one")
@@ -231,7 +238,7 @@ public class SshHostKeyVerificationStrategyTest {
 
         private void configure() throws IOException, InterruptedException {
             // Let's start again recording all the strategy classes
-            loggerRule = new LoggerRule();
+            loggerRule = new LogRecorder();
             loggerRule.recordPackage(CheckNewHardStrategy.class, Level.INFO).capture(10);
 
             computer.setConsole(console);
@@ -239,10 +246,10 @@ public class SshHostKeyVerificationStrategyTest {
 
             if (changeHostKey) {
                 // Regenerate all the keys in the container
-                Container.ExecResult removeResult = conRule.execInContainer("sh", "-c", "rm -f /etc/ssh/ssh_host_*");
+                Container.ExecResult removeResult = connection.execInContainer("sh", "-c", "rm -f /etc/ssh/ssh_host_*");
                 assertThat(removeResult.getStderr(), emptyString());
                 assertThat(removeResult.getStdout(), emptyString());
-                Container.ExecResult regenResult = conRule.execInContainer("ssh-keygen", "-A");
+                Container.ExecResult regenResult = connection.execInContainer("ssh-keygen", "-A");
                 assertThat(regenResult.getStderr(), emptyString());
             }
         }
@@ -250,7 +257,7 @@ public class SshHostKeyVerificationStrategyTest {
         private void connect() throws Exception {
             try {
                 // Try to connect to it
-                ClientSession con = conRule.connect(verifier);
+                ClientSession con = connection.connect(verifier);
                 con.close();
             } catch (IOException ignored) {
                 // When the connection is not verified, the connect method throws an IOException
@@ -279,7 +286,7 @@ public class SshHostKeyVerificationStrategyTest {
                                 "Stage %d. Log message not found on %s using %s strategy",
                                 stage, computer.getName(), verifier.getClass().getSimpleName()),
                         loggerRule,
-                        LoggerRule.recorded(StringContains.containsString(messageInLog)));
+                        LogRecorder.recorded(StringContains.containsString(messageInLog)));
             }
         }
 

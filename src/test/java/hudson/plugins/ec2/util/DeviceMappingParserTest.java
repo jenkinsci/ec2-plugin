@@ -23,18 +23,18 @@
  */
 package hudson.plugins.ec2.util;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
 import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
 
-public class DeviceMappingParserTest {
+class DeviceMappingParserTest {
 
     @Test
-    public void testParserWithAmi() {
+    void testParserWithAmi() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdb")
@@ -47,7 +47,7 @@ public class DeviceMappingParserTest {
     }
 
     @Test
-    public void testParserWithTermination() {
+    void testParserWithTermination() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdc")
@@ -64,7 +64,7 @@ public class DeviceMappingParserTest {
     }
 
     @Test
-    public void testParserWithIo() {
+    void testParserWithIo() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdc")
@@ -83,7 +83,7 @@ public class DeviceMappingParserTest {
     }
 
     @Test
-    public void testParserWithSize() {
+    void testParserWithSize() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdd")
@@ -96,7 +96,7 @@ public class DeviceMappingParserTest {
     }
 
     @Test
-    public void testParserWithEncrypted() {
+    void testParserWithEncrypted() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdd")
@@ -109,7 +109,7 @@ public class DeviceMappingParserTest {
     }
 
     @Test
-    public void testParserWithThroughput() {
+    void testParserWithThroughput() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdd")
@@ -122,7 +122,7 @@ public class DeviceMappingParserTest {
     }
 
     @Test
-    public void testParserWithMultiple() {
+    void testParserWithMultiple() {
         List<BlockDeviceMapping> expected = new ArrayList<>();
         expected.add(BlockDeviceMapping.builder()
                 .deviceName("/dev/sdd")

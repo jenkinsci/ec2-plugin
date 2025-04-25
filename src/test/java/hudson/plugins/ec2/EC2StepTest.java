@@ -1,8 +1,6 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -17,14 +15,16 @@ import java.util.List;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.Mock;
 import org.mockito.internal.stubbing.answers.ThrowsException;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
@@ -32,11 +32,10 @@ import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 /**
  * @author Alicia Doblas
  */
-@RunWith(MockitoJUnitRunner.class)
-public class EC2StepTest {
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
-
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+@WithJenkins
+class EC2StepTest {
     @Mock
     private EC2Cloud cl;
 
@@ -46,8 +45,11 @@ public class EC2StepTest {
     @Mock
     private EC2AbstractSlave instance;
 
-    @Before
-    public void setup() throws Exception {
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) throws Exception {
+        r = rule;
         r.jenkins.clouds.clear();
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(st);
@@ -64,14 +66,14 @@ public class EC2StepTest {
     }
 
     @Test
-    public void testExpiredConnection() {
+    void testExpiredConnection() {
         when(cl.connect()).thenCallRealMethod();
         when(cl.createCredentialsProvider()).thenCallRealMethod();
 
         // not expired ec2 client
         Ec2Client notExpiredClient = AmazonEC2FactoryMockImpl.createAmazonEC2Mock();
         AmazonEC2FactoryMockImpl.mock = notExpiredClient;
-        assertSame("EC2 client not expired should be reused", notExpiredClient, cl.connect());
+        assertSame(notExpiredClient, cl.connect(), "EC2 client not expired should be reused");
 
         // expired ec2 client
         //  based on a real exception
@@ -92,11 +94,11 @@ public class EC2StepTest {
         PeriodicWork work = PeriodicWork.all().get(EC2Cloud.EC2ConnectionUpdater.class);
         assertNotNull(work);
         work.run();
-        assertNotSame("EC2 client should be re-created when it is expired", expiredClient, cl.connect());
+        assertNotSame(expiredClient, cl.connect(), "EC2 client should be re-created when it is expired");
     }
 
     @Test
-    public void bootInstance() throws Exception {
+    void bootInstance() throws Exception {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
         String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
@@ -108,7 +110,7 @@ public class EC2StepTest {
     }
 
     @Test
-    public void boot_noCloud() throws Exception {
+    void boot_noCloud() throws Exception {
         WorkflowJob boot = r.createProject(WorkflowJob.class);
         String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
         boot.setDefinition(new CpsFlowDefinition(
@@ -123,7 +125,7 @@ public class EC2StepTest {
     }
 
     @Test
-    public void boot_noTemplate() throws Exception {
+    void boot_noTemplate() throws Exception {
         when(cl.getTemplate(anyString())).thenReturn(null);
 
         WorkflowJob boot = r.createProject(WorkflowJob.class);

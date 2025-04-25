@@ -2,7 +2,9 @@ package hudson.plugins.ec2;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assume.assumeFalse;
 
+import hudson.Functions;
 import java.util.Collections;
 import org.junit.Rule;
 import org.junit.Test;
@@ -10,6 +12,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.RealJenkinsRule;
 
 public class FileBasedSSHKeyTest {
+
     @Rule
     public RealJenkinsRule r = new RealJenkinsRule()
             .javaOptions("-D" + EC2Cloud.class.getName() + ".sshPrivateKeyFilePath="
@@ -20,12 +23,13 @@ public class FileBasedSSHKeyTest {
 
     @Test
     public void testFileBasedSShKey() throws Throwable {
+        assumeFalse(Functions.isWindows());
         r.startJenkins();
         r.runRemotely(FileBasedSSHKeyTest::verifyKeyFile);
         r.runRemotely(FileBasedSSHKeyTest::verifyCorrectKeyIsResolved);
     }
 
-    private static void verifyKeyFile(JenkinsRule r) throws Throwable {
+    private static void verifyKeyFile(JenkinsRule r) {
         assertNotNull("file content should not have been empty", EC2PrivateKey.fetchFromDisk());
         assertEquals(
                 "file content did not match",
@@ -33,7 +37,7 @@ public class FileBasedSSHKeyTest {
                 EC2PrivateKey.fetchFromDisk().getPrivateKey());
     }
 
-    private static void verifyCorrectKeyIsResolved(JenkinsRule r) throws Throwable {
+    private static void verifyCorrectKeyIsResolved(JenkinsRule r) {
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
                 true,

@@ -4,9 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Executor;
@@ -42,28 +40,32 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import jenkins.util.NonLocalizable;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.springframework.security.core.Authentication;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
-public class EC2RetentionStrategyTest {
+@WithJenkins
+class EC2RetentionStrategyTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
-
-    @Rule
-    public LoggerRule logging = new LoggerRule();
-
-    final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
-    final AtomicBoolean terminateCalled = new AtomicBoolean(false);
+    private final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
+    private final AtomicBoolean terminateCalled = new AtomicBoolean(false);
     private static final ZoneId zoneId = ZoneId.systemDefault();
 
+    private JenkinsRule r;
+    private final LogRecorder logging = new LogRecorder();
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
+
     @Test
-    public void testOnBillingHourRetention() throws Exception {
+    void testOnBillingHourRetention() throws Exception {
         List<int[]> upTime = new ArrayList<>();
         List<Boolean> expected = new ArrayList<>();
         upTime.add(new int[] {58, 0});
@@ -83,16 +85,16 @@ public class EC2RetentionStrategyTest {
             EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
             checkRetentionStrategy(rs, computer);
             assertEquals(
-                    "Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i),
                     expected.get(i),
-                    idleTimeoutCalled.get());
+                    idleTimeoutCalled.get(),
+                    "Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i));
             // reset the assumption
             idleTimeoutCalled.set(false);
         }
     }
 
     @Test
-    public void testRetentionWhenQueueHasWaitingItemForThisNode() throws Exception {
+    void testRetentionWhenQueueHasWaitingItemForThisNode() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         EC2Computer computer = computerWithIdleTime(59, 0);
         final Label selfLabel = computer.getNode().getSelfLabel();
@@ -100,15 +102,15 @@ public class EC2RetentionStrategyTest {
         final Task task = taskForLabel(selfLabel, false);
         queue.schedule(task, 500);
         checkRetentionStrategy(rs, computer);
-        assertFalse("Expected computer to be left running", idleTimeoutCalled.get());
+        assertFalse(idleTimeoutCalled.get(), "Expected computer to be left running");
         queue.cancel(task);
         EC2RetentionStrategy rs2 = new EC2RetentionStrategy("-2");
         checkRetentionStrategy(rs2, computer);
-        assertTrue("Expected computer to be idled", idleTimeoutCalled.get());
+        assertTrue(idleTimeoutCalled.get(), "Expected computer to be idled");
     }
 
     @Test
-    public void testRetentionWhenQueueHasBlockedItemForThisNode() throws Exception {
+    void testRetentionWhenQueueHasBlockedItemForThisNode() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         EC2Computer computer = computerWithIdleTime(59, 0);
         final Label selfLabel = computer.getNode().getSelfLabel();
@@ -116,11 +118,11 @@ public class EC2RetentionStrategyTest {
         final Task task = taskForLabel(selfLabel, true);
         queue.schedule(task, 0);
         checkRetentionStrategy(rs, computer);
-        assertFalse("Expected computer to be left running", idleTimeoutCalled.get());
+        assertFalse(idleTimeoutCalled.get(), "Expected computer to be left running");
         queue.cancel(task);
         EC2RetentionStrategy rs2 = new EC2RetentionStrategy("-2");
         checkRetentionStrategy(rs2, computer);
-        assertTrue("Expected computer to be idled", idleTimeoutCalled.get());
+        assertTrue(idleTimeoutCalled.get(), "Expected computer to be idled");
     }
 
     private interface AccessControlledTask extends Queue.Task, AccessControlled {}
@@ -271,12 +273,12 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long getUptime() throws SdkException, InterruptedException {
+            public long getUptime() throws SdkException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
 
             @Override
-            public Instant getLaunchTime() throws InterruptedException {
+            public Instant getLaunchTime() {
                 return this.launchedAt;
             }
 
@@ -415,12 +417,12 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long getUptime() throws SdkException, InterruptedException {
+            public long getUptime() throws SdkException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
 
             @Override
-            public Instant getLaunchTime() throws InterruptedException {
+            public Instant getLaunchTime() {
                 return this.launchedAt;
             }
 
@@ -495,7 +497,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testOnUsageCountRetention() throws Exception {
+    void testOnUsageCountRetention() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
         List<Integer> usageCounts = new ArrayList<>();
         List<Boolean> expected = new ArrayList<>();
@@ -514,14 +516,14 @@ public class EC2RetentionStrategyTest {
                 }
                 // As we want to terminate agent both for usageCount 1 & 0 - setting this to true
                 if (usageCount == 1 || usageCount == 0) {
-                    assertTrue("Expected " + usageCount + " to be " + true, terminateCalled.get());
+                    assertTrue(terminateCalled.get(), "Expected " + usageCount + " to be " + true);
                     // Reset the assumption
                     terminateCalled.set(false);
                 } else {
                     assertEquals(
-                            "Expected " + usageCount + " to be " + expected.get(i),
                             expected.get(i),
-                            terminateCalled.get());
+                            terminateCalled.get(),
+                            "Expected " + usageCount + " to be " + expected.get(i));
                 }
             }
         }
@@ -581,7 +583,7 @@ public class EC2RetentionStrategyTest {
      * Even though the computer is offline, we terminate it if it's not connecting now and the idle timeout expired.
      */
     @Test
-    public void testTerminateOfflineComputerIfNotConnecting() throws Exception {
+    void testTerminateOfflineComputerIfNotConnecting() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
 
@@ -646,7 +648,7 @@ public class EC2RetentionStrategyTest {
      * plus the retention interval.
      */
     @Test
-    public void testDoNotTerminateInstancesJustBooted() throws Exception {
+    void testDoNotTerminateInstancesJustBooted() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
         final int COMPUTER_UPTIME_MINUTES = 5;
@@ -671,7 +673,7 @@ public class EC2RetentionStrategyTest {
      * termination time expires.
      */
     @Test
-    public void testCleanupUnconnectedInstanceAfterTerminationTime() throws Exception {
+    void testCleanupUnconnectedInstanceAfterTerminationTime() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
         final int COMPUTER_UPTIME_MINUTES = 5;
@@ -692,7 +694,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testInternalCheckRespectsWait() throws Exception {
+    void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<>();
         EC2Computer computer = computerWithUpTime(0, 0);
         List<int[]> upTimeAndCheckAfter = new ArrayList<>();
@@ -723,14 +725,14 @@ public class EC2RetentionStrategyTest {
             String action = expected.get(i) ? "call" : "not call";
             long newNextCheckAfter = rs.getNextCheckAfter();
             assertEquals(
-                    String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action),
                     expectCallCheck,
-                    nextCheckAfter != newNextCheckAfter);
+                    nextCheckAfter != newNextCheckAfter,
+                    String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action));
         }
     }
 
     @Test
-    public void testRetentionDespiteIdleWithMinimumInstances() throws Exception {
+    void testRetentionDespiteIdleWithMinimumInstances() throws Exception {
 
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
@@ -841,7 +843,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
+    void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
@@ -941,7 +943,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
+    void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1027,7 +1029,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
+    void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1127,7 +1129,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionStopsAfterActiveRangeEnds() throws Exception {
+    void testRetentionStopsAfterActiveRangeEnds() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,

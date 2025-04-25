@@ -3,12 +3,12 @@ package hudson.plugins.ec2;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class ConnectionStrategyTest {
+class ConnectionStrategyTest {
 
     @Test
-    public void backwardsCompatible_withPrivateDns_notPublicIp() {
+    void backwardsCompatible_withPrivateDns_notPublicIp() {
         boolean usePrivateDnsName = true;
         boolean connectUsingPublicIp = false;
         boolean associatePublicIp = false;
@@ -18,7 +18,7 @@ public class ConnectionStrategyTest {
     }
 
     @Test
-    public void backwardsCompatible_withPrivateDns_withPublicIp() {
+    void backwardsCompatible_withPrivateDns_withPublicIp() {
         boolean usePrivateDnsName = true;
         boolean connectUsingPublicIp = true;
         boolean associatePublicIp = false;
@@ -28,7 +28,7 @@ public class ConnectionStrategyTest {
     }
 
     @Test
-    public void backwardsCompatible_withPublicIp() {
+    void backwardsCompatible_withPublicIp() {
         boolean usePrivateDnsName = false;
         boolean connectUsingPublicIp = true;
         boolean associatePublicIp = false;
@@ -38,7 +38,7 @@ public class ConnectionStrategyTest {
     }
 
     @Test
-    public void backwardsCompatible_withAssociate() {
+    void backwardsCompatible_withAssociate() {
         boolean usePrivateDnsName = false;
         boolean connectUsingPublicIp = false;
         boolean associatePublicIp = true;
@@ -48,7 +48,7 @@ public class ConnectionStrategyTest {
     }
 
     @Test
-    public void backwardsCompatible_default() {
+    void backwardsCompatible_default() {
         boolean usePrivateDnsName = false;
         boolean connectUsingPublicIp = false;
         boolean associatePublicIp = false;

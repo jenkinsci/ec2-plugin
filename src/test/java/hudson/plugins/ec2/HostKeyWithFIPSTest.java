@@ -1,26 +1,19 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import hudson.plugins.ec2.ssh.verifiers.HostKey;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
-import jenkins.security.FIPS140;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
-@RunWith(Parameterized.class)
-public class HostKeyWithFIPSTest {
-
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "true");
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "true")
+class HostKeyWithFIPSTest {
 
     public static String PUBLIC_KEY_SSH_DSS_1024 =
             "AAAAB3NzaC1kc3MAAACBAMsQrriFgun2KVgmsGd8drsplZLXyU8uU6r90aIZ+evRpxvoLCJf317Wnu5qVBCzGgEZ8iygYB0bDB/JFch+UVgtyXGH358ClJCDDgNWdOSogTl2gCF+W+8KoRSF+i3ObnEPOTa2akByP5FDzOO+mruVPl8kg8NHYcadCtJizRjhAAAAFQCV9uGT1Mchfbm6uFxEmZf09DwjSQAAAIAyyLw64QIHel17rzdyMyvepkvW4q64WYb7xCVLffaYJA8x1pxHtH4Mmmm0fGG7GFgdnCeD95524CYZR7TDhzKFGcEX607qKg0v5sXs6z8U8lGOeARq/IXQphb7YPZ9PdKUIuJImQEXriI0p5G7aGMmSYjnyEpKhUsM12xpDb2qBAAAAIBbIZPuZzBbbeesmzmGoG63w0tFc+tpPV3lNkAeYYcWpVhpSdHGFatr1lU+8LNT6OXekV2CFyF5kuuYw/B3OFkmHasURnT1+yC49OEpSzA3KOtQzqO2BZqIxDG/IEajKtSPGOWWPaVrHdgDXo3EZ6yCJtCiOMxW5Xz3fiUufp1sdQ==";
@@ -39,29 +32,13 @@ public class HostKeyWithFIPSTest {
     public static String PUBLIC_KEY_ECDSA_SHA2_NISTP521_521 =
             "AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAFrY2jC8sarrQqI13e9fDhzeUvTFt5j2krHfFfqDrP/M7L5RJzbg4jOSOly7FdOi7JhFkYaEguddhRh2DIUWKHR9ADR9/m4n9WxHR9QaVLUYUyZdQzgdtlY6KfLYJyO5PBSulMhpfDKGoycNKmr6Av1gyESAIBq+bINsgpUby+h9jkC7Q==";
 
-    private final String description;
-
-    private final String algorithm;
-
-    private final String publicKey;
-
-    private final boolean isValid;
-
-    public HostKeyWithFIPSTest(String description, String algorithm, String publicKey, boolean isValid) {
-        this.description = description;
-        this.algorithm = algorithm;
-        this.publicKey = publicKey;
-        this.isValid = isValid;
-    }
-
-    @Before
-    public void before() {
+    @BeforeAll
+    static void setUp() {
         // Add provider manually to avoid requiring jenkinsrule
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> data() {
+    static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {
             {"SSH-DSS with key size 1024", "ssh-dss", PUBLIC_KEY_SSH_DSS_1024, false},
             {"SSH-RSA with key size 1024", "ssh-rsa", PUBLIC_KEY_SSH_RSA_1024, false},
@@ -74,8 +51,9 @@ public class HostKeyWithFIPSTest {
         });
     }
 
-    @Test
-    public void testPublicKeyValidation() {
+    @ParameterizedTest
+    @MethodSource("data")
+    void testPublicKeyValidation(String description, String algorithm, String publicKey, boolean isValid) {
         try {
             new HostKey(algorithm, Base64.getDecoder().decode(publicKey));
             if (!isValid) {

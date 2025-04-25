@@ -1,16 +1,16 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Collections;
 import java.util.List;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -20,14 +20,14 @@ import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.Reservation;
 
-@RunWith(MockitoJUnitRunner.class)
-public class CloudHelperTest {
+@ExtendWith(MockitoExtension.class)
+class CloudHelperTest {
 
     @Mock
     private EC2Cloud cloud;
 
-    @Before
-    public void init() throws Exception {
+    @BeforeEach
+    void init() {
         cloud = new EC2Cloud(
                 "us-east-1",
                 true,
@@ -42,7 +42,7 @@ public class CloudHelperTest {
     }
 
     @Test
-    public void testGetInstanceHappyPath() throws Exception {
+    void testGetInstanceHappyPath() {
         /* Mocked items */
         EC2Cloud spyCloud = Mockito.spy(cloud);
         Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
@@ -63,7 +63,7 @@ public class CloudHelperTest {
     }
 
     @Test
-    public void testGetInstanceWithRetryInstanceNotFound() throws Exception {
+    void testGetInstanceWithRetryInstanceNotFound() throws Exception {
         /* Mocked items */
         EC2Cloud spyCloud = Mockito.spy(cloud);
         Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
@@ -83,7 +83,7 @@ public class CloudHelperTest {
             private boolean first = true;
 
             @Override
-            public DescribeInstancesResponse answer(InvocationOnMock invocation) throws Throwable {
+            public DescribeInstancesResponse answer(InvocationOnMock invocation) {
                 if (first) {
                     first = false;
                     throw amazonServiceException;
@@ -103,7 +103,7 @@ public class CloudHelperTest {
     }
 
     @Test
-    public void testGetInstanceWithRetryRequestExpired() throws Exception {
+    void testGetInstanceWithRetryRequestExpired() throws Exception {
         /* Mocked items */
         EC2Cloud spyCloud = Mockito.spy(cloud);
         Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
@@ -121,7 +121,7 @@ public class CloudHelperTest {
             private boolean first = true;
 
             @Override
-            public DescribeInstancesResponse answer(InvocationOnMock invocation) throws Throwable {
+            public DescribeInstancesResponse answer(InvocationOnMock invocation) {
                 if (first) {
                     first = false;
                     throw amazonServiceException;

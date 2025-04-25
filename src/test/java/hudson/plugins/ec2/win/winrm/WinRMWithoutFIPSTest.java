@@ -1,21 +1,16 @@
 package hudson.plugins.ec2.win.winrm;
 
-import jenkins.security.FIPS140;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
-public class WinRMWithoutFIPSTest {
-
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "false")
+class WinRMWithoutFIPSTest {
 
     /**
      * When FIPS mode is not activated, no FIPS check should be performed, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testSelfSignedCertificateNotAllowed() {
+    void testSelfSignedCertificateNotAllowed() {
         new WinRM("host", "username", "password", true);
     }
 
@@ -23,7 +18,7 @@ public class WinRMWithoutFIPSTest {
      * When FIPS mode is not activated, no FIPS check should be performed, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testBuildCompliantURL() {
+    void testBuildCompliantURL() {
         WinRM winRM = new WinRM("host", "username", "password", false);
         winRM.setUseHTTPS(true);
         winRM.buildURL();
@@ -33,7 +28,7 @@ public class WinRMWithoutFIPSTest {
      * When FIPS mode is not activated, no FIPS check should be performed, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testSetuseHTTPSWithPasswordLeak() {
+    void testSetuseHTTPSWithPasswordLeak() {
         WinRM winRM = new WinRM("host", "username", "password", false);
         winRM.setUseHTTPS(false);
     }
@@ -42,7 +37,7 @@ public class WinRMWithoutFIPSTest {
      * When FIPS mode is not activated, no FIPS check should be performed, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testSetUseHTTPSWithoutPasswordLeak() {
+    void testSetUseHTTPSWithoutPasswordLeak() {
         WinRM winRM = new WinRM("host", "username", null, false);
         winRM.setUseHTTPS(false);
         winRM.buildURL();

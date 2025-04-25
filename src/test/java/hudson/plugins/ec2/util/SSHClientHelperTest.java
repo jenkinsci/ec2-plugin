@@ -1,7 +1,9 @@
 package hudson.plugins.ec2.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import hudson.plugins.ec2.MockEC2Computer;
 import hudson.plugins.ec2.ssh.verifiers.HostKeyHelper;
@@ -14,40 +16,46 @@ import org.apache.sshd.common.signature.BuiltinSignatures;
 import org.apache.sshd.common.signature.Signature;
 import org.apache.sshd.common.util.security.AbstractSecurityProviderRegistrar;
 import org.apache.sshd.common.util.security.SecurityUtils;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.jvnet.hudson.test.recipes.LocalData;
 import org.mockito.Mockito;
 
-public class SSHClientHelperTest {
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+@WithJenkins
+class SSHClientHelperTest {
+
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
 
     @Test
     @LocalData
-    public void setupSshClientWithNoHostKey() throws Exception {
+    void setupSshClientWithNoHostKey() throws Exception {
         MockEC2Computer computer = MockEC2Computer.createComputer("noHostKey");
 
         try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer);
                 SshClient defaultClient = SshClient.setUpDefaultClient()) {
             List<NamedFactory<Signature>> signatureFactories = client.getSignatureFactories();
             assertEquals(
-                    "No existing host key found, created client should not have customized signature factories",
                     defaultClient.getSignatureFactories(),
-                    signatureFactories);
+                    signatureFactories,
+                    "No existing host key found, created client should not have customized signature factories");
         }
     }
 
     @Test
     @LocalData("ecdsaSha2Nistp256")
-    public void setupSshClientWithHostKeyECDSASha2Nistp256Supported() throws Exception {
+    void setupSshClientWithHostKeyECDSASha2Nistp256Supported() throws Exception {
         // don't run this if EC is not supported
-        Assume.assumeTrue(SecurityUtils.isECCSupported());
+        assumeTrue(SecurityUtils.isECCSupported());
 
         MockEC2Computer computer = MockEC2Computer.createComputer("HostKey");
-        assertNotNull("Expected an HostKey file", HostKeyHelper.getInstance().getHostKey(computer));
+        assertNotNull(HostKeyHelper.getInstance().getHostKey(computer), "Expected an HostKey file");
 
         List<BuiltinSignatures> expected = List.of(BuiltinSignatures.nistp256, BuiltinSignatures.nistp256_cert);
         String message =
@@ -58,12 +66,12 @@ public class SSHClientHelperTest {
 
     @Test
     @LocalData("ecdsaSha2Nistp384")
-    public void setupSshClientWithHostKeyECDSASha2Nistp384Supported() throws Exception {
+    void setupSshClientWithHostKeyECDSASha2Nistp384Supported() throws Exception {
         // don't run this if EC is not supported
-        Assume.assumeTrue(SecurityUtils.isECCSupported());
+        assumeTrue(SecurityUtils.isECCSupported());
 
         MockEC2Computer computer = MockEC2Computer.createComputer("HostKey");
-        assertNotNull("Expected an HostKey file", HostKeyHelper.getInstance().getHostKey(computer));
+        assertNotNull(HostKeyHelper.getInstance().getHostKey(computer), "Expected an HostKey file");
 
         List<BuiltinSignatures> expected = List.of(BuiltinSignatures.nistp384, BuiltinSignatures.nistp384_cert);
         String message =
@@ -74,12 +82,12 @@ public class SSHClientHelperTest {
 
     @Test
     @LocalData("ecdsaSha2Nistp521")
-    public void setupSshClientWithHostKeyECDSASha2Nistp521Supported() throws Exception {
+    void setupSshClientWithHostKeyECDSASha2Nistp521Supported() throws Exception {
         // don't run this if EC is not supported
-        Assume.assumeTrue(SecurityUtils.isECCSupported());
+        assumeTrue(SecurityUtils.isECCSupported());
 
         MockEC2Computer computer = MockEC2Computer.createComputer("HostKey");
-        assertNotNull("Expected an HostKey file", HostKeyHelper.getInstance().getHostKey(computer));
+        assertNotNull(HostKeyHelper.getInstance().getHostKey(computer), "Expected an HostKey file");
 
         List<BuiltinSignatures> expected = List.of(BuiltinSignatures.nistp521, BuiltinSignatures.nistp521_cert);
         String message =
@@ -90,30 +98,30 @@ public class SSHClientHelperTest {
 
     @Test
     @LocalData("ed25519")
-    public void setupSshClientWithHostKeyEDDSANotSupported() throws Exception {
+    void setupSshClientWithHostKeyEDDSANotSupported() throws Exception {
         SecurityUtils.registerSecurityProvider(new MockEDDSASecurityProviderRegistrar(false));
         // don't run this if EDDSA is supported
-        Assume.assumeFalse(SecurityUtils.isEDDSACurveSupported());
+        assumeFalse(SecurityUtils.isEDDSACurveSupported());
 
         MockEC2Computer computer = MockEC2Computer.createComputer("HostKey");
-        assertNotNull("Expected an HostKey file", HostKeyHelper.getInstance().getHostKey(computer));
+        assertNotNull(HostKeyHelper.getInstance().getHostKey(computer), "Expected an HostKey file");
 
         try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer);
                 SshClient defaultClient = SshClient.setUpDefaultClient()) {
             List<NamedFactory<Signature>> signatureFactories = client.getSignatureFactories();
             assertEquals(
-                    "Existing host key found but no EDDSA provider, created client should not have customized signature factories",
                     defaultClient.getSignatureFactories(),
-                    signatureFactories);
+                    signatureFactories,
+                    "Existing host key found but no EDDSA provider, created client should not have customized signature factories");
         }
     }
 
     @Test
     @LocalData("ed25519")
-    public void setupSshClientWithHostKeyEDDSASupported() throws Exception {
+    void setupSshClientWithHostKeyEDDSASupported() throws Exception {
         SecurityUtils.registerSecurityProvider(new MockEDDSASecurityProviderRegistrar(true));
         // don't run this if EDDSA is not supported
-        Assume.assumeTrue(SecurityUtils.isEDDSACurveSupported());
+        assumeTrue(SecurityUtils.isEDDSACurveSupported());
 
         List<BuiltinSignatures> expected =
                 List.of(BuiltinSignatures.ed25519, BuiltinSignatures.ed25519_cert, BuiltinSignatures.sk_ssh_ed25519);
@@ -125,13 +133,13 @@ public class SSHClientHelperTest {
 
     private static void doTestPreferredAlgorithms(String message, List<BuiltinSignatures> expected) throws Exception {
         MockEC2Computer computer = MockEC2Computer.createComputer("HostKey");
-        assertNotNull("Expected an HostKey file", HostKeyHelper.getInstance().getHostKey(computer));
+        assertNotNull(HostKeyHelper.getInstance().getHostKey(computer), "Expected an HostKey file");
 
         try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer)) {
             List<NamedFactory<Signature>> signatureFactories = client.getSignatureFactories();
             List<NamedFactory<Signature>> actual =
                     signatureFactories.stream().limit(expected.size()).collect(Collectors.toList());
-            assertEquals(message, expected, actual);
+            assertEquals(expected, actual, message);
         }
     }
 
