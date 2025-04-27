@@ -32,6 +32,7 @@ import static org.mockito.Mockito.when;
 import hudson.model.Node;
 import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,6 +48,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.Instance;
@@ -59,6 +61,19 @@ import software.amazon.awssdk.services.ec2.model.Tag;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class EC2CloudUnitTest {
+
+    @Test
+    void testBootstrapRegion() throws Exception {
+        assertEquals(Region.US_EAST_1, EC2Cloud.getBootstrapRegion(null));
+        assertEquals(Region.US_EAST_1, EC2Cloud.getBootstrapRegion(new URI("")));
+        assertEquals(Region.US_EAST_1, EC2Cloud.getBootstrapRegion(new URI("https://ec2.amazonaws.com/")));
+        assertEquals(Region.US_EAST_1, EC2Cloud.getBootstrapRegion(new URI("https://ec2.us-east-1.amazonaws.com/")));
+        assertEquals(Region.US_WEST_1, EC2Cloud.getBootstrapRegion(new URI("https://ec2.us-west-1.amazonaws.com/")));
+        assertEquals(
+                Region.US_GOV_EAST_1, EC2Cloud.getBootstrapRegion(new URI("https://ec2.us-gov-east-1.amazonaws.com/")));
+        assertEquals(
+                Region.US_GOV_WEST_1, EC2Cloud.getBootstrapRegion(new URI("https://ec2.us-gov-west-1.amazonaws.com/")));
+    }
 
     @Test
     void testInstanceCap() {

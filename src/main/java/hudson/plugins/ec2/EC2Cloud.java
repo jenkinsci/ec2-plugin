@@ -117,6 +117,8 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.ServiceEndpointKey;
+import software.amazon.awssdk.regions.ServiceMetadata;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
@@ -354,6 +356,22 @@ public class EC2Cloud extends Cloud {
             LOGGER.log(Level.WARNING, "The alternate EC2 endpoint is malformed ({0}).", endpoint);
             return null;
         }
+    }
+
+    @NonNull
+    static Region getBootstrapRegion(@CheckForNull URI endpoint) {
+        if (endpoint != null) {
+            ServiceMetadata metadata = Ec2Client.serviceMetadata();
+            for (Region region : metadata.regions()) {
+                ServiceEndpointKey key =
+                        ServiceEndpointKey.builder().region(region).build();
+                if (endpoint.getHost() != null
+                        && endpoint.getHost().equals(metadata.endpointFor(key).toString())) {
+                    return region;
+                }
+            }
+        }
+        return Region.US_EAST_1;
     }
 
     public boolean isNoDelayProvisioning() {
@@ -1647,8 +1665,9 @@ public class EC2Cloud extends Cloud {
                 try {
                     AwsCredentialsProvider credentialsProvider =
                             createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
+                    URI endpoint = parseEndpoint(altEC2Endpoint);
                     Ec2Client client = AmazonEC2Factory.getInstance()
-                            .connect(credentialsProvider, null, parseEndpoint(altEC2Endpoint));
+                            .connect(credentialsProvider, getBootstrapRegion(endpoint), endpoint);
                     DescribeRegionsResponse regions = client.describeRegions();
                     List<software.amazon.awssdk.services.ec2.model.Region> regionList = regions.regions();
                     for (software.amazon.awssdk.services.ec2.model.Region r : regionList) {
