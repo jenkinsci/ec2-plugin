@@ -1639,7 +1639,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 

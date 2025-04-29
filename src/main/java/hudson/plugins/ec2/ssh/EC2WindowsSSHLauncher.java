@@ -158,12 +158,28 @@ public class EC2WindowsSSHLauncher extends EC2SSHLauncher {
 
                         logInfo(computer, listener, "Executing init script");
                         String initCommand = buildUpCommand(computer, tmpDir + "init.bat");
-                        executeRemote(clientSession, initCommand, logger);
-
-                        logInfo(computer, listener, "Creating %USERPROFILE%\\.hudson-run-init");
-                        String createHudsonRunInitCommand =
-                                buildUpCommand(computer, "COPY NUL %USERPROFILE%\\.hudson-run-init");
-                        executeRemote(clientSession, createHudsonRunInitCommand, logger);
+                        if (executeRemote(clientSession, initCommand, logger)) {
+                            log(
+                                    Level.FINE,
+                                    computer,
+                                    listener,
+                                    "Init script executed successfully and creating %USERPROFILE%\\.hudson-run-init");
+                            String createHudsonRunInitCommand =
+                                    buildUpCommand(computer, "COPY NUL %USERPROFILE%\\.hudson-run-init");
+                            if (!executeRemote(clientSession, createHudsonRunInitCommand, logger)) {
+                                logInfo(computer, listener, "Unable to create %USERPROFILE%\\.hudson-run-init");
+                            }
+                        } else {
+                            log(
+                                    Level.WARNING,
+                                    computer,
+                                    listener,
+                                    "Failed to execute init script on " + node.getInstanceId());
+                            clientSession.close();
+                            scp.close();
+                            client.stop();
+                            throw new IOException("Failed to execute init script on " + node.getInstanceId());
+                        }
                     }
 
                     // Always copy so we get the most recent remoting.jar

@@ -290,10 +290,10 @@ class ConfigurationAsCodeTest {
         final SlaveTemplate slaveTemplate = templates.get(0);
         assertTrue(slaveTemplate.getEnclaveEnabled());
     }
-  
+
     @Test
     @ConfiguredWithCode("WindowsSSHData.yml")
-    public void testWindowsSSHData() throws Exception {
+    public void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -320,7 +320,7 @@ class ConfigurationAsCodeTest {
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isWindows());
         assertTrue(amiType.isSSHAgent());
-        assertTrue(amiType instanceof WindowsSSHData);
+        assertInstanceOf(WindowsSSHData.class, amiType);
         final WindowsSSHData windowsSSHData = (WindowsSSHData) amiType;
         assertEquals("CMD /C", windowsSSHData.getRootCommandPrefix());
         assertEquals("CMD /C", windowsSSHData.getSlaveCommandPrefix());
@@ -331,7 +331,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData.yml")
-    public void testWindowsSSHConfigAsCodeExport() throws Exception {
+    public void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
@@ -342,7 +342,8 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData-withAltEndpointAndJavaPath.yml")
-    public void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport() throws Exception {
+    public void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j)
+            throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");

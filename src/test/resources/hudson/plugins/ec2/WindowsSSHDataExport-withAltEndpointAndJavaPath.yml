@@ -17,6 +17,7 @@
       deleteRootOnTermination: false
       ebsEncryptRootVolume: DEFAULT
       ebsOptimized: false
+      enclaveEnabled: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       javaPath: "\"C:\\Program Files\\jdk-11\\bin\\java.exe\""
       labelString: "windows server"
