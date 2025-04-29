@@ -1,0 +1,45 @@
+- amazonEC2:
+    name: "production"
+    region: "us-east-1"
+    sshKeysCredentialsId: "random credentials id"
+    templates:
+    - ami: "ami-12345"
+      amiType:
+        windowsSSHData:
+          bootDelay: "180"
+          rootCommandPrefix: "CMD /C"
+          slaveCommandPrefix: "CMD /C"
+          slaveCommandSuffix: "-fakeFlag"
+          sshPort: "22"
+      associatePublicIp: false
+      connectBySSHProcess: false
+      connectionStrategy: PRIVATE_IP
+      deleteRootOnTermination: false
+      ebsEncryptRootVolume: DEFAULT
+      ebsOptimized: false
+      enclaveEnabled: false
+      hostKeyVerificationStrategy: CHECK_NEW_SOFT
+      javaPath: "java"
+      labelString: "windows server"
+      maxTotalUses: -1
+      metadataEndpointEnabled: true
+      metadataHopsLimit: 1
+      metadataSupported: true
+      metadataTokensRequired: true
+      minimumNumberOfInstances: 0
+      minimumNumberOfSpareInstances: 0
+      mode: NORMAL
+      monitoring: false
+      numExecutors: 1
+      remoteFS: "C:\\Users\\ec2-user"
+      spotConfig:
+        fallbackToOndemand: true
+        spotBlockReservationDuration: 3
+        spotMaxBidPrice: "0.15"
+        useBidPrice: true
+      stopOnTerminate: false
+      t2Unlimited: false
+      tenancy: Default
+      type: "t2.micro"
+      useEphemeralDevices: false
+    useInstanceProfileForCredentials: true
