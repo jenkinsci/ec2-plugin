@@ -2,10 +2,7 @@ package hudson.plugins.ec2;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import hudson.model.Node;
 import java.lang.reflect.InvocationTargetException;
@@ -20,9 +17,8 @@ import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.Issue;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -38,20 +34,20 @@ import software.amazon.awssdk.services.ec2.model.Image;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.Tag;
 
-public class SlaveTemplateUnitTest {
+class SlaveTemplateUnitTest {
 
     private Logger logger;
     private TestHandler handler;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         handler = new TestHandler();
         logger = Logger.getLogger(SlaveTemplate.class.getName());
         logger.addHandler(handler);
     }
 
     @Test
-    public void testUpdateRemoteTags() throws Exception {
+    void testUpdateRemoteTags() throws Exception {
         Ec2Client ec2 = new Ec2Client() {
             @Override
             public CreateTagsResponse createTags(CreateTagsRequest createTagsRequest) {
@@ -122,7 +118,8 @@ public class SlaveTemplateUnitTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     protected Object readResolve() {
                         return null;
@@ -148,7 +145,7 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void testUpdateRemoteTagsInstanceNotFound() throws Exception {
+    void testUpdateRemoteTagsInstanceNotFound() throws Exception {
         Ec2Client ec2 = new Ec2Client() {
             @Override
             public CreateTagsResponse createTags(CreateTagsRequest createTagsRequest) {
@@ -225,7 +222,8 @@ public class SlaveTemplateUnitTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     protected Object readResolve() {
                         return null;
@@ -293,7 +291,7 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void testMakeDescribeImagesRequest() throws Exception {
+    void testMakeDescribeImagesRequest() throws Exception {
         SlaveTemplate template =
                 new SlaveTemplate(
                         null,
@@ -339,7 +337,8 @@ public class SlaveTemplateUnitTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     protected Object readResolve() {
                         return null;
@@ -557,7 +556,8 @@ public class SlaveTemplateUnitTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     protected Object readResolve() {
                         return null;
@@ -581,31 +581,31 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void testSetupRootDeviceNull() throws Exception {
+    void testSetupRootDeviceNull() throws Exception {
         Boolean test = checkEncryptedForSetupRootDevice(null);
-        Assert.assertNull(test);
+        assertNull(test);
     }
 
     @Test
-    public void testSetupRootDeviceDefault() throws Exception {
+    void testSetupRootDeviceDefault() throws Exception {
         Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.DEFAULT);
-        Assert.assertNull(test);
+        assertNull(test);
     }
 
     @Test
-    public void testSetupRootDeviceNotEncrypted() throws Exception {
+    void testSetupRootDeviceNotEncrypted() throws Exception {
         Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.UNENCRYPTED);
-        Assert.assertFalse(test);
+        assertFalse(test);
     }
 
     @Test
-    public void testSetupRootDeviceEncrypted() throws Exception {
+    void testSetupRootDeviceEncrypted() throws Exception {
         Boolean test = checkEncryptedForSetupRootDevice(EbsEncryptRootVolume.ENCRYPTED);
-        Assert.assertTrue(test);
+        assertTrue(test);
     }
 
     @Test
-    public void testNullTimeoutShouldReturnMaxInt() {
+    void testNullTimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -650,12 +650,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
-    public void testUpdateAmi() {
+    void testUpdateAmi() {
         SlaveTemplate st = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
@@ -700,7 +701,8 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals("ami1", st.getAmi());
         st.setAmi("ami2");
         assertEquals("ami2", st.getAmi());
@@ -709,7 +711,7 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void test0TimeoutShouldReturnMaxInt() {
+    void test0TimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -754,12 +756,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
-    public void testNegativeTimeoutShouldReturnMaxInt() {
+    void testNegativeTimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -804,12 +807,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
-    public void testNonNumericTimeoutShouldReturnMaxInt() {
+    void testNonNumericTimeoutShouldReturnMaxInt() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -854,12 +858,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals(Integer.MAX_VALUE, st.getLaunchTimeout());
     }
 
     @Test
-    public void testAssociatePublicIpSetting() {
+    void testAssociatePublicIpSetting() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -904,12 +909,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertTrue(st.getAssociatePublicIp());
     }
 
     @Test
-    public void testConnectUsingPublicIpSetting() {
+    void testConnectUsingPublicIpSetting() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -954,12 +960,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals(ConnectionStrategy.PUBLIC_IP, st.connectionStrategy);
     }
 
     @Test
-    public void testConnectUsingPublicIpSettingWithDefaultSetting() {
+    void testConnectUsingPublicIpSettingWithDefaultSetting() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1004,12 +1011,13 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertEquals(ConnectionStrategy.PUBLIC_IP, st.connectionStrategy);
     }
 
     @Test
-    public void testBackwardCompatibleUnixData() {
+    void testBackwardCompatibleUnixData() {
         SlaveTemplate st = new SlaveTemplate(
                 "",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1054,14 +1062,15 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         assertFalse(st.isWindowsSlave());
         assertEquals(22, st.getSshPort());
         assertEquals("sudo", st.getRootCommandPrefix());
     }
 
     @Test
-    public void testChooseSpaceDelimitedSubnetId() throws Exception {
+    void testChooseSpaceDelimitedSubnetId() {
         SlaveTemplate slaveTemplate = new SlaveTemplate(
                 "ami-123",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1106,7 +1115,8 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         String subnet1 = slaveTemplate.chooseSubnetId();
         String subnet2 = slaveTemplate.chooseSubnetId();
@@ -1118,7 +1128,7 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void testChooseCommaDelimitedSubnetId() throws Exception {
+    void testChooseCommaDelimitedSubnetId() {
         SlaveTemplate slaveTemplate = new SlaveTemplate(
                 "ami-123",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1163,7 +1173,8 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         String subnet1 = slaveTemplate.chooseSubnetId();
         String subnet2 = slaveTemplate.chooseSubnetId();
@@ -1175,7 +1186,7 @@ public class SlaveTemplateUnitTest {
     }
 
     @Test
-    public void testChooseSemicolonDelimitedSubnetId() throws Exception {
+    void testChooseSemicolonDelimitedSubnetId() {
         SlaveTemplate slaveTemplate = new SlaveTemplate(
                 "ami-123",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1220,7 +1231,8 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         String subnet1 = slaveTemplate.chooseSubnetId();
         String subnet2 = slaveTemplate.chooseSubnetId();
@@ -1233,7 +1245,7 @@ public class SlaveTemplateUnitTest {
 
     @Issue("JENKINS-59460")
     @Test
-    public void testConnectionStrategyDeprecatedFieldsAreExported() {
+    void testConnectionStrategyDeprecatedFieldsAreExported() {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
@@ -1278,33 +1290,34 @@ public class SlaveTemplateUnitTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         String exported = Jenkins.XSTREAM.toXML(template);
         assertThat(exported, containsString("usePrivateDnsName"));
         assertThat(exported, containsString("connectUsingPublicIp"));
     }
-}
 
-class TestHandler extends Handler {
-    private final List<LogRecord> records = new LinkedList<>();
+    class TestHandler extends Handler {
+        private final List<LogRecord> records = new LinkedList<>();
 
-    @Override
-    public void close() throws SecurityException {}
+        @Override
+        public void close() throws SecurityException {}
 
-    @Override
-    public void flush() {}
+        @Override
+        public void flush() {}
 
-    @Override
-    public void publish(LogRecord record) {
-        records.add(record);
-    }
+        @Override
+        public void publish(LogRecord record) {
+            records.add(record);
+        }
 
-    public List<LogRecord> getRecords() {
-        return records;
-    }
+        public List<LogRecord> getRecords() {
+            return records;
+        }
 
-    public void clearRecords() {
-        records.clear();
+        public void clearRecords() {
+            records.clear();
+        }
     }
 }

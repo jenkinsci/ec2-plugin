@@ -40,7 +40,8 @@ public class EC2AgentFactoryImpl implements EC2AgentFactory {
                 config.metadataEndpointEnabled,
                 config.metadataTokensRequired,
                 config.metadataHopsLimit,
-                config.metadataSupported);
+                config.metadataSupported,
+                config.enclaveEnabled);
     }
 
     @Override

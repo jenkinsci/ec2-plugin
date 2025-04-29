@@ -78,6 +78,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public static final Boolean DEFAULT_METADATA_SUPPORTED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.TRUE;
+    public static final Boolean DEFAULT_ENCLAVE_ENABLED = Boolean.FALSE;
     public static final Integer DEFAULT_METADATA_HOPS_LIMIT = 1;
     public static final String DEFAULT_JAVA_PATH = "java";
 
@@ -115,6 +116,8 @@ public abstract class EC2AbstractSlave extends Slave {
     private Boolean metadataEndpointEnabled;
     private Boolean metadataTokensRequired;
     private Integer metadataHopsLimit;
+
+    private Boolean enclaveEnabled;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
@@ -184,7 +187,8 @@ public abstract class EC2AbstractSlave extends Slave {
             Boolean metadataEndpointEnabled,
             Boolean metadataTokensRequired,
             Integer metadataHopsLimit,
-            Boolean metadataSupported)
+            Boolean metadataSupported,
+            Boolean enclaveEnabled)
             throws FormException, IOException {
         super(name, remoteFS, launcher);
         setNumExecutors(numExecutors);
@@ -214,7 +218,71 @@ public abstract class EC2AbstractSlave extends Slave {
         this.metadataTokensRequired = metadataTokensRequired;
         this.metadataHopsLimit = metadataHopsLimit;
         this.metadataSupported = metadataSupported;
+        this.enclaveEnabled = enclaveEnabled;
         readResolve();
+    }
+
+    @Deprecated
+    public EC2AbstractSlave(
+            String name,
+            String instanceId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            Mode mode,
+            String labelString,
+            ComputerLauncher launcher,
+            RetentionStrategy<EC2Computer> retentionStrategy,
+            String initScript,
+            String tmpDir,
+            List<? extends NodeProperty<?>> nodeProperties,
+            String remoteAdmin,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String idleTerminationMinutes,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            Tenancy tenancy,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit,
+            Boolean metadataSupported)
+            throws FormException, IOException {
+        this(
+                name,
+                instanceId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                mode,
+                labelString,
+                launcher,
+                retentionStrategy,
+                initScript,
+                tmpDir,
+                nodeProperties,
+                remoteAdmin,
+                DEFAULT_JAVA_PATH,
+                jvmopts,
+                stopOnTerminate,
+                idleTerminationMinutes,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                connectionStrategy,
+                maxTotalUses,
+                tenancy,
+                metadataEndpointEnabled,
+                metadataTokensRequired,
+                metadataHopsLimit,
+                metadataSupported,
+                DEFAULT_ENCLAVE_ENABLED);
     }
 
     @Deprecated
@@ -652,8 +720,6 @@ public abstract class EC2AbstractSlave extends Slave {
                 return 250;
             case MAC1_METAL:
                 return 1;
-                // We don't have a suggestion, but we don't want to fail completely
-                // surely?
             default:
                 return 1;
         }
@@ -1029,6 +1095,10 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public Integer getMetadataHopsLimit() {
         return metadataHopsLimit;
+    }
+
+    public Boolean getEnclaveEnabled() {
+        return enclaveEnabled;
     }
 
     public boolean isSpecifyPassword() {

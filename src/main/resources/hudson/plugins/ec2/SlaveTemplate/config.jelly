@@ -239,6 +239,10 @@ THE SOFTWARE.
       </f:entry>
     </f:optionalBlock>
 
+    <f:entry title="${%Enclave Enabled}" field="enclaveEnabled">
+      <f:checkbox default="false"/>
+    </f:entry>
+
   </f:advanced>
 
   <f:entry title="">

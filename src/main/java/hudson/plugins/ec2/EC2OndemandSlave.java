@@ -336,7 +336,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 DEFAULT_METADATA_SUPPORTED);
     }
 
-    @DataBoundConstructor
+    @Deprecated
     public EC2OndemandSlave(
             String name,
             String instanceId,
@@ -366,6 +366,70 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
             Boolean metadataTokensRequired,
             Integer metadataHopsLimit,
             Boolean metadataSupported)
+            throws FormException, IOException {
+        this(
+                name,
+                instanceId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                labelString,
+                mode,
+                initScript,
+                tmpDir,
+                nodeProperties,
+                remoteAdmin,
+                DEFAULT_JAVA_PATH,
+                jvmopts,
+                stopOnTerminate,
+                idleTerminationMinutes,
+                publicDNS,
+                privateDNS,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                connectionStrategy,
+                maxTotalUses,
+                tenancy,
+                metadataEndpointEnabled,
+                metadataTokensRequired,
+                metadataHopsLimit,
+                metadataSupported,
+                DEFAULT_ENCLAVE_ENABLED);
+    }
+
+    @DataBoundConstructor
+    public EC2OndemandSlave(
+            String name,
+            String instanceId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            String labelString,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            List<? extends NodeProperty<?>> nodeProperties,
+            String remoteAdmin,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String idleTerminationMinutes,
+            String publicDNS,
+            String privateDNS,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            Tenancy tenancy,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit,
+            Boolean metadataSupported,
+            Boolean enclaveEnabled)
             throws FormException, IOException {
         super(
                 name,
@@ -399,7 +463,8 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 metadataEndpointEnabled,
                 metadataTokensRequired,
                 metadataHopsLimit,
-                metadataSupported);
+                metadataSupported,
+                enclaveEnabled);
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
     }

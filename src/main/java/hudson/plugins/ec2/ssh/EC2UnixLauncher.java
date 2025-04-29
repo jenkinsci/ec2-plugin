@@ -181,11 +181,28 @@ public class EC2UnixLauncher extends EC2SSHLauncher {
 
                         logInfo(computer, listener, "Executing init script");
                         String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
-                        executeRemote(clientSession, initCommand, logger);
-
-                        logInfo(computer, listener, "Creating ~/.hudson-run-init");
-                        String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
-                        executeRemote(clientSession, createHudsonRunInitCommand, logger);
+                        // Set the flag only when init script executed successfully.
+                        if (executeRemote(clientSession, initCommand, logger)) {
+                            log(
+                                    Level.FINE,
+                                    computer,
+                                    listener,
+                                    "Init script executed successfully and creating ~/.hudson-run-init");
+                            String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
+                            if (!executeRemote(clientSession, createHudsonRunInitCommand, logger)) {
+                                logInfo(computer, listener, "Unable to create ~/.hudson-run-init");
+                            }
+                        } else {
+                            log(
+                                    Level.WARNING,
+                                    computer,
+                                    listener,
+                                    "Failed to execute init script on " + node.getInstanceId());
+                            clientSession.close();
+                            scp.close();
+                            client.stop();
+                            throw new IOException("Failed to execute init script on " + node.getInstanceId());
+                        }
                     }
 
                     executeRemote(
