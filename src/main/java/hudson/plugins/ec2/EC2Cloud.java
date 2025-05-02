@@ -1060,8 +1060,8 @@ public class EC2Cloud extends Cloud {
                     LOGGER.log(Level.INFO, "Re-saving EC2 cloud due to ExpiredToken error");
                     try {
                         if (e.awsErrorDetails().errorCode().equals("ExpiredToken")) {
-                            Jenkins.get().clouds.replace(this, this)
-                            Jenkins.get().save()
+                            Jenkins.get().clouds.replace(this, this);
+                            Jenkins.get().save();
                         }
                     } catch (IOException e2) {
                         LOGGER.log(Level.WARNING, "Failed to re-save EC2 cloud: " + getCloudName(), e2);
