@@ -834,6 +834,30 @@ public final class InstanceTypeCompat {
         map.put("R8gMetal24xl", "r8g.metal-24xl");
         map.put("R8gMetal48xl", "r8g.metal-48xl");
         map.put("Mac2M1ultraMetal", "mac2-m1ultra.metal");
+        map.put("C8gMedium", "c8g.medium");
+        map.put("C8gLarge", "c8g.large");
+        map.put("C8gXlarge", "c8g.xlarge");
+        map.put("C8g2xlarge", "c8g.2xlarge");
+        map.put("C8g4xlarge", "c8g.4xlarge");
+        map.put("C8g8xlarge", "c8g.8xlarge");
+        map.put("C8g12xlarge", "c8g.12xlarge");
+        map.put("C8g16xlarge", "c8g.16xlarge");
+        map.put("C8g24xlarge", "c8g.24xlarge");
+        map.put("C8g48xlarge", "c8g.48xlarge");
+        map.put("C8gMetal24xl", "c8g.metal-24xl");
+        map.put("C8gMetal48xl", "c8g.metal-48xl");
+        map.put("M8gMedium", "m8g.medium");
+        map.put("M8gLarge", "m8g.large");
+        map.put("M8gXlarge", "m8g.xlarge");
+        map.put("M8g2xlarge", "m8g.2xlarge");
+        map.put("M8g4xlarge", "m8g.4xlarge");
+        map.put("M8g8xlarge", "m8g.8xlarge");
+        map.put("M8g12xlarge", "m8g.12xlarge");
+        map.put("M8g16xlarge", "m8g.16xlarge");
+        map.put("M8g24xlarge", "m8g.24xlarge");
+        map.put("M8g48xlarge", "m8g.48xlarge");
+        map.put("M8gMetal24xl", "m8g.metal-24xl");
+        map.put("M8gMetal48xl", "m8g.metal-48xl");
         AWS_SDK_JAVA_V1 = Collections.unmodifiableMap(map);
     }
 
