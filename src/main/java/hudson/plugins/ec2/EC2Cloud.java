@@ -1049,20 +1049,18 @@ public class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
                 if (e.awsErrorDetails().errorCode().equals("RequestExpired")) {
                     // A RequestExpired error can indicate that request has expired so reconnect
-                    LOGGER.log(Level.INFO, "Reconnecting to EC2 due to RequestExpired or ExpiredToken error");
+                    LOGGER.log(Level.INFO, "Reconnecting to EC2 due to RequestExpired error");
                     try {
                         reconnectToEc2();
                     } catch (IOException e2) {
-                        LOGGER.log(Level.WARNING, "Failed to reconnect ec2", e2);
+                        LOGGER.log(Level.WARNING, "Failed to reconnect EC2", e2);
                     }
                 } else if (e.awsErrorDetails().errorCode().equals("ExpiredToken")) {
                     // A ExpiredToken error can indicate that token has expired so re-save the cloud
                     LOGGER.log(Level.INFO, "Re-saving EC2 cloud due to ExpiredToken error");
                     try {
-                        if (e.awsErrorDetails().errorCode().equals("ExpiredToken")) {
-                            Jenkins.get().clouds.replace(this, this);
-                            Jenkins.get().save();
-                        }
+                        Jenkins.get().clouds.replace(this, this);
+                        Jenkins.get().save();
                     } catch (IOException e2) {
                         LOGGER.log(Level.WARNING, "Failed to re-save EC2 cloud: " + getCloudName(), e2);
                     }
