@@ -205,7 +205,7 @@ public class EC2Computer extends SlaveComputer {
      * Number of milli-secs since the instance was started.
      */
     public long getUptime() throws SdkException, InterruptedException {
-        return Instant.now().until(describeInstance().launchTime(), ChronoUnit.MILLIS);
+        return describeInstance().launchTime().until(Instant.now(), ChronoUnit.MILLIS);
     }
 
     /**
