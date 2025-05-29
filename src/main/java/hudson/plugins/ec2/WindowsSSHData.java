@@ -4,9 +4,9 @@ import hudson.Extension;
 import hudson.model.Descriptor;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-public class UnixData extends SSHData {
+public class WindowsSSHData extends SSHData {
     @DataBoundConstructor
-    public UnixData(
+    public WindowsSSHData(
             String rootCommandPrefix,
             String slaveCommandPrefix,
             String slaveCommandSuffix,
@@ -16,7 +16,7 @@ public class UnixData extends SSHData {
     }
 
     @Override
-    public boolean isUnix() {
+    public boolean isWindows() {
         return true;
     }
 
@@ -24,7 +24,7 @@ public class UnixData extends SSHData {
     public static class DescriptorImpl extends Descriptor<AMITypeData> {
         @Override
         public String getDisplayName() {
-            return "unix";
+            return "windows-ssh";
         }
     }
 }
