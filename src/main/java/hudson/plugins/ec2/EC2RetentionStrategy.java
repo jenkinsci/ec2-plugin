@@ -203,8 +203,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
             }
 
-            final long idleMilliseconds = this.clock.millis()
-                    - Math.max(computer.getIdleStartMilliseconds(), launchedAt.getEpochSecond() * 1000);
+            final long idleMilliseconds =
+                    this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), launchedAt.toEpochMilli());
 
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
