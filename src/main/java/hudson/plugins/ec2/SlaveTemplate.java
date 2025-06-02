@@ -2122,8 +2122,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
-        DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
-
         RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
         riRequestBuilder.maxCount(number);
 
@@ -2170,28 +2168,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         return toSlaves(newInstances);
-    }
-
-    void wakeOrphansOrStoppedUp(Ec2Client ec2, List<Instance> orphansOrStopped) {
-        List<String> instances = new ArrayList<>();
-        for (Instance instance : orphansOrStopped) {
-            if (instance.state().name().equals(InstanceStateName.STOPPING)
-                    || instance.state().name().equals(InstanceStateName.STOPPED)) {
-                logProvisionInfo("Found stopped instances - will start it: " + instance);
-                instances.add(instance.instanceId());
-            } else {
-                // Should be pending or running at this point, just let it come up
-                logProvisionInfo(
-                        "Found existing pending or running: " + instance.state().name() + " instance: " + instance);
-            }
-        }
-
-        if (!instances.isEmpty()) {
-            StartInstancesRequest siRequest =
-                    StartInstancesRequest.builder().instanceIds(instances).build();
-            StartInstancesResponse siResult = ec2.startInstances(siRequest);
-            logProvisionInfo("Result of starting stopped instances:" + siResult);
-        }
     }
 
     List<EC2AbstractSlave> toSlaves(List<Instance> newInstances) throws IOException {
