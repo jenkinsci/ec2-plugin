@@ -21,7 +21,7 @@
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       javaPath: "java"
       labelString: "linux ubuntu"
-      maxTotalUses: -1
+      maxTotalUses: 1
       metadataEndpointEnabled: true
       metadataHopsLimit: 1
       metadataSupported: true
