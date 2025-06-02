@@ -2800,9 +2800,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
         }
 
-        if (maxTotalUses == 0) {
-            maxTotalUses = -1;
-        }
+        LOGGER.fine("Setting maxTotalUses as 1");
+        maxTotalUses = 1;
 
         if (nodeProperties == null) {
             nodeProperties = new DescribableList<>(Saveable.NOOP);
