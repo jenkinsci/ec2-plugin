@@ -1869,22 +1869,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return provisionOndemand(image, number, provisionOptions);
     }
 
-    /**
-     * Safely we can pickup only instance that is not known by Jenkins at all.
-     */
-    private boolean checkInstance(Instance instance) {
-        for (EC2AbstractSlave node : NodeIterator.nodes(EC2AbstractSlave.class)) {
-            if ((node.getInstanceId().equals(instance.instanceId()))
-                    && (!(instance.state().name().equals(InstanceStateName.STOPPED)))) {
-                logInstanceCheck(
-                        instance, ". false - found existing corresponding Jenkins agent: " + node.getInstanceId());
-                return false;
-            }
-        }
-        logInstanceCheck(instance, " true - Instance is not connected to Jenkins");
-        return true;
-    }
-
     private void logInstanceCheck(Instance instance, String message) {
         logProvisionInfo("checkInstance: " + instance.instanceId() + "." + message);
     }
@@ -2139,23 +2123,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
-
-        if (orphansOrStopped.isEmpty()
-                && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
-                && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-            logProvisionInfo("No existing instance found - but cannot create new instance");
-            return null;
-        }
-
-        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
-
-        if (orphansOrStopped.size() == number) {
-            return toSlaves(orphansOrStopped);
-        }
 
         RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
-        riRequestBuilder.maxCount(number - orphansOrStopped.size());
+        riRequestBuilder.maxCount(number);
 
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
@@ -2199,8 +2169,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             logProvisionInfo("No new instances were created");
         }
 
-        newInstances.addAll(orphansOrStopped);
-
         return toSlaves(newInstances);
     }
 
@@ -2238,37 +2206,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(e); // we should have discovered all
             // configuration issues upfront
         }
-    }
-
-    List<Instance> findOrphansOrStopped(DescribeInstancesResponse diResult, int number) {
-        List<Instance> orphansOrStopped = new ArrayList<>();
-        int count = 0;
-        for (Reservation reservation : diResult.reservations()) {
-            for (Instance instance : reservation.instances()) {
-                if (!isSameIamInstanceProfile(instance)) {
-                    logInstanceCheck(
-                            instance,
-                            ". false - IAM Instance profile does not match: " + instance.iamInstanceProfile());
-                    continue;
-                }
-
-                if (isTerminatingOrShuttindDown(instance.state().name())) {
-                    logInstanceCheck(instance, ". false - Instance is terminated or shutting down");
-                    continue;
-                }
-
-                if (checkInstance(instance)) {
-                    logProvisionInfo("Found existing instance: " + instance);
-                    orphansOrStopped.add(instance);
-                    count++;
-                }
-
-                if (count == number) {
-                    return orphansOrStopped;
-                }
-            }
-        }
-        return orphansOrStopped;
     }
 
     private void setupRootDevice(Image image, List<BlockDeviceMapping> deviceMappings) {

@@ -1114,29 +1114,6 @@ public class EC2Cloud extends Cloud {
         }
     }
 
-    /**
-     * Helper method to reattach lost EC2 node agents @Issue("JENKINS-57795")
-     *
-     * @param jenkinsInstance Jenkins object that the nodes are to be re-attached to.
-     * @param template The corresponding SlaveTemplate of the nodes that are to be re-attached
-     * @param requestedNum The requested number of nodes to re-attach. We don't go above this in the case its value corresponds to an instance cap.
-     */
-    void attemptReattachOrphanOrStoppedNodes(Jenkins jenkinsInstance, SlaveTemplate template, int requestedNum)
-            throws IOException {
-        LOGGER.info("Attempting to wake & re-attach orphan/stopped nodes");
-        Ec2Client ec2 = this.connect();
-        DescribeInstancesResponse diResult = template.getDescribeInstanceResult(ec2, true);
-        List<Instance> orphansOrStopped = template.findOrphansOrStopped(diResult, requestedNum);
-        template.wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
-        /* If the number of possible nodes to re-attach is greater than the number of nodes requested, will only attempt to re-attach up to the number requested */
-        while (orphansOrStopped.size() > requestedNum) {
-            orphansOrStopped.remove(0);
-        }
-        attachSlavesToJenkins(jenkinsInstance, template.toSlaves(orphansOrStopped), template);
-        if (!orphansOrStopped.isEmpty()) {
-            LOGGER.info("Found and re-attached " + orphansOrStopped.size() + " orphan/stopped nodes");
-        }
-    }
 
     private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
         return new PlannedNode(
