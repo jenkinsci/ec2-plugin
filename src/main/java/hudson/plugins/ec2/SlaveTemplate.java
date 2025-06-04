@@ -92,6 +92,8 @@ import software.amazon.awssdk.services.ec2.model.CancelSpotInstanceRequestsReque
 import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
 import software.amazon.awssdk.services.ec2.model.CreditSpecificationRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstanceTypesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstanceTypesResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
@@ -114,7 +116,10 @@ import software.amazon.awssdk.services.ec2.model.InstanceMetadataOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.InstanceNetworkInterfaceSpecification;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.InstanceTypeHypervisor;
+import software.amazon.awssdk.services.ec2.model.InstanceTypeInfo;
 import software.amazon.awssdk.services.ec2.model.MarketType;
+import software.amazon.awssdk.services.ec2.model.NitroEnclavesSupport;
 import software.amazon.awssdk.services.ec2.model.Placement;
 import software.amazon.awssdk.services.ec2.model.RequestSpotInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.RequestSpotInstancesResponse;
@@ -3412,6 +3417,42 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Optional<FormValidation> okResult = matched.map(s -> FormValidation.ok());
             return okResult.orElse(
                     FormValidation.error(String.format("Could not find selected option (%s)", ebsEncryptRootVolume)));
+        }
+
+        @RequirePOST
+        public FormValidation doCheckEnclaveEnabled(
+                @QueryParameter boolean enclaveEnabled,
+                @QueryParameter String type,
+                @QueryParameter boolean useInstanceProfileForCredentials,
+                @QueryParameter String credentialsId,
+                @QueryParameter String region,
+                @QueryParameter String altEC2Endpoint,
+                @QueryParameter String roleArn,
+                @QueryParameter String roleSessionName) {
+            checkPermission(EC2Cloud.PROVISION);
+            if (enclaveEnabled && type != null && !type.isEmpty()) {
+                AwsCredentialsProvider credentialsProvider = EC2Cloud.createCredentialsProvider(
+                        useInstanceProfileForCredentials, credentialsId, roleArn, roleSessionName, region);
+                Ec2Client ec2 = AmazonEC2Factory.getInstance()
+                        .connect(
+                                credentialsProvider,
+                                EC2Cloud.parseRegion(region),
+                                EC2Cloud.parseEndpoint(altEC2Endpoint));
+                DescribeInstanceTypesRequest request = DescribeInstanceTypesRequest.builder()
+                        .instanceTypes(InstanceType.fromValue(type))
+                        .build();
+                DescribeInstanceTypesResponse response = ec2.describeInstanceTypes(request);
+                for (InstanceTypeInfo instanceTypeInfo : response.instanceTypes()) {
+                    if (!InstanceTypeHypervisor.UNKNOWN_TO_SDK_VERSION.equals(instanceTypeInfo.hypervisor())
+                            && !InstanceTypeHypervisor.NITRO.equals(instanceTypeInfo.hypervisor())) {
+                        return FormValidation.error("The selected instance type does not use the AWS Nitro System.");
+                    }
+                    if (NitroEnclavesSupport.UNSUPPORTED.equals(instanceTypeInfo.nitroEnclavesSupport())) {
+                        return FormValidation.error("The selected instance type does not support AWS Nitro Enclaves.");
+                    }
+                }
+            }
+            return FormValidation.ok();
         }
     }
 }
