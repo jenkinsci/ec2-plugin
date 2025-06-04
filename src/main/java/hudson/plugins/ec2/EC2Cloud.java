@@ -1114,7 +1114,6 @@ public class EC2Cloud extends Cloud {
         }
     }
 
-
     private PlannedNode createPlannedNode(final SlaveTemplate t, final EC2AbstractSlave slave) {
         return new PlannedNode(
                 t.getDisplayName(),
