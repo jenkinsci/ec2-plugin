@@ -40,6 +40,7 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import jenkins.util.NonLocalizable;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -1231,6 +1232,11 @@ class EC2RetentionStrategyTest {
         // Should have 1 agents after check
         assertEquals(1, computers.size());
         assertEquals(1, AmazonEC2FactoryMockImpl.instances.size());
+    }
+
+    @AfterEach
+    void clearInstances() {
+        AmazonEC2FactoryMockImpl.instances.clear();
     }
 
     private static void checkRetentionStrategy(EC2RetentionStrategy rs, EC2Computer c) throws InterruptedException {
