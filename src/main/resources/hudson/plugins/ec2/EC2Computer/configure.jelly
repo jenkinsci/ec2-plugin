@@ -127,10 +127,6 @@ THE SOFTWARE.
           </f:dropdownListBlock>
         </f:dropdownList>
 
-      <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">
-        <f:textbox />
-      </f:entry>
-
         <f:descriptorList title="${%Node Properties}" descriptors="${h.getNodePropertyDescriptors(descriptor.clazz)}" field="nodeProperties" />
 
         <f:optionalBlock field="metadataSupported" title="${%Instance Metadata Supported}" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/metadataSupported">

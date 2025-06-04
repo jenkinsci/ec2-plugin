@@ -353,7 +353,6 @@ def slaveTemplateUsEast1Parameters = [
   enclaveEnabled:                true, // launches the instance with Nitro Enclave enabled
   minimumNumberOfInstances:      0,
   minimumNumberOfSpareInstances: 0,
-  maxTotalUses:                  -1,
   monitoring:                    false,
   t2Unlimited:                   false,
   connectionStrategy:            ConnectionStrategy.valueOf('PRIVATE_IP'),
@@ -451,7 +450,6 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.monitoring,
   slaveTemplateUsEast1Parameters.t2Unlimited,
   slaveTemplateUsEast1Parameters.connectionStrategy,
-  slaveTemplateUsEast1Parameters.maxTotalUses,
   slaveTemplateUsEast1Parameters.nodeProperties,
   slaveTemplateUsEast1Parameters.hostKeyVerificationStrategy,
   slaveTemplateUsEast1Parameters.tenancy,

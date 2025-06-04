@@ -3,11 +3,17 @@ package hudson.plugins.ec2;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import hudson.model.Node;
+import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import hudson.plugins.ec2.util.SSHCredentialHelper;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import jenkins.model.Jenkins;
+import org.junit.Ignore;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -24,6 +30,11 @@ class EC2SlaveMonitorTest {
         r = rule;
         // Tests using the BouncyCastleProvider failed without that
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    }
+
+    @AfterEach
+    void clearInstances() {
+        AmazonEC2FactoryMockImpl.instances.clear();
     }
 
     @Test
