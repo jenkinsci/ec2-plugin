@@ -3011,33 +3011,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
 
         @POST
-        public FormValidation doCheckIdleTerminationMinutes(@QueryParameter String value) {
-            if (value == null || value.trim().isEmpty()) {
-                return FormValidation.ok();
-            }
-            try {
-                int val = Integer.parseInt(value);
-                if (val >= -59) {
-                    return FormValidation.ok();
-                }
-            } catch (NumberFormatException nfe) {
-            }
-            return FormValidation.error("Idle Termination time must be a greater than -59 (or null)");
-        }
-
-        @POST
-        public FormValidation doCheckMaxTotalUses(@QueryParameter String value) {
-            try {
-                int val = Integer.parseInt(value);
-                if (val >= -1) {
-                    return FormValidation.ok();
-                }
-            } catch (NumberFormatException nfe) {
-            }
-            return FormValidation.error("Maximum Total Uses must be greater or equal to -1");
-        }
-
-        @POST
         public FormValidation doCheckMinimumNumberOfInstances(
                 @QueryParameter String value, @QueryParameter String instanceCapStr) {
             if (value == null || value.trim().isEmpty()) {
