@@ -144,7 +144,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 
     private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
-    private static final org.slf4j.Logger log = LoggerFactory.getLogger(SlaveTemplate.class);
 
     public String ami;
 
@@ -514,7 +513,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                true,
+                false,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -609,7 +608,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                true,
+                false,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -699,7 +698,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                true,
+                false,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -952,7 +951,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                true,
+                false,
                 nodeProperties,
                 null);
     }
@@ -1032,7 +1031,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                true,
+                false,
                 nodeProperties);
     }
 
