@@ -146,6 +146,7 @@ class TemplateLabelsTest {
                 false,
                 ConnectionStrategy.PRIVATE_IP,
                 -1,
+                true,
                 Collections.emptyList(),
                 null,
                 Tenancy.Default,

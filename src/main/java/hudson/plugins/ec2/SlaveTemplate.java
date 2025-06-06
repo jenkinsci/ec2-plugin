@@ -83,6 +83,7 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -143,6 +144,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 
     private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
+    private static final org.slf4j.Logger log = LoggerFactory.getLogger(SlaveTemplate.class);
 
     public String ami;
 
@@ -221,6 +223,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public boolean connectBySSHProcess;
 
     public int maxTotalUses;
+
+    public boolean avoidUsingOrphanedNodes;
 
     private /* lazily initialized */ DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
 
@@ -323,6 +327,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited,
             ConnectionStrategy connectionStrategy,
             int maxTotalUses,
+            boolean avoidUsingOrphanedNodes,
             List<? extends NodeProperty<?>> nodeProperties,
             HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
             Tenancy tenancy,
@@ -378,6 +383,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
+        this.avoidUsingOrphanedNodes = avoidUsingOrphanedNodes;
         this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
         this.monitoring = monitoring;
         this.nextSubnet = 0;
@@ -508,6 +514,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
+                true,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -602,6 +609,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
+                true,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -691,6 +699,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
+                true,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -822,6 +831,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited,
             ConnectionStrategy connectionStrategy,
             int maxTotalUses,
+            boolean uaseOrphanedNodes,
             List<? extends NodeProperty<?>> nodeProperties,
             HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
         this(
@@ -903,6 +913,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited,
             ConnectionStrategy connectionStrategy,
             int maxTotalUses,
+            boolean uaseOrphanedNodes,
             List<? extends NodeProperty<?>> nodeProperties) {
         this(
                 ami,
@@ -941,6 +952,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
+                true,
                 nodeProperties,
                 null);
     }
@@ -1020,6 +1032,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
+                true,
                 nodeProperties);
     }
 
@@ -1817,6 +1830,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return maxTotalUses;
     }
 
+    public boolean isAvoidUsingOrphanedNodes() {
+        return avoidUsingOrphanedNodes;
+    }
+
+
     public Boolean getMetadataSupported() {
         return metadataSupported;
     }
@@ -2125,7 +2143,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         Ec2Client ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
-
         HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap =
                 makeRunInstancesRequestAndFilters(image, number, ec2);
         Map.Entry<RunInstancesRequest, List<Filter>> entry =
@@ -2139,19 +2156,24 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
+        List<Instance> orphansOrStopped = new ArrayList<>();
+        if(!avoidUsingOrphanedNodes){
+            orphansOrStopped = findOrphansOrStopped(diResult, number);
 
-        if (orphansOrStopped.isEmpty()
-                && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
-                && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-            logProvisionInfo("No existing instance found - but cannot create new instance");
-            return null;
-        }
+            if (orphansOrStopped.isEmpty()
+                    && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
+                    && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+                logProvisionInfo("No existing instance found - but cannot create new instance");
+                return null;
+            }
 
-        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+            wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-        if (orphansOrStopped.size() == number) {
-            return toSlaves(orphansOrStopped);
+            if (orphansOrStopped.size() == number) {
+                return toSlaves(orphansOrStopped);
+            }
+        }else {
+            LOGGER.fine( "User has opted to avoid using orphaned nodes.");
         }
 
         RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
