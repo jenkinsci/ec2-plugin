@@ -829,7 +829,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited,
             ConnectionStrategy connectionStrategy,
             int maxTotalUses,
-            boolean uaseOrphanedNodes,
             List<? extends NodeProperty<?>> nodeProperties,
             HostKeyVerificationStrategyEnum hostKeyVerificationStrategy) {
         this(
@@ -911,7 +910,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited,
             ConnectionStrategy connectionStrategy,
             int maxTotalUses,
-            boolean uaseOrphanedNodes,
             List<? extends NodeProperty<?>> nodeProperties) {
         this(
                 ami,
@@ -950,7 +948,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                false,
                 nodeProperties,
                 null);
     }
@@ -1030,7 +1027,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                false,
                 nodeProperties);
     }
 
