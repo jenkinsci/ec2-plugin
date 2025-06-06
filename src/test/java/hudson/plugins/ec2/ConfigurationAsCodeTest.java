@@ -182,6 +182,19 @@ class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("Unix-withAvoidUsingOrphanedNodes.yml")
+    void testConfigAsCodeWithAvoidUsingOrphanedNodes(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("timed");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertTrue(slaveTemplate.isAvoidUsingOrphanedNodes());
+    }
+
+    @Test
     @ConfiguredWithCode("Ami.yml")
     void testAmi(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("test");

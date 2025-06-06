@@ -83,7 +83,6 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -1833,7 +1832,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return avoidUsingOrphanedNodes;
     }
 
-
     public Boolean getMetadataSupported() {
         return metadataSupported;
     }
@@ -2156,7 +2154,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
         List<Instance> orphansOrStopped = new ArrayList<>();
-        if(!avoidUsingOrphanedNodes) {
+        if (!avoidUsingOrphanedNodes) {
             orphansOrStopped = findOrphansOrStopped(diResult, number);
 
             if (orphansOrStopped.isEmpty()
