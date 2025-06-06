@@ -2157,7 +2157,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
         List<Instance> orphansOrStopped = new ArrayList<>();
-        if(!avoidUsingOrphanedNodes){
+        if(!avoidUsingOrphanedNodes) {
             orphansOrStopped = findOrphansOrStopped(diResult, number);
 
             if (orphansOrStopped.isEmpty()
@@ -2172,8 +2172,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (orphansOrStopped.size() == number) {
                 return toSlaves(orphansOrStopped);
             }
-        }else {
-            LOGGER.fine( "User has opted to avoid using orphaned nodes.");
         }
 
         RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
