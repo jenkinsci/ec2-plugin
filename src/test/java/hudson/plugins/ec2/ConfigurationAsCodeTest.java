@@ -184,7 +184,7 @@ class ConfigurationAsCodeTest {
     @Test
     @ConfiguredWithCode("Unix-withAvoidUsingOrphanedNodes.yml")
     void testConfigAsCodeWithAvoidUsingOrphanedNodes(JenkinsConfiguredWithCodeRule j) {
-        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("timed");
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("avoidUsingOrphanedNodesTest");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
 

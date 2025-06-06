@@ -2,7 +2,7 @@
 jenkins:
   clouds:
     - amazonEC2:
-        name: "timed"
+        name: "avoidUsingOrphanedNodesTest"
         useInstanceProfileForCredentials: true
         sshKeysCredentialsId: "random credentials id"
         templates:
