@@ -222,7 +222,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int maxTotalUses;
 
-    public boolean avoidUsingOrphanedNodes;
+    private boolean avoidUsingOrphanedNodes;
 
     private /* lazily initialized */ DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
 
