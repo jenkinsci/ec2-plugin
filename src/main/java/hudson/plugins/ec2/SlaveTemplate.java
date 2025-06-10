@@ -325,7 +325,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean t2Unlimited,
             ConnectionStrategy connectionStrategy,
             int maxTotalUses,
-            boolean avoidUsingOrphanedNodes,
             List<? extends NodeProperty<?>> nodeProperties,
             HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
             Tenancy tenancy,
@@ -381,7 +380,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.connectBySSHProcess = connectBySSHProcess;
         this.maxTotalUses = maxTotalUses;
-        this.avoidUsingOrphanedNodes = avoidUsingOrphanedNodes;
         this.nodeProperties = new DescribableList<>(Saveable.NOOP, Util.fixNull(nodeProperties));
         this.monitoring = monitoring;
         this.nextSubnet = 0;
@@ -512,7 +510,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                false,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -607,7 +604,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                false,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -697,7 +693,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 t2Unlimited,
                 connectionStrategy,
                 maxTotalUses,
-                false,
                 nodeProperties,
                 hostKeyVerificationStrategy,
                 tenancy,
@@ -1815,6 +1810,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.amiFilters = amiFilters;
     }
 
+    @DataBoundSetter
+    public void setAvoidUsingOrphanedNodes(Boolean avoidUsingOrphanedNodes) {
+        this.avoidUsingOrphanedNodes = avoidUsingOrphanedNodes;
+    }
+
     @Override
     public String toString() {
         return "SlaveTemplate{" + "description='" + description + '\'' + ", labels='" + labels + '\'' + '}';
@@ -2398,7 +2398,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @NonNull
-    private Image getImage() throws SdkException {
+    Image getImage() throws SdkException {
         DescribeImagesRequest request = makeDescribeImagesRequest();
 
         LOGGER.info("Getting image for request " + request);

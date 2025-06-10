@@ -120,7 +120,6 @@ public class MockEC2Computer extends EC2Computer {
                 false,
                 ConnectionStrategy.PRIVATE_DNS,
                 -1,
-                false,
                 Collections.emptyList(),
                 null,
                 Tenancy.Default,

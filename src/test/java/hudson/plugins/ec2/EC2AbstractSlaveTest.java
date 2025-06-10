@@ -113,7 +113,6 @@ class EC2AbstractSlaveTest {
                 false,
                 ConnectionStrategy.PUBLIC_IP,
                 -1,
-                false,
                 null,
                 HostKeyVerificationStrategyEnum.CHECK_NEW_HARD,
                 Tenancy.Default,
