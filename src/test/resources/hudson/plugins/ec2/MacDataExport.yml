@@ -12,7 +12,6 @@
           slaveCommandSuffix: "-fakeFlag"
           sshPort: "22"
       associatePublicIp: false
-      avoidUsingOrphanedNodes: false
       connectBySSHProcess: false
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false
