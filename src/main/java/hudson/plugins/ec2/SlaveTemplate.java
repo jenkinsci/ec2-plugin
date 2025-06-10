@@ -2398,7 +2398,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     @NonNull
-    Image getImage() throws SdkException {
+    private Image getImage() throws SdkException {
         DescribeImagesRequest request = makeDescribeImagesRequest();
 
         LOGGER.info("Getting image for request " + request);
