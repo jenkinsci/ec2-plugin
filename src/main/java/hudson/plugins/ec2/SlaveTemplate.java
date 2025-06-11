@@ -222,6 +222,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int maxTotalUses;
 
+    private boolean avoidUsingOrphanedNodes;
+
     private /* lazily initialized */ DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
 
     public int nextSubnet;
@@ -1808,6 +1810,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.amiFilters = amiFilters;
     }
 
+    @DataBoundSetter
+    public void setAvoidUsingOrphanedNodes(Boolean avoidUsingOrphanedNodes) {
+        this.avoidUsingOrphanedNodes = avoidUsingOrphanedNodes;
+    }
+
     @Override
     public String toString() {
         return "SlaveTemplate{" + "description='" + description + '\'' + ", labels='" + labels + '\'' + '}';
@@ -1815,6 +1822,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMaxTotalUses() {
         return maxTotalUses;
+    }
+
+    public boolean isAvoidUsingOrphanedNodes() {
+        return avoidUsingOrphanedNodes;
     }
 
     public Boolean getMetadataSupported() {
@@ -2125,7 +2136,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         Ec2Client ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
-
         HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap =
                 makeRunInstancesRequestAndFilters(image, number, ec2);
         Map.Entry<RunInstancesRequest, List<Filter>> entry =
@@ -2139,19 +2149,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
+        List<Instance> orphansOrStopped = new ArrayList<>();
+        if (!avoidUsingOrphanedNodes) {
+            orphansOrStopped = findOrphansOrStopped(diResult, number);
 
-        if (orphansOrStopped.isEmpty()
-                && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
-                && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-            logProvisionInfo("No existing instance found - but cannot create new instance");
-            return null;
-        }
+            if (orphansOrStopped.isEmpty()
+                    && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
+                    && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+                logProvisionInfo("No existing instance found - but cannot create new instance");
+                return null;
+            }
 
-        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+            wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-        if (orphansOrStopped.size() == number) {
-            return toSlaves(orphansOrStopped);
+            if (orphansOrStopped.size() == number) {
+                return toSlaves(orphansOrStopped);
+            }
         }
 
         RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
