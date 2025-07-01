@@ -1047,8 +1047,8 @@ public class EC2Cloud extends Cloud {
                 }
             } catch (AwsServiceException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-                if (e.awsErrorDetails().errorCode().equals("RequestExpired")
-                        || e.awsErrorDetails().errorCode().equals("ExpiredToken")) {
+                if ("RequestExpired".equals(e.awsErrorDetails().errorCode())
+                        || "ExpiredToken".equals(e.awsErrorDetails().errorCode())) {
                     // A RequestExpired or ExpiredToken error can indicate that credentials have expired so reconnect
                     LOGGER.log(Level.INFO, "Reconnecting to EC2 due to RequestExpired or ExpiredToken error");
                     try {

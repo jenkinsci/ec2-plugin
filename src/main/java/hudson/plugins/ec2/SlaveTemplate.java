@@ -2185,7 +2185,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 newInstances = new ArrayList<>(
                         ec2.runInstances(riRequestBuilder.build()).instances());
             } catch (Ec2Exception e) {
-                if (fallbackSpotToOndemand && e.awsErrorDetails().errorCode().equals("InsufficientInstanceCapacity")) {
+                if (fallbackSpotToOndemand
+                        && "InsufficientInstanceCapacity"
+                                .equals(e.awsErrorDetails().errorCode())) {
                     logProvisionInfo(
                             "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
@@ -2522,7 +2524,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 reqResult = ec2.requestSpotInstances(spotRequestBuilder.build());
             } catch (Ec2Exception e) {
                 if (spotConfig.getFallbackToOndemand()
-                        && e.awsErrorDetails().errorCode().equals("MaxSpotInstanceCountExceeded")) {
+                        && "MaxSpotInstanceCountExceeded"
+                                .equals(e.awsErrorDetails().errorCode())) {
                     logProvisionInfo(
                             "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     return provisionOndemand(image, number, provisionOptions);
@@ -2736,7 +2739,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @param params
      * @throws InterruptedException
      */
-    private void updateRemoteTags(Ec2Client ec2, Collection<Tag> instTags, String catchErrorCode, String... params)
+    private void updateRemoteTags(
+            Ec2Client ec2, Collection<Tag> instTags, @NonNull String catchErrorCode, String... params)
             throws InterruptedException {
         for (int i = 0; i < 5; i++) {
             try {
@@ -2746,7 +2750,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         .build());
                 break;
             } catch (AwsServiceException e) {
-                if (e.awsErrorDetails().errorCode().equals(catchErrorCode)) {
+                if (catchErrorCode.equals(e.awsErrorDetails().errorCode())) {
                     Thread.sleep(5000);
                     continue;
                 }
