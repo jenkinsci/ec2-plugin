@@ -58,6 +58,7 @@ class ConfigurationAsCodeTest {
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isUnix());
+        assertTrue(amiType.isSSHAgent());
         assertInstanceOf(UnixData.class, amiType);
         final UnixData unixData = (UnixData) amiType;
         assertEquals("sudo", unixData.getRootCommandPrefix());
@@ -111,6 +112,7 @@ class ConfigurationAsCodeTest {
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertFalse(amiType.isUnix());
         assertTrue(amiType.isWindows());
+        assertTrue(amiType.isWinRMAgent());
         assertInstanceOf(WindowsData.class, amiType);
         final WindowsData windowsData = (WindowsData) amiType;
         assertEquals(Secret.fromString("password"), windowsData.getPassword());
@@ -248,6 +250,7 @@ class ConfigurationAsCodeTest {
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isMac());
+        assertTrue(amiType.isSSHAgent());
         assertInstanceOf(MacData.class, amiType);
         final MacData macData = (MacData) amiType;
         assertEquals("sudo", macData.getRootCommandPrefix());
@@ -299,5 +302,66 @@ class ConfigurationAsCodeTest {
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
         assertTrue(slaveTemplate.getEnclaveEnabled());
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHData.yml")
+    public void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("C:\\Users\\ec2-user", slaveTemplate.remoteFS);
+
+        assertEquals("windows server", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("server")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("windows")));
+
+        final SpotConfiguration spotConfig = slaveTemplate.spotConfig;
+        assertNotEquals(null, spotConfig);
+        assertTrue(spotConfig.getFallbackToOndemand());
+        assertEquals(3, spotConfig.getSpotBlockReservationDuration());
+        assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
+        assertTrue(spotConfig.useBidPrice);
+
+        final AMITypeData amiType = slaveTemplate.getAmiType();
+        assertTrue(amiType.isWindows());
+        assertTrue(amiType.isSSHAgent());
+        assertInstanceOf(WindowsSSHData.class, amiType);
+        final WindowsSSHData windowsSSHData = (WindowsSSHData) amiType;
+        assertEquals("CMD /C", windowsSSHData.getRootCommandPrefix());
+        assertEquals("CMD /C", windowsSSHData.getSlaveCommandPrefix());
+        assertEquals("-fakeFlag", windowsSSHData.getSlaveCommandSuffix());
+        assertEquals("22", windowsSSHData.getSshPort());
+        assertEquals("180", windowsSSHData.getBootDelay());
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHData.yml")
+    public void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "WindowsSSHDataExport.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHData-withAltEndpointAndJavaPath.yml")
+    public void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j)
+            throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "WindowsSSHDataExport-withAltEndpointAndJavaPath.yml");
+        assertEquals(expected, exported);
     }
 }
