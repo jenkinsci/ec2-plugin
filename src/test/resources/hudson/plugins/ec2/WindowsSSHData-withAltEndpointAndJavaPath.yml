@@ -1,0 +1,28 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        altEC2Endpoint: "https.//ec2.us-east-1.amazonaws.com"
+        name: "production"
+        region: "eu-central-1"
+        useInstanceProfileForCredentials: true
+        sshKeysCredentialsId: "random credentials id"
+        templates:
+          - description:
+            ami: "ami-12345"
+            labelString: "windows server"
+            type: "t2.micro"
+            remoteFS: "C:\\Users\\ec2-user"
+            mode: "NORMAL"
+            javaPath: "\"C:\\Program Files\\jdk-11\\bin\\java.exe\""
+            spotConfig:
+              fallbackToOndemand: true
+              spotBlockReservationDuration: 3
+              spotMaxBidPrice: "0.15"
+              useBidPrice: true
+            amiType:
+              windowsSSHData:
+                rootCommandPrefix: "CMD /C"
+                slaveCommandPrefix: "CMD /C"
+                slaveCommandSuffix: "-fakeFlag"
+                sshPort: "22"
