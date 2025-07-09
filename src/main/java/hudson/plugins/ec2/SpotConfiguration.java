@@ -185,20 +185,10 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                      * This is necessary because the AWS API needs the instance type string formatted a particular way
                      * to retrieve prices and the form gives us the strings in a different format. For example "T1Micro"
                      * vs "t1.micro".
-                     */
-                    InstanceType ec2Type = null;
-
-                    for (InstanceType it : InstanceType.values()) {
-                        if (it.name().equals(type)) {
-                            ec2Type = it;
-                            break;
-                        }
-                    }
-
-                    /*
                      * If the type string cannot be matched with an instance type, throw a Form error
                      */
-                    if (ec2Type == null) {
+                    InstanceType ec2Type = InstanceType.fromValue(type);
+                    if( ec2Type == null || ec2Type == InstanceType.UNKNOWN_TO_SDK_VERSION) {
                         return FormValidation.error("Could not resolve instance type: " + type);
                     }
 
