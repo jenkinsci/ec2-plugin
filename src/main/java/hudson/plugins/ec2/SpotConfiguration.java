@@ -188,7 +188,7 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                      * If the type string cannot be matched with an instance type, throw a Form error
                      */
                     InstanceType ec2Type = InstanceType.fromValue(type);
-                    if( ec2Type == null || ec2Type == InstanceType.UNKNOWN_TO_SDK_VERSION) {
+                    if (ec2Type == null || ec2Type == InstanceType.UNKNOWN_TO_SDK_VERSION) {
                         return FormValidation.error("Could not resolve instance type: " + type);
                     }
 
