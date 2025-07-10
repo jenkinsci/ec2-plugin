@@ -181,10 +181,6 @@ public final class SpotConfiguration extends AbstractDescribableImpl<SpotConfigu
                     }
 
                     /*
-                     * Iterate through the AWS instance types to see if can find a match for the databound String type.
-                     * This is necessary because the AWS API needs the instance type string formatted a particular way
-                     * to retrieve prices and the form gives us the strings in a different format. For example "T1Micro"
-                     * vs "t1.micro".
                      * If the type string cannot be matched with an instance type, throw a Form error
                      */
                     InstanceType ec2Type = InstanceType.fromValue(type);
