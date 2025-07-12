@@ -26,10 +26,8 @@ package hudson.plugins.ec2;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
-import com.amazonaws.services.ec2.AmazonEC2;
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
@@ -46,27 +44,28 @@ import java.util.Collections;
 import jenkins.model.Jenkins;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlTextInput;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
 
 /**
  * @author Kohsuke Kawaguchi
  */
-public class EC2CloudTest {
+@WithJenkins
+class EC2CloudTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
 
     private EC2Cloud cloud;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
         cloud = new EC2Cloud(
                 "us-east-1",
                 true,
@@ -82,7 +81,7 @@ public class EC2CloudTest {
     }
 
     @Test
-    public void testConfigRoundtrip() throws Exception {
+    void testConfigRoundtrip() throws Exception {
         r.submit(getConfigForm());
         r.assertEqualBeans(
                 cloud,
@@ -91,25 +90,25 @@ public class EC2CloudTest {
     }
 
     @Test
-    public void testAmazonEC2FactoryGetInstance() throws Exception {
+    void testAmazonEC2FactoryGetInstance() {
         EC2Cloud cloud = r.jenkins.clouds.get(EC2Cloud.class);
-        AmazonEC2 connection = cloud.connect();
-        Assert.assertNotNull(connection);
-        Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
+        Ec2Client connection = cloud.connect();
+        assertNotNull(connection);
+        assertTrue(Mockito.mockingDetails(connection).isMock());
     }
 
     @Test
-    public void testAmazonEC2FactoryWorksIfSessionNameMissing() throws Exception {
+    void testAmazonEC2FactoryWorksIfSessionNameMissing() throws Exception {
         r.jenkins.clouds.replace(new EC2Cloud(
                 "us-east-1", true, "abc", "us-east-1", null, "ghi", "3", Collections.emptyList(), "roleArn", null));
         EC2Cloud cloud = r.jenkins.clouds.get(EC2Cloud.class);
-        AmazonEC2 connection = cloud.connect();
-        Assert.assertNotNull(connection);
-        Assert.assertTrue(Mockito.mockingDetails(connection).isMock());
+        Ec2Client connection = cloud.connect();
+        assertNotNull(connection);
+        assertTrue(Mockito.mockingDetails(connection).isMock());
     }
 
     @Test
-    public void testSessionNameMissingWarning() {
+    void testSessionNameMissingWarning() {
         EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
         EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertThat(descriptor.doCheckRoleSessionName("roleArn", "").kind, is(FormValidation.Kind.WARNING));
@@ -117,7 +116,7 @@ public class EC2CloudTest {
     }
 
     @Test
-    public void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
+    void testSshKeysCredentialsIdRemainsUnchangedAfterUpdatingOtherFields() throws Exception {
         HtmlForm form = getConfigForm();
         HtmlTextInput input = form.getInputByName("_.roleSessionName");
 
@@ -130,7 +129,7 @@ public class EC2CloudTest {
     }
 
     @Test
-    public void testAWSCredentials() throws IOException {
+    void testAWSCredentials() {
         EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
         EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);
@@ -152,7 +151,7 @@ public class EC2CloudTest {
     }
 
     @Test
-    public void testSshCredentials() throws IOException {
+    void testSshCredentials() throws IOException {
         EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
         EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);
@@ -182,7 +181,7 @@ public class EC2CloudTest {
      */
     @Test
     @Issue("JENKINS-63986")
-    public void testCustomSshCredentialTypes() throws IOException {
+    void testCustomSshCredentialTypes() throws IOException {
         EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
         EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
         assertNotNull(descriptor);

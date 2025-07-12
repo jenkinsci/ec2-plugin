@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Instance;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.TaskListener;
@@ -43,10 +42,11 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
+import software.amazon.awssdk.services.ec2.model.Instance;
 
 /**
  * Returns the instance provisioned.
- *
+ * <p>
  * Used like:
  *
  * <pre>
@@ -108,13 +108,12 @@ public class EC2Step extends Step {
             Jenkins.get().checkPermission(Jenkins.SYSTEM_READ);
             ListBoxModel r = new ListBoxModel();
             Cloud cloud = Jenkins.get().getCloud(Util.fixEmpty(cloudName));
-            if (cloud instanceof EC2Cloud) {
-                EC2Cloud ec2Cloud = (EC2Cloud) cloud;
+            if (cloud instanceof EC2Cloud ec2Cloud) {
                 for (SlaveTemplate template : ec2Cloud.getTemplates()) {
                     for (String labelList : template.labels.split(" ")) {
                         r.add(
                                 labelList + "  (AMI: " + template.getAmi() + ", REGION: " + ec2Cloud.getRegion()
-                                        + ", TYPE: " + template.type.name() + ")",
+                                        + ", TYPE: " + template.type + ")",
                                 labelList);
                     }
                 }

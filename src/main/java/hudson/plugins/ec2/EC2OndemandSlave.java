@@ -1,14 +1,12 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2MacLauncher;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
+import hudson.plugins.ec2.ssh.EC2WindowsSSHLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
@@ -19,7 +17,10 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 
 /**
  * Agent running on EC2.
@@ -335,7 +336,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 DEFAULT_METADATA_SUPPORTED);
     }
 
-    @DataBoundConstructor
+    @Deprecated
     public EC2OndemandSlave(
             String name,
             String instanceId,
@@ -366,6 +367,70 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
             Integer metadataHopsLimit,
             Boolean metadataSupported)
             throws FormException, IOException {
+        this(
+                name,
+                instanceId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                labelString,
+                mode,
+                initScript,
+                tmpDir,
+                nodeProperties,
+                remoteAdmin,
+                DEFAULT_JAVA_PATH,
+                jvmopts,
+                stopOnTerminate,
+                idleTerminationMinutes,
+                publicDNS,
+                privateDNS,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                connectionStrategy,
+                maxTotalUses,
+                tenancy,
+                metadataEndpointEnabled,
+                metadataTokensRequired,
+                metadataHopsLimit,
+                metadataSupported,
+                DEFAULT_ENCLAVE_ENABLED);
+    }
+
+    @DataBoundConstructor
+    public EC2OndemandSlave(
+            String name,
+            String instanceId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            String labelString,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            List<? extends NodeProperty<?>> nodeProperties,
+            String remoteAdmin,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String idleTerminationMinutes,
+            String publicDNS,
+            String privateDNS,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            Tenancy tenancy,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit,
+            Boolean metadataSupported,
+            Boolean enclaveEnabled)
+            throws FormException, IOException {
         super(
                 name,
                 instanceId,
@@ -374,9 +439,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 numExecutors,
                 mode,
                 labelString,
-                (amiType.isWindows()
+                (amiType.isWinRMAgent()
                         ? new EC2WindowsLauncher()
-                        : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher())),
+                        : (amiType.isWindows()
+                                ? new EC2WindowsSSHLauncher()
+                                : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher()))),
                 new EC2RetentionStrategy(idleTerminationMinutes),
                 initScript,
                 tmpDir,
@@ -396,7 +463,8 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 metadataEndpointEnabled,
                 metadataTokensRequired,
                 metadataHopsLimit,
-                metadataSupported);
+                metadataSupported,
+                enclaveEnabled);
         this.publicDNS = publicDNS;
         this.privateDNS = privateDNS;
     }
@@ -447,15 +515,16 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                                  */
                                 LOGGER.info("EC2 instance already terminated: " + getInstanceId());
                             } else {
-                                AmazonEC2 ec2 = getCloud().connect();
-                                TerminateInstancesRequest request =
-                                        new TerminateInstancesRequest(Collections.singletonList(getInstanceId()));
+                                Ec2Client ec2 = getCloud().connect();
+                                TerminateInstancesRequest request = TerminateInstancesRequest.builder()
+                                        .instanceIds(Collections.singletonList(getInstanceId()))
+                                        .build();
                                 ec2.terminateInstances(request);
                                 LOGGER.info("Terminated EC2 instance (terminated): " + getInstanceId());
                             }
                             Jenkins.get().removeNode(this);
                             LOGGER.info("Removed EC2 instance from jenkins controller: " + getInstanceId());
-                        } catch (AmazonClientException | IOException e) {
+                        } catch (SdkException | IOException e) {
                             LOGGER.log(Level.WARNING, "Failed to terminate EC2 instance: " + getInstanceId(), e);
                         } finally {
                             synchronized (terminateScheduled) {
@@ -470,7 +539,7 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
     }
 
     @Override
-    public Node reconfigure(final StaplerRequest req, JSONObject form) throws FormException {
+    public Node reconfigure(final StaplerRequest2 req, JSONObject form) throws FormException {
         if (form == null) {
             return null;
         }

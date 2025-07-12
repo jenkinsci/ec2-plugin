@@ -9,7 +9,7 @@ jenkins:
           - description:
             ami: "ami-12345"
             labelString: "mac metal"
-            type: "Mac1Metal"
+            type: "mac1.metal"
             remoteFS: "/Users/ec2-user"
             mode: "NORMAL"
             tenancy: Host

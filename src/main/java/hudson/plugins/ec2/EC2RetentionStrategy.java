@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
 import hudson.init.InitMilestone;
 import hudson.model.Descriptor;
 import hudson.model.Executor;
@@ -33,6 +32,7 @@ import hudson.model.Queue;
 import hudson.plugins.ec2.util.MinimumInstanceChecker;
 import hudson.slaves.RetentionStrategy;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -40,6 +40,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * {@link RetentionStrategy} for EC2.
@@ -140,15 +141,15 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
         if (computer.isIdle() && !DISABLED) {
             final long uptime;
-            final long launchedAtMs;
+            final Instant launchedAt;
             InstanceState state;
 
             try {
                 state = computer.getState(); // Get State before Uptime because getState will refresh the cached EC2
                 // info
                 uptime = computer.getUptime();
-                launchedAtMs = computer.getLaunchTime();
-            } catch (AmazonClientException | InterruptedException e) {
+                launchedAt = computer.getLaunchTime();
+            } catch (SdkException | InterruptedException e) {
                 // We'll just retry next time we test for idleness.
                 LOGGER.fine("Exception while checking host uptime for " + computer.getName()
                         + ", will retry next check. Exception: " + e);
@@ -203,7 +204,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
 
             final long idleMilliseconds =
-                    this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), launchedAtMs);
+                    this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), launchedAt.toEpochMilli());
 
             if (idleTerminationMinutes > 0) {
                 // TODO: really think about the right strategy here, see
@@ -279,7 +280,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     /**
      * Called when a new {@link EC2Computer} object is introduced (such as when Hudson started, or when
      * a new agent is added.)
-     *
+     * <p>
      * When Jenkins has just started, we don't want to spin up all the instances, so we only start if
      * the EC2 instance is already running
      */
@@ -290,7 +291,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             InstanceState state = null;
             try {
                 state = c.getState();
-            } catch (AmazonClientException | InterruptedException e) {
+            } catch (SdkException | InterruptedException e) {
                 LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + c.getName(), e);
             }
             if (!(InstanceState.PENDING.equals(state) || InstanceState.RUNNING.equals(state))) {

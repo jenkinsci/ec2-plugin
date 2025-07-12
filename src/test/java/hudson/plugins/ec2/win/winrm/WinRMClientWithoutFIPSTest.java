@@ -2,22 +2,17 @@ package hudson.plugins.ec2.win.winrm;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import jenkins.security.FIPS140;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetSystemProperty;
 
-public class WinRMClientWithoutFIPSTest {
-
-    @ClassRule
-    public static FlagRule<String> fipsSystemPropertyRule =
-            FlagRule.systemProperty(FIPS140.class.getName() + ".COMPLIANCE", "false");
+@SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "false")
+class WinRMClientWithoutFIPSTest {
 
     /**
      * When FIPS is not enabled, it should always be allowed to create the {@link WinRMClient}, an {@link IllegalArgumentException} is not expected
      */
     @Test
-    public void testClientCreation() throws MalformedURLException {
+    void testClientCreation() throws MalformedURLException {
         new WinRMClient(new URL("http://localhost"), "username", "password", true).setUseHTTPS(true);
         new WinRMClient(new URL("https://localhost"), "username", "password", true).setUseHTTPS(true);
         new WinRMClient(new URL("http://localhost"), "username", "password", false).setUseHTTPS(true);

@@ -4,12 +4,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.InstanceType;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.Executor;
 import hudson.model.Label;
@@ -44,26 +40,32 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import jenkins.util.NonLocalizable;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.springframework.security.core.Authentication;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
-public class EC2RetentionStrategyTest {
+@WithJenkins
+class EC2RetentionStrategyTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
-
-    @Rule
-    public LoggerRule logging = new LoggerRule();
-
-    final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
-    final AtomicBoolean terminateCalled = new AtomicBoolean(false);
+    private final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
+    private final AtomicBoolean terminateCalled = new AtomicBoolean(false);
     private static final ZoneId zoneId = ZoneId.systemDefault();
 
+    private JenkinsRule r;
+    private final LogRecorder logging = new LogRecorder();
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
+
     @Test
-    public void testOnBillingHourRetention() throws Exception {
+    void testOnBillingHourRetention() throws Exception {
         List<int[]> upTime = new ArrayList<>();
         List<Boolean> expected = new ArrayList<>();
         upTime.add(new int[] {58, 0});
@@ -83,16 +85,16 @@ public class EC2RetentionStrategyTest {
             EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
             checkRetentionStrategy(rs, computer);
             assertEquals(
-                    "Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i),
                     expected.get(i),
-                    idleTimeoutCalled.get());
+                    idleTimeoutCalled.get(),
+                    "Expected " + t[0] + "m" + t[1] + "s to be " + expected.get(i));
             // reset the assumption
             idleTimeoutCalled.set(false);
         }
     }
 
     @Test
-    public void testRetentionWhenQueueHasWaitingItemForThisNode() throws Exception {
+    void testRetentionWhenQueueHasWaitingItemForThisNode() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         EC2Computer computer = computerWithIdleTime(59, 0);
         final Label selfLabel = computer.getNode().getSelfLabel();
@@ -100,15 +102,15 @@ public class EC2RetentionStrategyTest {
         final Task task = taskForLabel(selfLabel, false);
         queue.schedule(task, 500);
         checkRetentionStrategy(rs, computer);
-        assertFalse("Expected computer to be left running", idleTimeoutCalled.get());
+        assertFalse(idleTimeoutCalled.get(), "Expected computer to be left running");
         queue.cancel(task);
         EC2RetentionStrategy rs2 = new EC2RetentionStrategy("-2");
         checkRetentionStrategy(rs2, computer);
-        assertTrue("Expected computer to be idled", idleTimeoutCalled.get());
+        assertTrue(idleTimeoutCalled.get(), "Expected computer to be idled");
     }
 
     @Test
-    public void testRetentionWhenQueueHasBlockedItemForThisNode() throws Exception {
+    void testRetentionWhenQueueHasBlockedItemForThisNode() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("-2");
         EC2Computer computer = computerWithIdleTime(59, 0);
         final Label selfLabel = computer.getNode().getSelfLabel();
@@ -116,11 +118,11 @@ public class EC2RetentionStrategyTest {
         final Task task = taskForLabel(selfLabel, true);
         queue.schedule(task, 0);
         checkRetentionStrategy(rs, computer);
-        assertFalse("Expected computer to be left running", idleTimeoutCalled.get());
+        assertFalse(idleTimeoutCalled.get(), "Expected computer to be left running");
         queue.cancel(task);
         EC2RetentionStrategy rs2 = new EC2RetentionStrategy("-2");
         checkRetentionStrategy(rs2, computer);
-        assertTrue("Expected computer to be idled", idleTimeoutCalled.get());
+        assertTrue(idleTimeoutCalled.get(), "Expected computer to be idled");
     }
 
     private interface AccessControlledTask extends Queue.Task, AccessControlled {}
@@ -246,7 +248,8 @@ public class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     public void terminate() {}
 
@@ -262,9 +265,7 @@ public class EC2RetentionStrategyTest {
                 };
         EC2Computer computer = new EC2Computer(slave) {
 
-            private final long launchedAtMs = Instant.now()
-                    .minus(Duration.ofSeconds(minutes * 60L + seconds))
-                    .toEpochMilli();
+            private final Instant launchedAt = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds));
 
             @Override
             public EC2AbstractSlave getNode() {
@@ -272,13 +273,13 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long getUptime() throws AmazonClientException, InterruptedException {
+            public long getUptime() throws SdkException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
 
             @Override
-            public long getLaunchTime() throws InterruptedException {
-                return this.launchedAtMs;
+            public Instant getLaunchTime() {
+                return this.launchedAt;
             }
 
             @Override
@@ -299,7 +300,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -337,7 +338,8 @@ public class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
             }
 
             @Override
@@ -391,7 +393,8 @@ public class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     public void terminate() {}
 
@@ -406,9 +409,7 @@ public class EC2RetentionStrategyTest {
                     }
                 };
         EC2Computer computer = new EC2Computer(slave) {
-            private final long launchedAtMs = Instant.now()
-                    .minus(Duration.ofSeconds(minutes * 60L + seconds))
-                    .toEpochMilli();
+            private final Instant launchedAt = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds));
 
             @Override
             public EC2AbstractSlave getNode() {
@@ -416,13 +417,13 @@ public class EC2RetentionStrategyTest {
             }
 
             @Override
-            public long getUptime() throws AmazonClientException, InterruptedException {
+            public long getUptime() throws SdkException {
                 return ((minutes * 60L) + seconds) * 1000L;
             }
 
             @Override
-            public long getLaunchTime() throws InterruptedException {
-                return this.launchedAtMs;
+            public Instant getLaunchTime() {
+                return this.launchedAt;
             }
 
             @Override
@@ -443,7 +444,7 @@ public class EC2RetentionStrategyTest {
                         null,
                         "default",
                         "foo",
-                        InstanceType.M1Large,
+                        InstanceType.M1_LARGE.toString(),
                         false,
                         "ttt",
                         Node.Mode.NORMAL,
@@ -481,7 +482,8 @@ public class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
             }
 
             @Override
@@ -495,7 +497,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testOnUsageCountRetention() throws Exception {
+    void testOnUsageCountRetention() throws Exception {
         EC2RetentionStrategy rs = new EC2RetentionStrategy("0");
         List<Integer> usageCounts = new ArrayList<>();
         List<Boolean> expected = new ArrayList<>();
@@ -514,14 +516,14 @@ public class EC2RetentionStrategyTest {
                 }
                 // As we want to terminate agent both for usageCount 1 & 0 - setting this to true
                 if (usageCount == 1 || usageCount == 0) {
-                    assertTrue("Expected " + usageCount + " to be " + true, terminateCalled.get());
+                    assertTrue(terminateCalled.get(), "Expected " + usageCount + " to be " + true);
                     // Reset the assumption
                     terminateCalled.set(false);
                 } else {
                     assertEquals(
-                            "Expected " + usageCount + " to be " + expected.get(i),
                             expected.get(i),
-                            terminateCalled.get());
+                            terminateCalled.get(),
+                            "Expected " + usageCount + " to be " + expected.get(i));
                 }
             }
         }
@@ -557,7 +559,8 @@ public class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                         EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                         EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
                     public void terminate() {
                         terminateCalled.set(true);
@@ -580,7 +583,7 @@ public class EC2RetentionStrategyTest {
      * Even though the computer is offline, we terminate it if it's not connecting now and the idle timeout expired.
      */
     @Test
-    public void testTerminateOfflineComputerIfNotConnecting() throws Exception {
+    void testTerminateOfflineComputerIfNotConnecting() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
 
@@ -626,26 +629,26 @@ public class EC2RetentionStrategyTest {
      * retention strategy timeout has not expired yet. The quirks with idle timeout
      * are now correctly accounted for nodes that have been stopped and started
      * again (i.e termination policy is stop, rather than terminate).
-     *
+     * <p>
      * How does the test below work: for our "mock" EC2Computer, idle start time
      * is always the time when the object has been created, and we cannot
      * easily control idle start time in a test suite as the relevant method to override
      * is declared final.
-     *
+     * <p>
      * We can achieve the same result where idle start time is < launch time
      * by manipulating the node launch time variables. Since, as we said, idle
      * start time is always now, what we end up doing is tricking the node
      * into returning a launch time in the future. To do this we pass a negative
      * value for minutes to {@link #computerWithUpTime(int, int, Boolean, Boolean)}.
-     *
+     * <p>
      * Now if we set retention time to something bigger than the computer uptime
      * we can reproduce the issue, and prove its resolution.
-     *
+     * <p>
      * The time at which we perform the check must be < than computer uptime
      * plus the retention interval.
      */
     @Test
-    public void testDoNotTerminateInstancesJustBooted() throws Exception {
+    void testDoNotTerminateInstancesJustBooted() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
         final int COMPUTER_UPTIME_MINUTES = 5;
@@ -670,7 +673,7 @@ public class EC2RetentionStrategyTest {
      * termination time expires.
      */
     @Test
-    public void testCleanupUnconnectedInstanceAfterTerminationTime() throws Exception {
+    void testCleanupUnconnectedInstanceAfterTerminationTime() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
         logging.capture(5);
         final int COMPUTER_UPTIME_MINUTES = 5;
@@ -691,7 +694,7 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testInternalCheckRespectsWait() throws Exception {
+    void testInternalCheckRespectsWait() throws Exception {
         List<Boolean> expected = new ArrayList<>();
         EC2Computer computer = computerWithUpTime(0, 0);
         List<int[]> upTimeAndCheckAfter = new ArrayList<>();
@@ -722,14 +725,14 @@ public class EC2RetentionStrategyTest {
             String action = expected.get(i) ? "call" : "not call";
             long newNextCheckAfter = rs.getNextCheckAfter();
             assertEquals(
-                    String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action),
                     expectCallCheck,
-                    nextCheckAfter != newNextCheckAfter);
+                    nextCheckAfter != newNextCheckAfter,
+                    String.format("Expected elapsed time of %s ms to %s internalCheck.", startingUptime, action));
         }
     }
 
     @Test
-    public void testRetentionDespiteIdleWithMinimumInstances() throws Exception {
+    void testRetentionDespiteIdleWithMinimumInstances() throws Exception {
 
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
@@ -737,7 +740,7 @@ public class EC2RetentionStrategyTest {
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -775,7 +778,8 @@ public class EC2RetentionStrategyTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
@@ -839,14 +843,14 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
+    void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -884,7 +888,8 @@ public class EC2RetentionStrategyTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -930,7 +935,7 @@ public class EC2RetentionStrategyTest {
         computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have two agents after check too
         assertEquals(2, computers.size());
@@ -938,14 +943,14 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
+    void testRetentionIdleWithMinimumInstanceInactiveTimeRange() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -983,7 +988,8 @@ public class EC2RetentionStrategyTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -1016,21 +1022,21 @@ public class EC2RetentionStrategyTest {
         List<EC2Computer> computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have zero agents
         assertEquals(0, computers.size());
     }
 
     @Test
-    public void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
+    void testRetentionDespiteIdleWithMinimumInstanceActiveTimeRangeAfterMidnight() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1068,7 +1074,8 @@ public class EC2RetentionStrategyTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -1114,7 +1121,7 @@ public class EC2RetentionStrategyTest {
         computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have two agents after check too
         assertEquals(2, computers.size());
@@ -1122,14 +1129,14 @@ public class EC2RetentionStrategyTest {
     }
 
     @Test
-    public void testRetentionStopsAfterActiveRangeEnds() throws Exception {
+    void testRetentionStopsAfterActiveRangeEnds() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -1167,7 +1174,8 @@ public class EC2RetentionStrategyTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
         MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig =
                 new MinimumNumberOfInstancesTimeRangeConfig();
@@ -1218,7 +1226,7 @@ public class EC2RetentionStrategyTest {
         computers = Arrays.stream(r.jenkins.getComputers())
                 .filter(EC2Computer.class::isInstance)
                 .map(computer -> (EC2Computer) computer)
-                .collect(Collectors.toList());
+                .toList();
 
         // Should have 1 agents after check
         assertEquals(1, computers.size());

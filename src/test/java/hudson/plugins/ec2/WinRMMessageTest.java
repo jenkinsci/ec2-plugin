@@ -1,6 +1,6 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import hudson.plugins.ec2.win.winrm.request.DeleteShellRequest;
 import hudson.plugins.ec2.win.winrm.request.ExecuteCommandRequest;
@@ -14,16 +14,16 @@ import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.dom4j.XPath;
 import org.jaxen.SimpleNamespaceContext;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-public class WinRMMessageTest {
+class WinRMMessageTest {
 
     private URL url;
     private SimpleNamespaceContext namespaceContext;
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         url = new URL("http://localhost");
         namespaceContext = new SimpleNamespaceContext();
         namespaceContext.addNamespace(Namespaces.NS_WIN_SHELL.getPrefix(), Namespaces.NS_WIN_SHELL.getURI());
@@ -34,7 +34,7 @@ public class WinRMMessageTest {
     }
 
     @Test
-    public void testOpenShellMessage() throws Exception {
+    void testOpenShellMessage() {
         OpenShellRequest r = new OpenShellRequest(url);
         assertEquals("http://schemas.xmlsoap.org/ws/2004/09/transfer/Create", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
@@ -43,7 +43,7 @@ public class WinRMMessageTest {
     }
 
     @Test
-    public void testDeleteShellMessage() throws Exception {
+    void testDeleteShellMessage() {
         DeleteShellRequest r = new DeleteShellRequest(url, "SHELLID");
         assertEquals("http://schemas.xmlsoap.org/ws/2004/09/transfer/Delete", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
@@ -51,7 +51,7 @@ public class WinRMMessageTest {
     }
 
     @Test
-    public void testExecuteCommandMessage() throws Exception {
+    void testExecuteCommandMessage() {
         ExecuteCommandRequest r = new ExecuteCommandRequest(url, "SHELLID", "ipconfig /all");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
@@ -61,7 +61,7 @@ public class WinRMMessageTest {
     }
 
     @Test
-    public void testGetOutputMessage() throws Exception {
+    void testGetOutputMessage() {
         GetOutputRequest r = new GetOutputRequest(url, "SHELLID", "COMMANDID");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Receive", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
@@ -70,7 +70,7 @@ public class WinRMMessageTest {
     }
 
     @Test
-    public void testSendInputMessage() throws Exception {
+    void testSendInputMessage() {
         SendInputRequest r = new SendInputRequest(url, new byte[] {31, 32}, "SHELLID", "COMMANDID");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Send", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));
@@ -79,7 +79,7 @@ public class WinRMMessageTest {
     }
 
     @Test
-    public void testSignalMessage() throws Exception {
+    void testSignalMessage() {
         SignalRequest r = new SignalRequest(url, "SHELLID", "COMMANDID");
         assertEquals("http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command", xpath("//a:Action", r.build()));
         assertEquals("http://localhost", xpath("//a:To", r.build()));

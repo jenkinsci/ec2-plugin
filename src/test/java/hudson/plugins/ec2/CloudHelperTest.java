@@ -1,32 +1,33 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.Reservation;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.Reservation;
 
-@RunWith(MockitoJUnitRunner.class)
-public class CloudHelperTest {
+@ExtendWith(MockitoExtension.class)
+class CloudHelperTest {
 
     @Mock
     private EC2Cloud cloud;
 
-    @Before
-    public void init() throws Exception {
+    @BeforeEach
+    void init() {
         cloud = new EC2Cloud(
                 "us-east-1",
                 true,
@@ -41,11 +42,11 @@ public class CloudHelperTest {
     }
 
     @Test
-    public void testGetInstanceHappyPath() throws Exception {
+    void testGetInstanceHappyPath() {
         /* Mocked items */
         EC2Cloud spyCloud = Mockito.spy(cloud);
-        AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);
-        DescribeInstancesResult mockedDIResult = Mockito.mock(DescribeInstancesResult.class);
+        Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
+        DescribeInstancesResponse mockedDIResult = Mockito.mock(DescribeInstancesResponse.class);
         Reservation mockedReservation = Mockito.mock(Reservation.class);
         List<Reservation> reservationResults = Collections.singletonList(mockedReservation);
         Instance mockedInstance = Mockito.mock(Instance.class);
@@ -53,8 +54,8 @@ public class CloudHelperTest {
 
         Mockito.doReturn(mockEc2).when(spyCloud).connect();
         Mockito.doReturn(mockedDIResult).when(mockEc2).describeInstances(Mockito.any(DescribeInstancesRequest.class));
-        Mockito.doReturn(reservationResults).when(mockedDIResult).getReservations();
-        Mockito.doReturn(instanceResults).when(mockedReservation).getInstances();
+        Mockito.doReturn(reservationResults).when(mockedDIResult).reservations();
+        Mockito.doReturn(instanceResults).when(mockedReservation).instances();
 
         /* Actual call to test*/
         Instance result = CloudHelper.getInstance("test-instance-id", spyCloud);
@@ -62,23 +63,27 @@ public class CloudHelperTest {
     }
 
     @Test
-    public void testGetInstanceWithRetryInstanceNotFound() throws Exception {
+    void testGetInstanceWithRetryInstanceNotFound() throws Exception {
         /* Mocked items */
         EC2Cloud spyCloud = Mockito.spy(cloud);
-        AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);
-        DescribeInstancesResult mockedDIResult = Mockito.mock(DescribeInstancesResult.class);
+        Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
+        DescribeInstancesResponse mockedDIResult = Mockito.mock(DescribeInstancesResponse.class);
         Reservation mockedReservation = Mockito.mock(Reservation.class);
         List<Reservation> reservationResults = Collections.singletonList(mockedReservation);
         Instance mockedInstance = Mockito.mock(Instance.class);
         List<Instance> instanceResults = Collections.singletonList(mockedInstance);
-        AmazonServiceException amazonServiceException = new AmazonServiceException("test exception");
-        amazonServiceException.setErrorCode("InvalidInstanceID.NotFound");
+        AwsServiceException amazonServiceException = AwsServiceException.builder()
+                .message("test exception")
+                .awsErrorDetails(AwsErrorDetails.builder()
+                        .errorCode("InvalidInstanceID.NotFound")
+                        .build())
+                .build();
 
-        Answer<DescribeInstancesResult> answerWithRetry = new Answer<>() {
+        Answer<DescribeInstancesResponse> answerWithRetry = new Answer<>() {
             private boolean first = true;
 
             @Override
-            public DescribeInstancesResult answer(InvocationOnMock invocation) throws Throwable {
+            public DescribeInstancesResponse answer(InvocationOnMock invocation) {
                 if (first) {
                     first = false;
                     throw amazonServiceException;
@@ -89,8 +94,8 @@ public class CloudHelperTest {
 
         Mockito.doReturn(mockEc2).when(spyCloud).connect();
         Mockito.doAnswer(answerWithRetry).when(mockEc2).describeInstances(Mockito.any(DescribeInstancesRequest.class));
-        Mockito.doReturn(reservationResults).when(mockedDIResult).getReservations();
-        Mockito.doReturn(instanceResults).when(mockedReservation).getInstances();
+        Mockito.doReturn(reservationResults).when(mockedDIResult).reservations();
+        Mockito.doReturn(instanceResults).when(mockedReservation).instances();
 
         /* Actual call to test*/
         Instance result = CloudHelper.getInstanceWithRetry("test-instance-id", spyCloud);
@@ -98,23 +103,25 @@ public class CloudHelperTest {
     }
 
     @Test
-    public void testGetInstanceWithRetryRequestExpired() throws Exception {
+    void testGetInstanceWithRetryRequestExpired() throws Exception {
         /* Mocked items */
         EC2Cloud spyCloud = Mockito.spy(cloud);
-        AmazonEC2 mockEc2 = Mockito.mock(AmazonEC2.class);
-        DescribeInstancesResult mockedDIResult = Mockito.mock(DescribeInstancesResult.class);
+        Ec2Client mockEc2 = Mockito.mock(Ec2Client.class);
+        DescribeInstancesResponse mockedDIResult = Mockito.mock(DescribeInstancesResponse.class);
         Reservation mockedReservation = Mockito.mock(Reservation.class);
         List<Reservation> reservationResults = Collections.singletonList(mockedReservation);
         Instance mockedInstance = Mockito.mock(Instance.class);
         List<Instance> instanceResults = Collections.singletonList(mockedInstance);
-        AmazonServiceException amazonServiceException = new AmazonServiceException("test exception");
-        amazonServiceException.setErrorCode("RequestExpired");
-
-        Answer<DescribeInstancesResult> answerWithRetry = new Answer<>() {
+        AwsServiceException amazonServiceException = AwsServiceException.builder()
+                .message("test exception")
+                .awsErrorDetails(
+                        AwsErrorDetails.builder().errorCode("RequestExpired").build())
+                .build();
+        Answer<DescribeInstancesResponse> answerWithRetry = new Answer<>() {
             private boolean first = true;
 
             @Override
-            public DescribeInstancesResult answer(InvocationOnMock invocation) throws Throwable {
+            public DescribeInstancesResponse answer(InvocationOnMock invocation) {
                 if (first) {
                     first = false;
                     throw amazonServiceException;
@@ -125,8 +132,8 @@ public class CloudHelperTest {
 
         Mockito.doReturn(mockEc2).when(spyCloud).connect();
         Mockito.doAnswer(answerWithRetry).when(mockEc2).describeInstances(Mockito.any(DescribeInstancesRequest.class));
-        Mockito.doReturn(reservationResults).when(mockedDIResult).getReservations();
-        Mockito.doReturn(instanceResults).when(mockedReservation).getInstances();
+        Mockito.doReturn(reservationResults).when(mockedDIResult).reservations();
+        Mockito.doReturn(instanceResults).when(mockedReservation).instances();
 
         /* Actual call to test*/
         Instance result = CloudHelper.getInstanceWithRetry("test-instance-id", spyCloud);

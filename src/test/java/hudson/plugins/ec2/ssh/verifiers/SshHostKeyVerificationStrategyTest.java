@@ -4,51 +4,48 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.model.InstanceType;
-import hudson.model.Node;
-import hudson.plugins.ec2.ConnectionStrategy;
-import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Computer;
-import hudson.plugins.ec2.EbsEncryptRootVolume;
 import hudson.plugins.ec2.InstanceState;
-import hudson.plugins.ec2.SlaveTemplate;
-import hudson.plugins.ec2.Tenancy;
-import hudson.plugins.ec2.util.ConnectionRule;
+import hudson.plugins.ec2.MockEC2Computer;
+import hudson.plugins.ec2.util.ConnectionExtension;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.hamcrest.core.StringContains;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.testcontainers.containers.Container;
 
-public class SshHostKeyVerificationStrategyTest {
-    private static final String COMPUTER_NAME = "MockInstanceForTest";
+@WithJenkins
+class SshHostKeyVerificationStrategyTest {
 
-    @ClassRule
-    public static ConnectionRule conRule = new ConnectionRule();
+    @RegisterExtension
+    private static final ConnectionExtension connection = new ConnectionExtension();
 
-    @ClassRule
-    public static LoggerRule loggerRule;
+    private static LogRecorder loggerRule;
 
-    @ClassRule
-    public static JenkinsRule jenkins = new JenkinsRule();
+    private static JenkinsRule jenkins;
+
+    @BeforeAll
+    static void setUp(JenkinsRule rule) {
+        jenkins = rule;
+    }
 
     /**
      * Check every defined strategy
      * @throws Exception
      */
     @Test
-    public void verifyAllStrategiesTest() throws Exception {
+    void verifyAllStrategiesTest() throws Exception {
         List<StrategyTest> strategiesToCheck = getStrategiesToTest();
 
         for (StrategyTest strategyToCheck : strategiesToCheck) {
@@ -103,7 +100,7 @@ public class SshHostKeyVerificationStrategyTest {
                     "The instance console is blank. Cannot check the key"
                 }))
                 .addConnectionAttempt(builder()
-                        .setConsole("A text before the key\n" + conRule.ED255219_PUB_KEY + "\n a bit more text")
+                        .setConsole("A text before the key\n" + connection.ED255219_PUB_KEY + "\n a bit more text")
                         .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}));
     }
 
@@ -119,7 +116,7 @@ public class SshHostKeyVerificationStrategyTest {
                     "The instance console is blank. Cannot check the key"
                 }))
                 .addConnectionAttempt(builder()
-                        .setConsole("A text before the key\n" + conRule.ED255219_PUB_KEY + "\n a bit more text")
+                        .setConsole("A text before the key\n" + connection.ED255219_PUB_KEY + "\n a bit more text")
                         .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}))
                 .addConnectionAttempt(builder()
                         .setConsole("The console doesn't matter, the key is already stored. We check against this one")
@@ -241,18 +238,18 @@ public class SshHostKeyVerificationStrategyTest {
 
         private void configure() throws IOException, InterruptedException {
             // Let's start again recording all the strategy classes
-            loggerRule = new LoggerRule();
+            loggerRule = new LogRecorder();
             loggerRule.recordPackage(CheckNewHardStrategy.class, Level.INFO).capture(10);
 
-            computer.console = console;
-            computer.state = state;
+            computer.setConsole(console);
+            computer.setState(state);
 
             if (changeHostKey) {
                 // Regenerate all the keys in the container
-                Container.ExecResult removeResult = conRule.execInContainer("sh", "-c", "rm -f /etc/ssh/ssh_host_*");
+                Container.ExecResult removeResult = connection.execInContainer("sh", "-c", "rm -f /etc/ssh/ssh_host_*");
                 assertThat(removeResult.getStderr(), emptyString());
                 assertThat(removeResult.getStdout(), emptyString());
-                Container.ExecResult regenResult = conRule.execInContainer("ssh-keygen", "-A");
+                Container.ExecResult regenResult = connection.execInContainer("ssh-keygen", "-A");
                 assertThat(regenResult.getStderr(), emptyString());
             }
         }
@@ -260,7 +257,7 @@ public class SshHostKeyVerificationStrategyTest {
         private void connect() throws Exception {
             try {
                 // Try to connect to it
-                ClientSession con = conRule.connect(verifier);
+                ClientSession con = connection.connect(verifier);
                 con.close();
             } catch (IOException ignored) {
                 // When the connection is not verified, the connect method throws an IOException
@@ -289,7 +286,7 @@ public class SshHostKeyVerificationStrategyTest {
                                 "Stage %d. Log message not found on %s using %s strategy",
                                 stage, computer.getName(), verifier.getClass().getSimpleName()),
                         loggerRule,
-                        LoggerRule.recorded(StringContains.containsString(messageInLog)));
+                        LogRecorder.recorded(StringContains.containsString(messageInLog)));
             }
         }
 
@@ -334,126 +331,6 @@ public class SshHostKeyVerificationStrategyTest {
                 connectionAttempt.verifier = verifier;
                 return connectionAttempt;
             }
-        }
-    }
-
-    // A mock ec2 computer returning the data we want
-    private static class MockEC2Computer extends EC2Computer {
-        InstanceState state = InstanceState.PENDING;
-        String console = null;
-        EC2AbstractSlave slave;
-
-        public MockEC2Computer(EC2AbstractSlave slave) {
-            super(slave);
-            this.slave = slave;
-        }
-
-        // Create a computer
-        private static MockEC2Computer createComputer(String suffix) throws Exception {
-            final EC2AbstractSlave slave =
-                    new EC2AbstractSlave(
-                            COMPUTER_NAME + suffix,
-                            "id" + suffix,
-                            "description" + suffix,
-                            "fs",
-                            1,
-                            null,
-                            "label",
-                            null,
-                            null,
-                            "init",
-                            "tmpDir",
-                            new ArrayList<>(),
-                            "remote",
-                            EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                            "jvm",
-                            false,
-                            "idle",
-                            null,
-                            "cloud",
-                            Integer.MAX_VALUE,
-                            null,
-                            ConnectionStrategy.PRIVATE_IP,
-                            -1,
-                            Tenancy.Default,
-                            EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                            EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                            EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                            EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED) {
-                        @Override
-                        public void terminate() {}
-
-                        @Override
-                        public String getEc2Type() {
-                            return null;
-                        }
-                    };
-
-            return new MockEC2Computer(slave);
-        }
-
-        @Override
-        public String getDecodedConsoleOutput() throws AmazonClientException {
-            return console;
-        }
-
-        @Override
-        public InstanceState getState() {
-            return state;
-        }
-
-        @Override
-        public EC2AbstractSlave getNode() {
-            return slave;
-        }
-
-        @Override
-        public SlaveTemplate getSlaveTemplate() {
-            return new SlaveTemplate(
-                    "ami-123",
-                    EC2AbstractSlave.TEST_ZONE,
-                    null,
-                    "default",
-                    "foo",
-                    InstanceType.M1Large,
-                    false,
-                    "ttt",
-                    Node.Mode.NORMAL,
-                    "AMI description",
-                    "bar",
-                    "bbb",
-                    "aaa",
-                    "10",
-                    "fff",
-                    null,
-                    EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                    "-Xmx1g",
-                    false,
-                    "subnet-123 subnet-456",
-                    null,
-                    null,
-                    0,
-                    0,
-                    null,
-                    "",
-                    false,
-                    false,
-                    "",
-                    false,
-                    "",
-                    false,
-                    false,
-                    false,
-                    ConnectionStrategy.PRIVATE_DNS,
-                    -1,
-                    Collections.emptyList(),
-                    null,
-                    Tenancy.Default,
-                    EbsEncryptRootVolume.DEFAULT,
-                    EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                    EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                    EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                    EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
         }
     }
 

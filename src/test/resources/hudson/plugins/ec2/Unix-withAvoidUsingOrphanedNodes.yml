@@ -1,0 +1,11 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        name: "avoidUsingOrphanedNodesTest"
+        useInstanceProfileForCredentials: true
+        sshKeysCredentialsId: "random credentials id"
+        templates:
+          - description:
+            ami: "ami-123456"
+            avoidUsingOrphanedNodes: true

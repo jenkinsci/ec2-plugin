@@ -1,26 +1,31 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import java.util.Optional;
 import jenkins.model.Jenkins;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.jvnet.hudson.test.recipes.LocalData;
 
-public class EC2CloudMigrationTest {
+@WithJenkins
+class EC2CloudMigrationTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
 
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
+
+    // config.xml file contains an ec2-cloud configuration from a version previous to ec2-1.52
     @Test
-    @LocalData // config.xml file contains an ec2-cloud configuration from a version previous to ec2-1.52
-    public void testPrivateKeyMigrationToSshCredentials() {
+    @LocalData
+    void testPrivateKeyMigrationToSshCredentials() {
         assertEquals(1, r.jenkins.clouds.size());
         EC2Cloud cloud = (EC2Cloud) Jenkins.get().getCloud("ec2-myEc2Cloud");
 

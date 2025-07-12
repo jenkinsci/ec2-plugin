@@ -1,0 +1,5 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<hudson.plugins.ec2.ssh.verifiers.HostKey plugin="ec2@999999-SNAPSHOT">
+  <algorithm>ecdsa-sha2-nistp521</algorithm>
+  <key>AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAFrY2jC8sarrQqI13e9fDhzeUvTFt5j2krHfFfqDrP/M7L5RJzbg4jOSOly7FdOi7JhFkYaEguddhRh2DIUWKHR9ADR9/m4n9WxHR9QaVLUYUyZdQzgdtlY6KfLYJyO5PBSulMhpfDKGoycNKmr6Av1gyESAIBq+bINsgpUby+h9jkC7Q==</key>
+</hudson.plugins.ec2.ssh.verifiers.HostKey>

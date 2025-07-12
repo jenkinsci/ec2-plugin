@@ -293,7 +293,7 @@ console](https://wiki.jenkins.io/display/JENKINS/Jenkins+Script+Console),
 example:
 
 ```groovy
-import com.amazonaws.services.ec2.model.InstanceType
+import software.amazon.awssdk.services.ec2.model.InstanceType
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl
 import com.cloudbees.plugins.credentials.*
 import com.cloudbees.plugins.credentials.domains.Domain
@@ -350,6 +350,7 @@ def slaveTemplateUsEast1Parameters = [
   metadataEndpointEnabled:       true,
   metadataTokensRequired:        true, // `true` enforces IMDSv2 only (over IMDSv1), an important AWS security best practice
   metadataHopsLimit:             1,
+  enclaveEnabled:                true, // launches the instance with Nitro Enclave enabled
   minimumNumberOfInstances:      0,
   minimumNumberOfSpareInstances: 0,
   maxTotalUses:                  -1,
@@ -459,6 +460,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.metadataEndpointEnabled,
   slaveTemplateUsEast1Parameters.metadataTokensRequired,
   slaveTemplateUsEast1Parameters.metadataHopsLimit,
+  slaveTemplateUsEast1Parameters.enclaveEnabled,
 )
 
 // https://javadoc.jenkins.io/plugin/ec2/hudson/plugins/ec2/EC2Cloud.html

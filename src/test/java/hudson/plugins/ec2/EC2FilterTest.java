@@ -23,71 +23,69 @@
  */
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
-import com.amazonaws.services.ec2.model.Filter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.ec2.model.Filter;
 
-public class EC2FilterTest {
+class EC2FilterTest {
+
     @Test
-    public void testSingleValue() throws Exception {
+    void testSingleValue() {
         EC2Filter ec2Filter = new EC2Filter("name", "value");
         assertEquals("name", ec2Filter.getName());
         assertEquals("value", ec2Filter.getValues());
         assertEquals("EC2Filter{name=\"name\", values=\"value\"}", ec2Filter.toString());
         Filter filter = ec2Filter.toFilter();
         assertNotNull(filter);
-        assertEquals("name", filter.getName());
-        assertEquals(List.of("value"), filter.getValues());
+        assertEquals("name", filter.name());
+        assertEquals(List.of("value"), filter.values());
     }
 
     @Test
-    public void testMultiValue() throws Exception {
+    void testMultiValue() {
         EC2Filter ec2Filter = new EC2Filter("name", "value1 'value 2'");
         assertEquals("name", ec2Filter.getName());
         assertEquals("value1 'value 2'", ec2Filter.getValues());
         assertEquals("EC2Filter{name=\"name\", values=\"value1 'value 2'\"}", ec2Filter.toString());
         Filter filter = ec2Filter.toFilter();
         assertNotNull(filter);
-        assertEquals("name", filter.getName());
-        assertEquals(Arrays.asList("value1", "value 2"), filter.getValues());
+        assertEquals("name", filter.name());
+        assertEquals(Arrays.asList("value1", "value 2"), filter.values());
     }
 
     @Test
-    public void testEmptyValue() throws Exception {
+    void testEmptyValue() {
         EC2Filter ec2Filter = new EC2Filter("", "");
         assertEquals("", ec2Filter.getName());
         assertEquals("", ec2Filter.getValues());
         assertEquals("EC2Filter{name=\"\", values=\"\"}", ec2Filter.toString());
         Filter filter = ec2Filter.toFilter();
         assertNotNull(filter);
-        assertEquals("", filter.getName());
-        assertEquals(Collections.emptyList(), filter.getValues());
+        assertEquals("", filter.name());
+        assertEquals(Collections.emptyList(), filter.values());
     }
 
     @Test
-    public void testNullValue() throws Exception {
+    void testNullValue() {
         assertThrows(NullPointerException.class, () -> new EC2Filter(null, "value"));
         assertThrows(NullPointerException.class, () -> new EC2Filter("name", null));
         assertThrows(NullPointerException.class, () -> new EC2Filter(null, null));
     }
 
     @Test
-    public void testEquals() throws Exception {
+    void testEquals() {
         EC2Filter a;
         EC2Filter b;
 
         a = new EC2Filter("", "");
-        assertNotEquals(a, null);
+        assertNotEquals(null, a);
 
         a = new EC2Filter("", "");
-        assertNotEquals(a, new Object());
+        assertNotEquals(new Object(), a);
 
         a = new EC2Filter("", "");
         b = new EC2Filter("", "");

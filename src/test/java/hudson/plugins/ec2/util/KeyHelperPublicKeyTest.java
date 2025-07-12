@@ -1,16 +1,14 @@
 package hudson.plugins.ec2.util;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.security.PrivateKey;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@RunWith(Parameterized.class)
-public class KeyHelperPublicKeyTest extends KeyHelperTestAbstract {
+class KeyHelperPublicKeyTest {
 
     public static final PrivateKey MOCK_PRIVATE_KEY = new PrivateKey() {
         @Override
@@ -29,39 +27,39 @@ public class KeyHelperPublicKeyTest extends KeyHelperTestAbstract {
         }
     };
 
-    private final String description;
-
-    private final PrivateKey privateKey;
-
-    private final boolean isNullExpected;
-
-    public KeyHelperPublicKeyTest(String description, PrivateKey privateKey, boolean isNullExpected) {
-        this.description = description;
-        this.privateKey = privateKey;
-        this.isNullExpected = isNullExpected;
-    }
-
-    @Parameterized.Parameters
-    public static Object[] data() throws Exception {
+    static Object[] data() throws Exception {
         return new Object[][] {
-            {"EC curve NIST P-256", generateECKey("secp256r1").getPrivate(), false},
-            {"EC curve NIST P-384", generateECKey("secp384r1").getPrivate(), false},
-            {"EC curve NIST P-521", generateECKey("secp521r1").getPrivate(), false},
-            {"RSA 1024", generateRSAKey(1024).getPrivate(), false},
-            {"RSA 2048", generateRSAKey(2048).getPrivate(), false},
-            {"RSA 4096", generateRSAKey(4096).getPrivate(), false},
-            {"EdDSA", generateEdDSAKey().getPrivate(), false},
+            {
+                "EC curve NIST P-256",
+                KeyHelperTestHelper.generateECKey("secp256r1").getPrivate(),
+                false
+            },
+            {
+                "EC curve NIST P-384",
+                KeyHelperTestHelper.generateECKey("secp384r1").getPrivate(),
+                false
+            },
+            {
+                "EC curve NIST P-521",
+                KeyHelperTestHelper.generateECKey("secp521r1").getPrivate(),
+                false
+            },
+            {"RSA 1024", KeyHelperTestHelper.generateRSAKey(1024).getPrivate(), false},
+            {"RSA 2048", KeyHelperTestHelper.generateRSAKey(2048).getPrivate(), false},
+            {"RSA 4096", KeyHelperTestHelper.generateRSAKey(4096).getPrivate(), false},
+            {"EdDSA", KeyHelperTestHelper.generateEdDSAKey().getPrivate(), false},
             {"unknown", MOCK_PRIVATE_KEY, true}
         };
     }
 
-    @Test
-    public void testGeneratePublicKeyFromPrivateKey() {
+    @ParameterizedTest
+    @MethodSource("data")
+    void testGeneratePublicKeyFromPrivateKey(String description, PrivateKey privateKey, boolean isNullExpected) {
         if (isNullExpected) {
-            assertNull(description, KeyHelper.generatePublicKeyFromPrivateKey(null, privateKey));
+            assertNull(KeyHelper.generatePublicKeyFromPrivateKey(null, privateKey), description);
         } else {
             PrivateKeyInfo info = PrivateKeyInfo.getInstance(privateKey.getEncoded());
-            assertNotNull(description, KeyHelper.generatePublicKeyFromPrivateKey(info, privateKey));
+            assertNotNull(KeyHelper.generatePublicKeyFromPrivateKey(info, privateKey), description);
         }
     }
 }

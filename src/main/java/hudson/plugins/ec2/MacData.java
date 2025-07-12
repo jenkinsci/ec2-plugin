@@ -6,13 +6,7 @@ import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-public class MacData extends AMITypeData {
-    private final String rootCommandPrefix;
-    private final String slaveCommandPrefix;
-    private final String slaveCommandSuffix;
-    private final String sshPort;
-    private final String bootDelay;
-
+public class MacData extends SSHData {
     @DataBoundConstructor
     public MacData(
             String rootCommandPrefix,
@@ -20,38 +14,18 @@ public class MacData extends AMITypeData {
             String slaveCommandSuffix,
             String sshPort,
             String bootDelay) {
-        this.rootCommandPrefix = rootCommandPrefix;
-        this.slaveCommandPrefix = slaveCommandPrefix;
-        this.slaveCommandSuffix = slaveCommandSuffix;
-        this.sshPort = sshPort;
-        this.bootDelay = bootDelay;
-
-        this.readResolve();
+        super(rootCommandPrefix, slaveCommandPrefix, slaveCommandSuffix, sshPort, bootDelay);
     }
 
+    @Override
     protected Object readResolve() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         return this;
     }
 
     @Override
-    public boolean isWindows() {
-        return false;
-    }
-
-    @Override
-    public boolean isUnix() {
-        return false;
-    }
-
-    @Override
     public boolean isMac() {
         return true;
-    }
-
-    @Override
-    public String getBootDelay() {
-        return bootDelay;
     }
 
     @Extension
@@ -60,22 +34,6 @@ public class MacData extends AMITypeData {
         public String getDisplayName() {
             return "mac";
         }
-    }
-
-    public String getRootCommandPrefix() {
-        return rootCommandPrefix;
-    }
-
-    public String getSlaveCommandPrefix() {
-        return slaveCommandPrefix;
-    }
-
-    public String getSlaveCommandSuffix() {
-        return slaveCommandSuffix;
-    }
-
-    public String getSshPort() {
-        return sshPort == null || sshPort.isEmpty() ? "22" : sshPort;
     }
 
     @Override
