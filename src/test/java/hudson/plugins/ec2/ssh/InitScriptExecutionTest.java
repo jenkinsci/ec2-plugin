@@ -125,7 +125,7 @@ class InitScriptExecutionTest {
         doNothing().when(mockClientSession).executeRemoteCommand("touch ~/.hudson-run-init", mockPS, mockPS, null);
 
         // Execute test.
-        loggerRule.capture(3).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
+        loggerRule.capture(3).record("hudson.plugins.ec2.ssh.EC2SSHLauncher", Level.ALL);
         launcher.launch(mockEC2Computer, mockListener);
         // Test for marker doesn't exists.
         assertTrue(loggerRule.getMessages().stream()
@@ -150,7 +150,7 @@ class InitScriptExecutionTest {
                 .executeRemoteCommand(initScript, mockPS, mockPS, null);
 
         // Execute test.
-        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
+        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2SSHLauncher", Level.ALL);
         launcher.launch(mockEC2Computer, mockListener);
         // Test for marker doesn't exists.
         assertTrue(loggerRule.getMessages().stream()
@@ -178,7 +178,7 @@ class InitScriptExecutionTest {
                 .executeRemoteCommand("touch ~/.hudson-run-init", mockPS, mockPS, null);
 
         // Execute test.
-        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2UnixLauncher", Level.ALL);
+        loggerRule.capture(5).record("hudson.plugins.ec2.ssh.EC2SSHLauncher", Level.ALL);
         launcher.launch(mockEC2Computer, mockListener);
         // Test for marker doesn't exists.
         assertTrue(loggerRule.getMessages().stream()

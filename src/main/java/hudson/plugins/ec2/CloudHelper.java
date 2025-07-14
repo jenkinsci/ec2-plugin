@@ -28,7 +28,7 @@ final class CloudHelper {
             try {
                 return getInstance(instanceId, cloud);
             } catch (AwsServiceException e) {
-                if (e.awsErrorDetails().errorCode().equals("InvalidInstanceID.NotFound")
+                if ("InvalidInstanceID.NotFound".equals(e.awsErrorDetails().errorCode())
                         || EC2Cloud.EC2_REQUEST_EXPIRED_ERROR_CODE.equals(
                                 e.awsErrorDetails().errorCode())) {
                     // retry in 5 seconds.

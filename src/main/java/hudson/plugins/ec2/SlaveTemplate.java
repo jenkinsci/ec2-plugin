@@ -222,6 +222,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int maxTotalUses;
 
+    private boolean avoidUsingOrphanedNodes;
+
     private /* lazily initialized */ DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties;
 
     public int nextSubnet;
@@ -1576,11 +1578,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public int getSshPort() {
         try {
             String sshPort = "";
-            if (amiType.isUnix()) {
-                sshPort = ((UnixData) amiType).getSshPort();
-            }
-            if (amiType.isMac()) {
-                sshPort = ((MacData) amiType).getSshPort();
+            if (amiType.isSSHAgent()) {
+                sshPort = ((SSHData) amiType).getSshPort();
             }
             return Integer.parseInt(sshPort);
         } catch (NumberFormatException e) {
@@ -1593,21 +1592,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String getRootCommandPrefix() {
-        return (amiType.isUnix()
-                ? ((UnixData) amiType).getRootCommandPrefix()
-                : (amiType.isMac() ? ((MacData) amiType).getRootCommandPrefix() : ""));
+        return amiType.isSSHAgent() ? ((SSHData) amiType).getRootCommandPrefix() : "";
     }
 
     public String getSlaveCommandPrefix() {
-        return (amiType.isUnix()
-                ? ((UnixData) amiType).getSlaveCommandPrefix()
-                : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandPrefix() : ""));
+        return amiType.isSSHAgent() ? ((SSHData) amiType).getSlaveCommandPrefix() : "";
     }
 
     public String getSlaveCommandSuffix() {
-        return (amiType.isUnix()
-                ? ((UnixData) amiType).getSlaveCommandSuffix()
-                : (amiType.isMac() ? ((MacData) amiType).getSlaveCommandSuffix() : ""));
+        return amiType.isSSHAgent() ? ((SSHData) amiType).getSlaveCommandSuffix() : "";
     }
 
     public String chooseSubnetId() {
@@ -1808,6 +1801,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.amiFilters = amiFilters;
     }
 
+    @DataBoundSetter
+    public void setAvoidUsingOrphanedNodes(Boolean avoidUsingOrphanedNodes) {
+        this.avoidUsingOrphanedNodes = avoidUsingOrphanedNodes;
+    }
+
     @Override
     public String toString() {
         return "SlaveTemplate{" + "description='" + description + '\'' + ", labels='" + labels + '\'' + '}';
@@ -1815,6 +1813,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMaxTotalUses() {
         return maxTotalUses;
+    }
+
+    public boolean isAvoidUsingOrphanedNodes() {
+        return avoidUsingOrphanedNodes;
     }
 
     public Boolean getMetadataSupported() {
@@ -2125,7 +2127,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         Ec2Client ec2 = getParent().connect();
 
         logProvisionInfo("Considering launching");
-
         HashMap<RunInstancesRequest, List<Filter>> runInstancesRequestFilterMap =
                 makeRunInstancesRequestAndFilters(image, number, ec2);
         Map.Entry<RunInstancesRequest, List<Filter>> entry =
@@ -2139,19 +2140,22 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
+        List<Instance> orphansOrStopped = new ArrayList<>();
+        if (!avoidUsingOrphanedNodes) {
+            orphansOrStopped = findOrphansOrStopped(diResult, number);
 
-        if (orphansOrStopped.isEmpty()
-                && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
-                && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-            logProvisionInfo("No existing instance found - but cannot create new instance");
-            return null;
-        }
+            if (orphansOrStopped.isEmpty()
+                    && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
+                    && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+                logProvisionInfo("No existing instance found - but cannot create new instance");
+                return null;
+            }
 
-        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+            wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-        if (orphansOrStopped.size() == number) {
-            return toSlaves(orphansOrStopped);
+            if (orphansOrStopped.size() == number) {
+                return toSlaves(orphansOrStopped);
+            }
         }
 
         RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
@@ -2172,7 +2176,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 newInstances = new ArrayList<>(
                         ec2.runInstances(riRequestBuilder.build()).instances());
             } catch (Ec2Exception e) {
-                if (fallbackSpotToOndemand && e.awsErrorDetails().errorCode().equals("InsufficientInstanceCapacity")) {
+                if (fallbackSpotToOndemand
+                        && "InsufficientInstanceCapacity"
+                                .equals(e.awsErrorDetails().errorCode())) {
                     logProvisionInfo(
                             "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
@@ -2509,7 +2515,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 reqResult = ec2.requestSpotInstances(spotRequestBuilder.build());
             } catch (Ec2Exception e) {
                 if (spotConfig.getFallbackToOndemand()
-                        && e.awsErrorDetails().errorCode().equals("MaxSpotInstanceCountExceeded")) {
+                        && "MaxSpotInstanceCountExceeded"
+                                .equals(e.awsErrorDetails().errorCode())) {
                     logProvisionInfo(
                             "There is no spot capacity available matching your request, falling back to on-demand instance.");
                     return provisionOndemand(image, number, provisionOptions);
@@ -2723,7 +2730,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      * @param params
      * @throws InterruptedException
      */
-    private void updateRemoteTags(Ec2Client ec2, Collection<Tag> instTags, String catchErrorCode, String... params)
+    private void updateRemoteTags(
+            Ec2Client ec2, Collection<Tag> instTags, @NonNull String catchErrorCode, String... params)
             throws InterruptedException {
         for (int i = 0; i < 5; i++) {
             try {
@@ -2733,7 +2741,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         .build());
                 break;
             } catch (AwsServiceException e) {
-                if (e.awsErrorDetails().errorCode().equals(catchErrorCode)) {
+                if (catchErrorCode.equals(e.awsErrorDetails().errorCode())) {
                     Thread.sleep(5000);
                     continue;
                 }
@@ -2935,12 +2943,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return amiType.isMac();
     }
 
+    public boolean isSSHAgent() {
+        return amiType.isSSHAgent();
+    }
+
+    public boolean isWinRMAgent() {
+        return amiType.isWinRMAgent();
+    }
+
     public Secret getAdminPassword() {
-        return amiType.isWindows() ? ((WindowsData) amiType).getPassword() : Secret.fromString("");
+        return amiType.isWinRMAgent() ? ((WindowsData) amiType).getPassword() : Secret.fromString("");
     }
 
     public boolean isUseHTTPS() {
-        return amiType.isWindows() && ((WindowsData) amiType).isUseHTTPS();
+        return amiType.isWinRMAgent() && ((WindowsData) amiType).isUseHTTPS();
     }
 
     /**
@@ -2982,7 +2998,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public boolean isAllowSelfSignedCertificate() {
-        return amiType.isWindows() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
+        return amiType.isWinRMAgent() && ((WindowsData) amiType).isAllowSelfSignedCertificate();
     }
 
     @Extension
