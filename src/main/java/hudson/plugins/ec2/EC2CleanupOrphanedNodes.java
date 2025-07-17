@@ -26,8 +26,6 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     public static final String NODE_IN_USE_LABEL_KEY = "jenkins_node_last_refresh";
     public static final long RECURRENCE_PERIOD = Long.parseLong(
             System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
-    private static boolean PERIODIC_CLEANUP_ENABLED =
-            jenkins.util.SystemProperties.getBoolean(EC2CleanupOrphanedNodes.class.getName() + ".enable", false);
     private static final int LOST_MULTIPLIER = 3;
 
     @Override
@@ -37,14 +35,16 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     @Override
     protected void doRun() {
-        if (PERIODIC_CLEANUP_ENABLED) {
-            LOGGER.fine("Starting clean up activity for orphaned nodes");
-            getClouds().forEach(this::cleanCloud);
-        }
+        LOGGER.fine("Starting clean up activity for orphaned nodes");
+        getClouds().forEach(this::cleanCloud);
     }
 
     @VisibleForTesting
     void cleanCloud(EC2Cloud cloud) {
+        if(!cloud.isCleanUpOrphanedNodes()){
+            LOGGER.fine("Skipping clean up activity for cloud: " + cloud.getDisplayName() + " as it is disabled.");
+            return;
+        }
         LOGGER.fine("Processing clean up activity cloud: " + cloud.getDisplayName());
         Ec2Client connection;
         try {
@@ -76,6 +76,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     private List<Instance> getAllRunningInstances(Ec2Client connection, EC2Cloud cloud) throws SdkException {
         List<Instance> instances = new ArrayList<>();
         DescribeInstancesRequest dir = DescribeInstancesRequest.builder()
+                .maxResults(100)
                 .filters(
                         Filter.builder()
                                 .name("instance-state-name")
@@ -135,7 +136,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
             boolean hasTag = remoteInstance.tags().stream().anyMatch(tag -> tagKey.equals(tag.key()));
             if (!hasTag) {
-                LOGGER.fine("Adding tag for instance " + remoteInstance + " with value " + tagValue + " in cloud: "
+                LOGGER.fine("Adding tag for instance " + remoteInstance.instanceId() + " with value " + tagValue + " in cloud: "
                         + cloud.getDisplayName());
                 try {
                     connection.createTags(builder -> builder.resources(remoteInstance.instanceId())
