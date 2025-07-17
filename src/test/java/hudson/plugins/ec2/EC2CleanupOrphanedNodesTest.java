@@ -30,6 +30,7 @@ public class EC2CleanupOrphanedNodesTest {
         EC2Cloud cloud = mock(EC2Cloud.class);
         Ec2Client ec2Client = mock(Ec2Client.class);
         when(cloud.connect()).thenReturn(ec2Client);
+        when(cloud.isCleanUpOrphanedNodes()).thenReturn(true);
 
         // Mock three EC2 instances
         Instance orphaned = mock(Instance.class);
@@ -81,8 +82,8 @@ public class EC2CleanupOrphanedNodesTest {
         EC2CleanupOrphanedNodes cleanup = new EC2CleanupOrphanedNodes();
         cleanup.cleanCloud(cloud);
 
+        // Verify terminateInstances was called with the orphaned instance
         ArgumentCaptor<Consumer<TerminateInstancesRequest.Builder>> captor = ArgumentCaptor.forClass(Consumer.class);
-
         verify(ec2Client).terminateInstances(captor.capture());
 
         TerminateInstancesRequest.Builder builder = TerminateInstancesRequest.builder();
@@ -90,5 +91,6 @@ public class EC2CleanupOrphanedNodesTest {
         TerminateInstancesRequest actualRequest = builder.build();
 
         assertTrue(actualRequest.instanceIds().contains("i-orphaned"));
+        mockedJenkins.close();
     }
 }
