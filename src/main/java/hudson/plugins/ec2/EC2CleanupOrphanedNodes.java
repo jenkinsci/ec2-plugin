@@ -22,9 +22,10 @@ import software.amazon.awssdk.services.ec2.model.Reservation;
 @Extension
 public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
-    protected final Logger LOGGER = Logger.getLogger(EC2CleanupOrphanedNodes.class.getName());
-    public static final String NODE_IN_USE_LABEL_KEY = "jenkins_node_last_refresh";
-    public static final long RECURRENCE_PERIOD = Long.parseLong(
+    private final Logger LOGGER = Logger.getLogger(EC2CleanupOrphanedNodes.class.getName());
+    @VisibleForTesting
+    static final String NODE_IN_USE_LABEL_KEY = "jenkins_node_last_refresh";
+    private static final long RECURRENCE_PERIOD = Long.parseLong(
             System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
     private static final int LOST_MULTIPLIER = 3;
 
@@ -95,16 +96,15 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         do {
             result = connection.describeInstances(dir);
             for (Reservation r : result.reservations()) {
-                LOGGER.fine(
-                        "Found " + r.instances().size() + " remote instance(s) for cloud: " + cloud.getDisplayName());
                 instances.addAll(r.instances());
             }
         } while (result.nextToken() != null);
+        LOGGER.fine("Found " + instances.size() + " remote instance(s) for cloud: " + cloud.getDisplayName());
         return instances;
     }
 
     /**
-     * Returns a list of EC2 agent instance IDs connected to Jenkins for the given EC2Cloud.
+     * Returns a list of EC2 agent instance IDs connected to Jenkins.
      */
     private List<String> getConnectedAgentInstanceIds(EC2Cloud cloud) {
         List<String> agentInstanceIds = new ArrayList<>();
@@ -128,28 +128,31 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     private void addMissingTags(Ec2Client connection, List<Instance> remoteInstances, EC2Cloud cloud) {
         var tagKey = NODE_IN_USE_LABEL_KEY;
         var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
-        for (Instance remoteInstance : remoteInstances) {
-            if (remoteInstance.tags().stream()
-                    .anyMatch(tag -> EC2CleanupOrphanedNodes.NODE_IN_USE_LABEL_KEY.equals(tag.key()))) {
-                continue;
-            }
+        List<String> instancesToTag = new ArrayList<>();
 
-            boolean hasTag = remoteInstance.tags().stream().anyMatch(tag -> tagKey.equals(tag.key()));
+        for (Instance remoteInstance : remoteInstances) {
+            boolean hasTag = remoteInstance.tags().stream()
+                    .anyMatch(tag -> tagKey.equals(tag.key()));
             if (!hasTag) {
-                LOGGER.fine("Adding tag for instance " + remoteInstance.instanceId() + " with value " + tagValue + " in cloud: "
+                instancesToTag.add(remoteInstance.instanceId());
+            }
+        }
+
+        // Add tags for all collected instance IDs in bulk
+        if (!instancesToTag.isEmpty()) {
+            LOGGER.fine("Adding tag for instances " + instancesToTag + " with value " + tagValue + " in cloud: "
+                    + cloud.getDisplayName());
+            try {
+                connection.createTags(builder -> builder.resources(instancesToTag)
+                        .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
+                                .key(tagKey)
+                                .value(tagValue)
+                                .build())
+                        .build());
+                LOGGER.fine("Added tag for instances " + instancesToTag + " with value " + tagValue + " in cloud: "
                         + cloud.getDisplayName());
-                try {
-                    connection.createTags(builder -> builder.resources(remoteInstance.instanceId())
-                            .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
-                                    .key(tagKey)
-                                    .value(tagValue)
-                                    .build())
-                            .build());
-                    LOGGER.fine("Added tag for instance " + remoteInstance.instanceId() + " with value " + tagValue
-                            + " in cloud: " + cloud.getDisplayName());
-                } catch (SdkException e) {
-                    LOGGER.log(Level.WARNING, "Error adding tag for instance " + remoteInstance.instanceId(), e);
-                }
+            } catch (SdkException e) {
+                LOGGER.log(Level.WARNING, "Error adding tags for instances " + instancesToTag, e);
             }
         }
     }
@@ -158,7 +161,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
      * Updates the tag of the local EC2 instances to indicate they are still in use.
      */
     private void updateLocalInstancesTag(
-            Ec2Client ec2Client, List<String> localInstanceIds, List<Instance> remoteInstances, EC2Cloud cloud) {
+            Ec2Client connection, List<String> localInstanceIds, List<Instance> remoteInstances, EC2Cloud cloud) {
         if (localInstanceIds.isEmpty()) {
             LOGGER.fine("No local EC2 agents found, skipping tag update.");
             return;
@@ -168,7 +171,6 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                 remoteInstances.stream().collect(Collectors.toMap(Instance::instanceId, instance -> instance));
         var tagKey = NODE_IN_USE_LABEL_KEY;
         var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
-        // Collect instance IDs that exist in remoteInstances
         List<String> instanceIdsToUpdate = new ArrayList<>();
         for (String instanceId : localInstanceIds) {
             var remoteInstance = remoteInstancesById.get(instanceId);
@@ -180,7 +182,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         // Update tags for all collected instance IDs in bulk
         if (!instanceIdsToUpdate.isEmpty()) {
             try {
-                ec2Client.createTags(builder -> builder.resources(instanceIdsToUpdate)
+                connection.createTags(builder -> builder.resources(instanceIdsToUpdate)
                         .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
                                 .key(tagKey)
                                 .value(tagValue)
