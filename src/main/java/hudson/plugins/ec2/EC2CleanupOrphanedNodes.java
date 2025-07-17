@@ -2,8 +2,8 @@ package hudson.plugins.ec2;
 
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
-import hudson.model.PeriodicWork;
 import hudson.model.Node;
+import hudson.model.PeriodicWork;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -25,8 +25,10 @@ import software.amazon.awssdk.services.ec2.model.Reservation;
 public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     private final Logger LOGGER = Logger.getLogger(EC2CleanupOrphanedNodes.class.getName());
+
     @VisibleForTesting
     static final String NODE_IN_USE_LABEL = "jenkins_node_last_refresh";
+
     private static final long RECURRENCE_PERIOD = Long.parseLong(
             System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
     private static final int LOST_MULTIPLIER = 3;
@@ -44,7 +46,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     @VisibleForTesting
     void cleanCloud(EC2Cloud cloud) {
-        if(!cloud.isCleanUpOrphanedNodes()){
+        if (!cloud.isCleanUpOrphanedNodes()) {
             LOGGER.fine("Skipping clean up activity for cloud: " + cloud.getDisplayName() + " as it is disabled.");
             return;
         }
@@ -132,8 +134,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         List<String> instancesToTag = new ArrayList<>();
 
         for (Instance remoteInstance : remoteInstances) {
-            boolean hasTag = remoteInstance.tags().stream()
-                    .anyMatch(tag -> NODE_IN_USE_LABEL.equals(tag.key()));
+            boolean hasTag = remoteInstance.tags().stream().anyMatch(tag -> NODE_IN_USE_LABEL.equals(tag.key()));
             if (!hasTag) {
                 instancesToTag.add(remoteInstance.instanceId());
             }
