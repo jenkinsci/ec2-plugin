@@ -3,8 +3,10 @@ package hudson.plugins.ec2;
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.model.PeriodicWork;
+import hudson.model.Node;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -24,7 +26,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     private final Logger LOGGER = Logger.getLogger(EC2CleanupOrphanedNodes.class.getName());
     @VisibleForTesting
-    static final String NODE_IN_USE_LABEL_KEY = "jenkins_node_last_refresh";
+    static final String NODE_IN_USE_LABEL = "jenkins_node_last_refresh";
     private static final long RECURRENCE_PERIOD = Long.parseLong(
             System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
     private static final int LOST_MULTIPLIER = 3;
@@ -46,7 +48,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             LOGGER.fine("Skipping clean up activity for cloud: " + cloud.getDisplayName() + " as it is disabled.");
             return;
         }
-        LOGGER.fine("Processing clean up activity cloud: " + cloud.getDisplayName());
+        LOGGER.fine("Processing clean up activity for cloud: " + cloud.getDisplayName());
         Ec2Client connection;
         try {
             connection = cloud.connect();
@@ -108,10 +110,10 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
      */
     private List<String> getConnectedAgentInstanceIds(EC2Cloud cloud) {
         List<String> agentInstanceIds = new ArrayList<>();
-        for (hudson.model.Node node : Jenkins.get().getNodes()) {
+        for (Node node : Jenkins.get().getNodes()) {
             if (node instanceof EC2AbstractSlave) {
                 EC2AbstractSlave ec2Node = (EC2AbstractSlave) node;
-                if (ec2Node.getCloud() == cloud) {
+                if (ec2Node.getCloud().equals(cloud)) {
                     String instanceId = ec2Node.getInstanceId();
                     agentInstanceIds.add(instanceId);
                     LOGGER.fine("Connected agent: " + ec2Node.getNodeName() + ", EC2 Instance ID: " + instanceId
@@ -126,13 +128,12 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
      * Adds a tag to each remote instance that does not have the jenkins_node_last_refresh tag.
      */
     private void addMissingTags(Ec2Client connection, List<Instance> remoteInstances, EC2Cloud cloud) {
-        var tagKey = NODE_IN_USE_LABEL_KEY;
         var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
         List<String> instancesToTag = new ArrayList<>();
 
         for (Instance remoteInstance : remoteInstances) {
             boolean hasTag = remoteInstance.tags().stream()
-                    .anyMatch(tag -> tagKey.equals(tag.key()));
+                    .anyMatch(tag -> NODE_IN_USE_LABEL.equals(tag.key()));
             if (!hasTag) {
                 instancesToTag.add(remoteInstance.instanceId());
             }
@@ -145,7 +146,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             try {
                 connection.createTags(builder -> builder.resources(instancesToTag)
                         .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
-                                .key(tagKey)
+                                .key(NODE_IN_USE_LABEL)
                                 .value(tagValue)
                                 .build())
                         .build());
@@ -169,7 +170,6 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
         var remoteInstancesById =
                 remoteInstances.stream().collect(Collectors.toMap(Instance::instanceId, instance -> instance));
-        var tagKey = NODE_IN_USE_LABEL_KEY;
         var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
         List<String> instanceIdsToUpdate = new ArrayList<>();
         for (String instanceId : localInstanceIds) {
@@ -184,7 +184,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             try {
                 connection.createTags(builder -> builder.resources(instanceIdsToUpdate)
                         .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
-                                .key(tagKey)
+                                .key(NODE_IN_USE_LABEL)
                                 .value(tagValue)
                                 .build())
                         .build());
@@ -200,13 +200,13 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         String nodeLastRefresh = null;
         if (remote.tags() != null) {
             nodeLastRefresh = remote.tags().stream()
-                    .filter(tag -> NODE_IN_USE_LABEL_KEY.equals(tag.key()))
+                    .filter(tag -> NODE_IN_USE_LABEL.equals(tag.key()))
                     .map(tag -> tag.value())
                     .findFirst()
                     .orElse(null);
         }
         if (nodeLastRefresh == null) {
-            LOGGER.fine("Instance " + remote.instanceId() + " does not have the tag " + NODE_IN_USE_LABEL_KEY);
+            LOGGER.fine("Instance " + remote.instanceId() + " does not have the tag " + NODE_IN_USE_LABEL);
             return false;
         }
         OffsetDateTime lastRefresh;
@@ -217,7 +217,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             return false;
         }
         boolean isOrphan = lastRefresh
-                .plus(RECURRENCE_PERIOD * LOST_MULTIPLIER, java.time.temporal.ChronoUnit.MILLIS)
+                .plus(RECURRENCE_PERIOD * LOST_MULTIPLIER, ChronoUnit.MILLIS)
                 .isBefore(OffsetDateTime.now(ZoneOffset.UTC));
         LOGGER.fine("Instance " + remote.instanceId() + " jenkins_node_last_refresh tag value: " + nodeLastRefresh
                 + ", isOrphan: " + isOrphan);
