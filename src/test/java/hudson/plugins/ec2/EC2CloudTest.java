@@ -41,7 +41,6 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.util.Collections;
-
 import jenkins.model.Jenkins;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlTextInput;
