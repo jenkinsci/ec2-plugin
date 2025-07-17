@@ -76,9 +76,8 @@ public class EC2CleanupOrphanedNodesTest {
         MockedStatic<Jenkins> mockedJenkins = Mockito.mockStatic(Jenkins.class);
         mockedJenkins.when(Jenkins::get).thenReturn(jenkins);
         when(jenkins.getNodes()).thenReturn(List.of(node1, node2));
-        // You may need to set Jenkins.get() to return your mock
 
-        // Run cleanup
+        // Run Orphaned Nodes cleanup
         EC2CleanupOrphanedNodes cleanup = new EC2CleanupOrphanedNodes();
         cleanup.cleanCloud(cloud);
 
