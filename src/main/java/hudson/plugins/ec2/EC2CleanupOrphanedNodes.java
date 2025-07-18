@@ -1,0 +1,243 @@
+package hudson.plugins.ec2;
+
+import com.google.common.annotations.VisibleForTesting;
+import hudson.Extension;
+import hudson.model.PeriodicWork;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import jenkins.model.Jenkins;
+import org.springframework.lang.NonNull;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.services.ec2.model.Filter;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.Reservation;
+import software.amazon.awssdk.services.ec2.model.Tag;
+
+@Extension
+public class EC2CleanupOrphanedNodes extends PeriodicWork {
+
+    private final Logger LOGGER = Logger.getLogger(EC2CleanupOrphanedNodes.class.getName());
+
+    @VisibleForTesting
+    static final String NODE_IN_USE_LABEL = "jenkins_node_last_refresh";
+
+    private static final long RECURRENCE_PERIOD = Long.parseLong(
+            System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
+    private static final int LOST_MULTIPLIER = 3;
+
+    @Override
+    public long getRecurrencePeriod() {
+        return RECURRENCE_PERIOD;
+    }
+
+    @Override
+    protected void doRun() {
+        LOGGER.fine(() -> "Starting clean up activity for orphaned nodes");
+        getClouds().forEach(this::cleanCloud);
+    }
+
+    @VisibleForTesting
+    void cleanCloud(@NonNull EC2Cloud cloud) {
+        if (!cloud.isCleanUpOrphanedNodes()) {
+            LOGGER.fine(
+                    () -> "Skipping clean up activity for cloud: " + cloud.getDisplayName() + " as it is disabled.");
+            return;
+        }
+        LOGGER.fine(() -> "Processing clean up activity for cloud: " + cloud.getDisplayName());
+        Ec2Client connection;
+        try {
+            connection = cloud.connect();
+        } catch (SdkException e) {
+            LOGGER.log(Level.WARNING, "Failed to connect to EC2 cloud: " + cloud.getDisplayName(), e);
+            return;
+        }
+
+        List<Instance> remoteInstances = getAllRemoteInstances(connection, cloud);
+        List<String> localConnectedEC2Instances = getConnectedAgentInstanceIds(cloud);
+        addMissingTags(connection, remoteInstances, cloud);
+        List<String> updatedInstances =
+                updateLocalInstancesTag(connection, localConnectedEC2Instances, remoteInstances, cloud);
+
+        remoteInstances.stream()
+                // exclude instances that just got updated
+                .filter(remote -> !updatedInstances.contains(remote.instanceId()))
+                .filter(this::isOrphaned)
+                .forEach(remote -> terminateInstance(remote, connection));
+    }
+
+    private List<EC2Cloud> getClouds() {
+        return Jenkins.get().clouds.getAll(EC2Cloud.class);
+    }
+
+    /**
+     * Returns a list of all EC2 instances in states (running, pending, or stopping) AND with the tags
+     * jenkins_server_url and jenkins_slave_type
+     * These are all the instances that are created by the EC2 plugin
+     */
+    private List<Instance> getAllRemoteInstances(Ec2Client connection, EC2Cloud cloud) throws SdkException {
+        List<Instance> instances = new ArrayList<>();
+        DescribeInstancesRequest dir = DescribeInstancesRequest.builder()
+                .maxResults(100)
+                .filters(
+                        Filter.builder()
+                                .name("instance-state-name")
+                                .values(
+                                        InstanceState.RUNNING.getCode(),
+                                        InstanceState.PENDING.getCode(),
+                                        InstanceState.STOPPING.getCode())
+                                .build(),
+                        Filter.builder()
+                                .name("tag-key")
+                                .values(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                                .build(),
+                        Filter.builder()
+                                .name("tag-key")
+                                .values(EC2Tag.TAG_NAME_JENKINS_SERVER_URL)
+                                .build())
+                .build();
+        DescribeInstancesResponse result = null;
+        do {
+            result = connection.describeInstances(dir);
+            for (Reservation r : result.reservations()) {
+                instances.addAll(r.instances());
+            }
+        } while (result.nextToken() != null);
+        LOGGER.fine(() -> "Found " + instances.size() + " remote instance(s) for cloud: " + cloud.getDisplayName());
+        return instances;
+    }
+
+    /**
+     * Returns a list of EC2 agent instance IDs connected to Jenkins.
+     */
+    private List<String> getConnectedAgentInstanceIds(EC2Cloud cloud) {
+        return Jenkins.get().getNodes().stream()
+                .filter(EC2AbstractSlave.class::isInstance)
+                .map(EC2AbstractSlave.class::cast)
+                .filter(node -> cloud.equals(node.getCloud()))
+                .peek(node -> LOGGER.fine(
+                        () -> "Connected agent: " + node.getNodeName() + ", Instance ID: " + node.getInstanceId()))
+                .map(EC2AbstractSlave::getInstanceId)
+                .toList();
+    }
+
+    /**
+     * Adds a tag to each remote instance that does not have the jenkins_node_last_refresh tag.
+     */
+    private void addMissingTags(Ec2Client connection, List<Instance> remoteInstances, EC2Cloud cloud) {
+        var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
+        List<String> instancesToTag = new ArrayList<>();
+
+        for (Instance remoteInstance : remoteInstances) {
+            boolean hasTag = remoteInstance.tags().stream().anyMatch(tag -> NODE_IN_USE_LABEL.equals(tag.key()));
+            if (!hasTag) {
+                instancesToTag.add(remoteInstance.instanceId());
+            }
+        }
+
+        // Add tags for all collected instance IDs in bulk
+        if (!instancesToTag.isEmpty()) {
+            LOGGER.fine(() -> "Adding tag for instances " + instancesToTag + " with value " + tagValue + " in cloud: "
+                    + cloud.getDisplayName());
+            try {
+                connection.createTags(builder -> builder.resources(instancesToTag)
+                        .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
+                                .key(NODE_IN_USE_LABEL)
+                                .value(tagValue)
+                                .build())
+                        .build());
+                LOGGER.fine(() -> "Added tag for instances " + instancesToTag + " with value " + tagValue
+                        + " in cloud: " + cloud.getDisplayName());
+            } catch (SdkException e) {
+                LOGGER.log(Level.WARNING, "Error adding tags for instances " + instancesToTag, e);
+            }
+        }
+    }
+
+    /**
+     * Updates the tag of the local EC2 instances to indicate they are still in use.
+     */
+    private List<String> updateLocalInstancesTag(
+            Ec2Client connection, List<String> localInstanceIds, List<Instance> remoteInstances, EC2Cloud cloud) {
+        if (localInstanceIds.isEmpty()) {
+            LOGGER.fine(() -> "No local EC2 agents found, skipping tag update.");
+            return List.of();
+        }
+
+        var remoteInstancesById =
+                remoteInstances.stream().collect(Collectors.toMap(Instance::instanceId, instance -> instance));
+        var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
+        List<String> instanceIdsToUpdate = new ArrayList<>();
+        for (String instanceId : localInstanceIds) {
+            var remoteInstance = remoteInstancesById.get(instanceId);
+            if (remoteInstance != null) {
+                instanceIdsToUpdate.add(instanceId);
+            }
+        }
+
+        // Update tags for all collected instance IDs in bulk
+        if (!instanceIdsToUpdate.isEmpty()) {
+            try {
+                connection.createTags(builder -> builder.resources(instanceIdsToUpdate)
+                        .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
+                                .key(NODE_IN_USE_LABEL)
+                                .value(tagValue)
+                                .build())
+                        .build());
+                LOGGER.fine(() -> "Updated tag for instances " + instanceIdsToUpdate + " to " + tagValue + " in cloud: "
+                        + cloud.getDisplayName());
+            } catch (SdkException e) {
+                LOGGER.log(Level.WARNING, "Error updating tags for instances " + instanceIdsToUpdate, e);
+            }
+        }
+
+        return instanceIdsToUpdate;
+    }
+
+    private boolean isOrphaned(Instance remote) {
+        String nodeLastRefresh = null;
+        if (remote.tags() != null) {
+            nodeLastRefresh = remote.tags().stream()
+                    .filter(tag -> NODE_IN_USE_LABEL.equals(tag.key()))
+                    .map(Tag::value)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (nodeLastRefresh == null) {
+            LOGGER.fine(() -> "Instance " + remote.instanceId() + " does not have the tag " + NODE_IN_USE_LABEL);
+            return false;
+        }
+        OffsetDateTime lastRefresh;
+        try {
+            lastRefresh = OffsetDateTime.parse(nodeLastRefresh); // Use default ISO-8601 parser
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to parse last refresh timestamp for instance " + remote.instanceId(), e);
+            return false;
+        }
+        boolean isOrphan = lastRefresh
+                .plus(RECURRENCE_PERIOD * LOST_MULTIPLIER, ChronoUnit.MILLIS)
+                .isBefore(OffsetDateTime.now(ZoneOffset.UTC));
+        LOGGER.fine(() -> "Instance " + remote.instanceId() + ", isOrphan: " + isOrphan);
+        return isOrphan;
+    }
+
+    private void terminateInstance(Instance remote, Ec2Client connection) {
+        String instanceId = remote.instanceId();
+        LOGGER.info(() -> "Removing orphaned instance: " + instanceId);
+        try {
+            connection.terminateInstances(
+                    builder -> builder.instanceIds(instanceId).build());
+        } catch (SdkException ex) {
+            LOGGER.log(Level.WARNING, "Error terminating remote instance " + instanceId, ex);
+        }
+    }
+}

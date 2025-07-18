@@ -209,6 +209,8 @@ public class EC2Cloud extends Cloud {
 
     private boolean noDelayProvisioning;
 
+    private boolean cleanUpOrphanedNodes;
+
     private transient volatile Ec2Client connection;
 
     @DataBoundConstructor
@@ -381,6 +383,15 @@ public class EC2Cloud extends Cloud {
     @DataBoundSetter
     public void setNoDelayProvisioning(boolean noDelayProvisioning) {
         this.noDelayProvisioning = noDelayProvisioning;
+    }
+
+    public boolean isCleanUpOrphanedNodes() {
+        return cleanUpOrphanedNodes;
+    }
+
+    @DataBoundSetter
+    public void setCleanUpOrphanedNodes(boolean cleanUpOrphanedNodes) {
+        this.cleanUpOrphanedNodes = cleanUpOrphanedNodes;
     }
 
     public String getAltEC2Endpoint() {
