@@ -1,6 +1,7 @@
 package hudson.plugins.ec2;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import hudson.Extension;
 import hudson.model.PeriodicWork;
 import java.time.OffsetDateTime;
@@ -32,7 +33,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     private static final long RECURRENCE_PERIOD = Long.parseLong(
             System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
-    private static final int LOST_MULTIPLIER = 3;
+    private static final int LOST_MULTIPLIER =
+            Integer.parseInt(System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".lostMultiplier", "3"));
 
     @Override
     public long getRecurrencePeriod() {
@@ -85,33 +87,45 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
      */
     private List<Instance> getAllRemoteInstances(Ec2Client connection, EC2Cloud cloud) throws SdkException {
         List<Instance> instances = new ArrayList<>();
-        DescribeInstancesRequest dir = DescribeInstancesRequest.builder()
-                .maxResults(100)
-                .filters(
-                        Filter.builder()
-                                .name("instance-state-name")
-                                .values(
-                                        InstanceState.RUNNING.getCode(),
-                                        InstanceState.PENDING.getCode(),
-                                        InstanceState.STOPPING.getCode())
-                                .build(),
-                        Filter.builder()
-                                .name("tag-key")
-                                .values(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
-                                .build(),
-                        Filter.builder()
-                                .name("tag-key")
-                                .values(EC2Tag.TAG_NAME_JENKINS_SERVER_URL)
-                                .build())
-                .build();
-        DescribeInstancesResponse result = null;
+
+        String nextToken = null;
+
         do {
-            result = connection.describeInstances(dir);
+            DescribeInstancesRequest.Builder requestBuilder = DescribeInstancesRequest.builder()
+                    .maxResults(500)
+                    .filters(
+                            Filter.builder()
+                                    .name("instance-state-name")
+                                    .values(
+                                            InstanceState.RUNNING.getCode(),
+                                            InstanceState.PENDING.getCode(),
+                                            InstanceState.STOPPING.getCode())
+                                    .build(),
+                            Filter.builder()
+                                    .name("tag-key")
+                                    .values(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                                    .build(),
+                            Filter.builder()
+                                    .name("tag-key")
+                                    .values(EC2Tag.TAG_NAME_JENKINS_SERVER_URL)
+                                    .build());
+
+            if (nextToken != null) {
+                requestBuilder.nextToken(nextToken);
+            }
+
+            DescribeInstancesResponse result = connection.describeInstances(requestBuilder.build());
+
             for (Reservation r : result.reservations()) {
                 instances.addAll(r.instances());
             }
-        } while (result.nextToken() != null);
-        LOGGER.fine(() -> "Found " + instances.size() + " remote instance(s) for cloud: " + cloud.getDisplayName());
+
+            nextToken = result.nextToken();
+        } while (nextToken != null);
+
+        LOGGER.fine(() -> "Found " + instances.size() + " remote instance(s) for cloud: " + cloud.getDisplayName()
+                + ". Instance IDs: "
+                + instances.stream().map(Instance::instanceId).collect(Collectors.joining(", ")));
         return instances;
     }
 
@@ -143,23 +157,13 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             }
         }
 
-        // Add tags for all collected instance IDs in bulk
-        if (!instancesToTag.isEmpty()) {
-            LOGGER.fine(() -> "Adding tag for instances " + instancesToTag + " with value " + tagValue + " in cloud: "
-                    + cloud.getDisplayName());
-            try {
-                connection.createTags(builder -> builder.resources(instancesToTag)
-                        .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
-                                .key(NODE_IN_USE_LABEL)
-                                .value(tagValue)
-                                .build())
-                        .build());
-                LOGGER.fine(() -> "Added tag for instances " + instancesToTag + " with value " + tagValue
-                        + " in cloud: " + cloud.getDisplayName());
-            } catch (SdkException e) {
-                LOGGER.log(Level.WARNING, "Error adding tags for instances " + instancesToTag, e);
-            }
+        if (instancesToTag.isEmpty()) {
+            LOGGER.fine(() -> "No instances to tag in cloud: " + cloud.getDisplayName());
+            return;
         }
+
+        LOGGER.fine(() -> "Creating tags for " + instancesToTag.size() + " instances");
+        createOrUpdateTagsInBulk(connection, cloud, instancesToTag, tagValue);
     }
 
     /**
@@ -183,23 +187,36 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             }
         }
 
-        // Update tags for all collected instance IDs in bulk
-        if (!instanceIdsToUpdate.isEmpty()) {
+        if (instanceIdsToUpdate.isEmpty()) {
+            LOGGER.fine(() -> "No local EC2 agents found in remote instances, skipping tag update.");
+            return List.of();
+        }
+
+        LOGGER.fine(() -> "Updating tags for " + instanceIdsToUpdate.size() + " instances");
+        createOrUpdateTagsInBulk(connection, cloud, instanceIdsToUpdate, tagValue);
+        return instanceIdsToUpdate;
+    }
+
+    private void createOrUpdateTagsInBulk(
+            Ec2Client connection, EC2Cloud cloud, List<String> instancesToTag, String tagValue) {
+        // Split instancesToTag into batches to avoid exceeding AWS limits
+        List<List<String>> batches = Lists.partition(instancesToTag, 500);
+        LOGGER.fine(() ->
+                "Creating or updating  in batches of " + batches.size() + " for cloud: " + cloud.getDisplayName());
+        for (List<String> batch : batches) {
             try {
-                connection.createTags(builder -> builder.resources(instanceIdsToUpdate)
-                        .tags(software.amazon.awssdk.services.ec2.model.Tag.builder()
+                connection.createTags(builder -> builder.resources(batch)
+                        .tags(Tag.builder()
                                 .key(NODE_IN_USE_LABEL)
                                 .value(tagValue)
                                 .build())
                         .build());
-                LOGGER.fine(() -> "Updated tag for instances " + instanceIdsToUpdate + " to " + tagValue + " in cloud: "
+                LOGGER.fine(() -> "Created or Updated tag for instances " + batch + " to " + tagValue + " in cloud: "
                         + cloud.getDisplayName());
             } catch (SdkException e) {
-                LOGGER.log(Level.WARNING, "Error updating tags for instances " + instanceIdsToUpdate, e);
+                LOGGER.log(Level.WARNING, "Error updating tags for instances " + batch, e);
             }
         }
-
-        return instanceIdsToUpdate;
     }
 
     private boolean isOrphaned(Instance remote) {
