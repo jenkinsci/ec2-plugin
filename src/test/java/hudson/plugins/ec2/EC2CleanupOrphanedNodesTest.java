@@ -91,6 +91,8 @@ public class EC2CleanupOrphanedNodesTest {
         TerminateInstancesRequest actualRequest = builder.build();
 
         assertTrue(actualRequest.instanceIds().contains("i-orphaned"));
+        assertFalse(actualRequest.instanceIds().contains("i-active1"));
+        assertFalse(actualRequest.instanceIds().contains("i-active2"));
         mockedJenkins.close();
     }
 }
