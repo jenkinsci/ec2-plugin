@@ -92,9 +92,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         Set<Instance> remoteInstances = getAllRemoteInstanceIds(connection, cloud);
         Set<String> localConnectedEC2Instances = getConnectedAgentInstanceIds(cloud);
         addMissingTags(connection, remoteInstances, cloud);
-        Set<String> remoteInstancesIds = remoteInstances.stream()
-                .map(Instance::instanceId)
-                .collect(Collectors.toSet());
+        Set<String> remoteInstancesIds =
+                remoteInstances.stream().map(Instance::instanceId).collect(Collectors.toSet());
         Set<String> updatedInstances =
                 updateLocalInstancesTag(connection, localConnectedEC2Instances, remoteInstancesIds, cloud);
 
@@ -145,9 +144,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         } while (nextToken != null);
 
         LOGGER.fine(() -> "Found " + instanceIds.size() + " remote instance ID(s) for cloud: " + cloud.getDisplayName()
-                + ". Instance IDs: " + instanceIds.stream()
-                .map(Instance::instanceId)
-                .collect(Collectors.joining(", ")));
+                + ". Instance IDs: "
+                + instanceIds.stream().map(Instance::instanceId).collect(Collectors.joining(", ")));
         return instanceIds;
     }
 
@@ -209,8 +207,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         return instanceIdsToUpdate;
     }
 
-    private void createOrUpdateExpiryTagInBulk(
-            Ec2Client connection, EC2Cloud cloud, Set<String> instancesToTag) {
+    private void createOrUpdateExpiryTagInBulk(Ec2Client connection, EC2Cloud cloud, Set<String> instancesToTag) {
 
         String nodeExpiresAtTagValue = OffsetDateTime.now(ZoneOffset.UTC)
                 .plus(RECURRENCE_PERIOD * LOST_MULTIPLIER, ChronoUnit.MILLIS)
@@ -228,8 +225,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                                 .value(nodeExpiresAtTagValue)
                                 .build())
                         .build());
-                LOGGER.finer(() -> "Created or Updated tag for instances " + batch + " to " + nodeExpiresAtTagValue + " in cloud: "
-                        + cloud.getDisplayName());
+                LOGGER.finer(() -> "Created or Updated tag for instances " + batch + " to " + nodeExpiresAtTagValue
+                        + " in cloud: " + cloud.getDisplayName());
             } catch (SdkException e) {
                 LOGGER.log(Level.WARNING, "Error updating tags for instances " + batch, e);
             }
@@ -274,9 +271,6 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     }
 
     private Filter tagFilter(String tagName) {
-        return Filter.builder()
-                .name("tag-key")
-                .values(tagName)
-                .build();
+        return Filter.builder().name("tag-key").values(tagName).build();
     }
 }
