@@ -89,7 +89,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             return;
         }
 
-        Set<Instance> remoteInstances = getAllRemoteInstanceIds(connection, cloud);
+        Set<Instance> remoteInstances = getAllRemoteInstance(connection, cloud);
         Set<String> localConnectedEC2Instances = getConnectedAgentInstanceIds(cloud);
         addMissingTags(connection, remoteInstances, cloud);
         Set<String> remoteInstancesIds =
@@ -113,7 +113,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
      * jenkins_server_url and jenkins_slave_type
      * These are all the instances that are created by the EC2 plugin
      */
-    private Set<Instance> getAllRemoteInstanceIds(Ec2Client connection, EC2Cloud cloud) throws SdkException {
+    private Set<Instance> getAllRemoteInstance(Ec2Client connection, EC2Cloud cloud) throws SdkException {
         Set<Instance> instanceIds = new HashSet<>();
 
         String nextToken = null;
@@ -157,9 +157,10 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                 .filter(EC2AbstractSlave.class::isInstance)
                 .map(EC2AbstractSlave.class::cast)
                 .filter(node -> cloud.equals(node.getCloud()))
-                .peek(node -> LOGGER.fine(
-                        () -> "Connected agent: " + node.getNodeName() + ", Instance ID: " + node.getInstanceId()))
-                .map(EC2AbstractSlave::getInstanceId)
+                .map(node -> {
+                    LOGGER.fine(() -> "Connected agent: " + node.getNodeName() + ", Instance ID: " + node.getInstanceId());
+                    return node.getInstanceId();
+                })
                 .collect(Collectors.toSet());
     }
 
@@ -234,28 +235,25 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     }
 
     private boolean isOrphaned(Instance remote) {
-        String nodeLastRefresh = null;
+        String nodeExpiresAt;
         if (remote.tags() != null) {
-            nodeLastRefresh = remote.tags().stream()
+            nodeExpiresAt = remote.tags().stream()
                     .filter(tag -> NODE_EXPIRES_AT_TAG_NAME.equals(tag.key()))
                     .map(Tag::value)
                     .findFirst()
                     .orElse(null);
+        } else {
+            nodeExpiresAt = null;
         }
 
-        if (nodeLastRefresh == null) {
+        if (nodeExpiresAt == null) {
             LOGGER.fine(() -> "Instance " + remote.instanceId() + " does not have the tag " + NODE_EXPIRES_AT_TAG_NAME);
             return false;
         }
-        OffsetDateTime lastRefresh;
-        try {
-            lastRefresh = OffsetDateTime.parse(nodeLastRefresh); // Use default ISO-8601 parser
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to parse last refresh timestamp for instance " + remote.instanceId(), e);
-            return false;
-        }
-        boolean isOrphan = lastRefresh.isBefore(OffsetDateTime.now(ZoneOffset.UTC));
-        LOGGER.fine(() -> "Instance " + remote.instanceId() + ", isOrphan: " + isOrphan);
+        String currnetTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
+        boolean isOrphan = nodeExpiresAt.compareTo(currnetTime) < 0;
+        LOGGER.fine(() -> "Instance " + remote.instanceId() + ", nodeExpiresAt: " + nodeExpiresAt
+                + ", currentDate: " + currnetTime + ", isOrphan: " + isOrphan);
         return isOrphan;
     }
 
