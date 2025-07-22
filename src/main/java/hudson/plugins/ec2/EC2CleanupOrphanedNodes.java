@@ -101,7 +101,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                 // exclude instances that just got updated
                 .filter(remote -> !updatedInstances.contains(remote.instanceId()))
                 .filter(this::isOrphaned)
-                .forEach(remote -> terminateInstance(remote, connection));
+                .forEach(remote -> terminateInstance(remote.instanceId(), connection));
     }
 
     private List<EC2Cloud> getClouds() {
@@ -257,8 +257,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         return isOrphan;
     }
 
-    private void terminateInstance(Instance remote, Ec2Client connection) {
-        String instanceId = remote.instanceId();
+    private void terminateInstance(String instanceId, Ec2Client connection) {
         LOGGER.info(() -> "Removing orphaned instance: " + instanceId);
         try {
             connection.terminateInstances(
