@@ -36,7 +36,7 @@ public class EC2CleanupOrphanedNodesTest {
         Instance orphaned = mock(Instance.class);
         when(orphaned.instanceId()).thenReturn("i-orphaned");
         Tag oldTag = Tag.builder()
-                .key(EC2CleanupOrphanedNodes.NODE_IN_USE_LABEL)
+                .key(EC2CleanupOrphanedNodes.NODE_EXPIRES_AT_TAG_NAME)
                 .value("2024-01-01T00:00:00Z") // old date
                 .build();
         when(orphaned.tags()).thenReturn(List.of(oldTag));
@@ -44,7 +44,7 @@ public class EC2CleanupOrphanedNodesTest {
         Instance active1 = mock(Instance.class);
         when(active1.instanceId()).thenReturn("i-active1");
         Tag activeTag1 = Tag.builder()
-                .key(EC2CleanupOrphanedNodes.NODE_IN_USE_LABEL)
+                .key(EC2CleanupOrphanedNodes.NODE_EXPIRES_AT_TAG_NAME)
                 .value(OffsetDateTime.now(ZoneOffset.UTC).toString())
                 .build();
         when(active1.tags()).thenReturn(List.of(activeTag1));
@@ -52,7 +52,7 @@ public class EC2CleanupOrphanedNodesTest {
         Instance active2 = mock(Instance.class);
         when(active2.instanceId()).thenReturn("i-active2");
         Tag activeTag2 = Tag.builder()
-                .key(EC2CleanupOrphanedNodes.NODE_IN_USE_LABEL)
+                .key(EC2CleanupOrphanedNodes.NODE_EXPIRES_AT_TAG_NAME)
                 .value(OffsetDateTime.now(ZoneOffset.UTC).toString())
                 .build();
         when(active2.tags()).thenReturn(List.of(activeTag2));

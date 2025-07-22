@@ -55,7 +55,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     private final Logger LOGGER = Logger.getLogger(EC2CleanupOrphanedNodes.class.getName());
 
     @VisibleForTesting
-    static final String NODE_IN_USE_LABEL = "jenkins_node_last_refresh";
+    static final String NODE_EXPIRES_AT_TAG_NAME = "jenkins_node_expires_at";
 
     private static final long RECURRENCE_PERIOD = Long.parseLong(
             System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".recurrencePeriod", String.valueOf(HOUR)));
@@ -172,7 +172,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         Set<String> instancesToTag = new HashSet<>();
 
         for (Instance remoteInstance : remoteInstances) {
-            boolean hasTag = remoteInstance.tags().stream().anyMatch(tag -> NODE_IN_USE_LABEL.equals(tag.key()));
+            boolean hasTag = remoteInstance.tags().stream().anyMatch(tag -> NODE_EXPIRES_AT_TAG_NAME.equals(tag.key()));
             if (!hasTag) {
                 instancesToTag.add(remoteInstance.instanceId());
             }
@@ -183,9 +183,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             return;
         }
 
-        var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
         LOGGER.fine(() -> "Creating tags for " + instancesToTag.size() + " instances");
-        createOrUpdateTagsInBulk(connection, cloud, instancesToTag, tagValue);
+        createOrUpdateExpiryTagInBulk(connection, cloud, instancesToTag);
     }
 
     /**
@@ -198,7 +197,6 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             return Set.of();
         }
 
-        var tagValue = OffsetDateTime.now(ZoneOffset.UTC).toString();
         Set<String> instanceIdsToUpdate = Sets.intersection(remoteInstanceIds, localInstanceIds);
 
         if (instanceIdsToUpdate.isEmpty()) {
@@ -207,12 +205,17 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         }
 
         LOGGER.fine(() -> "Updating tags for " + instanceIdsToUpdate.size() + " instances");
-        createOrUpdateTagsInBulk(connection, cloud, instanceIdsToUpdate, tagValue);
+        createOrUpdateExpiryTagInBulk(connection, cloud, instanceIdsToUpdate);
         return instanceIdsToUpdate;
     }
 
-    private void createOrUpdateTagsInBulk(
-            Ec2Client connection, EC2Cloud cloud, Set<String> instancesToTag, String tagValue) {
+    private void createOrUpdateExpiryTagInBulk(
+            Ec2Client connection, EC2Cloud cloud, Set<String> instancesToTag) {
+
+        String nodeExpiresAtTagValue = OffsetDateTime.now(ZoneOffset.UTC)
+                .plus(RECURRENCE_PERIOD * LOST_MULTIPLIER, ChronoUnit.MILLIS)
+                .toString();
+
         // Split instancesToTag into batches to avoid exceeding AWS limits
         List<List<String>> batches = Lists.partition(new ArrayList<>(instancesToTag), 500);
         LOGGER.fine(() ->
@@ -221,11 +224,11 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             try {
                 connection.createTags(builder -> builder.resources(batch)
                         .tags(Tag.builder()
-                                .key(NODE_IN_USE_LABEL)
-                                .value(tagValue)
+                                .key(NODE_EXPIRES_AT_TAG_NAME)
+                                .value(nodeExpiresAtTagValue)
                                 .build())
                         .build());
-                LOGGER.finer(() -> "Created or Updated tag for instances " + batch + " to " + tagValue + " in cloud: "
+                LOGGER.finer(() -> "Created or Updated tag for instances " + batch + " to " + nodeExpiresAtTagValue + " in cloud: "
                         + cloud.getDisplayName());
             } catch (SdkException e) {
                 LOGGER.log(Level.WARNING, "Error updating tags for instances " + batch, e);
@@ -237,14 +240,14 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         String nodeLastRefresh = null;
         if (remote.tags() != null) {
             nodeLastRefresh = remote.tags().stream()
-                    .filter(tag -> NODE_IN_USE_LABEL.equals(tag.key()))
+                    .filter(tag -> NODE_EXPIRES_AT_TAG_NAME.equals(tag.key()))
                     .map(Tag::value)
                     .findFirst()
                     .orElse(null);
         }
 
         if (nodeLastRefresh == null) {
-            LOGGER.fine(() -> "Instance " + remote.instanceId() + " does not have the tag " + NODE_IN_USE_LABEL);
+            LOGGER.fine(() -> "Instance " + remote.instanceId() + " does not have the tag " + NODE_EXPIRES_AT_TAG_NAME);
             return false;
         }
         OffsetDateTime lastRefresh;
@@ -254,9 +257,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             LOGGER.log(Level.WARNING, "Failed to parse last refresh timestamp for instance " + remote.instanceId(), e);
             return false;
         }
-        boolean isOrphan = lastRefresh
-                .plus(RECURRENCE_PERIOD * LOST_MULTIPLIER, ChronoUnit.MILLIS)
-                .isBefore(OffsetDateTime.now(ZoneOffset.UTC));
+        boolean isOrphan = lastRefresh.isBefore(OffsetDateTime.now(ZoneOffset.UTC));
         LOGGER.fine(() -> "Instance " + remote.instanceId() + ", isOrphan: " + isOrphan);
         return isOrphan;
     }
