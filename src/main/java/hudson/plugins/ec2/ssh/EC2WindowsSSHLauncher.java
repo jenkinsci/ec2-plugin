@@ -147,9 +147,10 @@ public class EC2WindowsSSHLauncher extends EC2SSHLauncher {
                                     "IF NOT EXIST %USERPROFILE%\\.hudson-run-init EXIT /B 999",
                                     logger)) {
                         logInfo(computer, listener, "Upload init script");
+                        String scriptPath = tmpDir + "init.bat";
                         scp.upload(
                                 initScript.getBytes(StandardCharsets.UTF_8),
-                                tmpDir + "init.bat",
+                                scriptPath.replace('\\', '/'),
                                 List.of(
                                         PosixFilePermission.OWNER_READ,
                                         PosixFilePermission.OWNER_WRITE,
@@ -157,7 +158,7 @@ public class EC2WindowsSSHLauncher extends EC2SSHLauncher {
                                 scpTimestamp);
 
                         logInfo(computer, listener, "Executing init script");
-                        String initCommand = buildUpCommand(computer, tmpDir + "init.bat");
+                        String initCommand = buildUpCommand(computer, scriptPath);
                         if (executeRemote(clientSession, initCommand, logger)) {
                             log(
                                     Level.FINE,
@@ -184,9 +185,10 @@ public class EC2WindowsSSHLauncher extends EC2SSHLauncher {
 
                     // Always copy so we get the most recent remoting.jar
                     logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                    String remotingPath = tmpDir + "remoting.jar";
                     scp.upload(
                             Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                            tmpDir + "remoting.jar",
+                            remotingPath.replace('\\', '/'),
                             List.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
                             scpTimestamp);
                 }
