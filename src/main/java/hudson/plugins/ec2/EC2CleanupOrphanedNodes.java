@@ -158,7 +158,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                 .map(EC2AbstractSlave.class::cast)
                 .filter(node -> cloud.equals(node.getCloud()))
                 .map(node -> {
-                    LOGGER.fine(() -> "Connected agent: " + node.getNodeName() + ", Instance ID: " + node.getInstanceId());
+                    LOGGER.fine(
+                            () -> "Connected agent: " + node.getNodeName() + ", Instance ID: " + node.getInstanceId());
                     return node.getInstanceId();
                 })
                 .collect(Collectors.toSet());
@@ -252,8 +253,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         }
         String currnetTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
         boolean isOrphan = nodeExpiresAt.compareTo(currnetTime) < 0;
-        LOGGER.fine(() -> "Instance " + remote.instanceId() + ", nodeExpiresAt: " + nodeExpiresAt
-                + ", currentDate: " + currnetTime + ", isOrphan: " + isOrphan);
+        LOGGER.fine(() -> "Instance " + remote.instanceId() + ", nodeExpiresAt: " + nodeExpiresAt + ", currentDate: "
+                + currnetTime + ", isOrphan: " + isOrphan);
         return isOrphan;
     }
 
