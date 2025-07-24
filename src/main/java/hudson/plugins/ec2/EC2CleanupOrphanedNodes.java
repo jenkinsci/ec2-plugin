@@ -26,6 +26,7 @@ package hudson.plugins.ec2;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.model.PeriodicWork;
 import java.time.OffsetDateTime;
@@ -39,7 +40,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
@@ -253,7 +253,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         }
         String currentTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
 
-        //We can do a string compare since the format will always be ISO 8601
+        // We can do a string compare since the format will always be ISO 8601
         boolean isOrphan = nodeExpiresAt.compareTo(currentTime) < 0;
         LOGGER.fine(() -> "Instance " + remote.instanceId() + ", nodeExpiresAt: " + nodeExpiresAt + ", currentDate: "
                 + currentTime + ", isOrphan: " + isOrphan);

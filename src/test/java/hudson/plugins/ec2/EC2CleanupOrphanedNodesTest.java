@@ -1,6 +1,9 @@
 package hudson.plugins.ec2;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -89,9 +92,9 @@ public class EC2CleanupOrphanedNodesTest {
         captor.getValue().accept(builder);
         TerminateInstancesRequest actualRequest = builder.build();
 
-        assertTrue(actualRequest.instanceIds().contains("i-orphaned"));
-        assertFalse(actualRequest.instanceIds().contains("i-active1"));
-        assertFalse(actualRequest.instanceIds().contains("i-active2"));
+        assertThat(
+                actualRequest.instanceIds(),
+                allOf(hasItem("i-orphaned"), not(hasItem("i-active1")), not(hasItem("i-active2"))));
         mockedJenkins.close();
     }
 }
