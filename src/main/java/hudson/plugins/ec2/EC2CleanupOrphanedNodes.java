@@ -39,7 +39,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
-import org.springframework.lang.NonNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
@@ -251,10 +251,10 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             LOGGER.fine(() -> "Instance " + remote.instanceId() + " does not have the tag " + NODE_EXPIRES_AT_TAG_NAME);
             return false;
         }
-        String currnetTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
-        boolean isOrphan = nodeExpiresAt.compareTo(currnetTime) < 0;
+        String currentTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
+        boolean isOrphan = nodeExpiresAt.compareTo(currentTime) < 0;
         LOGGER.fine(() -> "Instance " + remote.instanceId() + ", nodeExpiresAt: " + nodeExpiresAt + ", currentDate: "
-                + currnetTime + ", isOrphan: " + isOrphan);
+                + currentTime + ", isOrphan: " + isOrphan);
         return isOrphan;
     }
 
