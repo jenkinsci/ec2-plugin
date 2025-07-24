@@ -252,6 +252,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
             return false;
         }
         String currentTime = OffsetDateTime.now(ZoneOffset.UTC).toString();
+
+        //We can do a string compare since the format will always be ISO 8601
         boolean isOrphan = nodeExpiresAt.compareTo(currentTime) < 0;
         LOGGER.fine(() -> "Instance " + remote.instanceId() + ", nodeExpiresAt: " + nodeExpiresAt + ", currentDate: "
                 + currentTime + ", isOrphan: " + isOrphan);

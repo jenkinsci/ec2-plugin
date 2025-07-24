@@ -79,8 +79,7 @@ public class EC2CleanupOrphanedNodesTest {
         when(jenkins.getNodes()).thenReturn(List.of(node1, node2));
 
         // Run Orphaned Nodes cleanup
-        EC2CleanupOrphanedNodes cleanup = new EC2CleanupOrphanedNodes();
-        cleanup.cleanCloud(cloud);
+        new EC2CleanupOrphanedNodes().cleanCloud(cloud);
 
         // Verify terminateInstances was called with the orphaned instance
         ArgumentCaptor<Consumer<TerminateInstancesRequest.Builder>> captor = ArgumentCaptor.forClass(Consumer.class);
