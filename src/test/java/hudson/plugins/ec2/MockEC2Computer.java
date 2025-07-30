@@ -3,6 +3,8 @@ package hudson.plugins.ec2;
 import hudson.model.Node;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
@@ -55,7 +57,9 @@ public class MockEC2Computer extends EC2Computer {
                         EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                         EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
-                    public void terminate() {}
+                    public Future<?> terminate() {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
                     @Override
                     public String getEc2Type() {
