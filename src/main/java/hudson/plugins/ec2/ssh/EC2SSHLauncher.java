@@ -51,9 +51,9 @@ import org.apache.sshd.client.session.ClientSession;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
-import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 
 public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
@@ -289,7 +289,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
     protected ClientSession connectToSsh(
             SshClient client, EC2Computer computer, TaskListener listener, SlaveTemplate template)
-            throws SdkClientException, InterruptedException {
+            throws SdkException, InterruptedException {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
@@ -415,8 +415,13 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     }
 
     protected static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template)
-            throws InterruptedException {
+            throws SdkException, InterruptedException {
         Instance instance = computer.updateInstanceDescription();
+        if (instance.state().name() == InstanceStateName.TERMINATED) {
+            throw SdkException.builder()
+                    .message("Instance " + instance.instanceId() + " is already terminated")
+                    .build();
+        }
         ConnectionStrategy strategy = template.connectionStrategy;
         return template.isMacAgent()
                 ? EC2HostAddressProvider.mac(instance, strategy)
