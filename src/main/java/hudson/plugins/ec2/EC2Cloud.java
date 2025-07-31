@@ -1249,14 +1249,14 @@ public class EC2Cloud extends Cloud {
         if (useInstanceProfileForCredentials) {
             return InstanceProfileCredentialsProvider.create();
         } else if (StringUtils.isBlank(credentialsId)) {
-            return DefaultCredentialsProvider.create();
+            return DefaultCredentialsProvider.builder().build();
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
             if (credentials != null) {
                 return StaticCredentialsProvider.create(credentials.resolveCredentials());
             }
         }
-        return DefaultCredentialsProvider.create();
+        return DefaultCredentialsProvider.builder().build();
     }
 
     public static AwsCredentialsProvider createCredentialsProvider(
