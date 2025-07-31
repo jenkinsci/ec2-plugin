@@ -118,16 +118,15 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         Set<Instance> instanceIds = new HashSet<>();
 
         String nextToken = null;
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (jenkinsLocation.getUrl() == null) {
+            LOGGER.warning(
+                    "Jenkins server URL is not set in JenkinsLocationConfiguration.Returning empty remote instance list for cloud: "
+                            + cloud.getDisplayName());
+            return instanceIds;
+        }
 
         do {
-            JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
-            if (jenkinsLocation.getUrl() == null) {
-                LOGGER.warning(
-                        "Jenkins server URL is not set in JenkinsLocationConfiguration.Returning empty remote instance list for cloud: "
-                                + cloud.getDisplayName());
-                return instanceIds;
-            }
-
             DescribeInstancesRequest.Builder requestBuilder = DescribeInstancesRequest.builder()
                     .maxResults(500)
                     .filters(
