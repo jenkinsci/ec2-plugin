@@ -37,6 +37,8 @@ import org.jvnet.hudson.test.LogRecorder;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.MockedStatic;
 import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceState;
+import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 import software.amazon.awssdk.services.ec2.model.KeyPairInfo;
 
 @WithJenkins
@@ -252,6 +254,11 @@ class InitScriptExecutionTest {
         mockTemplate.connectionStrategy = ConnectionStrategy.PUBLIC_DNS;
         when(mockEC2Computer.updateInstanceDescription()).thenReturn(mockInstance);
         when(mockInstance.publicDnsName()).thenReturn(mockHost);
+        when(mockInstance.state())
+                .thenReturn(InstanceState.builder()
+                        .code(16)
+                        .name(InstanceStateName.RUNNING)
+                        .build());
         mockStaticScpClientCreator.when(ScpClientCreator::instance).thenReturn(mockScpClientCreator);
         when(mockScpClientCreator.createScpClient(mockClientSession)).thenReturn(mockScpClient);
         mockStaticScpClientCreator
