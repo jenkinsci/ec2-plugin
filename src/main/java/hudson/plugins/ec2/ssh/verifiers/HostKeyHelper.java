@@ -105,7 +105,7 @@ public final class HostKeyHelper {
     }
 
     private File getNodesDirectory() throws IOException {
-        // jenkins.model.Nodes#getNodesDirectory() is private, so we have to duplicate it here.
+        // Apparent clone of jenkins.model.Nodes#getNodesDirectory(), which no longer even exists.
         File nodesDir = new File(Jenkins.get().getRootDir(), "nodes");
         if (!nodesDir.exists() || !nodesDir.isDirectory()) {
             throw new IOException("Nodes directory does not exist");
