@@ -122,8 +122,9 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         do {
             JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
             if (jenkinsLocation.getUrl() == null) {
-                LOGGER.warning("Jenkins server URL is not set in JenkinsLocationConfiguration.Returning empty list cleanup for cloud: "
-                        + cloud.getDisplayName());
+                LOGGER.warning(
+                        "Jenkins server URL is not set in JenkinsLocationConfiguration.Returning empty remote instance list for cloud: "
+                                + cloud.getDisplayName());
                 return instanceIds;
             }
 
