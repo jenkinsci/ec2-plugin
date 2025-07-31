@@ -2637,7 +2637,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .build());
         }
 
-        if(parent != null && StringUtils.isNotBlank(parent.name)) {
+        if (parent != null && StringUtils.isNotBlank(parent.name)) {
             instTags.add(Tag.builder()
                     .key(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME)
                     .value(parent.name)

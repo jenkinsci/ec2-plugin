@@ -131,9 +131,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                                             InstanceState.PENDING.getCode(),
                                             InstanceState.STOPPING.getCode())
                                     .build(),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL,jenkinsLocation.getUrl()),
+                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()),
                             tagFilter(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME, cloud.getDisplayName()));
-
 
             requestBuilder.nextToken(nextToken);
             DescribeInstancesResponse result = connection.describeInstances(requestBuilder.build());
@@ -273,9 +272,6 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     }
 
     private Filter tagFilter(String tagName, String tagValue) {
-        return Filter.builder()
-                .name("tag:" + tagName)
-                .values(tagValue)
-                .build();
+        return Filter.builder().name("tag:" + tagName).values(tagValue).build();
     }
 }

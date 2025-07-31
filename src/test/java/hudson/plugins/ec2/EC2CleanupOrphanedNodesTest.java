@@ -84,7 +84,8 @@ public class EC2CleanupOrphanedNodesTest {
 
         // Mock JenkinsLocationConfiguration
         JenkinsLocationConfiguration jenkinsLocation = mock(JenkinsLocationConfiguration.class);
-        MockedStatic<JenkinsLocationConfiguration> mockedJenkinsLocation = Mockito.mockStatic(JenkinsLocationConfiguration.class);
+        MockedStatic<JenkinsLocationConfiguration> mockedJenkinsLocation =
+                Mockito.mockStatic(JenkinsLocationConfiguration.class);
         mockedJenkinsLocation.when(JenkinsLocationConfiguration::get).thenReturn(jenkinsLocation);
         when(jenkinsLocation.getUrl()).thenReturn("http://jenkins-test-url.com");
 
