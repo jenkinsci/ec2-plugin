@@ -111,8 +111,8 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     /**
      * Returns a list of all EC2 instances in states (running, pending, or stopping) AND with the tags
-     * jenkins_server_url and jenkins_slave_type
-     * These are all the instances that are created by the EC2 plugin
+     * jenkins_server_url and jenkins_cloud_name
+     * These are all the instances that are created by the EC2 plugin of this controller and this cloud.
      */
     private Set<Instance> getAllRemoteInstance(Ec2Client connection, EC2Cloud cloud) throws SdkException {
         Set<Instance> instanceIds = new HashSet<>();
