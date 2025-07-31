@@ -40,6 +40,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
@@ -119,6 +120,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         String nextToken = null;
 
         do {
+            JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
             DescribeInstancesRequest.Builder requestBuilder = DescribeInstancesRequest.builder()
                     .maxResults(500)
                     .filters(
@@ -129,11 +131,11 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                                             InstanceState.PENDING.getCode(),
                                             InstanceState.STOPPING.getCode())
                                     .build(),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL));
+                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL,jenkinsLocation.getUrl()),
+                            tagFilter(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME, cloud.getDisplayName()));
+
 
             requestBuilder.nextToken(nextToken);
-
             DescribeInstancesResponse result = connection.describeInstances(requestBuilder.build());
 
             for (Reservation r : result.reservations()) {
@@ -270,7 +272,10 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         }
     }
 
-    private Filter tagFilter(String tagName) {
-        return Filter.builder().name("tag-key").values(tagName).build();
+    private Filter tagFilter(String tagName, String tagValue) {
+        return Filter.builder()
+                .name("tag:" + tagName)
+                .values(tagValue)
+                .build();
     }
 }

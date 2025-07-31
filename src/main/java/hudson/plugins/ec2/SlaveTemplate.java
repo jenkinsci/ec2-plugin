@@ -2636,6 +2636,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .value(jenkinsLocation.getUrl())
                     .build());
         }
+
+        if(parent != null && StringUtils.isNotBlank(parent.name)) {
+            instTags.add(Tag.builder()
+                    .key(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME)
+                    .value(parent.name)
+                    .build());
+        }
+
         return instTags;
     }
 
