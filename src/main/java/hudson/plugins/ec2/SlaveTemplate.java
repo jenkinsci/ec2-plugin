@@ -202,6 +202,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private final int minimumNumberOfSpareInstances;
 
+    private boolean terminateSpareInstances;
+
     public final boolean stopOnTerminate;
 
     private final List<EC2Tag> tags;
@@ -1703,6 +1705,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMinimumNumberOfSpareInstances() {
         return minimumNumberOfSpareInstances;
+    }
+
+    public boolean getTerminateSpareInstances() {
+        return terminateSpareInstances;
+    }
+
+    @DataBoundSetter
+    public void setTerminateSpareInstances(boolean terminateSpareInstances) {
+        this.terminateSpareInstances = terminateSpareInstances;
     }
 
     public MinimumNumberOfInstancesTimeRangeConfig getMinimumNumberOfInstancesTimeRangeConfig() {
