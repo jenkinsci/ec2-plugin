@@ -163,15 +163,17 @@ public class MinimumInstanceChecker {
         Jenkins.get().clouds.stream()
                 .filter(EC2Cloud.class::isInstance)
                 .map(EC2Cloud.class::cast)
-                .forEach(cloud -> cloud.getTemplates().forEach(agentTemplate -> spareAgents(agentTemplate)
-                        .limit(agentTemplate.getMinimumNumberOfSpareInstances())
-                        .forEach(computer -> {
-                            EC2AbstractSlave agent = computer.getNode();
-                            if (agent != null) {
-                                LOGGER.info(() -> "discarding spare instance " + agent.getInstanceId());
-                                futures.add(agent.terminate());
-                            }
-                        })));
+                .forEach(cloud -> cloud.getTemplates().stream()
+                        .filter(SlaveTemplate::getTerminateSpareInstances)
+                        .forEach(agentTemplate -> spareAgents(agentTemplate)
+                                .limit(agentTemplate.getMinimumNumberOfSpareInstances())
+                                .forEach(computer -> {
+                                    EC2AbstractSlave agent = computer.getNode();
+                                    if (agent != null) {
+                                        LOGGER.info(() -> "discarding spare instance " + agent.getInstanceId());
+                                        futures.add(agent.terminate());
+                                    }
+                                })));
         // Must wait; otherwise task could run too late during shutdown, leading to NoClassDefFoundError.
         for (Future<?> future : futures) {
             future.get(5, TimeUnit.SECONDS);
