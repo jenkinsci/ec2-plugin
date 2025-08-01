@@ -7,10 +7,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import jenkins.model.Jenkins;
 
 public class SSHCredentialHelper {
@@ -20,13 +17,7 @@ public class SSHCredentialHelper {
                 CredentialsScope.SYSTEM,
                 id,
                 "key",
-                new BasicSSHUserPrivateKey.PrivateKeySource() {
-                    @NonNull
-                    @Override
-                    public List<String> getPrivateKeys() {
-                        return Collections.singletonList(PrivateKeyHelper.generate());
-                    }
-                },
+                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource(PrivateKeyHelper.generate()),
                 "",
                 "EC2 Testing Cloud Private Key");
 
