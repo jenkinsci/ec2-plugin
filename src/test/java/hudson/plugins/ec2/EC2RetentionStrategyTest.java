@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -251,7 +253,9 @@ class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                         EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
-                    public void terminate() {}
+                    public Future<?> terminate() {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
                     @Override
                     public String getEc2Type() {
@@ -396,7 +400,9 @@ class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                         EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
-                    public void terminate() {}
+                    public Future<?> terminate() {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
                     @Override
                     public String getEc2Type() {
@@ -562,8 +568,9 @@ class EC2RetentionStrategyTest {
                         EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                         EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
                     @Override
-                    public void terminate() {
+                    public Future<?> terminate() {
                         terminateCalled.set(true);
+                        return CompletableFuture.completedFuture(null);
                     }
 
                     @Override
