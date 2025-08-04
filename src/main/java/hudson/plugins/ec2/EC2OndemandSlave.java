@@ -12,6 +12,8 @@ import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -503,11 +505,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
      * Terminates the instance in EC2.
      */
     @Override
-    public void terminate() {
+    public Future<?> terminate() {
         if (terminateScheduled.getCount() == 0) {
             synchronized (terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
-                    Computer.threadPoolForRemoting.submit(() -> {
+                    Future<?> f = Computer.threadPoolForRemoting.submit(() -> {
                         try {
                             if (!isAlive(true)) {
                                 /*
@@ -533,9 +535,11 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                         }
                     });
                     terminateScheduled.reset();
+                    return f;
                 }
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

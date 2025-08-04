@@ -2,17 +2,24 @@ package hudson.plugins.ec2.util;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.init.Terminator;
 import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.Queue;
+import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.SlaveTemplate;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import org.kohsuke.accmod.Restricted;
@@ -21,14 +28,17 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 @Restricted(NoExternalUse.class)
 public class MinimumInstanceChecker {
 
+    private static final Logger LOGGER = Logger.getLogger(MinimumInstanceChecker.class.getName());
+
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Needs to be overridden from tests")
     public static Clock clock = Clock.systemDefaultZone();
 
-    private static Stream<Computer> agentsForTemplate(@NonNull SlaveTemplate agentTemplate) {
+    private static Stream<EC2Computer> agentsForTemplate(@NonNull SlaveTemplate agentTemplate) {
         return Arrays.stream(Jenkins.get().getComputers())
                 .filter(EC2Computer.class::isInstance)
+                .map(EC2Computer.class::cast)
                 .filter(computer -> {
-                    SlaveTemplate computerTemplate = ((EC2Computer) computer).getSlaveTemplate();
+                    SlaveTemplate computerTemplate = computer.getSlaveTemplate();
                     return computerTemplate != null
                             && Objects.equals(computerTemplate.description, agentTemplate.description);
                 });
@@ -38,16 +48,16 @@ public class MinimumInstanceChecker {
         return (int) agentsForTemplate(agentTemplate).count();
     }
 
+    private static Stream<EC2Computer> idleAgents(@NonNull SlaveTemplate agentTemplate) {
+        return agentsForTemplate(agentTemplate).filter(Computer::isIdle);
+    }
+
     public static int countCurrentNumberOfSpareAgents(@NonNull SlaveTemplate agentTemplate) {
-        return (int) agentsForTemplate(agentTemplate)
-                .filter(computer -> computer.countBusy() == 0)
-                .filter(Computer::isOnline)
-                .count();
+        return (int) idleAgents(agentTemplate).filter(Computer::isOnline).count();
     }
 
     public static int countCurrentNumberOfProvisioningAgents(@NonNull SlaveTemplate agentTemplate) {
-        return (int) agentsForTemplate(agentTemplate)
-                .filter(computer -> computer.countBusy() == 0)
+        return (int) idleAgents(agentTemplate)
                 .filter(Computer::isOffline)
                 .filter(Computer::isConnecting)
                 .count();
@@ -141,5 +151,27 @@ public class MinimumInstanceChecker {
             }
         }
         return false;
+    }
+
+    @Terminator
+    public static void discardIdleInstances() throws Exception {
+        LOGGER.fine("Looking for idle instances to discard");
+        List<Future<?>> futures = new ArrayList<>();
+        Jenkins.get().clouds.stream()
+                .filter(EC2Cloud.class::isInstance)
+                .map(EC2Cloud.class::cast)
+                .forEach(cloud -> cloud.getTemplates().stream()
+                        .filter(SlaveTemplate::getTerminateIdleDuringShutdown)
+                        .forEach(agentTemplate -> idleAgents(agentTemplate).forEach(computer -> {
+                            EC2AbstractSlave agent = computer.getNode();
+                            if (agent != null) {
+                                LOGGER.info(() -> "discarding idle instance " + agent.getInstanceId());
+                                futures.add(agent.terminate());
+                            }
+                        })));
+        // Must wait; otherwise task could run too late during shutdown, leading to NoClassDefFoundError.
+        for (Future<?> future : futures) {
+            future.get(5, TimeUnit.SECONDS);
+        }
     }
 }
