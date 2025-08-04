@@ -186,6 +186,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String idleTerminationMinutes;
 
+    private boolean terminateIdleDuringShutdown;
+
     public final String iamInstanceProfile;
 
     public final boolean deleteRootOnTermination;
@@ -201,8 +203,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig;
 
     private final int minimumNumberOfSpareInstances;
-
-    private boolean terminateSpareInstances;
 
     public final boolean stopOnTerminate;
 
@@ -1676,6 +1676,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return idleTerminationMinutes;
     }
 
+    public boolean getTerminateIdleDuringShutdown() {
+        return terminateIdleDuringShutdown;
+    }
+
+    @DataBoundSetter
+    public void setTerminateIdleDuringShutdown(boolean terminateIdleDuringShutdown) {
+        this.terminateIdleDuringShutdown = terminateIdleDuringShutdown;
+    }
+
     public Set<LabelAtom> getLabelSet() {
         if (labelSet == null) {
             labelSet = Label.parse(labels);
@@ -1705,15 +1714,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public int getMinimumNumberOfSpareInstances() {
         return minimumNumberOfSpareInstances;
-    }
-
-    public boolean getTerminateSpareInstances() {
-        return terminateSpareInstances;
-    }
-
-    @DataBoundSetter
-    public void setTerminateSpareInstances(boolean terminateSpareInstances) {
-        this.terminateSpareInstances = terminateSpareInstances;
     }
 
     public MinimumNumberOfInstancesTimeRangeConfig getMinimumNumberOfInstancesTimeRangeConfig() {
