@@ -48,19 +48,16 @@ public class MinimumInstanceChecker {
         return (int) agentsForTemplate(agentTemplate).count();
     }
 
-    private static Stream<EC2Computer> spareAgents(@NonNull SlaveTemplate agentTemplate) {
-        return agentsForTemplate(agentTemplate)
-                .filter(computer -> computer.countBusy() == 0)
-                .filter(Computer::isOnline);
+    private static Stream<EC2Computer> idleAgents(@NonNull SlaveTemplate agentTemplate) {
+        return agentsForTemplate(agentTemplate).filter(Computer::isIdle);
     }
 
     public static int countCurrentNumberOfSpareAgents(@NonNull SlaveTemplate agentTemplate) {
-        return (int) spareAgents(agentTemplate).count();
+        return (int) idleAgents(agentTemplate).filter(Computer::isOnline).count();
     }
 
     public static int countCurrentNumberOfProvisioningAgents(@NonNull SlaveTemplate agentTemplate) {
-        return (int) agentsForTemplate(agentTemplate)
-                .filter(computer -> computer.countBusy() == 0)
+        return (int) idleAgents(agentTemplate)
                 .filter(Computer::isOffline)
                 .filter(Computer::isConnecting)
                 .count();
@@ -157,23 +154,21 @@ public class MinimumInstanceChecker {
     }
 
     @Terminator
-    public static void discardSpareInstances() throws Exception {
-        LOGGER.fine("Looking for spare instances to discard");
+    public static void discardIdleInstances() throws Exception {
+        LOGGER.fine("Looking for idle instances to discard");
         List<Future<?>> futures = new ArrayList<>();
         Jenkins.get().clouds.stream()
                 .filter(EC2Cloud.class::isInstance)
                 .map(EC2Cloud.class::cast)
                 .forEach(cloud -> cloud.getTemplates().stream()
-                        .filter(SlaveTemplate::getTerminateSpareInstances)
-                        .forEach(agentTemplate -> spareAgents(agentTemplate)
-                                .limit(agentTemplate.getMinimumNumberOfSpareInstances())
-                                .forEach(computer -> {
-                                    EC2AbstractSlave agent = computer.getNode();
-                                    if (agent != null) {
-                                        LOGGER.info(() -> "discarding spare instance " + agent.getInstanceId());
-                                        futures.add(agent.terminate());
-                                    }
-                                })));
+                        .filter(SlaveTemplate::getTerminateIdleDuringShutdown)
+                        .forEach(agentTemplate -> idleAgents(agentTemplate).forEach(computer -> {
+                            EC2AbstractSlave agent = computer.getNode();
+                            if (agent != null) {
+                                LOGGER.info(() -> "discarding idle instance " + agent.getInstanceId());
+                                futures.add(agent.terminate());
+                            }
+                        })));
         // Must wait; otherwise task could run too late during shutdown, leading to NoClassDefFoundError.
         for (Future<?> future : futures) {
             future.get(5, TimeUnit.SECONDS);

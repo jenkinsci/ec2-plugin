@@ -106,6 +106,10 @@ THE SOFTWARE.
     <f:textbox default="30" />
   </f:entry>
 
+    <f:entry title="${%Terminate idle agents during shutdown}" field="terminateIdleDuringShutdown">
+      <f:checkbox />
+    </f:entry>
+
   <f:entry title="${%Init script}" field="initScript">
     <f:textarea />
   </f:entry>
@@ -152,10 +156,6 @@ THE SOFTWARE.
 
     <f:entry title="${%Minimum number of spare instances}" field="minimumNumberOfSpareInstances">
       <f:textbox />
-    </f:entry>
-
-    <f:entry title="${%Terminate spare instances}" field="terminateSpareInstances">
-      <f:checkbox />
     </f:entry>
 
     <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
