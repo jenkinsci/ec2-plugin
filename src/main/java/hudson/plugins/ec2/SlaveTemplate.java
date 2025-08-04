@@ -191,6 +191,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String idleTerminationMinutes;
 
+    private boolean terminateIdleDuringShutdown;
+
     public final String iamInstanceProfile;
 
     public final boolean deleteRootOnTermination;
@@ -1677,6 +1679,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public String getidleTerminationMinutes() {
         return idleTerminationMinutes;
+    }
+
+    public boolean getTerminateIdleDuringShutdown() {
+        return terminateIdleDuringShutdown;
+    }
+
+    @DataBoundSetter
+    public void setTerminateIdleDuringShutdown(boolean terminateIdleDuringShutdown) {
+        this.terminateIdleDuringShutdown = terminateIdleDuringShutdown;
     }
 
     public Set<LabelAtom> getLabelSet() {

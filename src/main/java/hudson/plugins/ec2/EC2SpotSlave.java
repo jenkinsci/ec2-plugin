@@ -11,6 +11,8 @@ import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -182,11 +184,11 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
      * Cancel the spot request for the instance. Terminate the instance if it is up. Remove the agent from Jenkins.
      */
     @Override
-    public void terminate() {
+    public Future<?> terminate() {
         if (terminateScheduled.getCount() == 0) {
             synchronized (terminateScheduled) {
                 if (terminateScheduled.getCount() == 0) {
-                    Computer.threadPoolForRemoting.submit(() -> {
+                    Future<?> f = Computer.threadPoolForRemoting.submit(() -> {
                         try {
                             // Cancel the spot request
                             Ec2Client ec2 = getCloud().connect();
@@ -246,9 +248,11 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                         }
                     });
                     terminateScheduled.reset();
+                    return f;
                 }
             }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
