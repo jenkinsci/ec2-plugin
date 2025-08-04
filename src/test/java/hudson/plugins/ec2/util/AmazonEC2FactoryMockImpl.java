@@ -50,7 +50,7 @@ import software.amazon.awssdk.services.ec2.model.TagSpecification;
 import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.TerminateInstancesResponse;
 
-@Extension
+@Extension(ordinal = 100)
 public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
 
     /**

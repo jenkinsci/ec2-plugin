@@ -17,7 +17,7 @@ import java.io.Serial;
 import java.util.List;
 import software.amazon.awssdk.core.exception.SdkException;
 
-@Extension
+@Extension(ordinal = 100)
 public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
 
     @Override

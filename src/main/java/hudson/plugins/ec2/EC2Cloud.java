@@ -117,6 +117,7 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.RegionMetadata;
 import software.amazon.awssdk.regions.ServiceEndpointKey;
 import software.amazon.awssdk.regions.ServiceMetadata;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -1683,7 +1684,9 @@ public class EC2Cloud extends Cloud {
                     List<software.amazon.awssdk.services.ec2.model.Region> regionList = regions.regions();
                     for (software.amazon.awssdk.services.ec2.model.Region r : regionList) {
                         String name = r.regionName();
-                        model.add(name, name);
+                        Region rr = Region.of(name);
+                        RegionMetadata regionMetadata = rr != null ? RegionMetadata.of(rr) : null;
+                        model.add(regionMetadata != null ? regionMetadata.description() : name, name);
                     }
                 } catch (SdkClientException ex) {
                     // Ignore, as this may happen before the credentials are specified
