@@ -23,24 +23,29 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.model.DescribeInstanceTypesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstanceTypesResult;
-import com.amazonaws.services.ec2.model.GetConsoleOutputRequest;
-import com.amazonaws.services.ec2.model.GetConsoleOutputResult;
-import com.amazonaws.services.ec2.model.Instance;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.verb.POST;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.DescribeInstanceTypesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeInstanceTypesResponse;
+import software.amazon.awssdk.services.ec2.model.GetConsoleOutputRequest;
+import software.amazon.awssdk.services.ec2.model.GetConsoleOutputResponse;
+import software.amazon.awssdk.services.ec2.model.Instance;
+import software.amazon.awssdk.services.ec2.model.InstanceTypeHypervisor;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -101,9 +106,9 @@ public class EC2Computer extends SlaveComputer {
     /**
      * Gets the EC2 console output.
      */
-    public String getConsoleOutput() throws AmazonClientException {
+    public String getConsoleOutput() throws SdkException {
         try {
-            return getDecodedConsoleOutputResponse().getOutput();
+            return getDecodedConsoleOutputResponse().output();
         } catch (InterruptedException e) {
             return null;
         }
@@ -113,45 +118,49 @@ public class EC2Computer extends SlaveComputer {
      * Gets the EC2 decoded console output.
      * @since TODO
      */
-    public String getDecodedConsoleOutput() throws AmazonClientException {
+    public String getDecodedConsoleOutput() throws SdkException {
         try {
-            return getDecodedConsoleOutputResponse().getDecodedOutput();
+            String encodedOutput = getDecodedConsoleOutputResponse().output();
+            byte[] decoded = Base64.getDecoder().decode(encodedOutput);
+            return new String(decoded, StandardCharsets.UTF_8);
         } catch (InterruptedException e) {
             return null;
         }
     }
 
-    private GetConsoleOutputResult getDecodedConsoleOutputResponse()
-            throws AmazonClientException, InterruptedException {
-        AmazonEC2 ec2 = getCloud().connect();
-        GetConsoleOutputRequest request = new GetConsoleOutputRequest(getInstanceId());
+    private GetConsoleOutputResponse getDecodedConsoleOutputResponse() throws SdkException, InterruptedException {
+        Ec2Client ec2 = getCloud().connect();
+        GetConsoleOutputRequest.Builder requestBuilder =
+                GetConsoleOutputRequest.builder().instanceId(getInstanceId());
         if (checkIfNitro()) {
             // Can only be used if instance has hypervisor Nitro
-            request.setLatest(true);
+            requestBuilder.latest(true);
         }
-        return ec2.getConsoleOutput(request);
+        return ec2.getConsoleOutput(requestBuilder.build());
     }
 
     /**
      * Check if instance has hypervisor Nitro
      */
-    private boolean checkIfNitro() throws AmazonClientException, InterruptedException {
+    private boolean checkIfNitro() throws SdkException, InterruptedException {
         try {
             if (isNitro == null) {
-                DescribeInstanceTypesRequest request = new DescribeInstanceTypesRequest();
-                request.setInstanceTypes(
-                        Collections.singletonList(describeInstance().getInstanceType()));
-                AmazonEC2 ec2 = getCloud().connect();
-                DescribeInstanceTypesResult result = ec2.describeInstanceTypes(request);
-                if (result.getInstanceTypes().size() == 1) {
-                    String hypervisor = result.getInstanceTypes().get(0).getHypervisor();
-                    isNitro = hypervisor.equals("nitro");
+                DescribeInstanceTypesRequest request = DescribeInstanceTypesRequest.builder()
+                        .instanceTypes(
+                                Collections.singletonList(describeInstance().instanceType()))
+                        .build();
+                Ec2Client ec2 = getCloud().connect();
+                DescribeInstanceTypesResponse result = ec2.describeInstanceTypes(request);
+                if (result.instanceTypes().size() == 1) {
+                    InstanceTypeHypervisor hypervisor =
+                            result.instanceTypes().get(0).hypervisor();
+                    isNitro = hypervisor == InstanceTypeHypervisor.NITRO;
                 } else {
                     isNitro = false;
                 }
             }
             return isNitro;
-        } catch (AmazonClientException e) {
+        } catch (SdkException e) {
             LOGGER.log(Level.WARNING, "Could not describe-instance-types to check if instance is nitro based", e);
             isNitro = false;
             return isNitro;
@@ -162,12 +171,12 @@ public class EC2Computer extends SlaveComputer {
      * Obtains the instance state description in EC2.
      *
      * <p>
-     * This method returns a cached state, so it's not suitable to check {@link Instance#getState()} from the returned
+     * This method returns a cached state, so it's not suitable to check {@link Instance#state()} from the returned
      * instance (but all the other fields are valid as it won't change.)
-     *
+     * <p>
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
-    public Instance describeInstance() throws AmazonClientException, InterruptedException {
+    public Instance describeInstance() throws SdkException, InterruptedException {
         if (ec2InstanceDescription == null) {
             ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
         }
@@ -177,7 +186,7 @@ public class EC2Computer extends SlaveComputer {
     /**
      * This will flush any cached description held by {@link #describeInstance()}.
      */
-    public Instance updateInstanceDescription() throws AmazonClientException, InterruptedException {
+    public Instance updateInstanceDescription() throws SdkException, InterruptedException {
         return ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
     }
 
@@ -187,32 +196,32 @@ public class EC2Computer extends SlaveComputer {
      * <p>
      * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
      */
-    public InstanceState getState() throws AmazonClientException, InterruptedException {
+    public InstanceState getState() throws SdkException, InterruptedException {
         ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
-        return InstanceState.find(ec2InstanceDescription.getState().getName());
+        return InstanceState.find(ec2InstanceDescription.state().name().toString());
     }
 
     /**
      * Number of milli-secs since the instance was started.
      */
-    public long getUptime() throws AmazonClientException, InterruptedException {
-        return System.currentTimeMillis() - describeInstance().getLaunchTime().getTime();
+    public long getUptime() throws SdkException, InterruptedException {
+        return describeInstance().launchTime().until(Instant.now(), ChronoUnit.MILLIS);
     }
 
     /**
      * Returns uptime in the human readable form.
      */
-    public String getUptimeString() throws AmazonClientException, InterruptedException {
+    public String getUptimeString() throws SdkException, InterruptedException {
         return Util.getTimeSpanString(getUptime());
     }
 
     /**
-     * Return the time this instance was launched in ms since the epoch.
+     * Return the Instant this instance was launched
      *
-     * @return Time this instance was launched, in ms since the epoch.
+     * @return Instant this instance was launched
      */
-    public long getLaunchTime() throws InterruptedException {
-        return this.describeInstance().getLaunchTime().getTime();
+    public Instant getLaunchTime() throws InterruptedException {
+        return this.describeInstance().launchTime();
     }
 
     /**

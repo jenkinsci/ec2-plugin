@@ -1,6 +1,5 @@
 package hudson.plugins.ec2.util;
 
-import com.amazonaws.AmazonClientException;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -14,9 +13,11 @@ import hudson.plugins.ec2.EC2Tag;
 import hudson.plugins.ec2.Tenancy;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
+import java.io.Serial;
 import java.util.List;
+import software.amazon.awssdk.core.exception.SdkException;
 
-@Extension
+@Extension(ordinal = 100)
 public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
 
     @Override
@@ -75,6 +76,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     }
 
     private static class MockEC2OndemandSlave extends EC2OndemandSlave {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private MockEC2OndemandSlave(
@@ -184,7 +186,8 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
                     DEFAULT_METADATA_ENDPOINT_ENABLED,
                     DEFAULT_METADATA_TOKENS_REQUIRED,
                     DEFAULT_METADATA_HOPS_LIMIT,
-                    DEFAULT_METADATA_SUPPORTED);
+                    DEFAULT_METADATA_SUPPORTED,
+                    DEFAULT_ENCLAVE_ENABLED);
         }
 
         @Override
@@ -194,6 +197,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
     }
 
     private static class MockEC2SpotSlave extends EC2SpotSlave {
+        @Serial
         private static final long serialVersionUID = 1L;
 
         private MockEC2SpotSlave(
@@ -259,7 +263,7 @@ public class EC2AgentFactoryMockImpl implements EC2AgentFactory {
         }
 
         @Override
-        public long getUptime() throws AmazonClientException {
+        public long getUptime() throws SdkException {
             return 3500000;
         }
     }

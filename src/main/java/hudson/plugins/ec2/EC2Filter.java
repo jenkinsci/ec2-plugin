@@ -23,7 +23,6 @@
  */
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.Filter;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
@@ -35,6 +34,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.kohsuke.stapler.DataBoundConstructor;
+import software.amazon.awssdk.services.ec2.model.Filter;
 
 public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
     @NonNull
@@ -96,7 +96,7 @@ public class EC2Filter extends AbstractDescribableImpl<EC2Filter> {
     /* Helper method to convert EC2Filter to Filter */
     @NonNull
     public Filter toFilter() {
-        return new Filter(name, getValuesList());
+        return Filter.builder().name(name).values(getValuesList()).build();
     }
 
     /* Helper method to convert list of EC2Filter to list of Filter */

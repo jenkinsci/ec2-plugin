@@ -1,11 +1,6 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import hudson.model.labels.LabelAtom;
 import hudson.plugins.ec2.util.MinimumNumberOfInstancesTimeRangeConfig;
@@ -15,23 +10,21 @@ import io.jenkins.plugins.casc.ConfiguratorRegistry;
 import io.jenkins.plugins.casc.misc.ConfiguredWithCode;
 import io.jenkins.plugins.casc.misc.JenkinsConfiguredWithCodeRule;
 import io.jenkins.plugins.casc.misc.Util;
+import io.jenkins.plugins.casc.misc.junit.jupiter.WithJenkinsConfiguredWithCode;
 import io.jenkins.plugins.casc.model.CNode;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import jenkins.model.Jenkins;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class ConfigurationAsCodeTest {
-
-    @Rule
-    public JenkinsConfiguredWithCodeRule j = new JenkinsConfiguredWithCodeRule();
+@WithJenkinsConfiguredWithCode
+class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("EC2CloudEmpty.yml")
-    public void testEmptyConfig() throws Exception {
+    void testEmptyConfig(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("empty");
         assertNotNull(ec2Cloud);
         assertEquals(0, ec2Cloud.getTemplates().size());
@@ -39,7 +32,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("UnixData.yml")
-    public void testUnixData() throws Exception {
+    void testUnixData(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -65,7 +58,8 @@ public class ConfigurationAsCodeTest {
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isUnix());
-        assertTrue(amiType instanceof UnixData);
+        assertTrue(amiType.isSSHAgent());
+        assertInstanceOf(UnixData.class, amiType);
         final UnixData unixData = (UnixData) amiType;
         assertEquals("sudo", unixData.getRootCommandPrefix());
         assertEquals("sudo -u jenkins", unixData.getSlaveCommandPrefix());
@@ -76,7 +70,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("Unix.yml")
-    public void testUnix() throws Exception {
+    void testUnix(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("staging");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -98,7 +92,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsData.yml")
-    public void testWindowsData() throws Exception {
+    void testWindowsData(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("development");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -118,7 +112,8 @@ public class ConfigurationAsCodeTest {
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertFalse(amiType.isUnix());
         assertTrue(amiType.isWindows());
-        assertTrue(amiType instanceof WindowsData);
+        assertTrue(amiType.isWinRMAgent());
+        assertInstanceOf(WindowsData.class, amiType);
         final WindowsData windowsData = (WindowsData) amiType;
         assertEquals(Secret.fromString("password"), windowsData.getPassword());
         assertTrue(windowsData.isUseHTTPS());
@@ -127,7 +122,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("BackwardsCompatibleConnectionStrategy.yml")
-    public void testBackwardsCompatibleConnectionStrategy() throws Exception {
+    void testBackwardsCompatibleConnectionStrategy(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("us-east-1");
         assertNotNull(ec2Cloud);
 
@@ -139,7 +134,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("UnixData.yml")
-    public void testConfigAsCodeExport() throws Exception {
+    void testConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
@@ -150,7 +145,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("UnixData-withAltEndpointAndJavaPath.yml")
-    public void testConfigAsCodeWithAltEndpointAndJavaPathExport() throws Exception {
+    void testConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
@@ -161,7 +156,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("Unix-withMinimumInstancesTimeRange.yml")
-    public void testConfigAsCodeWithMinimumInstancesTimeRange() throws Exception {
+    void testConfigAsCodeWithMinimumInstancesTimeRange(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("timed");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -189,8 +184,21 @@ public class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("Unix-withAvoidUsingOrphanedNodes.yml")
+    void testConfigAsCodeWithAvoidUsingOrphanedNodes(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("avoidUsingOrphanedNodesTest");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertTrue(slaveTemplate.isAvoidUsingOrphanedNodes());
+    }
+
+    @Test
     @ConfiguredWithCode("Ami.yml")
-    public void testAmi() throws Exception {
+    void testAmi(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("test");
         assertNotNull(ec2Cloud);
 
@@ -223,7 +231,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("MacData.yml")
-    public void testMacData() throws Exception {
+    void testMacData(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -242,7 +250,8 @@ public class ConfigurationAsCodeTest {
 
         final AMITypeData amiType = slaveTemplate.getAmiType();
         assertTrue(amiType.isMac());
-        assertTrue(amiType instanceof MacData);
+        assertTrue(amiType.isSSHAgent());
+        assertInstanceOf(MacData.class, amiType);
         final MacData macData = (MacData) amiType;
         assertEquals("sudo", macData.getRootCommandPrefix());
         assertEquals("sudo -u jenkins", macData.getSlaveCommandPrefix());
@@ -253,7 +262,7 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("Mac.yml")
-    public void testMac() throws Exception {
+    void testMac(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("staging");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -275,12 +284,84 @@ public class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("MacData.yml")
-    public void testMacCloudConfigAsCodeExport() throws Exception {
+    void testMacCloudConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
         String exported = Util.toYamlString(clouds);
         String expected = Util.toStringFromYamlFile(this, "MacDataExport.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("Unix-withEnclaveEnabled.yml")
+    void testEnclaveEnabledConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
+        assertNotNull(ec2Cloud);
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertTrue(slaveTemplate.getEnclaveEnabled());
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHData.yml")
+    public void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertEquals("ami-12345", slaveTemplate.getAmi());
+        assertEquals("C:\\Users\\ec2-user", slaveTemplate.remoteFS);
+
+        assertEquals("windows server", slaveTemplate.getLabelString());
+        assertEquals(2, slaveTemplate.getLabelSet().size());
+
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("server")));
+        assertTrue(ec2Cloud.canProvision(new LabelAtom("windows")));
+
+        final SpotConfiguration spotConfig = slaveTemplate.spotConfig;
+        assertNotEquals(null, spotConfig);
+        assertTrue(spotConfig.getFallbackToOndemand());
+        assertEquals(3, spotConfig.getSpotBlockReservationDuration());
+        assertEquals("0.15", spotConfig.getSpotMaxBidPrice());
+        assertTrue(spotConfig.useBidPrice);
+
+        final AMITypeData amiType = slaveTemplate.getAmiType();
+        assertTrue(amiType.isWindows());
+        assertTrue(amiType.isSSHAgent());
+        assertInstanceOf(WindowsSSHData.class, amiType);
+        final WindowsSSHData windowsSSHData = (WindowsSSHData) amiType;
+        assertEquals("CMD /C", windowsSSHData.getRootCommandPrefix());
+        assertEquals("CMD /C", windowsSSHData.getSlaveCommandPrefix());
+        assertEquals("-fakeFlag", windowsSSHData.getSlaveCommandSuffix());
+        assertEquals("22", windowsSSHData.getSshPort());
+        assertEquals("180", windowsSSHData.getBootDelay());
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHData.yml")
+    public void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "WindowsSSHDataExport.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHData-withAltEndpointAndJavaPath.yml")
+    public void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j)
+            throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "WindowsSSHDataExport-withAltEndpointAndJavaPath.yml");
         assertEquals(expected, exported);
     }
 }

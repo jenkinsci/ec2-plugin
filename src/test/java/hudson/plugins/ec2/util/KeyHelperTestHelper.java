@@ -6,7 +6,8 @@ import java.security.Security;
 import java.security.spec.ECGenParameterSpec;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-public class KeyHelperTestAbstract {
+public class KeyHelperTestHelper {
+
     static {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }

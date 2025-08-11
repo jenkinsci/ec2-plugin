@@ -9,6 +9,6 @@ jenkins:
           - description:
             ami: "ami-5678"
             labelString: "mac clear"
-            type: "Mac1Metal"
+            type: "mac1.metal"
             remoteFS: "/Users/jenkins"
             mode: "NORMAL"

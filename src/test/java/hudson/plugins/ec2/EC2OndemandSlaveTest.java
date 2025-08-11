@@ -1,20 +1,26 @@
 package hudson.plugins.ec2;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import hudson.model.Node;
 import java.util.Collections;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class EC2OndemandSlaveTest {
+@WithJenkins
+class EC2OndemandSlaveTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
 
     @Test
-    public void testSpecifyMode() throws Exception {
+    void testSpecifyMode() throws Exception {
         EC2OndemandSlave slaveNormal = new EC2OndemandSlave(
                 "name",
                 "instanceId",

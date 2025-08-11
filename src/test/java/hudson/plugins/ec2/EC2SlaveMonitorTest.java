@@ -1,38 +1,40 @@
 package hudson.plugins.ec2;
 
-import com.amazonaws.services.ec2.model.InstanceType;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import hudson.model.Node;
 import hudson.plugins.ec2.util.SSHCredentialHelper;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.Collections;
 import jenkins.model.Jenkins;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
 
-public class EC2SlaveMonitorTest {
+@WithJenkins
+class EC2SlaveMonitorTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
         // Tests using the BouncyCastleProvider failed without that
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
     @Test
-    public void testMinimumNumberOfInstances() throws Exception {
+    void testMinimumNumberOfInstances() throws Exception {
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
                 EC2AbstractSlave.TEST_ZONE,
                 null,
                 "default",
                 "foo",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "ttt",
                 Node.Mode.NORMAL,
@@ -70,7 +72,8 @@ public class EC2SlaveMonitorTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
@@ -86,7 +89,7 @@ public class EC2SlaveMonitorTest {
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
 
-        Assert.assertEquals(
+        assertEquals(
                 2,
                 Arrays.stream(Jenkins.get().getComputers())
                         .filter(EC2Computer.class::isInstance)
@@ -94,7 +97,7 @@ public class EC2SlaveMonitorTest {
     }
 
     @Test
-    public void testMinimumNumberOfSpareInstances() throws Exception {
+    void testMinimumNumberOfSpareInstances() throws Exception {
         // Arguments split onto newlines matching the construtor definition to make figuring which is which easier.
         SlaveTemplate template = new SlaveTemplate(
                 "ami1",
@@ -102,7 +105,7 @@ public class EC2SlaveMonitorTest {
                 null,
                 "defaultsecgroup",
                 "remotefs",
-                InstanceType.M1Large,
+                InstanceType.M1_LARGE.toString(),
                 false,
                 "label",
                 Node.Mode.NORMAL,
@@ -140,7 +143,8 @@ public class EC2SlaveMonitorTest {
                 EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED);
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         EC2Cloud cloud = new EC2Cloud(
                 "us-east-1",
@@ -155,7 +159,7 @@ public class EC2SlaveMonitorTest {
                 "roleSessionName");
         r.jenkins.clouds.add(cloud);
         r.configRoundtrip();
-        Assert.assertEquals(
+        assertEquals(
                 2,
                 Arrays.stream(Jenkins.get().getComputers())
                         .filter(EC2Computer.class::isInstance)

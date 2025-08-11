@@ -17,6 +17,7 @@
       deleteRootOnTermination: false
       ebsEncryptRootVolume: DEFAULT
       ebsOptimized: false
+      enclaveEnabled: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       javaPath: "java"
       labelString: "linux ubuntu"
@@ -39,6 +40,6 @@
       stopOnTerminate: false
       t2Unlimited: false
       tenancy: Default
-      type: T2Micro
+      type: "t2.micro"
       useEphemeralDevices: false
     useInstanceProfileForCredentials: true

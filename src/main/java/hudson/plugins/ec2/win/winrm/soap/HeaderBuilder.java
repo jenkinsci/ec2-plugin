@@ -1,7 +1,6 @@
 package hudson.plugins.ec2.win.winrm.soap;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -65,8 +64,7 @@ public class HeaderBuilder {
     }
 
     public HeaderBuilder options(List<Option> options) {
-        this.optionSet =
-                options != null ? Collections.unmodifiableList(new ArrayList<>(options)) : Collections.emptyList();
+        this.optionSet = options != null ? List.copyOf(options) : Collections.emptyList();
         return this;
     }
 
