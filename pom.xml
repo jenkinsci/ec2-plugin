@@ -72,7 +72,21 @@ THE SOFTWARE.
     <url>https://github.com/${gitHubRepo}</url>
   </scm>
 
+  <distributionManagement>
+    <repository>
+      <id>snowflake-jenkins-plugins</id>
+      <name>Snowflake Jenkins Plugins Repository</name>
+      <url>${deploy.repo.url}</url>
+    </repository>
+    <snapshotRepository>
+      <id>snowflake-jenkins-plugins</id>
+      <name>Snowflake Jenkins Plugins Repository</name>
+      <url>${deploy.repo.url}</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <properties>
+    <!-- Default changelist for local development - will be overridden by build script -->
     <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
@@ -208,16 +222,56 @@ THE SOFTWARE.
   </dependencies>
 
   <repositories>
+    <!-- Central repository redirected to artifactory -->
     <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Central</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-maven-virtual</url>
+    </repository>
+    <!-- Jenkins CI repository -->
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
       <id>repo.jenkins-ci.org</id>
-      <url>https://repo.jenkins-ci.org/public/</url>
+      <name>Jenkins CI</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-jenkins-ci-virtual</url>
     </repository>
   </repositories>
 
   <pluginRepositories>
+    <!-- Central plugin repository -->
     <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Central Plugins</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-maven-virtual</url>
+    </pluginRepository>
+    <!-- Jenkins CI plugin repository -->
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
       <id>repo.jenkins-ci.org</id>
-      <url>https://repo.jenkins-ci.org/public/</url>
+      <name>Jenkins CI Plugins</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-jenkins-ci-virtual</url>
     </pluginRepository>
   </pluginRepositories>
 
@@ -233,4 +287,25 @@ THE SOFTWARE.
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>prod</id>
+      <properties>
+        <deploy.repo.url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/internal-production-maven-jenkins_plugins-local/</deploy.repo.url>
+      </properties>
+    </profile>
+    <profile>
+      <id>dev</id>
+      <properties>
+        <deploy.repo.url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/internal-development-maven-jenkins_plugins-local/</deploy.repo.url>
+      </properties>
+    </profile>
+    <profile>
+      <id>sandbox</id>
+      <properties>
+        <deploy.repo.url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/internal-sandbox-maven-jenkins_plugins-local/</deploy.repo.url>
+      </properties>
+    </profile>
+  </profiles>
 </project>
