@@ -27,9 +27,10 @@ import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.Tag;
 import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
 
-public class EC2CleanupOrphanedNodesTest {
+class EC2CleanupOrphanedNodesTest {
+
     @Test
-    public void testCleanupOrphanedAndActiveNodes() {
+    void testCleanupOrphanedAndActiveNodes() {
         // Mock EC2Cloud and Ec2Client
         EC2Cloud cloud = mock(EC2Cloud.class);
         Ec2Client ec2Client = mock(Ec2Client.class);
