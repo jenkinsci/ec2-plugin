@@ -42,7 +42,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             String roleArn,
             String roleSessionName) {
         super(
-                cloudName,
+                cloudName, // now matches the constructor parameter name
                 useInstanceProfileForCredentials,
                 credentialsId,
                 region,
@@ -65,7 +65,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             String roleArn,
             String roleSessionName) {
         super(
-                cloudName,
+                cloudName, // now matches the constructor parameter name
                 useInstanceProfileForCredentials,
                 credentialsId,
                 region,
