@@ -86,7 +86,7 @@ class EC2CloudTest {
         r.assertEqualBeans(
                 cloud,
                 r.jenkins.clouds.get(EC2Cloud.class),
-                "name,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+                "cloudName,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
     @Test
@@ -125,7 +125,9 @@ class EC2CloudTest {
         EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
         assertEquals("updatedSessionName", actual.getRoleSessionName());
         r.assertEqualBeans(
-                cloud, actual, "name,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
+                cloud,
+                actual,
+                "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test

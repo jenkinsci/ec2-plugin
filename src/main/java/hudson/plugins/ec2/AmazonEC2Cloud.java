@@ -31,7 +31,7 @@ import java.util.List;
 @Deprecated
 public class AmazonEC2Cloud extends EC2Cloud {
     public AmazonEC2Cloud(
-            String name,
+            String cloudName,
             boolean useInstanceProfileForCredentials,
             String credentialsId,
             String region,
@@ -42,7 +42,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             String roleArn,
             String roleSessionName) {
         super(
-                name,
+                cloudName,
                 useInstanceProfileForCredentials,
                 credentialsId,
                 region,
@@ -55,7 +55,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
     }
 
     public AmazonEC2Cloud(
-            String name,
+            String cloudName,
             boolean useInstanceProfileForCredentials,
             String credentialsId,
             String region,
@@ -65,7 +65,7 @@ public class AmazonEC2Cloud extends EC2Cloud {
             String roleArn,
             String roleSessionName) {
         super(
-                name,
+                cloudName,
                 useInstanceProfileForCredentials,
                 credentialsId,
                 region,

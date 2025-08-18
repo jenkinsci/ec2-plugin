@@ -4,7 +4,7 @@ configuration-as-code:
 jenkins:
   clouds:
     - amazonEC2:
-        name: "us-east-1"
+        cloudName: "us-east-1"
         privateKey: "${PRIVATE_KEY}"
         templates:
         - associatePublicIp: false
