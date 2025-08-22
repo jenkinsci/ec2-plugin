@@ -87,6 +87,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import org.apache.commons.lang.StringUtils;
@@ -1340,6 +1342,11 @@ public class EC2Cloud extends Cloud {
             if (proxy.getUserName() != null) {
                 proxyConfiguration.username(proxy.getUserName());
                 proxyConfiguration.password(Secret.toString(proxy.getSecretPassword()));
+            }
+            List<Pattern> patterns = proxy.getNoProxyHostPatterns();
+            if (patterns != null && !patterns.isEmpty()) {
+                proxyConfiguration.nonProxyHosts(
+                        patterns.stream().map(Pattern::pattern).collect(Collectors.toSet()));
             }
             builder.proxyConfiguration(proxyConfiguration.build());
         }
