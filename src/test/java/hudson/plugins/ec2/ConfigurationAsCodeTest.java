@@ -306,7 +306,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData.yml")
-    public void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
+    void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -344,7 +344,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData.yml")
-    public void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
+    void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
@@ -355,8 +355,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData-withAltEndpointAndJavaPath.yml")
-    public void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j)
-            throws Exception {
+    void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
