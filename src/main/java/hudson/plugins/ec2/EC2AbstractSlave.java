@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -757,7 +758,7 @@ public abstract class EC2AbstractSlave extends Slave {
     /**
      * Terminates the instance in EC2.
      */
-    public abstract void terminate();
+    public abstract Future<?> terminate();
 
     void stop() {
         try {
