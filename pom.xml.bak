@@ -87,7 +87,7 @@ THE SOFTWARE.
 
   <properties>
     <!-- Default changelist for local development - will be overridden by build script -->
-    <changelist>20250819-nthirumoorthy-aws-monitoring-info</changelist>
+    <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>

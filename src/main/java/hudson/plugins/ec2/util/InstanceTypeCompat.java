@@ -858,6 +858,19 @@ public final class InstanceTypeCompat {
         map.put("M8gd48xlarge", "m8gd.48xlarge");
         map.put("M8gdMetal24xl", "m8gd.metal-24xl");
         map.put("M8gdMetal48xl", "m8gd.metal-48xl");
+        // R8gd instances (Graviton 4 memory-optimized with local storage)
+        map.put("R8gdMedium", "r8gd.medium");
+        map.put("R8gdLarge", "r8gd.large");
+        map.put("R8gdXlarge", "r8gd.xlarge");
+        map.put("R8gd2xlarge", "r8gd.2xlarge");
+        map.put("R8gd4xlarge", "r8gd.4xlarge");
+        map.put("R8gd8xlarge", "r8gd.8xlarge");
+        map.put("R8gd12xlarge", "r8gd.12xlarge");
+        map.put("R8gd16xlarge", "r8gd.16xlarge");
+        map.put("R8gd24xlarge", "r8gd.24xlarge");
+        map.put("R8gd48xlarge", "r8gd.48xlarge");
+        map.put("R8gdMetal24xl", "r8gd.metal-24xl");
+        map.put("R8gdMetal48xl", "r8gd.metal-48xl");
         map.put("C8gMedium", "c8g.medium");
         map.put("C8gLarge", "c8g.large");
         map.put("C8gXlarge", "c8g.xlarge");
