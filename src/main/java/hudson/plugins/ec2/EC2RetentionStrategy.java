@@ -334,6 +334,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 } else if (maxTotalUses <= 1) {
                     LOGGER.info("maxTotalUses drained - suspending agent " + slaveNode.instanceId);
                     computer.setAcceptingTasks(false);
+                    MinimumInstanceChecker.checkForMinimumInstances();
                 } else {
                     slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
                     LOGGER.info("Agent " + slaveNode.instanceId + " has " + slaveNode.maxTotalUses + " builds left");

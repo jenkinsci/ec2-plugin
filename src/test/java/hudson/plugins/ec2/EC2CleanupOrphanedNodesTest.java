@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.function.Consumer;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -80,6 +81,13 @@ public class EC2CleanupOrphanedNodesTest {
         MockedStatic<Jenkins> mockedJenkins = Mockito.mockStatic(Jenkins.class);
         mockedJenkins.when(Jenkins::get).thenReturn(jenkins);
         when(jenkins.getNodes()).thenReturn(List.of(node1, node2));
+
+        // Mock JenkinsLocationConfiguration
+        JenkinsLocationConfiguration jenkinsLocation = mock(JenkinsLocationConfiguration.class);
+        MockedStatic<JenkinsLocationConfiguration> mockedJenkinsLocation =
+                Mockito.mockStatic(JenkinsLocationConfiguration.class);
+        mockedJenkinsLocation.when(JenkinsLocationConfiguration::get).thenReturn(jenkinsLocation);
+        when(jenkinsLocation.getUrl()).thenReturn("http://jenkins-test-url.com");
 
         // Run Orphaned Nodes cleanup
         new EC2CleanupOrphanedNodes().cleanCloud(cloud);

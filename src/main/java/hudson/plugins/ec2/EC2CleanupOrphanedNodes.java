@@ -40,6 +40,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
+import jenkins.model.JenkinsLocationConfiguration;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
@@ -110,13 +111,20 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
 
     /**
      * Returns a list of all EC2 instances in states (running, pending, or stopping) AND with the tags
-     * jenkins_server_url and jenkins_slave_type
-     * These are all the instances that are created by the EC2 plugin
+     * jenkins_server_url and jenkins_cloud_name
+     * These are all the instances that are created by the EC2 plugin of this controller and this cloud.
      */
     private Set<Instance> getAllRemoteInstance(Ec2Client connection, EC2Cloud cloud) throws SdkException {
         Set<Instance> instanceIds = new HashSet<>();
 
         String nextToken = null;
+        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
+        if (jenkinsLocation.getUrl() == null) {
+            LOGGER.warning(
+                    "Jenkins server URL is not set in JenkinsLocationConfiguration.Returning empty remote instance list for cloud: "
+                            + cloud.getDisplayName());
+            return instanceIds;
+        }
 
         do {
             DescribeInstancesRequest.Builder requestBuilder = DescribeInstancesRequest.builder()
@@ -129,11 +137,10 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
                                             InstanceState.PENDING.getCode(),
                                             InstanceState.STOPPING.getCode())
                                     .build(),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL));
+                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()),
+                            tagFilter(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME, cloud.getDisplayName()));
 
             requestBuilder.nextToken(nextToken);
-
             DescribeInstancesResponse result = connection.describeInstances(requestBuilder.build());
 
             for (Reservation r : result.reservations()) {
@@ -270,7 +277,7 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         }
     }
 
-    private Filter tagFilter(String tagName) {
-        return Filter.builder().name("tag-key").values(tagName).build();
+    private Filter tagFilter(String tagName, String tagValue) {
+        return Filter.builder().name("tag:" + tagName).values(tagValue).build();
     }
 }

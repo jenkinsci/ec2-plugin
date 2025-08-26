@@ -194,6 +194,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public final String idleTerminationMinutes;
 
+    private boolean terminateIdleDuringShutdown;
+
     public final String iamInstanceProfile;
 
     public final boolean deleteRootOnTermination;
@@ -1682,6 +1684,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return idleTerminationMinutes;
     }
 
+    public boolean getTerminateIdleDuringShutdown() {
+        return terminateIdleDuringShutdown;
+    }
+
+    @DataBoundSetter
+    public void setTerminateIdleDuringShutdown(boolean terminateIdleDuringShutdown) {
+        this.terminateIdleDuringShutdown = terminateIdleDuringShutdown;
+    }
+
     public Set<LabelAtom> getLabelSet() {
         if (labelSet == null) {
             labelSet = Label.parse(labels);
@@ -2683,6 +2694,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .value(jenkinsLocation.getUrl())
                     .build());
         }
+
+        if (parent != null && StringUtils.isNotBlank(parent.name)) {
+            instTags.add(Tag.builder()
+                    .key(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME)
+                    .value(parent.name)
+                    .build());
+        }
+
         return instTags;
     }
 
