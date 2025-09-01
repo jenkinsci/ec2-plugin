@@ -24,6 +24,7 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
+import org.kohsuke.stapler.DataBoundConstructor;
 import java.util.List;
 
 /**
@@ -31,6 +32,7 @@ import java.util.List;
  */
 @Deprecated
 public class AmazonEC2Cloud extends EC2Cloud {
+    @DataBoundConstructor
     public AmazonEC2Cloud(
             String name,
             boolean useInstanceProfileForCredentials,
