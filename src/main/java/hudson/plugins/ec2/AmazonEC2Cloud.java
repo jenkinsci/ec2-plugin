@@ -24,8 +24,8 @@
 package hudson.plugins.ec2;
 
 import hudson.Extension;
-import org.kohsuke.stapler.DataBoundConstructor;
 import java.util.List;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @deprecated use {@link EC2Cloud}
