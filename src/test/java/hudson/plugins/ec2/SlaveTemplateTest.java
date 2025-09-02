@@ -1656,7 +1656,7 @@ class SlaveTemplateTest {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
     }
 
-     @Test
+    @Test
     void testNetworkInterfaceAssociatePublicIpTrue() throws Exception {
         SlaveTemplate template = mock(SlaveTemplate.class);
         when(template.getAssociatePublicIp()).thenReturn(true);
