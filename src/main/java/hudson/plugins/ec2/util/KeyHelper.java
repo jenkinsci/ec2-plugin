@@ -18,7 +18,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Locale;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.digest.BuiltinDigests;
 import org.apache.sshd.common.util.buffer.BufferUtils;
@@ -36,6 +37,9 @@ import org.bouncycastle.util.Properties;
  * Utility class to parse PEM.
  */
 public abstract class KeyHelper {
+
+    private static final Logger LOGGER = Logger.getLogger(KeyHelper.class.getName());
+
     private KeyHelper() {}
 
     /**
@@ -175,6 +179,7 @@ public abstract class KeyHelper {
             byte[] rawFingerprint = KeyUtils.getRawFingerprint(BuiltinDigests.md5.get(), serverKey);
             return BufferUtils.toHex(':', rawFingerprint).toLowerCase(Locale.ROOT);
         } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error computing fingerprint", e);
             return "";
         } finally {
             Properties.removeThreadOverride(Properties.EMULATE_ORACLE);
