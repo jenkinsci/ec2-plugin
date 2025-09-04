@@ -62,18 +62,18 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
      *                that should be checked to see if we trust it by the current verifier.
      * @param listener the connection listener to write any output log to
      * @return whether the provided HostKey is trusted and the current connection can therefore continue.
-     * @since TODO
+     * @since 1.12
      */
     public abstract boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws Exception;
 
     /**
      * Check if the given key is valid for the host identifier.
      * @param computer the computer this connection is being initiated for
-     * @param serverKey the key that was transmitted by the remote host for the current connection. This is the key
-     *                that should be checked to see if we trust it by the current verifier.
+     * @param serverKey the {@link PublicKey} that was transmitted by the remote host for the current connection. This
+     *                  is the key that should be checked to see if we trust it by the current verifier.
      * @param listener the connection listener to write any output log to
-     * @return whether the provided HostKey is trusted and the current connection can therefore continue.
-     * @since 1.12
+     * @return whether the provided {@link PublicKey}  is trusted and the current connection can therefore continue.
+     * @since TODO
      */
     public boolean verify(EC2Computer computer, PublicKey serverKey, TaskListener listener) throws Exception {
         return verify(computer, HostKeyHelper.getInstance().getHostKey(serverKey), listener);
