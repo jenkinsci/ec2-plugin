@@ -17,6 +17,8 @@ import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Locale;
+
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.digest.BuiltinDigests;
 import org.apache.sshd.common.util.buffer.BufferUtils;
@@ -171,7 +173,7 @@ public abstract class KeyHelper {
             Properties.setThreadOverride(Properties.EMULATE_ORACLE, true);
             // Generate MD5 fingerprint just like ssh-keygen
             byte[] rawFingerprint = KeyUtils.getRawFingerprint(BuiltinDigests.md5.get(), serverKey);
-            return BufferUtils.toHex(':', rawFingerprint).toLowerCase();
+            return BufferUtils.toHex(':', rawFingerprint).toLowerCase(Locale.ROOT);
         } catch (Exception e) {
             return "";
         } finally {
