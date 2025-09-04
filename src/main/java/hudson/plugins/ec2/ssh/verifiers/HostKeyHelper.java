@@ -26,14 +26,21 @@
 */
 package hudson.plugins.ec2.ssh.verifiers;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.XmlFile;
 import hudson.model.Computer;
 import hudson.model.Node;
+import hudson.plugins.ec2.util.KeyHelper;
 import java.io.File;
 import java.io.IOException;
+import java.security.PublicKey;
 import java.util.Map;
 import java.util.WeakHashMap;
 import jenkins.model.Jenkins;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
 
 /**
  * Helper methods to allow loading and saving of host keys for a computer. Verifiers
@@ -55,6 +62,24 @@ public final class HostKeyHelper {
 
     public static HostKeyHelper getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * Converts a Java {@link PublicKey} to a {@link HostKey} for SSH verification.
+     * Uses the key's encoded form and BouncyCastle utilities to produce the SSH format.
+     *
+     * @param serverKey the public key to convert
+     * @return a {@link HostKey} representing the SSH-formatted key, or {@code null} if the algorithm is unsupported
+     * @throws IOException if the key cannot be processed
+     */
+    @CheckForNull
+    public HostKey getHostKey(@NonNull PublicKey serverKey) throws IOException {
+        String sshAlgorithm = KeyHelper.getSshAlgorithm(serverKey);
+        if (sshAlgorithm == null) {
+            return null;
+        }
+        AsymmetricKeyParameter parameters = PublicKeyFactory.createKey(serverKey.getEncoded());
+        return new HostKey(serverKey.getAlgorithm(), OpenSSHPublicKeyUtil.encodePublicKey(parameters));
     }
 
     /**

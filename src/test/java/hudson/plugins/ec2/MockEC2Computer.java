@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 // A mock ec2 computer returning the data we want
@@ -120,6 +121,16 @@ public class MockEC2Computer extends EC2Computer {
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                 EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+    }
+
+    @Override
+    public String getDecodedConsoleOutput() throws SdkException {
+        return getConsole();
+    }
+
+    @Override
+    public InstanceState getState() {
+        return state;
     }
 
     @Override
