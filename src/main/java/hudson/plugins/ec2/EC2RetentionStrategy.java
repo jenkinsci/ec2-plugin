@@ -139,23 +139,23 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
         }
 
-        final long uptime;
-        final Instant launchedAt;
-        InstanceState state;
-
-        try {
-            state = computer.getState(); // Get State before Uptime because getState will refresh the cached EC2
-            // info
-            uptime = computer.getUptime();
-            launchedAt = computer.getLaunchTime();
-        } catch (SdkException | InterruptedException e) {
-            // We'll just retry next time we test for idleness.
-            LOGGER.fine("Exception while checking host uptime for " + computer.getName()
-                    + ", will retry next check. Exception: " + e);
-            return CHECK_INTERVAL_MINUTES;
-        }
-
         if (computer.isIdle()) {
+            final long uptime;
+            final Instant launchedAt;
+            InstanceState state;
+
+            try {
+                state = computer.getState(); // Get State before Uptime because getState will refresh the cached EC2
+                // info
+                uptime = computer.getUptime();
+                launchedAt = computer.getLaunchTime();
+            } catch (SdkException | InterruptedException e) {
+                // We'll just retry next time we test for idleness.
+                LOGGER.fine("Exception while checking host uptime for " + computer.getName()
+                        + ", will retry next check. Exception: " + e);
+                return CHECK_INTERVAL_MINUTES;
+            }
+
             // Don't bother checking anything else if the instance is already in the desired state:
             // * Already Terminated
             // * We use stop-on-terminate and the instance is currently stopped or stopping
@@ -248,8 +248,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
         if (computer.isOffline()) {
             if (!computer.isConnecting()) {
-                // Retry connection to agent until the job times out
-                // see: https://github.com/jenkinsci/workflow-durable-task-step-plugin/pull/463
+                // Keep retrying connection to agent until the job times out
                 LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
                 computer.connect(false);
             }
