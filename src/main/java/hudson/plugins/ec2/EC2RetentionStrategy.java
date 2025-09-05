@@ -117,9 +117,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     private long internalCheck(EC2Computer computer) {
         /*
-         * If we've been told never to terminate, or node is null(deleted), no checks to perform
+         * If we've been told never to terminate, or node is null(deleted), no checks to perform, or retention strategy disabled
          */
-        if (idleTerminationMinutes == 0 || computer.getNode() == null) {
+        if (idleTerminationMinutes == 0 || computer.getNode() == null || DISABLED) {
             return CHECK_INTERVAL_MINUTES;
         }
 
@@ -139,23 +139,23 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
         }
 
-        if (computer.isIdle() && !DISABLED) {
-            final long uptime;
-            final Instant launchedAt;
-            InstanceState state;
+        final long uptime;
+        final Instant launchedAt;
+        InstanceState state;
 
-            try {
-                state = computer.getState(); // Get State before Uptime because getState will refresh the cached EC2
-                // info
-                uptime = computer.getUptime();
-                launchedAt = computer.getLaunchTime();
-            } catch (SdkException | InterruptedException e) {
-                // We'll just retry next time we test for idleness.
-                LOGGER.fine("Exception while checking host uptime for " + computer.getName()
-                        + ", will retry next check. Exception: " + e);
-                return CHECK_INTERVAL_MINUTES;
-            }
+        try {
+            state = computer.getState(); // Get State before Uptime because getState will refresh the cached EC2
+            // info
+            uptime = computer.getUptime();
+            launchedAt = computer.getLaunchTime();
+        } catch (SdkException | InterruptedException e) {
+            // We'll just retry next time we test for idleness.
+            LOGGER.fine("Exception while checking host uptime for " + computer.getName()
+                    + ", will retry next check. Exception: " + e);
+            return CHECK_INTERVAL_MINUTES;
+        }
 
+        if (computer.isIdle()) {
             // Don't bother checking anything else if the instance is already in the desired state:
             // * Already Terminated
             // * We use stop-on-terminate and the instance is currently stopped or stopping
@@ -245,6 +245,16 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
             }
         }
+
+        if (computer.isOffline()) {
+            if (!computer.isConnecting()) {
+                // Retry connection to agent until the job times out
+                // see: https://github.com/jenkinsci/workflow-durable-task-step-plugin/pull/463
+                LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
+                computer.connect(false);
+            }
+        }
+
         return CHECK_INTERVAL_MINUTES;
     }
 
