@@ -2058,7 +2058,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         netBuilder.associatePublicIpAddress(getAssociatePublicIp());
         netBuilder.deviceIndex(0);
 
-        riRequestBuilder.networkInterfaces(netBuilder.build());
+        if (getAssociatePublicIp()) {
+            riRequestBuilder.networkInterfaces(netBuilder.build());
+        }
 
         HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
         for (Tag tag : instTags) {
