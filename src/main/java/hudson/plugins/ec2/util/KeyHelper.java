@@ -17,7 +17,12 @@ import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.sshd.common.config.keys.KeyUtils;
+import org.apache.sshd.common.digest.BuiltinDigests;
+import org.apache.sshd.common.util.buffer.BufferUtils;
 import org.bouncycastle.asn1.ASN1BitString;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -32,6 +37,9 @@ import org.bouncycastle.util.Properties;
  * Utility class to parse PEM.
  */
 public abstract class KeyHelper {
+
+    private static final Logger LOGGER = Logger.getLogger(KeyHelper.class.getName());
+
     private KeyHelper() {}
 
     /**
@@ -148,6 +156,31 @@ public abstract class KeyHelper {
                 sshAlgorithm = "ssh-ed25519";
             }
             return sshAlgorithm;
+        } finally {
+            Properties.removeThreadOverride(Properties.EMULATE_ORACLE);
+        }
+    }
+
+    /**
+     * Computes the MD5 fingerprint of the given server public key.
+     * The fingerprint is formatted as a colon-separated hexadecimal string.
+     *
+     * @param serverKey The server's {@link PublicKey} object for which the fingerprint needs to be computed.
+     * @return A {@code String} representing the MD5 fingerprint of the given server key in
+     *         colon-separated hexadecimal format, or an empty string if an error occurs during computation.
+     */
+    public static String getFingerprint(@NonNull PublicKey serverKey) {
+        // Emulate Oracle so that the algorithm returned by
+        // org.bouncycastle.jcajce.provider.asymmetric.edec.BCEdDSAPublicKey.getAlgorithm
+        // is the one expected by org.apache.sshd.common.config.keys.KeyUtils
+        try {
+            Properties.setThreadOverride(Properties.EMULATE_ORACLE, true);
+            // Generate MD5 fingerprint just like ssh-keygen
+            byte[] rawFingerprint = KeyUtils.getRawFingerprint(BuiltinDigests.md5.get(), serverKey);
+            return BufferUtils.toHex(':', rawFingerprint).toLowerCase(Locale.ROOT);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error computing fingerprint", e);
+            return "";
         } finally {
             Properties.removeThreadOverride(Properties.EMULATE_ORACLE);
         }
