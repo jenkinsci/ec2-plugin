@@ -103,6 +103,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 long currentTime = this.clock.millis();
 
                 if (currentTime > nextCheckAfter) {
+                    attemptReconnectIfOffline(c);
                     long intervalMins = internalCheck(c);
                     nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
                     return intervalMins;
@@ -117,9 +118,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     private long internalCheck(EC2Computer computer) {
         /*
-         * If we've been told never to terminate, or node is null(deleted), no checks to perform, or retention strategy disabled
+         * If we've been told never to terminate, or node is null(deleted), no checks to perform
          */
-        if (idleTerminationMinutes == 0 || computer.getNode() == null || DISABLED) {
+        if (idleTerminationMinutes == 0 || computer.getNode() == null) {
             return CHECK_INTERVAL_MINUTES;
         }
 
@@ -139,7 +140,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
         }
 
-        if (computer.isIdle()) {
+        if (computer.isIdle() && !DISABLED) {
             final long uptime;
             final Instant launchedAt;
             InstanceState state;
@@ -245,16 +246,18 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
             }
         }
+        return CHECK_INTERVAL_MINUTES;
+    }
 
+    private void attemptReconnectIfOffline(EC2Computer computer) {
         if (computer.isOffline()) {
+            LOGGER.warning("EC2Computer " + computer.getName() + " is offline");
             if (!computer.isConnecting()) {
                 // Keep retrying connection to agent until the job times out
                 LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
                 computer.connect(false);
             }
         }
-
-        return CHECK_INTERVAL_MINUTES;
     }
 
     /*
