@@ -3,7 +3,7 @@ jenkins:
   clouds:
     - amazonEC2:
         altEC2Endpoint: "https.//ec2.us-east-1.amazonaws.com"
-        name: "production"
+        cloudName: "production"
         region: "eu-central-1"
         useInstanceProfileForCredentials: true
         sshKeysCredentialsId: "random credentials id"

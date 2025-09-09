@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 
+          http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <!-- Mirror all repositories to your artifactory -->
+  <mirrors>
+    <mirror>
+      <id>artifactory-central</id>
+      <name>Artifactory Central Mirror</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-maven-virtual</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+    <mirror>
+      <id>artifactory-jenkins</id>
+      <name>Artifactory Jenkins Mirror</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-jenkins-ci-virtual</url>
+      <mirrorOf>repo.jenkins-ci.org</mirrorOf>
+    </mirror>
+    <!-- Block all other external repositories -->
+    <mirror>
+      <id>artifactory-everything</id>
+      <name>Block External Repositories</name>
+      <url>https://artifactory.ci1.us-west-2.aws-dev.app.snowflake.com/artifactory/development-maven-virtual</url>
+      <mirrorOf>external:*,!repo.jenkins-ci.org,!central</mirrorOf>
+    </mirror>
+  </mirrors>
+
+</settings>
