@@ -1,7 +1,7 @@
 package hudson.plugins.ec2.win.winrm;
 
-import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.MalformedURLException;
 import java.net.URL;
