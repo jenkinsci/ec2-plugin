@@ -79,7 +79,7 @@ public final class HostKeyHelper {
             return null;
         }
         AsymmetricKeyParameter parameters = PublicKeyFactory.createKey(serverKey.getEncoded());
-        return new HostKey(serverKey.getAlgorithm(), OpenSSHPublicKeyUtil.encodePublicKey(parameters));
+        return new HostKey(sshAlgorithm, OpenSSHPublicKeyUtil.encodePublicKey(parameters));
     }
 
     /**

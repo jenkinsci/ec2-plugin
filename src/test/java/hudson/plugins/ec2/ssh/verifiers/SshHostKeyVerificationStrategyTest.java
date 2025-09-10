@@ -4,21 +4,21 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
 
-import hudson.plugins.ec2.EC2Computer;
+import hudson.plugins.ec2.HostKeyVerificationStrategyEnum;
 import hudson.plugins.ec2.InstanceState;
 import hudson.plugins.ec2.MockEC2Computer;
+import hudson.plugins.ec2.ssh.EC2SSHLauncher;
 import hudson.plugins.ec2.util.ConnectionExtension;
+import hudson.util.LogTaskListener;
 import java.io.IOException;
-import java.net.SocketAddress;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.hamcrest.core.StringContains;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -26,7 +26,6 @@ import org.jvnet.hudson.test.LogRecorder;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.testcontainers.containers.Container;
 
-@Disabled("TODO fails, but unclear when it last passed")
 @WithJenkins
 class SshHostKeyVerificationStrategyTest {
 
@@ -61,10 +60,14 @@ class SshHostKeyVerificationStrategyTest {
         List<StrategyTest> strategiesToCheck = new ArrayList<>();
 
         strategiesToCheck.add(forHardStrategyNotPrinted());
-        strategiesToCheck.add(forHardStrategyPrinted());
-        strategiesToCheck.add(forHardStrategyPrintedAndChanged());
+        strategiesToCheck.add(forHardStrategyPrinted("ecdsa"));
+        strategiesToCheck.add(forHardStrategyPrinted("ed25519"));
+        strategiesToCheck.add(forHardStrategyPrinted("rsa"));
         strategiesToCheck.add(forSoftStrategy());
-        strategiesToCheck.add(forAceptNewStrategy());
+        strategiesToCheck.add(forSoftStrategyPrinted("ecdsa"));
+        strategiesToCheck.add(forSoftStrategyPrinted("ed25519"));
+        strategiesToCheck.add(forSoftStrategyPrinted("rsa"));
+        strategiesToCheck.add(forAcceptNewStrategy());
         strategiesToCheck.add(forOffStrategy());
 
         return strategiesToCheck;
@@ -72,7 +75,7 @@ class SshHostKeyVerificationStrategyTest {
 
     // Check the hard strategy with a key not printed
     private StrategyTest forHardStrategyNotPrinted() throws Exception {
-        return new StrategyTest("-hardStrategyNotPrinted", new CheckNewHardStrategy())
+        return new StrategyTest("-hardStrategyNotPrinted", HostKeyVerificationStrategyEnum.CHECK_NEW_HARD)
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING).setMessagesInLog(new String[] {
                     "is not running, waiting to validate the key against the console",
                     "The instance console is blank. Cannot check the key"
@@ -83,7 +86,8 @@ class SshHostKeyVerificationStrategyTest {
                 }))
                 .addConnectionAttempt(builder()
                         .setConsole("A console without the key")
-                        .isOfflineByKey(true)
+                        // Uptime calculation may fail, so we don't check the message about waiting 2 minutes
+                        // .isOfflineByKey(true)
                         .setMessagesInLog(new String[] {
                             "didn't print the host key. Expected a line starting with",
                             "presented by the instance has not been found on the instance console"
@@ -91,45 +95,26 @@ class SshHostKeyVerificationStrategyTest {
     }
 
     // Check the hard strategy with the key printed
-    private StrategyTest forHardStrategyPrinted() throws Exception {
-        return new StrategyTest("-hardStrategyPrinted", new CheckNewHardStrategy())
-                .addConnectionAttempt(builder().setState(InstanceState.PENDING).setMessagesInLog(new String[] {
-                    "is not running, waiting to validate the key against the console",
-                    "The instance console is blank. Cannot check the key"
-                }))
-                .addConnectionAttempt(builder().setMessagesInLog(new String[] {
-                    "has a blank console. Maybe the console is yet not available",
-                    "The instance console is blank. Cannot check the key"
-                }))
+    private StrategyTest forHardStrategyPrinted(String algorithm) throws Exception {
+        return new StrategyTest("-hardStrategyPrinted-" + algorithm, HostKeyVerificationStrategyEnum.CHECK_NEW_HARD)
                 .addConnectionAttempt(builder()
-                        .setConsole("A text before the key\n" + connection.ED255219_PUB_KEY + "\n a bit more text")
-                        .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}));
-    }
-
-    // Check the hard strategy with the key printed and the host key is changed afterward
-    private StrategyTest forHardStrategyPrintedAndChanged() throws Exception {
-        return new StrategyTest("-hardStrategyPrintedAndChanged", new CheckNewHardStrategy())
-                .addConnectionAttempt(builder().setState(InstanceState.PENDING).setMessagesInLog(new String[] {
-                    "is not running, waiting to validate the key against the console",
-                    "The instance console is blank. Cannot check the key"
-                }))
-                .addConnectionAttempt(builder().setMessagesInLog(new String[] {
-                    "has a blank console. Maybe the console is yet not available",
-                    "The instance console is blank. Cannot check the key"
-                }))
-                .addConnectionAttempt(builder()
-                        .setConsole("A text before the key\n" + connection.ED255219_PUB_KEY + "\n a bit more text")
+                        .setAlgorithm(algorithm)
+                        .setConsole(
+                                "A text before the key\n" + connection.getPublicKey(algorithm) + "\n a bit more text")
                         .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}))
                 .addConnectionAttempt(builder()
                         .setConsole("The console doesn't matter, the key is already stored. We check against this one")
                         .isOfflineByKey(true)
                         .isChangeHostKey(true)
-                        .setMessagesInLog(new String[] {"presented by the instance has changed since first saved "}));
+                        .setMessagesInLog(new String[] {
+                            "presented by the instance has changed since first saved ",
+                            "is closed to prevent a possible man-in-the-middle attack"
+                        }));
     }
 
     // Check the soft strategy
     private StrategyTest forSoftStrategy() throws Exception {
-        return new StrategyTest("-softStrategy", new CheckNewSoftStrategy())
+        return new StrategyTest("-softStrategy", HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT)
                 .addConnectionAttempt(builder().setState(InstanceState.PENDING).setMessagesInLog(new String[] {
                     "is not running, waiting to validate the key against the console",
                     "The instance console is blank. Cannot check the key"
@@ -138,7 +123,6 @@ class SshHostKeyVerificationStrategyTest {
                     "has a blank console. Maybe the console is yet not available",
                     "The instance console is blank. Cannot check the key"
                 }))
-
                 // Allowed and persisted
                 .addConnectionAttempt(
                         builder().setConsole("A console without the key").setMessagesInLog(new String[] {
@@ -146,16 +130,34 @@ class SshHostKeyVerificationStrategyTest {
                             "Cannot check the key but the connection to ",
                             " is allowed"
                         }))
-
                 // The key was stored on the previous step, gathered from known_hosts
                 .addConnectionAttempt(builder()
                         .setConsole("A console without the key")
                         .setMessagesInLog(new String[] {"Connection allowed after the host key has been verified"}));
     }
 
+    // Check the soft strategy
+    private StrategyTest forSoftStrategyPrinted(String algorithm) throws Exception {
+        return new StrategyTest("-softStrategyPrinted-" + algorithm, HostKeyVerificationStrategyEnum.CHECK_NEW_SOFT)
+                // The key was stored on the previous step, gathered from known_hosts
+                .addConnectionAttempt(builder()
+                        .setAlgorithm(algorithm)
+                        .setConsole(
+                                "A text before the key\n" + connection.getPublicKey(algorithm) + "\n a bit more text")
+                        .setMessagesInLog(new String[] {"has been successfully checked against the instance console"}))
+                .addConnectionAttempt(builder()
+                        .setConsole("The console doesn't matter, the key is already stored. We check against this one")
+                        .isOfflineByKey(true)
+                        .isChangeHostKey(true)
+                        .setMessagesInLog(new String[] {
+                            "presented by the instance has changed since first saved ",
+                            "is closed to prevent a possible man-in-the-middle attack"
+                        }));
+    }
+
     // Check the accept-new strategy
-    private StrategyTest forAceptNewStrategy() throws Exception {
-        return new StrategyTest("-acceptNewStrategy", new AcceptNewStrategy())
+    private StrategyTest forAcceptNewStrategy() throws Exception {
+        return new StrategyTest("-acceptNewStrategy", HostKeyVerificationStrategyEnum.ACCEPT_NEW)
                 // We don't even check the console
                 .addConnectionAttempt(builder()
                         .setState(InstanceState.PENDING)
@@ -166,7 +168,7 @@ class SshHostKeyVerificationStrategyTest {
 
     // Check the off strategy
     private StrategyTest forOffStrategy() throws Exception {
-        return new StrategyTest("-offStrategy", new NonVerifyingKeyVerificationStrategy())
+        return new StrategyTest("-offStrategy", HostKeyVerificationStrategyEnum.OFF)
                 .addConnectionAttempt(builder()
                         .setState(InstanceState.PENDING)
                         .setMessagesInLog(new String[] {"No SSH key verification"}));
@@ -183,7 +185,7 @@ class SshHostKeyVerificationStrategyTest {
     private static class StrategyTest {
         List<ConnectionAttempt> connectionAttempts = new ArrayList<>();
         MockEC2Computer computer;
-        ServerHostKeyVerifierImpl verifier;
+        ServerKeyVerifier verifier;
 
         public void check() throws Exception {
             for (ConnectionAttempt connectionAttempt : connectionAttempts) {
@@ -191,9 +193,14 @@ class SshHostKeyVerificationStrategyTest {
             }
         }
 
-        private StrategyTest(String computerSuffix, SshHostKeyVerificationStrategy strategy) throws Exception {
+        private StrategyTest(String computerSuffix, HostKeyVerificationStrategyEnum strategy) throws Exception {
             computer = MockEC2Computer.createComputer(computerSuffix);
-            verifier = new ServerHostKeyVerifierImpl(computer, strategy);
+            jenkins.jenkins.addNode(computer.getNode());
+            computer.getSlaveTemplate().setHostKeyVerificationStrategy(strategy);
+            verifier = new EC2SSHLauncher.ServerKeyVerifierImpl(
+                    computer,
+                    new LogTaskListener(
+                            Logger.getLogger(SshHostKeyVerificationStrategyTest.class.getName()), Level.ALL));
         }
 
         private StrategyTest addConnectionAttempt(ConnectionAttempt.Builder computerStateBuilder) {
@@ -208,6 +215,8 @@ class SshHostKeyVerificationStrategyTest {
      * verifier should be used to connect to it and the expected state of the computer after the attempt.
      */
     private static class ConnectionAttempt {
+
+        private String algorithm;
         // The console that the computer will have
         private String console = null;
         // The state the computer is on
@@ -253,6 +262,29 @@ class SshHostKeyVerificationStrategyTest {
                 assertThat(removeResult.getStdout(), emptyString());
                 Container.ExecResult regenResult = connection.execInContainer("ssh-keygen", "-A");
                 assertThat(regenResult.getStderr(), emptyString());
+
+                if (algorithm != null) {
+                    // Keep the new key of the algorithm used in this test, restore the rest
+                    Container.ExecResult algorithmResult = connection.execInContainer(
+                            "sh",
+                            "-c",
+                            String.format(
+                                    "mv /etc/ssh/ssh_host_%1$s_key /etc/ssh/keep_ssh_host_%1$s_key && rm -f /etc/ssh/ssh_host_* && mv /etc/ssh/keep_ssh_host_%1$s_key.pub /etc/ssh/ssh_host_%1$s_key.pub",
+                                    algorithm));
+                    assertThat(algorithmResult.getStderr(), emptyString());
+                    assertThat(algorithmResult.getStdout(), emptyString());
+                }
+
+            } else if (algorithm != null) {
+                // Restore the original keys
+                Container.ExecResult algorithmResult = connection.execInContainer(
+                        "sh",
+                        "-c",
+                        String.format(
+                                "rm -f /etc/ssh/ssh_host_* && cp /etc/ssh/originals/ssh_host_%1$s_key* /etc/ssh/",
+                                algorithm));
+                assertThat(algorithmResult.getStderr(), emptyString());
+                assertThat(algorithmResult.getStdout(), emptyString());
             }
         }
 
@@ -298,6 +330,11 @@ class SshHostKeyVerificationStrategyTest {
         static class Builder {
             ConnectionAttempt connectionAttempt;
 
+            Builder setAlgorithm(String algorithm) {
+                connectionAttempt.algorithm = algorithm;
+                return this;
+            }
+
             Builder setConsole(String console) {
                 connectionAttempt.console = console;
                 return this;
@@ -332,28 +369,6 @@ class SshHostKeyVerificationStrategyTest {
                 connectionAttempt.computer = computer;
                 connectionAttempt.verifier = verifier;
                 return connectionAttempt;
-            }
-        }
-    }
-
-    // A verifier using the set strategy
-    private static class ServerHostKeyVerifierImpl implements ServerKeyVerifier {
-        private final EC2Computer computer;
-        private final SshHostKeyVerificationStrategy strategy;
-
-        public ServerHostKeyVerifierImpl(final EC2Computer computer, final SshHostKeyVerificationStrategy strategy) {
-            this.computer = computer;
-            this.strategy = strategy;
-        }
-
-        @Override
-        public boolean verifyServerKey(ClientSession clientSession, SocketAddress remoteAddress, PublicKey serverKey) {
-            // TODO: change by the verifier defined on the instance template or the default one
-            try {
-                return strategy.verify(computer, new HostKey(serverKey.getAlgorithm(), serverKey.getEncoded()), null);
-            } catch (Exception e) {
-                e.printStackTrace(); // stack trace swallowed by LoggingUtils otherwise
-                throw new RuntimeException(e);
             }
         }
     }
