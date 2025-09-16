@@ -31,10 +31,8 @@ class WinRMWithFIPSTest {
      */
     @Test
     void testSetUseHTTPSWithPasswordLeak() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            WinRM winRM = new WinRM("host", "username", "password", false);
-            winRM.setUseHTTPS(false);
-        });
+        WinRM winRM = new WinRM("host", "username", "password", false);
+        assertThrows(IllegalArgumentException.class, () -> winRM.setUseHTTPS(false));
     }
 
     /**

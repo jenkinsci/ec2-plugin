@@ -86,6 +86,7 @@ import software.amazon.awssdk.services.ec2.model.Subnet;
  */
 @WithJenkins
 class SlaveTemplateTest {
+
     private final String TEST_AMI = "ami-123";
     private final String TEST_ZONE = EC2AbstractSlave.TEST_ZONE;
     private final SpotConfiguration TEST_SPOT_CFG = null;
@@ -1592,7 +1593,7 @@ class SlaveTemplateTest {
     }
 
     @Test
-    public void testWindowsSSHConfigRoundTrip() throws Exception {
+    void testWindowsSSHConfigRoundTrip() throws Exception {
         String description = "foo ami";
 
         SlaveTemplate orig = new SlaveTemplate(
