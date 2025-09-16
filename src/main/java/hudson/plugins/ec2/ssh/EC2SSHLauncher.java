@@ -49,6 +49,8 @@ import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.config.keys.OpenSshCertificate;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
@@ -376,10 +378,8 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         }
     }
 
-    /**
-     * Our host key verifier just pick up the right strategy and call its verify method.
-     */
-    static class ServerKeyVerifierImpl implements ServerKeyVerifier {
+    @Restricted(NoExternalUse.class)
+    public static class ServerKeyVerifierImpl implements ServerKeyVerifier {
         private final EC2Computer computer;
         private final TaskListener listener;
 

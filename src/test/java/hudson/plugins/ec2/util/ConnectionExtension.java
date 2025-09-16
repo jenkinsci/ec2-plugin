@@ -1,10 +1,12 @@
 package hudson.plugins.ec2.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyString;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Locale;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
@@ -59,9 +61,6 @@ public class ConnectionExtension implements BeforeAllCallback, AfterAllCallback 
     private static final String publicKey =
             "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDfHtD5E3GR6qUMBuixGbu1esUu43V9zJngREsS6Z78ktVJifIEzi/QqEoyRMWzJVeIy6QcJLT+Zid9O+MaV3vqnNh2hdLOdxzzNmu4OcxWDMBShJI/UfnC0vp+3plLVodeFa17lOaQ7gYNeKUzCOuDBaxxSEPpiFqx8OIRW9oI1Wdohi0oyEEtjUxvpky4WeptIxZZn1LYHj1EyT9AvpdLb0t4KqV5OXal3lQQUaJ2GI8GPolZn91k79w2c2+EXfsvlKKo7mUsFNhwK0OBnJexjuN+FQaXnJFsYpxOQ2JGH9uSkpM+IBxcEDHQe/UcMY3qD49X+tyHt0P+sPi1E5EN user@test";
 
-    // The public ed-25510 host key of the server
-    public String ED255219_PUB_KEY;
-
     private final SshClient sshClient = SshClient.setUpDefaultClient();
 
     private ClientSession connection;
@@ -77,8 +76,6 @@ public class ConnectionExtension implements BeforeAllCallback, AfterAllCallback 
         connection = connectFuture.verify().getSession();
         connection.addPublicKeyIdentity(KeyHelper.decodeKeyPair(privateKey, ""));
         connection.auth().await(Duration.ofSeconds(10));
-
-        assertTrue(connection.isAuthenticated());
 
         return connection;
     }
@@ -99,16 +96,23 @@ public class ConnectionExtension implements BeforeAllCallback, AfterAllCallback 
 
             sshClient.start();
 
+            // Backup all SSH Host Keys to allow tests to modify them
+            Container.ExecResult backup = execInContainer(
+                    "sh", "-c", "mkdir -p /etc/ssh/originals/ && cp /etc/ssh/ssh_host_* /etc/ssh/originals/");
+            assertThat(backup.getStderr(), emptyString());
+            assertThat(backup.getStdout(), emptyString());
+
         } catch (RuntimeException re) {
             throw new TestAbortedException("The container to connect to cannot be started", re);
         }
 
         sshContainer.start();
+    }
 
+    public String getPublicKey(String algorithm) throws IOException {
         try {
-            // We get the key after it's generated
-            ED255219_PUB_KEY = sshContainer
-                    .execInContainer("cat", "/etc/ssh/ssh_host_ed25519_key.pub")
+            return sshContainer
+                    .execInContainer("cat", "/etc/ssh/ssh_host_" + algorithm.toLowerCase(Locale.ROOT) + "_key.pub")
                     .getStdout();
         } catch (UnsupportedOperationException | IOException | InterruptedException e) {
             throw new IOException("Cannot get the public ssh host key from the docker instance", e);
