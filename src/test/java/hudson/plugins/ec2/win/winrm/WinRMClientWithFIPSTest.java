@@ -1,7 +1,6 @@
 package hudson.plugins.ec2.win.winrm;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -71,25 +70,18 @@ class WinRMClientWithFIPSTest {
      * It should not be allowed to disable useHTTPS only when a password is used, an {@link IllegalArgumentException} is expected
      */
     @Test
-    void testSetUseHTTPSFalseWithPassword() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new WinRMClient(new URL("https://localhost"), "username", "password", false).setUseHTTPS(false));
+    void testSetUseHTTPSFalseWithPassword() throws MalformedURLException {
+        WinRMClient winRM = new WinRMClient(new URL("https://localhost"), "username", "password", false);
+        assertThrows(IllegalArgumentException.class, () -> winRM.setUseHTTPS(false));
     }
 
     /**
      * Password leak prevention when setUseHTTPS is not called
      */
     @Test
-    void testBuildWinRMClientWithoutTLS() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try {
-                WinRMClient winRM = new WinRMClient(new URL("https://localhost"), "username", "password", false);
-                // do not call winRM.setUseHTTPS(false); to avoid trigger the check
-                winRM.openShell();
-            } catch (WinRMConnectException e) {
-                fail("The client should not attempt to connect");
-            }
-        });
+    void testBuildWinRMClientWithoutTLS() throws MalformedURLException {
+        WinRMClient winRM = new WinRMClient(new URL("https://localhost"), "username", "password", false);
+        // do not call winRM.setUseHTTPS(false); to avoid trigger the check
+        assertThrows(IllegalArgumentException.class, winRM::openShell, "The client should not attempt to connect");
     }
 }
