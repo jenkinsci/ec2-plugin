@@ -1,5 +1,7 @@
 package hudson.plugins.ec2.ssh;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.HostKeyVerificationStrategyEnum;
 import hudson.plugins.ec2.MockEC2Computer;
@@ -7,18 +9,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.apache.sshd.common.config.keys.PublicKeyEntry;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class EC2SSHLauncherTest {
+@WithJenkins
+class EC2SSHLauncherTest {
 
-    @Rule
-    public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
+
+    @BeforeEach
+    void setUp(JenkinsRule rule) {
+        r = rule;
+    }
 
     @Test
-    public void testServerKeyVerifier() throws Exception {
+    void testServerKeyVerifier() throws Exception {
         for (String publicKeyFile : List.of(
                 "ssh_host_dss_1024.pub",
                 "ssh_host_rsa_1024.pub",
@@ -41,13 +48,13 @@ public class EC2SSHLauncherTest {
             r.jenkins.addNode(computer.getNode());
 
             computer.getSlaveTemplate().setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum.OFF);
-            Assert.assertTrue(new EC2SSHLauncher.ServerKeyVerifierImpl(computer, TaskListener.NULL)
+            assertTrue(new EC2SSHLauncher.ServerKeyVerifierImpl(computer, TaskListener.NULL)
                     .verifyServerKey(
                             null,
                             null,
                             PublicKeyEntry.parsePublicKeyEntry(sshHostKeyPath).resolvePublicKey(null, null, null)));
             computer.getSlaveTemplate().setHostKeyVerificationStrategy(HostKeyVerificationStrategyEnum.ACCEPT_NEW);
-            Assert.assertTrue(new EC2SSHLauncher.ServerKeyVerifierImpl(computer, TaskListener.NULL)
+            assertTrue(new EC2SSHLauncher.ServerKeyVerifierImpl(computer, TaskListener.NULL)
                     .verifyServerKey(
                             null,
                             null,
