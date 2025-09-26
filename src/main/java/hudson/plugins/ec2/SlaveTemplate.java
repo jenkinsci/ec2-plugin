@@ -3502,6 +3502,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @POST
         public ListBoxModel doFillAssociateIPStrategyItems(@QueryParameter String associateIPStrategy) {
+            checkPermission(EC2Cloud.PROVISION);
             return Stream.of(AssociateIPStrategy.values())
                     .map(v -> {
                         if (v.name().equals(associateIPStrategy)) {
@@ -3515,6 +3516,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         @POST
         public FormValidation doCheckAssociateIPStrategy(@QueryParameter String associateIPStrategy) {
+            checkPermission(EC2Cloud.PROVISION);
             return Stream.of(AssociateIPStrategy.values())
                     .filter(v -> v.name().equals(associateIPStrategy))
                     .findFirst()
