@@ -4,8 +4,8 @@ package hudson.plugins.ec2;
  *
  * Strategy for associating a public IPv4 address with the instance’s primary network interface at launch.
  *
- * {@link https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterfaceSpecification.html}
- * {@link https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html}
+ * @see <a href="https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterfaceSpecification.html">AWS Network Interface Specification</a>
+ * @see <a href="https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Subnet.html">AWS Subnet API</a>
  * */
 public enum AssociateIPStrategy {
     SUBNET("Inherit from Subnet"),
