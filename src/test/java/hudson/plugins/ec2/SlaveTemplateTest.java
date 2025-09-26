@@ -142,7 +142,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 false,
                 false,
@@ -212,7 +212,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 false,
                 false,
@@ -290,7 +290,7 @@ class SlaveTemplateTest {
                 false,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.PRIVATE_IP,
                 "",
                 false,
                 false,
@@ -362,7 +362,7 @@ class SlaveTemplateTest {
                 false,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.PRIVATE_IP,
                 "",
                 false,
                 false,
@@ -426,7 +426,7 @@ class SlaveTemplateTest {
                 false,
                 true,
                 "",
-                false,
+                AssociateIPStrategy.PRIVATE_IP,
                 "",
                 false,
                 false,
@@ -490,7 +490,7 @@ class SlaveTemplateTest {
                 false,
                 true,
                 "",
-                false,
+                AssociateIPStrategy.PRIVATE_IP,
                 "",
                 false,
                 false,
@@ -559,7 +559,7 @@ class SlaveTemplateTest {
                 true,
                 true,
                 "",
-                false,
+                AssociateIPStrategy.PRIVATE_IP,
                 "",
                 false,
                 false,
@@ -595,138 +595,22 @@ class SlaveTemplateTest {
     }
 
     @Test
-    void provisionOndemandSetsAwsNetworkingOnEc2Request() throws Exception {
-        boolean associatePublicIp = false;
-        String description = "foo ami";
-        String subnetId = "some-subnet";
-        String securityGroups = "some security group";
-        String iamInstanceProfile = "some instance profile";
-
-        SlaveTemplate orig = new SlaveTemplate(
-                TEST_AMI,
-                TEST_ZONE,
-                TEST_SPOT_CFG,
-                securityGroups,
-                TEST_REMOTE_FS,
-                TEST_INSTANCE_TYPE.toString(),
-                TEST_EBSO,
-                TEST_LABEL,
-                Node.Mode.NORMAL,
-                description,
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                subnetId,
-                null,
-                null,
-                0,
-                0,
-                null,
-                iamInstanceProfile,
-                false,
-                true,
-                "",
-                associatePublicIp,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
-        SlaveTemplate noSubnet = new SlaveTemplate(
-                TEST_AMI,
-                TEST_ZONE,
-                TEST_SPOT_CFG,
-                securityGroups,
-                TEST_REMOTE_FS,
-                TEST_INSTANCE_TYPE.toString(),
-                TEST_EBSO,
-                TEST_LABEL,
-                Node.Mode.NORMAL,
-                description,
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "",
-                null,
-                null,
-                0,
-                0,
-                null,
-                iamInstanceProfile,
-                false,
-                true,
-                "",
-                associatePublicIp,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
-
-        List<SlaveTemplate> templates = new ArrayList<>();
-        templates.add(orig);
-        templates.add(noSubnet);
-        for (SlaveTemplate template : templates) {
-            Ec2Client mockedEC2 = setupTestForProvisioning(template);
-
-            ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
-
-            template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-            verify(mockedEC2).runInstances(riRequestCaptor.capture());
-
-            RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-            List<InstanceNetworkInterfaceSpecification> actualNets = actualRequest.networkInterfaces();
-
-            assertEquals(0, actualNets.size());
-            String templateSubnet = Util.fixEmpty(template.getSubnetId());
-            assertEquals(actualRequest.subnetId(), templateSubnet);
-            if (templateSubnet != null) {
-                assertEquals(
-                        actualRequest.securityGroupIds(),
-                        Stream.of("some-group-id").collect(Collectors.toList()));
-            } else {
-                assertEquals(
-                        actualRequest.securityGroups(),
-                        Stream.of(securityGroups).collect(Collectors.toList()));
-            }
-        }
+    void provisionSetsNetworkInterfaceUsingPublicIp() throws Exception {
+        provisionSetsNetworkInterface(AssociateIPStrategy.PUBLIC_IP);
     }
 
     @Test
-    void provisionOndemandSetsAwsNetworkingOnNetworkInterface() throws Exception {
-        boolean associatePublicIp = true;
+    void provisionSetsNetworkInterfaceUsingPrivateIp() throws Exception {
+        provisionSetsNetworkInterface(AssociateIPStrategy.PRIVATE_IP);
+    }
+
+    @Test
+    void provisionSetsNetworkInterfaceUsingSubnet() throws Exception {
+        provisionSetsNetworkInterface(AssociateIPStrategy.SUBNET);
+    }
+
+    void provisionSetsNetworkInterface(AssociateIPStrategy associateIpStrategy) throws Exception {
+        boolean associatePublicIp = AssociateIPStrategy.PUBLIC_IP.equals(associateIpStrategy);
         String description = "foo ami";
         String subnetId = "some-subnet";
         String securityGroups = "some security group";
@@ -768,7 +652,7 @@ class SlaveTemplateTest {
                 false,
                 true,
                 "",
-                associatePublicIp,
+                associateIpStrategy,
                 "",
                 false,
                 false,
@@ -784,6 +668,7 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                 EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+
         SlaveTemplate noSubnet = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -814,7 +699,7 @@ class SlaveTemplateTest {
                 false,
                 true,
                 "",
-                associatePublicIp,
+                associateIpStrategy,
                 "",
                 false,
                 false,
@@ -831,10 +716,7 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                 EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
 
-        List<SlaveTemplate> templates = new ArrayList<>();
-        templates.add(orig);
-        templates.add(noSubnet);
-        for (SlaveTemplate template : templates) {
+        for (SlaveTemplate template : List.of(orig, noSubnet)) {
             Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
             ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
@@ -846,18 +728,154 @@ class SlaveTemplateTest {
             InstanceNetworkInterfaceSpecification actualNet =
                     actualRequest.networkInterfaces().get(0);
 
-            assertEquals(actualNet.subnetId(), Util.fixEmpty(template.getSubnetId()));
-            assertEquals(actualNet.groups(), Stream.of("some-group-id").collect(Collectors.toList()));
+            assertInstanceNetworkInterfaceSpecification(actualNet, template, associateIpStrategy);
             assertNull(actualRequest.subnetId());
             assertEquals(actualRequest.securityGroupIds(), Collections.emptyList());
             assertEquals(actualRequest.securityGroups(), Collections.emptyList());
+        }
+
+        SpotConfiguration spotConfig = new SpotConfiguration(true);
+        spotConfig.setSpotMaxBidPrice(".05");
+        spotConfig.setFallbackToOndemand(true);
+        spotConfig.setSpotBlockReservationDuration(0);
+
+        SlaveTemplate spot = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                spotConfig,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                subnetId,
+                null,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associateIpStrategy,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+
+        SlaveTemplate spotNoSubnet = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                spotConfig,
+                securityGroups,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "",
+                null,
+                null,
+                0,
+                0,
+                null,
+                iamInstanceProfile,
+                false,
+                true,
+                "",
+                associateIpStrategy,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+
+        for (SlaveTemplate template : List.of(spot, spotNoSubnet)) {
+            Ec2Client mockedEC2 = setupTestForProvisioning(template);
+
+            ArgumentCaptor<RequestSpotInstancesRequest> riRequestCaptor =
+                    ArgumentCaptor.forClass(RequestSpotInstancesRequest.class);
+
+            try {
+                template.provision(2, EnumSet.of(ProvisionOptions.ALLOW_CREATE));
+            } catch (Exception e) {
+                // `requestSpotInstances` is not mocked and return null
+                // not interested on what happens after the requestSpotInstances invocation
+            }
+
+            verify(mockedEC2).requestSpotInstances(riRequestCaptor.capture());
+            RequestSpotInstancesRequest actualRequest = riRequestCaptor.getValue();
+            InstanceNetworkInterfaceSpecification actualNet =
+                    actualRequest.launchSpecification().networkInterfaces().get(0);
+            assertInstanceNetworkInterfaceSpecification(actualNet, template, associateIpStrategy);
+        }
+    }
+
+    private void assertInstanceNetworkInterfaceSpecification(
+            InstanceNetworkInterfaceSpecification actualNet,
+            SlaveTemplate template,
+            AssociateIPStrategy associateIpStrategy) {
+        assertEquals(actualNet.subnetId(), Util.fixEmpty(template.getSubnetId()));
+        assertEquals(actualNet.groups(), Stream.of("some-group-id").collect(Collectors.toList()));
+        switch (associateIpStrategy) {
+            case PUBLIC_IP:
+                assertTrue(actualNet.associatePublicIpAddress());
+                break;
+            case PRIVATE_IP:
+                assertFalse(actualNet.associatePublicIpAddress());
+                break;
+            case SUBNET:
+                assertNull(actualNet.associatePublicIpAddress());
+                break;
         }
     }
 
     @Issue("JENKINS-64571")
     @Test
     void provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded() throws Exception {
-        boolean associatePublicIp = true;
         String description = "foo ami";
         String subnetId = "some-subnet";
         String securityGroups = "some security group";
@@ -898,12 +916,12 @@ class SlaveTemplateTest {
                 false,
                 true,
                 "",
-                associatePublicIp,
+                AssociateIPStrategy.PUBLIC_IP,
                 "",
                 false,
                 false,
                 false,
-                ConnectionStrategy.backwardsCompatible(false, false, associatePublicIp),
+                ConnectionStrategy.PUBLIC_IP,
                 -1,
                 Collections.emptyList(),
                 null,
@@ -1026,7 +1044,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.PUBLIC_IP,
                 "",
                 false,
                 false,
@@ -1087,7 +1105,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 false,
                 false,
@@ -1133,7 +1151,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 false,
                 false,
@@ -1195,7 +1213,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 true,
                 false,
@@ -1257,7 +1275,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 true,
                 false,
@@ -1318,7 +1336,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 true,
                 false,
@@ -1381,7 +1399,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 true,
                 false,
@@ -1507,7 +1525,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 true,
                 false,
@@ -1563,7 +1581,7 @@ class SlaveTemplateTest {
                 true,
                 false,
                 "",
-                false,
+                AssociateIPStrategy.SUBNET,
                 "",
                 true,
                 false,
@@ -1626,7 +1644,7 @@ class SlaveTemplateTest {
                 false,
                 true,
                 "",
-                false,
+                AssociateIPStrategy.PRIVATE_IP,
                 "",
                 false,
                 false,

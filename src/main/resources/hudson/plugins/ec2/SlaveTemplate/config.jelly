@@ -205,8 +205,8 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
-    <f:entry title="${%Associate Public IP}" field="associatePublicIp">
-      <f:checkbox />
+    <f:entry title="${%Associate IP}" field="associateIPStrategy">
+      <f:select default="${descriptor.getDefaultAssociateIPStrategy()}"/>
     </f:entry>
 
     <f:entry title="${%Tenancy}" field="tenancy">

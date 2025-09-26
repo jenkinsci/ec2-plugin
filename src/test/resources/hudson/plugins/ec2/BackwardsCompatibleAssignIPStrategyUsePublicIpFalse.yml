@@ -1,0 +1,9 @@
+---
+configuration-as-code:
+jenkins:
+  clouds:
+    - amazonEC2:
+        name: "staging"
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+        - associatePublicIp: false
