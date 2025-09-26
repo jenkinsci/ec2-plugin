@@ -103,6 +103,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 long currentTime = this.clock.millis();
 
                 if (currentTime > nextCheckAfter) {
+                    attemptReconnectIfOffline(c);
                     long intervalMins = internalCheck(c);
                     nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
                     return intervalMins;
@@ -246,6 +247,17 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
         }
         return CHECK_INTERVAL_MINUTES;
+    }
+
+    private void attemptReconnectIfOffline(EC2Computer computer) {
+        if (computer.isOffline()) {
+            LOGGER.warning("EC2Computer " + computer.getName() + " is offline");
+            if (!computer.isConnecting()) {
+                // Keep retrying connection to agent until the job times out
+                LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
+                computer.connect(false);
+            }
+        }
     }
 
     /*

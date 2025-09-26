@@ -48,9 +48,9 @@ import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.apache.sshd.common.config.keys.OpenSshCertificate;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
@@ -378,10 +378,8 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         }
     }
 
-    /**
-     * Our host key verifier just pick up the right strategy and call its verify method.
-     */
-    private static class ServerKeyVerifierImpl implements ServerKeyVerifier {
+    @Restricted(NoExternalUse.class)
+    public static class ServerKeyVerifierImpl implements ServerKeyVerifier {
         private final EC2Computer computer;
         private final TaskListener listener;
 
@@ -392,19 +390,18 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
         @Override
         public boolean verifyServerKey(ClientSession clientSession, SocketAddress remoteAddress, PublicKey serverKey) {
-            String sshAlgorithm = KeyHelper.getSshAlgorithm(serverKey);
-            if (sshAlgorithm == null) {
-                return false;
+            PublicKey usableKey = serverKey;
+            // Unwrap OpenSSH certificate key into actual public key
+            if (serverKey instanceof OpenSshCertificate cert) {
+                // Extract actual signed public key
+                usableKey = cert.getCertPubKey();
             }
             SlaveTemplate template = computer.getSlaveTemplate();
             try {
-                AsymmetricKeyParameter parameters = PublicKeyFactory.createKey(serverKey.getEncoded());
-                byte[] openSSHBytes = OpenSSHPublicKeyUtil.encodePublicKey(parameters);
-
                 return template != null
                         && template.getHostKeyVerificationStrategy()
                                 .getStrategy()
-                                .verify(computer, new HostKey(sshAlgorithm, openSSHBytes), listener);
+                                .verify(computer, usableKey, listener);
             } catch (Exception exception) {
                 // false will trigger a SSHException which is a subclass of IOException.
                 // Therefore, it is not needed to throw a RuntimeException.

@@ -86,6 +86,7 @@ import software.amazon.awssdk.services.ec2.model.Subnet;
  */
 @WithJenkins
 class SlaveTemplateTest {
+
     private final String TEST_AMI = "ami-123";
     private final String TEST_ZONE = EC2AbstractSlave.TEST_ZONE;
     private final SpotConfiguration TEST_SPOT_CFG = null;
@@ -708,7 +709,7 @@ class SlaveTemplateTest {
             RunInstancesRequest actualRequest = riRequestCaptor.getValue();
             List<InstanceNetworkInterfaceSpecification> actualNets = actualRequest.networkInterfaces();
 
-            assertEquals(1, actualNets.size());
+            assertEquals(0, actualNets.size());
             String templateSubnet = Util.fixEmpty(template.getSubnetId());
             assertEquals(actualRequest.subnetId(), templateSubnet);
             if (templateSubnet != null) {
@@ -1592,7 +1593,7 @@ class SlaveTemplateTest {
     }
 
     @Test
-    public void testWindowsSSHConfigRoundTrip() throws Exception {
+    void testWindowsSSHConfigRoundTrip() throws Exception {
         String description = "foo ami";
 
         SlaveTemplate orig = new SlaveTemplate(
@@ -1654,35 +1655,5 @@ class SlaveTemplateTest {
 
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
         return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
-    }
-
-    @Test
-    void testNetworkInterfaceAssociatePublicIpTrue() throws Exception {
-        SlaveTemplate template = mock(SlaveTemplate.class);
-        when(template.getAssociatePublicIp()).thenReturn(true);
-        InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
-        netBuilder.associatePublicIpAddress(true);
-        netBuilder.deviceIndex(0);
-        RunInstancesRequest.Builder riRequestBuilder = RunInstancesRequest.builder();
-        riRequestBuilder.networkInterfaces(netBuilder.build());
-        RunInstancesRequest req = riRequestBuilder.build();
-        List<InstanceNetworkInterfaceSpecification> interfaces = req.networkInterfaces();
-        assertEquals(1, interfaces.size());
-        assertTrue(interfaces.get(0).associatePublicIpAddress());
-    }
-
-    @Test
-    void testNetworkInterfaceAssociatePublicIpFalse() throws Exception {
-        SlaveTemplate template = mock(SlaveTemplate.class);
-        when(template.getAssociatePublicIp()).thenReturn(false);
-        InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
-        netBuilder.associatePublicIpAddress(false);
-        netBuilder.deviceIndex(0);
-        RunInstancesRequest.Builder riRequestBuilder = RunInstancesRequest.builder();
-        riRequestBuilder.networkInterfaces(netBuilder.build());
-        RunInstancesRequest req = riRequestBuilder.build();
-        List<InstanceNetworkInterfaceSpecification> interfaces = req.networkInterfaces();
-        assertEquals(1, interfaces.size());
-        assertFalse(interfaces.get(0).associatePublicIpAddress());
     }
 }

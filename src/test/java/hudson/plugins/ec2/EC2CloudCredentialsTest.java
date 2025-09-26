@@ -1,8 +1,10 @@
 package hudson.plugins.ec2;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -89,7 +91,7 @@ class EC2CloudCredentialsTest {
         verify(mockBuilder, times(1)).build();
     }
 
-    @org.junit.jupiter.api.AfterEach
+    @AfterEach
     void tearDown() {
         if (mockDefaultCredentialsProvider != null) {
             mockDefaultCredentialsProvider.close();

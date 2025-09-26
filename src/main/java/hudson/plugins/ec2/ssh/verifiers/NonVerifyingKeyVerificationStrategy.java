@@ -26,7 +26,9 @@ package hudson.plugins.ec2.ssh.verifiers;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
+import hudson.plugins.ec2.util.KeyHelper;
 import java.io.IOException;
+import java.security.PublicKey;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,6 +39,18 @@ import java.util.logging.Logger;
  */
 public class NonVerifyingKeyVerificationStrategy extends SshHostKeyVerificationStrategy {
     private static final Logger LOGGER = Logger.getLogger(NonVerifyingKeyVerificationStrategy.class.getName());
+
+    @Override
+    public boolean verify(EC2Computer computer, PublicKey serverKey, TaskListener listener) throws Exception {
+        EC2Cloud.log(
+                LOGGER,
+                Level.INFO,
+                computer.getListener(),
+                String.format(
+                        "No SSH key verification (%s %s) for connections to %s",
+                        KeyHelper.getSshAlgorithm(serverKey), KeyHelper.getFingerprint(serverKey), computer.getName()));
+        return true;
+    }
 
     @Override
     public boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws IOException {
