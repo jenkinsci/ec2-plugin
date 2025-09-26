@@ -1,0 +1,10 @@
+<div>
+	Strategy for associating a public IPv4 address with the instance’s primary network interface at launch.
+	<ul>
+		<li><strong>Public IP</strong>: Explicitly request a public IPv4 address.</li>
+		<li><strong>Private IP</strong>: Explicitly prevent association of a public IPv4 address.</li>
+		<li><strong>Inherit from Subnet</strong>: Choose this to delegate the decision to subnet configuration. 
+ 		Inherit the subnet’s behavior, allowing the subnet’s 'MapPublicIpOnLaunch' setting to decide whether a public IPv4 address is associated.</li>
+		<li><strong>Default</strong>: Existing behavior is preserved: Spot instances use 'Private IP' (explicitly false), while on‑demand instances use 'Inherit from Subnet' (omit the field and use subnet setting).</li>
+	</ul>
+</div>

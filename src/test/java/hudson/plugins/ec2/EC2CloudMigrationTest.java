@@ -44,4 +44,17 @@ class EC2CloudMigrationTest {
 
         assertTrue(keyCredential.isPresent());
     }
+
+    // config.xml file contains an ec2-cloud configuration from a version using associatePublicIp boolean attribute
+    @Test
+    @LocalData
+    void testAssociatePublicIpMigration() {
+        assertEquals(1, r.jenkins.clouds.size());
+        EC2Cloud cloud = (EC2Cloud) Jenkins.get().getCloud("ec2-myEc2Cloud");
+        assertEquals(3, cloud.getTemplates().size());
+
+        assertEquals(cloud.getTemplate("PublicIpTrue").getAssociateIPStrategy(), AssociateIPStrategy.PUBLIC_IP);
+        assertEquals(cloud.getTemplate("PublicIpFalse").getAssociateIPStrategy(), AssociateIPStrategy.DEFAULT);
+        assertEquals(cloud.getTemplate("PublicIpNotPresent").getAssociateIPStrategy(), AssociateIPStrategy.DEFAULT);
+    }
 }
