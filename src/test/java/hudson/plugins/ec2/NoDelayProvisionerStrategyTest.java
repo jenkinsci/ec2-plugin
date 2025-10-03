@@ -28,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.slaves.DumbSlave;
 import java.util.Collections;
 import jenkins.model.Jenkins;
 import org.junit.jupiter.api.Test;
@@ -118,74 +117,6 @@ class NoDelayProvisionerStrategyTest {
 
         assertEquals(2, countForLabelA, "Should count 2 nodes with label-a");
         assertEquals(1, countForLabelB, "Should count 1 node with label-b");
-    }
-
-    /**
-     * Test that countBusyExecutors() correctly counts only online and busy executors.
-     *
-     * This test verifies the fix for JENKINS-76171 where busy executors (online but not idle)
-     * were not counted in available capacity, causing over-provisioning when nodes started
-     * executing jobs.
-     */
-    @Test
-    void testCountBusyExecutors_countsOnlyBusyNodes(JenkinsRule rule) throws Exception {
-        this.r = rule;
-        Jenkins jenkins = r.jenkins;
-
-        Label testLabel = Label.get("test-label");
-
-        // Create nodes in various states
-        EC2AbstractSlave offlineNode = createMockEC2Node("offline-1", testLabel, false, false, false);
-        EC2AbstractSlave connectingNode = createMockEC2Node("connecting-1", testLabel, false, true, false);
-        EC2AbstractSlave onlineIdleNode = createMockEC2Node("online-idle-1", testLabel, true, false, true);
-        // Create a busy node (online but not idle)
-        EC2AbstractSlave onlineBusyNode = createMockEC2Node("online-busy-1", testLabel, true, false, false);
-
-        jenkins.addNode(offlineNode);
-        jenkins.addNode(connectingNode);
-        jenkins.addNode(onlineIdleNode);
-        jenkins.addNode(onlineBusyNode);
-
-        NoDelayProvisionerStrategy strategy = new NoDelayProvisionerStrategy();
-        java.lang.reflect.Method method =
-                NoDelayProvisionerStrategy.class.getDeclaredMethod("countBusyExecutors", Label.class);
-        method.setAccessible(true);
-        int count = (int) method.invoke(strategy, testLabel);
-
-        // Should only count the busy node (1 executor)
-        assertEquals(1, count, "Should count only the busy node");
-    }
-
-    /**
-     * Test that countBusyExecutors() excludes non-EC2 nodes.
-     *
-     * Verifies that only EC2AbstractSlave nodes are counted, not other node types.
-     */
-    @Test
-    void testCountBusyExecutors_excludesNonEC2Nodes(JenkinsRule rule) throws Exception {
-        this.r = rule;
-        Jenkins jenkins = r.jenkins;
-
-        Label testLabel = Label.get("test-label");
-
-        // Create a non-EC2 node (DumbSlave)
-        DumbSlave nonEc2Node = new DumbSlave("non-ec2-node", "/tmp", r.createComputerLauncher(null));
-        nonEc2Node.setLabelString("test-label");
-
-        // Create an EC2 node
-        EC2AbstractSlave ec2Node = createMockEC2Node("ec2-node", testLabel, true, false, true);
-
-        jenkins.addNode(nonEc2Node);
-        jenkins.addNode(ec2Node);
-
-        NoDelayProvisionerStrategy strategy = new NoDelayProvisionerStrategy();
-        java.lang.reflect.Method method =
-                NoDelayProvisionerStrategy.class.getDeclaredMethod("countBusyExecutors", Label.class);
-        method.setAccessible(true);
-        int count = (int) method.invoke(strategy, testLabel);
-
-        // DumbSlave should not be counted, only EC2 nodes
-        assertTrue(count >= 0, "Should only count EC2 nodes");
     }
 
     /**

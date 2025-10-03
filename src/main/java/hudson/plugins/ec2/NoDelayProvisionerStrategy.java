@@ -37,18 +37,12 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         // 3) Agent executing jobs
         int provisionedButNotExecuting = countProvisionedButNotExecutingNodes(label);
 
-        // JENKINS-76171: Count busy executors that are currently executing jobs
-        // snapshot.getAvailableExecutors() only counts IDLE executors, not busy ones
-        // We need to count busy executors because they're satisfying demand
-        int busyExecutors = countBusyExecutors(label);
-
         int availableCapacity = snapshot.getAvailableExecutors() // live executors (idle)
                 + snapshot.getConnectingExecutors() // executors present but not yet connected
                 + strategyState
                         .getPlannedCapacitySnapshot() // capacity added by previous strategies from previous rounds
                 + strategyState.getAdditionalPlannedCapacity() // capacity added by previous strategies _this round_
-                + provisionedButNotExecuting // EC2 nodes that exist but aren't yet counted above
-                + busyExecutors; // Executors currently executing jobs
+                + provisionedButNotExecuting; // EC2 nodes that exist but aren't yet counted above
         int currentDemand = snapshot.getQueueLength();
 
         LOGGER.log(
@@ -154,50 +148,6 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
                 Level.FINER,
                 "EC2 nodes for label: total={0}, matchingLabel={1}, offline={2}, connecting={3}, online={4}",
                 new Object[] {totalEC2Nodes, matchingLabelNodes, offlineNodes, connectingNodes, onlineNodes});
-
-        return count;
-    }
-
-    /**
-     * Counts executors that are currently busy executing jobs for the given label.
-     * These executors are online and not idle, meaning they are actively working on builds.
-     *
-     * This is critical because snapshot.getAvailableExecutors() only counts IDLE executors.
-     * When an executor goes from "connecting" to "online and busy", it disappears from
-     * snapshot.getConnectingExecutors() but doesn't appear in snapshot.getAvailableExecutors()
-     * (since it's not idle). This creates a false impression of missing capacity.
-     *
-     * By counting busy executors, we accurately reflect that these executors are satisfying
-     * demand, preventing unnecessary over-provisioning.
-     *
-     * @param label the label to match, or null for unlabeled executors
-     * @return the number of busy executors matching the label
-     */
-    private int countBusyExecutors(Label label) {
-        Jenkins jenkins = Jenkins.get();
-        int count = 0;
-
-        for (Node node : jenkins.getNodes()) {
-            // Only count EC2 nodes
-            if (!(node instanceof EC2AbstractSlave)) {
-                continue;
-            }
-
-            // Only count nodes matching the label
-            if (label != null && !label.matches(node.getAssignedLabels())) {
-                continue;
-            }
-
-            Computer computer = node.toComputer();
-            if (computer == null) {
-                continue;
-            }
-
-            // Count executors that are online and busy (not idle)
-            if (computer.isOnline() && !computer.isIdle()) {
-                count += node.getNumExecutors();
-            }
-        }
 
         return count;
     }
