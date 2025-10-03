@@ -76,32 +76,16 @@ public class MinimumInstanceChecker {
     }
 
     /**
-     * JENKINS-76171: This method is synchronized to prevent race conditions during concurrent invocations.
+     * Checks all EC2 cloud templates and provisions agents to meet minimum instance requirements.
+     * Synchronized to prevent concurrent provisioning decisions that could lead to over-provisioning
+     * when multiple agents accept tasks simultaneously.
      *
-     * PROBLEM: This method is called from EC2RetentionStrategy.taskAccepted() when an agent
-     * accepts a task. With maxTotalUses=1, multiple agents can accept tasks simultaneously,
-     * causing multiple threads to call this method concurrently. Without synchronization,
-     * each thread independently calculates capacity and provisions nodes, leading to massive
-     * over-provisioning (e.g., 500+ nodes for 100 builds).
-     *
-     * SOLUTION: The synchronized keyword ensures only one thread executes this method at a time.
-     * When thread A provisions nodes, threads B, C, D wait. When thread B enters, it sees the
-     * nodes thread A just provisioned and provisions fewer/none, preventing duplicates.
-     *
-     * PERFORMANCE: Early-exit optimization ensures minimal synchronized block duration when
-     * minimumNumberOfInstances and minimumNumberOfSpareInstances are both 0 (recommended).
+     * @see <a href="https://issues.jenkins.io/browse/JENKINS-76171">JENKINS-76171</a>
      */
     public static synchronized void checkForMinimumInstances() {
         Jenkins jenkins = Jenkins.get();
 
-        // JENKINS-76171: Fast early-exit optimization to minimize synchronized block duration
-        // Check if ANY template has minimum instance requirements before doing expensive work
-        //
-        // RECOMMENDED: Set both minimumNumberOfInstances and minimumNumberOfSpareInstances to 0
-        // When set to 0, this method exits immediately with minimal overhead, and allows
-        // the normal provisioner strategies (like NoDelayProvisionerStrategy) to handle all
-        // capacity planning. This provides better scaling behavior and prevents conflicts
-        // between MinimumInstanceChecker and other provisioning strategies.
+        // Early exit if no templates have minimum instance requirements
         boolean hasMinimumRequirements = jenkins.clouds.stream()
                 .filter(EC2Cloud.class::isInstance)
                 .map(EC2Cloud.class::cast)
@@ -143,8 +127,6 @@ public class MinimumInstanceChecker {
                     // Check if we need to provision any agents because we
                     // don't have the minimum number of spare agents.
                     // Don't double provision if minAgents and minSpareAgents are set.
-                    // JENKINS-76171: Only provision for spare capacity if minimumNumberOfSpareInstances > 0
-                    // When set to 0, let the normal provisioner strategies handle demand
                     if (requiredMinSpareAgents > 0) {
                         provisionForMinSpareAgents = (requiredMinSpareAgents + currentBuildsWaitingForTemplate)
                                 - (currentNumberOfSpareAgentsForTemplate
@@ -159,7 +141,6 @@ public class MinimumInstanceChecker {
 
                     int numberToProvision = provisionForMinAgents + provisionForMinSpareAgents;
 
-                    // JENKINS-76171 DEBUG: Log minimum instance checker decisions
                     if (numberToProvision > 0 || requiredMinAgents > 0 || requiredMinSpareAgents > 0) {
                         LOGGER.log(
                                 Level.FINE,
