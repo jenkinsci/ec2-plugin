@@ -1,5 +1,6 @@
 package hudson.plugins.ec2;
 
+import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.model.Computer;
 import hudson.model.Label;
@@ -96,32 +97,29 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
      *
      * This prevents over-provisioning by accounting for nodes in the critical gap between:
      * 1) Node added to Jenkins (after PlannedNode future completes)
-     * 2) Node starts connecting (shows up in snapshot.getConnectingExecutors())
+     * 2) Node starts connecting (shows up in snapshot.getConnectingExecutor())
      *
      * @param label the label to match, or null for unlabeled nodes
      * @return the number of executors from provisioned EC2 nodes in the offline->connecting gap
      */
-    private int countProvisionedButNotExecutingNodes(Label label) {
+    @VisibleForTesting
+    int countProvisionedButNotExecutingNodes(Label label) {
         Jenkins jenkins = Jenkins.get();
+        // Use Label.getNodes() to leverage core's label matching and caching
+        java.util.Set<Node> nodes = (label != null) ? label.getNodes() : java.util.Set.copyOf(jenkins.getNodes());
+
         int count = 0;
         int totalEC2Nodes = 0;
-        int matchingLabelNodes = 0;
         int offlineNodes = 0;
         int connectingNodes = 0;
         int onlineNodes = 0;
 
-        for (Node node : jenkins.getNodes()) {
+        for (Node node : nodes) {
             // Only count EC2 nodes
             if (!(node instanceof EC2AbstractSlave)) {
                 continue;
             }
             totalEC2Nodes++;
-
-            // Only count nodes matching the label
-            if (label != null && !label.matches(node.getAssignedLabels())) {
-                continue;
-            }
-            matchingLabelNodes++;
 
             Computer computer = node.toComputer();
             if (computer == null) {
@@ -146,8 +144,8 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
 
         LOGGER.log(
                 Level.FINER,
-                "EC2 nodes for label: total={0}, matchingLabel={1}, offline={2}, connecting={3}, online={4}",
-                new Object[] {totalEC2Nodes, matchingLabelNodes, offlineNodes, connectingNodes, onlineNodes});
+                "EC2 nodes for label {0}: total={1}, offline={2}, connecting={3}, online={4}",
+                new Object[] {label, totalEC2Nodes, offlineNodes, connectingNodes, onlineNodes});
 
         return count;
     }
