@@ -135,8 +135,6 @@ public class MinimumInstanceChecker {
                         if (provisionForMinSpareAgents < 0) {
                             provisionForMinSpareAgents = 0;
                         }
-                    } else {
-                        provisionForMinSpareAgents = 0;
                     }
 
                     int numberToProvision = provisionForMinAgents + provisionForMinSpareAgents;
