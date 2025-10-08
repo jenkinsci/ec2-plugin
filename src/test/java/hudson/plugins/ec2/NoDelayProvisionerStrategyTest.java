@@ -47,6 +47,25 @@ class NoDelayProvisionerStrategyTest {
     private JenkinsRule r;
 
     /**
+     * Enum representing different node states for testing.
+     */
+    enum NodeState {
+        OFFLINE(false, false, false),
+        CONNECTING(false, true, false),
+        ONLINE_IDLE(true, false, true),
+        ONLINE_BUSY(true, false, false);
+
+        final boolean online;
+        final boolean connecting;
+
+        NodeState(boolean online, boolean connecting, boolean idle) {
+            this.online = online;
+            this.connecting = connecting;
+            this.idle = idle;
+        }
+    }
+
+    /**
      * Test that countProvisionedButNotExecutingNodes() correctly counts only offline EC2 nodes.
      *
      * This test verifies the fix for JENKINS-76171 where nodes in the gap between being added to
@@ -61,11 +80,11 @@ class NoDelayProvisionerStrategyTest {
         Label testLabel = Label.get("test-label");
 
         // Create mock EC2 nodes in different states
-        EC2AbstractSlave offlineNode1 = createMockEC2Node("offline-1", testLabel, false, false, false);
-        EC2AbstractSlave offlineNode2 = createMockEC2Node("offline-2", testLabel, false, false, false);
-        EC2AbstractSlave connectingNode = createMockEC2Node("connecting-1", testLabel, false, true, false);
-        EC2AbstractSlave onlineIdleNode = createMockEC2Node("online-idle-1", testLabel, true, false, true);
-        EC2AbstractSlave onlineBusyNode = createMockEC2Node("online-busy-1", testLabel, true, false, false);
+        EC2AbstractSlave offlineNode1 = createMockEC2Node("offline-1", testLabel, NodeState.OFFLINE);
+        EC2AbstractSlave offlineNode2 = createMockEC2Node("offline-2", testLabel, NodeState.OFFLINE);
+        EC2AbstractSlave connectingNode = createMockEC2Node("connecting-1", testLabel, NodeState.CONNECTING);
+        EC2AbstractSlave onlineIdleNode = createMockEC2Node("online-idle-1", testLabel, NodeState.ONLINE_IDLE);
+        EC2AbstractSlave onlineBusyNode = createMockEC2Node("online-busy-1", testLabel, NodeState.ONLINE_BUSY);
 
         // Add nodes to Jenkins
         jenkins.addNode(offlineNode1);
@@ -96,9 +115,9 @@ class NoDelayProvisionerStrategyTest {
         Label labelB = Label.get("label-b");
 
         // Create offline nodes with different labels
-        EC2AbstractSlave nodeWithLabelA1 = createMockEC2Node("node-a-1", labelA, false, false, false);
-        EC2AbstractSlave nodeWithLabelA2 = createMockEC2Node("node-a-2", labelA, false, false, false);
-        EC2AbstractSlave nodeWithLabelB = createMockEC2Node("node-b-1", labelB, false, false, false);
+        EC2AbstractSlave nodeWithLabelA1 = createMockEC2Node("node-a-1", labelA, NodeState.OFFLINE);
+        EC2AbstractSlave nodeWithLabelA2 = createMockEC2Node("node-a-2", labelA, NodeState.OFFLINE);
+        EC2AbstractSlave nodeWithLabelB = createMockEC2Node("node-b-1", labelB, NodeState.OFFLINE);
 
         jenkins.addNode(nodeWithLabelA1);
         jenkins.addNode(nodeWithLabelA2);
@@ -129,7 +148,7 @@ class NoDelayProvisionerStrategyTest {
 
         // Rapidly add 50 offline nodes (simulating provision() completing but nodes not yet connecting)
         for (int i = 0; i < 50; i++) {
-            EC2AbstractSlave node = createMockEC2Node("stress-node-" + i, testLabel, false, false, false);
+            EC2AbstractSlave node = createMockEC2Node("stress-node-" + i, testLabel, NodeState.OFFLINE);
             jenkins.addNode(node);
         }
 
@@ -178,17 +197,17 @@ class NoDelayProvisionerStrategyTest {
         // Create 5 spare instances in steady state: online and idle
         // These represent minimumNumberOfSpareInstances=5 after they've fully started
         // In this state, they're ready to accept jobs immediately
-        EC2AbstractSlave spare1 = createMockEC2Node("spare-1", testLabel, true, false, true);
-        EC2AbstractSlave spare2 = createMockEC2Node("spare-2", testLabel, true, false, true);
-        EC2AbstractSlave spare3 = createMockEC2Node("spare-3", testLabel, true, false, true);
-        EC2AbstractSlave spare4 = createMockEC2Node("spare-4", testLabel, true, false, true);
-        EC2AbstractSlave spare5 = createMockEC2Node("spare-5", testLabel, true, false, true);
+        EC2AbstractSlave spare1 = createMockEC2Node("spare-1", testLabel, NodeState.ONLINE_IDLE);
+        EC2AbstractSlave spare2 = createMockEC2Node("spare-2", testLabel, NodeState.ONLINE_IDLE);
+        EC2AbstractSlave spare3 = createMockEC2Node("spare-3", testLabel, NodeState.ONLINE_IDLE);
+        EC2AbstractSlave spare4 = createMockEC2Node("spare-4", testLabel, NodeState.ONLINE_IDLE);
+        EC2AbstractSlave spare5 = createMockEC2Node("spare-5", testLabel, NodeState.ONLINE_IDLE);
 
         // Create 3 nodes in the JENKINS-76171 gap: offline and not connecting
         // These represent nodes just added to Jenkins by provision(), before connection starts
-        EC2AbstractSlave offlineNode1 = createMockEC2Node("offline-1", testLabel, false, false, false);
-        EC2AbstractSlave offlineNode2 = createMockEC2Node("offline-2", testLabel, false, false, false);
-        EC2AbstractSlave offlineNode3 = createMockEC2Node("offline-3", testLabel, false, false, false);
+        EC2AbstractSlave offlineNode1 = createMockEC2Node("offline-1", testLabel, NodeState.OFFLINE);
+        EC2AbstractSlave offlineNode2 = createMockEC2Node("offline-2", testLabel, NodeState.OFFLINE);
+        EC2AbstractSlave offlineNode3 = createMockEC2Node("offline-3", testLabel, NodeState.OFFLINE);
 
         // Add all nodes to Jenkins
         jenkins.addNode(spare1);
@@ -238,7 +257,7 @@ class NoDelayProvisionerStrategyTest {
         // Stage 1: Spare instance just provisioned (offline)
         // This is the brief moment after MinimumInstanceChecker.provision() completes
         // but before the connection process starts
-        EC2AbstractSlave spareOffline = createMockEC2Node("spare-offline", testLabel, false, false, false);
+        EC2AbstractSlave spareOffline = createMockEC2Node("spare-offline", testLabel, NodeState.OFFLINE);
         jenkins.addNode(spareOffline);
 
         int countOffline = strategy.countProvisionedButNotExecutingNodes(testLabel);
@@ -248,7 +267,7 @@ class NoDelayProvisionerStrategyTest {
         // After connect() is called, the node shows as "connecting"
         // In this state, it would be counted in snapshot.getConnectingExecutors()
         // and should NOT be counted in provisionedButNotExecuting
-        EC2AbstractSlave spareConnecting = createMockEC2Node("spare-connecting", testLabel, false, true, false);
+        EC2AbstractSlave spareConnecting = createMockEC2Node("spare-connecting", testLabel, NodeState.CONNECTING);
         jenkins.addNode(spareConnecting);
 
         int countConnecting = strategy.countProvisionedButNotExecutingNodes(testLabel);
@@ -262,7 +281,7 @@ class NoDelayProvisionerStrategyTest {
         // This is where spare instances spend most of their time
         // In this state, they're counted in snapshot.getAvailableExecutors()
         // and should NOT be counted in provisionedButNotExecuting
-        EC2AbstractSlave spareIdle = createMockEC2Node("spare-idle", testLabel, true, false, true);
+        EC2AbstractSlave spareIdle = createMockEC2Node("spare-idle", testLabel, NodeState.ONLINE_IDLE);
         jenkins.addNode(spareIdle);
 
         int countIdle = strategy.countProvisionedButNotExecutingNodes(testLabel);
@@ -275,7 +294,7 @@ class NoDelayProvisionerStrategyTest {
         // Stage 4: Spare instance online and busy (executing a job)
         // When a spare instance accepts a job, it's no longer "spare" - it's working
         // In this state, it's counted as a busy executor and should NOT be in provisionedButNotExecuting
-        EC2AbstractSlave spareBusy = createMockEC2Node("spare-busy", testLabel, true, false, false);
+        EC2AbstractSlave spareBusy = createMockEC2Node("spare-busy", testLabel, NodeState.ONLINE_BUSY);
         jenkins.addNode(spareBusy);
 
         int countBusy = strategy.countProvisionedButNotExecutingNodes(testLabel);
@@ -309,7 +328,7 @@ class NoDelayProvisionerStrategyTest {
 
         // Create a spare instance that has gone offline (network issue, etc.)
         // This is unusual but can happen in production
-        EC2AbstractSlave offlineSpare = createMockEC2Node("offline-spare", testLabel, false, false, false);
+        EC2AbstractSlave offlineSpare = createMockEC2Node("offline-spare", testLabel, NodeState.OFFLINE);
         jenkins.addNode(offlineSpare);
 
         NoDelayProvisionerStrategy strategy = new NoDelayProvisionerStrategy();
@@ -329,13 +348,10 @@ class NoDelayProvisionerStrategyTest {
      *
      * @param name node name
      * @param label label to assign
-     * @param online whether the node should appear online
-     * @param connecting whether the node should appear connecting
-     * @param idle whether the node should appear idle (only relevant if online=true)
+     * @param state the desired state of the node (OFFLINE, CONNECTING, ONLINE_IDLE, ONLINE_BUSY)
      * @return mock EC2AbstractSlave
      */
-    private EC2AbstractSlave createMockEC2Node(
-            String name, Label label, boolean online, boolean connecting, boolean idle) throws Exception {
+    private EC2AbstractSlave createMockEC2Node(String name, Label label, NodeState state) throws Exception {
         // Create a minimal EC2OndemandSlave for testing
         SlaveTemplate template = Mockito.mock(SlaveTemplate.class);
         Mockito.when(template.getLabelString()).thenReturn(label.getExpression());
@@ -373,10 +389,10 @@ class NoDelayProvisionerStrategyTest {
 
         // Mock computer state
         Computer computer = Mockito.mock(Computer.class);
-        Mockito.when(computer.isOnline()).thenReturn(online);
-        Mockito.when(computer.isConnecting()).thenReturn(connecting);
-        Mockito.when(computer.isOffline()).thenReturn(!online && !connecting);
-        Mockito.when(computer.isIdle()).thenReturn(idle);
+        Mockito.when(computer.isOnline()).thenReturn(state.online);
+        Mockito.when(computer.isConnecting()).thenReturn(state.connecting);
+        Mockito.when(computer.isOffline()).thenReturn(!state.online && !state.connecting);
+        Mockito.when(computer.isIdle()).thenReturn(state.idle);
 
         Mockito.when(slave.toComputer()).thenReturn(computer);
 
