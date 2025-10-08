@@ -57,6 +57,7 @@ class NoDelayProvisionerStrategyTest {
 
         final boolean online;
         final boolean connecting;
+        final boolean idle;
 
         NodeState(boolean online, boolean connecting, boolean idle) {
             this.online = online;
