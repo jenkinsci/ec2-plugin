@@ -87,7 +87,7 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
     }
 
     /**
-     * Counts EC2 nodes that have been provisioned (exist in Jenkins) but are NOT yet counted in the
+     * Counts executors in EC2 nodes that have been provisioned (exist in Jenkins) but are NOT yet counted in the
      * LoadStatistics snapshot. This specifically targets the gap where nodes exist but are:
      * - Offline (just added to Jenkins, before connecting starts)
      *
