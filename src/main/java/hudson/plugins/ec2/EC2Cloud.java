@@ -1189,10 +1189,11 @@ public class EC2Cloud extends Cloud {
 
                             InstanceStateName state = instance.state().name();
                             if (state.equals(InstanceStateName.RUNNING)) {
-                                // Spot instance are not reconnected automatically,
-                                // but could be new orphans that has the option enable
+                                // JENKINS-76171: Always initiate connection when instance is RUNNING
+                                // This reduces the gap between PlannedNode completion and agent connection,
+                                // preventing over-provisioning in NodeProvisioner
                                 Computer c = slave.toComputer();
-                                if (slave.getStopOnTerminate() && (c != null)) {
+                                if (c != null) {
                                     c.connect(false);
                                 }
 
