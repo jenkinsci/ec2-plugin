@@ -217,7 +217,7 @@ public class EC2Cloud extends Cloud {
 
     @DataBoundConstructor
     public EC2Cloud(
-            String name,
+            String cloudName,
             boolean useInstanceProfileForCredentials,
             String credentialsId,
             String region,
@@ -227,7 +227,7 @@ public class EC2Cloud extends Cloud {
             List<? extends SlaveTemplate> templates,
             String roleArn,
             String roleSessionName) {
-        super(name);
+        super(cloudName != null && !cloudName.trim().isEmpty() ? cloudName : "ec2-cloud-" + System.currentTimeMillis());
         this.useInstanceProfileForCredentials = useInstanceProfileForCredentials;
         this.roleArn = roleArn;
         this.roleSessionName = roleSessionName;
@@ -250,6 +250,8 @@ public class EC2Cloud extends Cloud {
         readResolve(); // set parents
     }
 
+
+
     @Deprecated
     public EC2Cloud(
             String name,
@@ -262,7 +264,7 @@ public class EC2Cloud extends Cloud {
             String roleArn,
             String roleSessionName) {
         this(
-                name,
+                name, // pass name as cloudName for backward compatibility
                 useInstanceProfileForCredentials,
                 credentialsId,
                 region,
@@ -285,11 +287,11 @@ public class EC2Cloud extends Cloud {
             String roleArn,
             String roleSessionName) {
         this(
-                id,
+                id, // pass id as cloudName for backward compatibility
                 useInstanceProfileForCredentials,
                 credentialsId,
-                privateKey,
                 null,
+                privateKey,
                 null,
                 instanceCapStr,
                 templates,
@@ -315,11 +317,20 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
-     * @deprecated Use public field "name" instead.
+     * Getter for cloudName to support Configuration as Code (CasC).
+     * This is the preferred field name for EC2 cloud configurations.
      */
-    @Deprecated
     public String getCloudName() {
         return name;
+    }
+
+    /**
+     * Setter for cloudName to support Configuration as Code (CasC).
+     * This is the preferred field name for EC2 cloud configurations.
+     */
+    @DataBoundSetter
+    public void setCloudName(String cloudName) {
+        this.name = cloudName;
     }
 
     public String getRegion() {

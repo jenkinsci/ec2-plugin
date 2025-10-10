@@ -86,7 +86,7 @@ class EC2CloudTest {
         r.assertEqualBeans(
                 cloud,
                 r.jenkins.clouds.get(EC2Cloud.class),
-                "name,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
+                "cloudName,region,useInstanceProfileForCredentials,privateKey,instanceCap,roleArn,roleSessionName");
     }
 
     @Test
@@ -125,7 +125,9 @@ class EC2CloudTest {
         EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
         assertEquals("updatedSessionName", actual.getRoleSessionName());
         r.assertEqualBeans(
-                cloud, actual, "name,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
+                cloud,
+                actual,
+                "cloudName,region,useInstanceProfileForCredentials,sshKeysCredentialsId,instanceCap,roleArn");
     }
 
     @Test
@@ -204,6 +206,34 @@ class EC2CloudTest {
         assertThat(m.size(), is(2));
         // Ensure that the cloud can resolve the new key
         assertThat(actual.resolvePrivateKey(), notNullValue());
+    }
+
+    @Test
+    public void testCloudNameForCasC() {
+        EC2Cloud cloud = new EC2Cloud("test-cloud", false, null, "us-east-1", null, null, null, Collections.emptyList(), null, null);
+        
+        // Test that getCloudName returns the name
+        assertEquals("test-cloud", cloud.getCloudName());
+        assertEquals("test-cloud", cloud.name);
+        
+        // Test that setCloudName updates the name field
+        cloud.setCloudName("my-ec2-cloud");
+        assertEquals("my-ec2-cloud", cloud.name);
+        assertEquals("my-ec2-cloud", cloud.getCloudName());
+        
+        // Test that cloudName is the primary field for CasC configurations
+        cloud.setCloudName("production-ec2");
+        assertEquals("production-ec2", cloud.getCloudName());
+    }
+
+    @Test
+    public void testCloudNameConstructorParameter() {
+        // Test that cloudName constructor parameter works directly
+        EC2Cloud cloud = new EC2Cloud("my-casc-cloud", false, null, "us-east-1", null, null, null, Collections.emptyList(), null, null);
+        
+        // Constructor parameter sets the name directly
+        assertEquals("my-casc-cloud", cloud.name);
+        assertEquals("my-casc-cloud", cloud.getCloudName());
     }
 
     private HtmlForm getConfigForm() throws IOException, SAXException {

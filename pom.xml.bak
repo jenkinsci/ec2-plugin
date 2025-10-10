@@ -27,7 +27,7 @@ THE SOFTWARE.
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>5.24</version>
+    <version>5.18</version>
     <relativePath />
   </parent>
 
@@ -87,7 +87,7 @@ THE SOFTWARE.
 
   <properties>
     <!-- Default changelist for local development - will be overridden by build script -->
-    <changelist>20250819-nthirumoorthy-aws-monitoring-info</changelist>
+    <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
