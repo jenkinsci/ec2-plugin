@@ -1,0 +1,22 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<hudson>
+	<numExecutors>4</numExecutors>
+	<clouds>
+		<hudson.plugins.ec2.EC2Cloud>
+			<name>ec2-myEc2Cloud</name>
+			<templates>
+				<hudson.plugins.ec2.SlaveTemplate>
+					<description>PublicIpTrue</description>
+					<associatePublicIp>true</associatePublicIp>
+				</hudson.plugins.ec2.SlaveTemplate>
+				<hudson.plugins.ec2.SlaveTemplate>
+					<description>PublicIpFalse</description>
+					<associatePublicIp>false</associatePublicIp>
+				</hudson.plugins.ec2.SlaveTemplate>
+				<hudson.plugins.ec2.SlaveTemplate>
+					<description>PublicIpNotPresent</description>
+				</hudson.plugins.ec2.SlaveTemplate>
+			</templates>
+		</hudson.plugins.ec2.EC2Cloud>
+	</clouds>
+</hudson>
