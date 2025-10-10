@@ -249,14 +249,23 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         return CHECK_INTERVAL_MINUTES;
     }
 
+    /**
+     * Try to reconnect the EC2 Instance if it's offline but the status is running.
+     * This could mean unstable ssh connection, so instead of failing the build,
+     * we try to reconnect as soon as the EC2 Instance is running again.
+     */
     private void attemptReconnectIfOffline(EC2Computer computer) {
-        if (computer.isOffline()) {
-            LOGGER.warning("EC2Computer " + computer.getName() + " is offline");
-            if (!computer.isConnecting()) {
-                // Keep retrying connection to agent until the job times out
-                LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
-                computer.connect(false);
+        try {
+            if (computer.getState() == InstanceState.RUNNING && computer.isOffline()) {
+                LOGGER.warning("EC2Computer " + computer.getName() + " is offline");
+                if (!computer.isConnecting()) {
+                    // Keep retrying connection to agent until the job times out
+                    LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
+                    computer.connect(false);
+                }
             }
+        } catch (SdkException | InterruptedException e) {
+            LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + computer.getName(), e);
         }
     }
 
