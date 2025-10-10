@@ -315,7 +315,7 @@ def sshPortToConnectWith = '22'
 // store parameters
 def slaveTemplateUsEast1Parameters = [
   ami:                           'ami-AAAAAAAA',
-  associatePublicIp:             false,
+  associateIpStrategy:           AssociateIpStrategy.valueOf('PRIVATE_IP'),
   spotConfig:                    null,
   connectBySSHProcess:           false,
   connectUsingPublicIp:          false,
@@ -445,7 +445,7 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.deleteRootOnTermination,
   slaveTemplateUsEast1Parameters.useEphemeralDevices,
   slaveTemplateUsEast1Parameters.launchTimeoutStr,
-  slaveTemplateUsEast1Parameters.associatePublicIp,
+  slaveTemplateUsEast1Parameters.associateIpStrategy,
   slaveTemplateUsEast1Parameters.customDeviceMapping,
   slaveTemplateUsEast1Parameters.connectBySSHProcess,
   slaveTemplateUsEast1Parameters.monitoring,

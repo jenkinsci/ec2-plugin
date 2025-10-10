@@ -11,7 +11,7 @@
           slaveCommandPrefix: "CMD /C"
           slaveCommandSuffix: "-fakeFlag"
           sshPort: "22"
-      associatePublicIp: false
+      associateIPStrategy: DEFAULT
       connectBySSHProcess: false
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false
