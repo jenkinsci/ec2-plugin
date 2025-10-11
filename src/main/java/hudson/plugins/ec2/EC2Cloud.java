@@ -322,6 +322,10 @@ public class EC2Cloud extends Cloud {
         return name;
     }
 
+    public String getName() {
+        return name;
+    }
+
     public String getRegion() {
         if (region == null) {
             region = DEFAULT_EC2_HOST; // Backward compatibility

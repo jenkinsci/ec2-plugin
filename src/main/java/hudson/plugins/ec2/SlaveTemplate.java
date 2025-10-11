@@ -1653,7 +1653,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         }
     }
 
-    String getZone() {
+    public String getZone() {
         return zone;
     }
 
@@ -1926,6 +1926,106 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.avoidUsingOrphanedNodes = avoidUsingOrphanedNodes;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getRemoteFS() {
+        return remoteFS;
+    }
+
+    public SpotConfiguration getSpotConfig() {
+        return spotConfig;
+    }
+
+    public String getSecurityGroups() {
+        return securityGroups;
+    }
+
+    public String getJavaPath() {
+        return javaPath;
+    }
+
+    public String getJvmopts() {
+        return jvmopts;
+    }
+
+    public boolean getStopOnTerminate() {
+        return stopOnTerminate;
+    }
+
+    public String getIdleTerminationMinutes() {
+        return idleTerminationMinutes;
+    }
+
+    public String getInitScript() {
+        return initScript;
+    }
+
+    public String getTmpDir() {
+        return tmpDir;
+    }
+
+    public String getUserData() {
+        return userData;
+    }
+
+    public boolean getConnectBySSHProcess() {
+        return connectBySSHProcess;
+    }
+
+    public boolean getConnectUsingPublicIp() {
+        return connectUsingPublicIp;
+    }
+
+    public boolean getDeleteRootOnTermination() {
+        return deleteRootOnTermination;
+    }
+
+    public boolean getUseEphemeralDevices() {
+        return useEphemeralDevices;
+    }
+
+    public boolean getEbsOptimized() {
+        return ebsOptimized;
+    }
+
+    public boolean getMonitoring() {
+        return monitoring;
+    }
+
+    public boolean getT2Unlimited() {
+        return t2Unlimited;
+    }
+
+    public EbsEncryptRootVolume getEbsEncryptRootVolume() {
+        return ebsEncryptRootVolume;
+    }
+
+    public String getCustomDeviceMapping() {
+        return customDeviceMapping;
+    }
+
+    public Tenancy getTenancy() {
+        return tenancy;
+    }
+
+    public ConnectionStrategy getConnectionStrategy() {
+        return connectionStrategy;
+    }
+
+    public boolean getUseDedicatedTenancy() {
+        return useDedicatedTenancy;
+    }
+
+    public int getNextSubnet() {
+        return nextSubnet;
+    }
+
     @Override
     public String toString() {
         return "SlaveTemplate{" + "description='" + description + '\'' + ", labels='" + labels + '\'' + '}';
@@ -1936,6 +2036,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public boolean isAvoidUsingOrphanedNodes() {
+        return avoidUsingOrphanedNodes;
+    }
+
+    public boolean getAvoidUsingOrphanedNodes() {
         return avoidUsingOrphanedNodes;
     }
 

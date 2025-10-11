@@ -23,13 +23,16 @@
  */
 package hudson.plugins.ec2;
 
+import hudson.Extension;
 import java.util.List;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
  * @deprecated use {@link EC2Cloud}
  */
 @Deprecated
 public class AmazonEC2Cloud extends EC2Cloud {
+    @DataBoundConstructor
     public AmazonEC2Cloud(
             String name,
             boolean useInstanceProfileForCredentials,
@@ -74,5 +77,13 @@ public class AmazonEC2Cloud extends EC2Cloud {
                 templates,
                 roleArn,
                 roleSessionName);
+    }
+
+    @Extension
+    public static class DescriptorImpl extends EC2Cloud.DescriptorImpl {
+        @Override
+        public String getDisplayName() {
+            return "Amazon EC2 (Deprecated - use EC2 instead)";
+        }
     }
 }
