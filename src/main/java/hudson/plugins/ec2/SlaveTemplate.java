@@ -217,7 +217,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public HostKeyVerificationStrategyEnum hostKeyVerificationStrategy;
 
-    public final boolean associatePublicIp;
+    public AssociateIPStrategy associateIPStrategy;
+
+    @Deprecated
+    public transient boolean associatePublicIp;
 
     protected transient EC2Cloud parent;
 
@@ -325,7 +328,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             boolean deleteRootOnTermination,
             boolean useEphemeralDevices,
             String launchTimeoutStr,
-            boolean associatePublicIp,
+            AssociateIPStrategy associateIPStrategy,
             String customDeviceMapping,
             boolean connectBySSHProcess,
             boolean monitoring,
@@ -382,7 +385,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.subnetId = subnetId;
         this.tags = tags;
         this.idleTerminationMinutes = idleTerminationMinutes;
-        this.associatePublicIp = associatePublicIp;
         this.connectionStrategy = connectionStrategy == null ? ConnectionStrategy.PRIVATE_IP : connectionStrategy;
         this.useDedicatedTenancy = tenancy == Tenancy.Dedicated;
         this.connectBySSHProcess = connectBySSHProcess;
@@ -431,7 +433,104 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.metadataHopsLimit =
                 metadataHopsLimit != null ? metadataHopsLimit : EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         this.enclaveEnabled = enclaveEnabled != null ? enclaveEnabled : EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED;
+        this.associateIPStrategy = associateIPStrategy != null ? associateIPStrategy : AssociateIPStrategy.DEFAULT;
+
         readResolve(); // initialize
+    }
+
+    @Deprecated
+    public SlaveTemplate(
+            String ami,
+            String zone,
+            SpotConfiguration spotConfig,
+            String securityGroups,
+            String remoteFS,
+            String type,
+            boolean ebsOptimized,
+            String labelString,
+            Node.Mode mode,
+            String description,
+            String initScript,
+            String tmpDir,
+            String userData,
+            String numExecutors,
+            String remoteAdmin,
+            AMITypeData amiType,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String subnetId,
+            List<EC2Tag> tags,
+            String idleTerminationMinutes,
+            int minimumNumberOfInstances,
+            int minimumNumberOfSpareInstances,
+            String instanceCapStr,
+            String iamInstanceProfile,
+            boolean deleteRootOnTermination,
+            boolean useEphemeralDevices,
+            String launchTimeoutStr,
+            boolean associatePublicIp,
+            String customDeviceMapping,
+            boolean connectBySSHProcess,
+            boolean monitoring,
+            boolean t2Unlimited,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            List<? extends NodeProperty<?>> nodeProperties,
+            HostKeyVerificationStrategyEnum hostKeyVerificationStrategy,
+            Tenancy tenancy,
+            EbsEncryptRootVolume ebsEncryptRootVolume,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit,
+            Boolean metadataSupported,
+            Boolean enclaveEnabled) {
+        this(
+                ami,
+                zone,
+                spotConfig,
+                securityGroups,
+                remoteFS,
+                InstanceType.fromValue(type.toString()).toString(),
+                ebsOptimized,
+                labelString,
+                mode,
+                description,
+                initScript,
+                tmpDir,
+                userData,
+                numExecutors,
+                remoteAdmin,
+                amiType,
+                javaPath,
+                jvmopts,
+                stopOnTerminate,
+                subnetId,
+                tags,
+                idleTerminationMinutes,
+                minimumNumberOfInstances,
+                minimumNumberOfSpareInstances,
+                instanceCapStr,
+                iamInstanceProfile,
+                deleteRootOnTermination,
+                useEphemeralDevices,
+                launchTimeoutStr,
+                AssociateIPStrategy.backwardsCompatible(associatePublicIp),
+                customDeviceMapping,
+                connectBySSHProcess,
+                monitoring,
+                t2Unlimited,
+                connectionStrategy,
+                maxTotalUses,
+                nodeProperties,
+                hostKeyVerificationStrategy,
+                tenancy,
+                ebsEncryptRootVolume,
+                metadataEndpointEnabled,
+                metadataTokensRequired,
+                metadataHopsLimit,
+                metadataSupported,
+                enclaveEnabled);
     }
 
     @Deprecated
@@ -1640,8 +1739,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return currentSubnetId;
     }
 
+    @Deprecated
     public boolean getAssociatePublicIp() {
-        return associatePublicIp;
+        return AssociateIPStrategy.PUBLIC_IP == associateIPStrategy;
+    }
+
+    public AssociateIPStrategy getAssociateIPStrategy() {
+        return associateIPStrategy;
     }
 
     @Deprecated
@@ -1649,7 +1753,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public void setConnectUsingPublicIp(boolean connectUsingPublicIp) {
         this.connectUsingPublicIp = connectUsingPublicIp;
         this.connectionStrategy = ConnectionStrategy.backwardsCompatible(
-                this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+                this.usePrivateDnsName, this.connectUsingPublicIp, getAssociatePublicIp());
     }
 
     @Deprecated
@@ -1657,7 +1761,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     public void setUsePrivateDnsName(boolean usePrivateDnsName) {
         this.usePrivateDnsName = usePrivateDnsName;
         this.connectionStrategy = ConnectionStrategy.backwardsCompatible(
-                this.usePrivateDnsName, this.connectUsingPublicIp, this.associatePublicIp);
+                this.usePrivateDnsName, this.connectUsingPublicIp, getAssociatePublicIp());
     }
 
     @Deprecated
@@ -2115,11 +2219,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
         if (StringUtils.isNotBlank(subnetId)) {
-            if (getAssociatePublicIp()) {
-                netBuilder.subnetId(subnetId);
-            } else {
-                riRequestBuilder.subnetId(subnetId);
-            }
+            netBuilder.subnetId(subnetId);
 
             diFilters.add(Filter.builder().name("subnet-id").values(subnetId).build());
 
@@ -2130,11 +2230,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 List<String> groupIds = getEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
-                    if (getAssociatePublicIp()) {
-                        netBuilder.groups(groupIds);
-                    } else {
-                        riRequestBuilder.securityGroupIds(groupIds);
-                    }
+                    netBuilder.groups(groupIds);
 
                     diFilters.add(Filter.builder()
                             .name("instance.group-id")
@@ -2146,11 +2242,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2).securityGroups().stream()
                     .map(SecurityGroup::groupId)
                     .collect(Collectors.toList());
-            if (getAssociatePublicIp()) {
-                netBuilder.groups(groupIds);
-            } else {
-                riRequestBuilder.securityGroups(securityGroupSet);
-            }
+            netBuilder.groups(groupIds);
+
             if (!groupIds.isEmpty()) {
                 diFilters.add(Filter.builder()
                         .name("instance.group-id")
@@ -2159,12 +2252,20 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
-        netBuilder.associatePublicIpAddress(getAssociatePublicIp());
-        netBuilder.deviceIndex(0);
-
-        if (getAssociatePublicIp()) {
-            riRequestBuilder.networkInterfaces(netBuilder.build());
+        switch (getAssociateIPStrategy()) {
+            case PUBLIC_IP:
+                netBuilder.associatePublicIpAddress(true);
+                break;
+            case PRIVATE_IP:
+                netBuilder.associatePublicIpAddress(false);
+                break;
+            case SUBNET:
+            case DEFAULT:
+                break;
         }
+
+        netBuilder.deviceIndex(0);
+        riRequestBuilder.networkInterfaces(netBuilder.build());
 
         HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_DEMAND);
         for (Tag tag : instTags) {
@@ -2609,7 +2710,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecificationBuilder.keyName(keyPair.getKeyPairInfo().keyName());
             launchSpecificationBuilder.instanceType(type);
 
-            netBuilder.associatePublicIpAddress(getAssociatePublicIp());
+            switch (getAssociateIPStrategy()) {
+                case PUBLIC_IP:
+                    netBuilder.associatePublicIpAddress(true);
+                    break;
+                case PRIVATE_IP:
+                case DEFAULT:
+                    netBuilder.associatePublicIpAddress(false);
+                    break;
+                case SUBNET:
+                    break;
+            }
+
             netBuilder.deviceIndex(0);
             launchSpecificationBuilder.networkInterfaces(netBuilder.build());
 
@@ -2993,10 +3105,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             type = InstanceTypeCompat.of(type).toString();
         }
 
+        if (associateIPStrategy == null) {
+            associateIPStrategy = AssociateIPStrategy.backwardsCompatible(associatePublicIp);
+        }
+
         // 1.43 new parameters
         if (connectionStrategy == null) {
-            connectionStrategy =
-                    ConnectionStrategy.backwardsCompatible(usePrivateDnsName, connectUsingPublicIp, associatePublicIp);
+            connectionStrategy = ConnectionStrategy.backwardsCompatible(
+                    usePrivateDnsName, connectUsingPublicIp, AssociateIPStrategy.PUBLIC_IP == associateIPStrategy);
         }
 
         if (maxTotalUses == 0) {
@@ -3486,6 +3602,34 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .findFirst()
                     .map(s -> FormValidation.ok())
                     .orElse(FormValidation.error("Could not find selected connection strategy"));
+        }
+
+        @POST
+        public ListBoxModel doFillAssociateIPStrategyItems(@QueryParameter String associateIPStrategy) {
+            checkPermission(EC2Cloud.PROVISION);
+            return Stream.of(AssociateIPStrategy.values())
+                    .map(v -> {
+                        if (v.name().equals(associateIPStrategy)) {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), true);
+                        } else {
+                            return new ListBoxModel.Option(v.getDisplayText(), v.name(), false);
+                        }
+                    })
+                    .collect(Collectors.toCollection(ListBoxModel::new));
+        }
+
+        @POST
+        public FormValidation doCheckAssociateIPStrategy(@QueryParameter String associateIPStrategy) {
+            checkPermission(EC2Cloud.PROVISION);
+            return Stream.of(AssociateIPStrategy.values())
+                    .filter(v -> v.name().equals(associateIPStrategy))
+                    .findFirst()
+                    .map(s -> FormValidation.ok())
+                    .orElse(FormValidation.error("Could not find selected associate IP strategy"));
+        }
+
+        public String getDefaultAssociateIPStrategy() {
+            return AssociateIPStrategy.DEFAULT.name();
         }
 
         public String getDefaultHostKeyVerificationStrategy() {
