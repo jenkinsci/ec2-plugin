@@ -108,7 +108,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 long currentTime = this.clock.millis();
 
                 if (currentTime > nextCheckAfter) {
-                    LOGGER.info("[JENKINS-76200] check() executing for " + c.getName() + " - calling attemptReconnectIfOffline()");
+                    LOGGER.info("[JENKINS-76200] check() executing for " + c.getName()
+                            + " - calling attemptReconnectIfOffline()");
                     attemptReconnectIfOffline(c);
                     long intervalMins = internalCheck(c);
                     nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
@@ -263,16 +264,16 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      * JENKINS-76200: Start stopped instances before attempting connection.
      */
     private void attemptReconnectIfOffline(EC2Computer computer) {
-        LOGGER.info("[JENKINS-76200] attemptReconnectIfOffline() called for " + computer.getName()
-                + " (instance: " + computer.getInstanceId() + ")");
+        LOGGER.info("[JENKINS-76200] attemptReconnectIfOffline() called for " + computer.getName() + " (instance: "
+                + computer.getInstanceId() + ")");
 
         try {
             InstanceState state = computer.getState();
             boolean isOffline = computer.isOffline();
             boolean isConnecting = computer.isConnecting();
 
-            LOGGER.info("[JENKINS-76200] Instance state: " + state + ", isOffline: " + isOffline
-                    + ", isConnecting: " + isConnecting + " for " + computer.getName());
+            LOGGER.info("[JENKINS-76200] Instance state: " + state + ", isOffline: " + isOffline + ", isConnecting: "
+                    + isConnecting + " for " + computer.getName());
 
             // JENKINS-76200: If instance is stopped, start it before attempting connection
             if (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state)) {
@@ -288,11 +289,13 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                                     .build();
                             LOGGER.info("[JENKINS-76200] Calling AWS startInstances() for " + computer.getInstanceId());
                             ec2.startInstances(request);
-                            LOGGER.info("[JENKINS-76200] Successfully called startInstances() for " + computer.getInstanceId()
-                                    + " - instance should be starting now");
+                            LOGGER.info("[JENKINS-76200] Successfully called startInstances() for "
+                                    + computer.getInstanceId() + " - instance should be starting now");
                         } catch (Exception e) {
-                            LOGGER.log(Level.WARNING, "[JENKINS-76200] Failed to start stopped instance "
-                                    + computer.getInstanceId(), e);
+                            LOGGER.log(
+                                    Level.WARNING,
+                                    "[JENKINS-76200] Failed to start stopped instance " + computer.getInstanceId(),
+                                    e);
                         }
                     } else {
                         LOGGER.warning("[JENKINS-76200] Cannot start instance " + computer.getInstanceId()
@@ -321,7 +324,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                         + " for " + computer.getName());
             }
         } catch (SdkException | InterruptedException e) {
-            LOGGER.log(Level.WARNING, "[JENKINS-76200] Error in attemptReconnectIfOffline for " + computer.getName(), e);
+            LOGGER.log(
+                    Level.WARNING, "[JENKINS-76200] Error in attemptReconnectIfOffline for " + computer.getName(), e);
         }
     }
 
