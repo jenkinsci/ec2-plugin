@@ -276,30 +276,41 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     + isConnecting + " for " + computer.getName());
 
             // JENKINS-76200: If instance is stopped, start it before attempting connection
+            // But only if there are jobs waiting for this node
             if (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state)) {
                 if (isOffline) {
+                    // Check if there are jobs in the queue waiting for this node
+                    boolean hasQueuedJobs = itemsInQueueForThisSlave(computer);
                     LOGGER.info("[JENKINS-76200] Instance " + computer.getInstanceId() + " is " + state
-                            + " and offline - attempting to start it");
-                    EC2Cloud cloud = computer.getCloud();
-                    if (cloud != null) {
-                        try {
-                            Ec2Client ec2 = cloud.connect();
-                            StartInstancesRequest request = StartInstancesRequest.builder()
-                                    .instanceIds(computer.getInstanceId())
-                                    .build();
-                            LOGGER.info("[JENKINS-76200] Calling AWS startInstances() for " + computer.getInstanceId());
-                            ec2.startInstances(request);
-                            LOGGER.info("[JENKINS-76200] Successfully called startInstances() for "
-                                    + computer.getInstanceId() + " - instance should be starting now");
-                        } catch (Exception e) {
-                            LOGGER.log(
-                                    Level.WARNING,
-                                    "[JENKINS-76200] Failed to start stopped instance " + computer.getInstanceId(),
-                                    e);
+                            + " and offline, jobs in queue: " + hasQueuedJobs);
+
+                    if (hasQueuedJobs) {
+                        LOGGER.info("[JENKINS-76200] Jobs are waiting - attempting to start instance "
+                                + computer.getInstanceId());
+                        EC2Cloud cloud = computer.getCloud();
+                        if (cloud != null) {
+                            try {
+                                Ec2Client ec2 = cloud.connect();
+                                StartInstancesRequest request = StartInstancesRequest.builder()
+                                        .instanceIds(computer.getInstanceId())
+                                        .build();
+                                LOGGER.info("[JENKINS-76200] Calling AWS startInstances() for " + computer.getInstanceId());
+                                ec2.startInstances(request);
+                                LOGGER.info("[JENKINS-76200] Successfully called startInstances() for "
+                                        + computer.getInstanceId() + " - instance should be starting now");
+                            } catch (Exception e) {
+                                LOGGER.log(
+                                        Level.WARNING,
+                                        "[JENKINS-76200] Failed to start stopped instance " + computer.getInstanceId(),
+                                        e);
+                            }
+                        } else {
+                            LOGGER.warning("[JENKINS-76200] Cannot start instance " + computer.getInstanceId()
+                                    + " - cloud not found for node " + computer.getName());
                         }
                     } else {
-                        LOGGER.warning("[JENKINS-76200] Cannot start instance " + computer.getInstanceId()
-                                + " - cloud not found for node " + computer.getName());
+                        LOGGER.info("[JENKINS-76200] No jobs waiting for stopped instance "
+                                + computer.getInstanceId() + " - leaving it stopped");
                     }
                 } else {
                     LOGGER.info("[JENKINS-76200] Instance " + computer.getInstanceId() + " is " + state
