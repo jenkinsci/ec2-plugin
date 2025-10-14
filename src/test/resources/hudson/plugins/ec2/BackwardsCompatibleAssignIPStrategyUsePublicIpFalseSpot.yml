@@ -1,11 +1,13 @@
 ---
 configuration-as-code:
+  deprecated: warn
 jenkins:
   clouds:
     - amazonEC2:
-        name: "staging"
+        name: "us-east-1"
         privateKey: "${PRIVATE_KEY}"
         templates:
-        - associatePublicIp: false
-          spotConfig:
-            useBidPrice: true
+          - description:
+            associatePublicIp: false
+            spotConfig:
+              useBidPrice: true

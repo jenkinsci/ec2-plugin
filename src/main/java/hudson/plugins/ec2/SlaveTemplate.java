@@ -1744,6 +1744,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return AssociateIPStrategy.PUBLIC_IP == associateIPStrategy;
     }
 
+    @Deprecated
+    @DataBoundSetter
+    public void setAssociatePublicIp(boolean associatePublicIp) {
+        this.associatePublicIp = associatePublicIp;
+        this.associateIPStrategy = AssociateIPStrategy.backwardsCompatible(associatePublicIp);
+    }
+
     public AssociateIPStrategy getAssociateIPStrategy() {
         return associateIPStrategy;
     }
