@@ -41,6 +41,8 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.StartInstancesRequest;
 
 /**
  * {@link RetentionStrategy} for EC2.
@@ -96,18 +98,23 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     @Override
     public long check(EC2Computer c) {
+        LOGGER.fine("[JENKINS-76200] check() called for " + c.getName() + " (instance: " + c.getInstanceId() + ")");
+
         if (!checkLock.tryLock()) {
+            LOGGER.fine("[JENKINS-76200] check() could not acquire lock for " + c.getName());
             return CHECK_INTERVAL_MINUTES;
         } else {
             try {
                 long currentTime = this.clock.millis();
 
                 if (currentTime > nextCheckAfter) {
+                    LOGGER.info("[JENKINS-76200] check() executing for " + c.getName() + " - calling attemptReconnectIfOffline()");
                     attemptReconnectIfOffline(c);
                     long intervalMins = internalCheck(c);
                     nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
                     return intervalMins;
                 } else {
+                    LOGGER.fine("[JENKINS-76200] check() skipping (not time yet) for " + c.getName());
                     return CHECK_INTERVAL_MINUTES;
                 }
             } finally {
@@ -253,19 +260,68 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      * Try to reconnect the EC2 Instance if it's offline but the status is running.
      * This could mean unstable ssh connection, so instead of failing the build,
      * we try to reconnect as soon as the EC2 Instance is running again.
+     * JENKINS-76200: Start stopped instances before attempting connection.
      */
     private void attemptReconnectIfOffline(EC2Computer computer) {
+        LOGGER.info("[JENKINS-76200] attemptReconnectIfOffline() called for " + computer.getName()
+                + " (instance: " + computer.getInstanceId() + ")");
+
         try {
-            if (computer.getState() == InstanceState.RUNNING && computer.isOffline()) {
+            InstanceState state = computer.getState();
+            boolean isOffline = computer.isOffline();
+            boolean isConnecting = computer.isConnecting();
+
+            LOGGER.info("[JENKINS-76200] Instance state: " + state + ", isOffline: " + isOffline
+                    + ", isConnecting: " + isConnecting + " for " + computer.getName());
+
+            // JENKINS-76200: If instance is stopped, start it before attempting connection
+            if (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state)) {
+                if (isOffline) {
+                    LOGGER.info("[JENKINS-76200] Instance " + computer.getInstanceId() + " is " + state
+                            + " and offline - attempting to start it");
+                    EC2Cloud cloud = computer.getCloud();
+                    if (cloud != null) {
+                        try {
+                            Ec2Client ec2 = cloud.connect();
+                            StartInstancesRequest request = StartInstancesRequest.builder()
+                                    .instanceIds(computer.getInstanceId())
+                                    .build();
+                            LOGGER.info("[JENKINS-76200] Calling AWS startInstances() for " + computer.getInstanceId());
+                            ec2.startInstances(request);
+                            LOGGER.info("[JENKINS-76200] Successfully called startInstances() for " + computer.getInstanceId()
+                                    + " - instance should be starting now");
+                        } catch (Exception e) {
+                            LOGGER.log(Level.WARNING, "[JENKINS-76200] Failed to start stopped instance "
+                                    + computer.getInstanceId(), e);
+                        }
+                    } else {
+                        LOGGER.warning("[JENKINS-76200] Cannot start instance " + computer.getInstanceId()
+                                + " - cloud not found for node " + computer.getName());
+                    }
+                } else {
+                    LOGGER.info("[JENKINS-76200] Instance " + computer.getInstanceId() + " is " + state
+                            + " but not offline - skipping start attempt");
+                }
+                // Don't attempt connection yet - instance needs time to start
+                // Will retry on next check() call when state should be PENDING or RUNNING
+                return;
+            }
+
+            if (state == InstanceState.RUNNING && isOffline) {
                 LOGGER.warning("EC2Computer " + computer.getName() + " is offline");
-                if (!computer.isConnecting()) {
+                if (!isConnecting) {
                     // Keep retrying connection to agent until the job times out
                     LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
                     computer.connect(false);
+                } else {
+                    LOGGER.info("[JENKINS-76200] Skipping reconnect - already connecting for " + computer.getName());
                 }
+            } else {
+                LOGGER.info("[JENKINS-76200] No reconnection needed - state: " + state + ", offline: " + isOffline
+                        + " for " + computer.getName());
             }
         } catch (SdkException | InterruptedException e) {
-            LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + computer.getName(), e);
+            LOGGER.log(Level.WARNING, "[JENKINS-76200] Error in attemptReconnectIfOffline for " + computer.getName(), e);
         }
     }
 
@@ -307,6 +363,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      */
     @Override
     public void start(EC2Computer c) {
+        LOGGER.info("[JENKINS-76200] start() called for " + c.getName() + " (instance: " + c.getInstanceId() + ")");
+
         // Jenkins is in the process of starting up
         if (Jenkins.get().getInitLevel() != InitMilestone.COMPLETED) {
             InstanceState state = null;
@@ -315,6 +373,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             } catch (SdkException | InterruptedException e) {
                 LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + c.getName(), e);
             }
+            LOGGER.info("[JENKINS-76200] During Jenkins startup - instance state: " + state);
             if (!(InstanceState.PENDING.equals(state) || InstanceState.RUNNING.equals(state))) {
                 LOGGER.info("Ignoring start request for " + c.getName()
                         + " during Jenkins startup due to EC2 instance state of " + state);
