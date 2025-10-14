@@ -294,7 +294,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                                 StartInstancesRequest request = StartInstancesRequest.builder()
                                         .instanceIds(computer.getInstanceId())
                                         .build();
-                                LOGGER.info("[JENKINS-76200] Calling AWS startInstances() for " + computer.getInstanceId());
+                                LOGGER.info(
+                                        "[JENKINS-76200] Calling AWS startInstances() for " + computer.getInstanceId());
                                 ec2.startInstances(request);
                                 LOGGER.info("[JENKINS-76200] Successfully called startInstances() for "
                                         + computer.getInstanceId() + " - instance should be starting now");
@@ -309,8 +310,8 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                                     + " - cloud not found for node " + computer.getName());
                         }
                     } else {
-                        LOGGER.info("[JENKINS-76200] No jobs waiting for stopped instance "
-                                + computer.getInstanceId() + " - leaving it stopped");
+                        LOGGER.info("[JENKINS-76200] No jobs waiting for stopped instance " + computer.getInstanceId()
+                                + " - leaving it stopped");
                     }
                 } else {
                     LOGGER.info("[JENKINS-76200] Instance " + computer.getInstanceId() + " is " + state
@@ -341,11 +342,12 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     }
 
     /*
-     * Checks if there are any items in the queue that are waiting for this node explicitly.
-     * This prevents a node from being taken offline while there are Ivy/Maven Modules waiting to build.
+     * Checks if there are any items in the queue that can run on this node.
+     * This prevents a node from being taken offline while there are jobs waiting that could use it.
      * Need to check entire queue as some modules may be blocked by upstream dependencies.
      * Accessing the queue in this way can block other threads, so only perform this check just prior
      * to timing out the slave.
+     * JENKINS-76200: Check label matching, not just explicit node assignment.
      */
     private boolean itemsInQueueForThisSlave(EC2Computer c) {
         final EC2AbstractSlave selfNode = c.getNode();
@@ -356,16 +358,19 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         if (selfNode == null) {
             return false;
         }
-        final Label selfLabel = selfNode.getSelfLabel();
         Queue.Item[] items = Jenkins.get().getQueue().getItems();
         for (Queue.Item item : items) {
             final Label assignedLabel = item.getAssignedLabel();
-            if (assignedLabel == selfLabel) {
-                LOGGER.fine("Preventing idle timeout of " + c.getName()
-                        + " as there is at least one item in the queue explicitly waiting for this slave");
+            // JENKINS-76200: Check if this node can execute the job based on label matching
+            // Jobs with no label requirement (null) can run on any node
+            // Jobs with labels can run on nodes that match those labels
+            if (assignedLabel == null || assignedLabel.contains(selfNode)) {
+                LOGGER.fine("[JENKINS-76200] Found queued job that can run on " + c.getName()
+                        + " (job label: " + assignedLabel + ")");
                 return true;
             }
         }
+        LOGGER.fine("[JENKINS-76200] No queued jobs found that can run on " + c.getName());
         return false;
     }
 
