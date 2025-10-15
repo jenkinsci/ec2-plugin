@@ -90,14 +90,18 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
      * Counts executors in EC2 nodes that have been provisioned (exist in Jenkins) but are NOT yet counted in the
      * LoadStatistics snapshot. This specifically targets the gap where nodes exist but are:
      * - Offline (just added to Jenkins, before connecting starts)
+     * - Instance is PENDING or RUNNING in AWS (will come online soon)
      *
      * We explicitly DO NOT count:
      * - Connecting nodes (already in snapshot.getConnectingExecutors())
      * - Online nodes (already in snapshot.getAvailableExecutors() or busy executors)
+     * - STOPPED instances (won't come online without explicit start action)
      *
      * This prevents over-provisioning by accounting for nodes in the critical gap between:
      * 1) Node added to Jenkins (after PlannedNode future completes)
      * 2) Node starts connecting (shows up in snapshot.getConnectingExecutor())
+     *
+     * JENKINS-76200: Exclude STOPPED instances - they won't come online on their own.
      *
      * @param label the label to match, or null for unlabeled nodes
      * @return the number of executors from provisioned EC2 nodes in the offline->connecting gap
@@ -113,6 +117,7 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         int offlineNodes = 0;
         int connectingNodes = 0;
         int onlineNodes = 0;
+        int stoppedNodes = 0;
 
         for (Node node : nodes) {
             // Only count EC2 nodes
@@ -136,16 +141,36 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
             }
 
             // Only count nodes that are OFFLINE (not connecting, not online)
-            // These are in the gap between being added to Jenkins and starting to connect
+            // and not STOPPED in AWS (won't come online without explicit start)
             if (computer.isOffline() && !computer.isConnecting()) {
+                // JENKINS-76200: Check if instance is STOPPED in AWS
+                if (computer instanceof EC2Computer ec2Computer) {
+                    try {
+                        InstanceState state = ec2Computer.getState();
+                        if (state == InstanceState.STOPPED || state == InstanceState.STOPPING) {
+                            stoppedNodes++;
+                            LOGGER.log(
+                                    Level.FINE,
+                                    "Excluding STOPPED instance {0} from available capacity",
+                                    ec2Computer.getInstanceId());
+                            continue; // Don't count stopped instances
+                        }
+                    } catch (Exception e) {
+                        LOGGER.log(
+                                Level.FINE,
+                                "Could not get state for " + ec2Computer.getName() + ", counting as available",
+                                e);
+                        // If we can't determine state, count it to avoid over-provisioning
+                    }
+                }
                 count += node.getNumExecutors();
             }
         }
 
         LOGGER.log(
                 Level.FINER,
-                "EC2 nodes for label {0}: total={1}, offline={2}, connecting={3}, online={4}",
-                new Object[] {label, totalEC2Nodes, offlineNodes, connectingNodes, onlineNodes});
+                "EC2 nodes for label {0}: total={1}, offline={2}, connecting={3}, online={4}, stopped={5}",
+                new Object[] {label, totalEC2Nodes, offlineNodes, connectingNodes, onlineNodes, stoppedNodes});
 
         return count;
     }
