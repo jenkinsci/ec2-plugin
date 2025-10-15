@@ -168,7 +168,7 @@ class ConfigurationAsCodeTest {
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
         assertNull(slaveTemplate.spotConfig);
-        assertEquals(AssociateIPStrategy.SUBNET, slaveTemplate.associateIPStrategy);
+        assertEquals(AssociateIPStrategy.DEFAULT, slaveTemplate.associateIPStrategy);
     }
 
     @Test
@@ -181,7 +181,7 @@ class ConfigurationAsCodeTest {
         assertEquals(1, templates.size());
         final SlaveTemplate slaveTemplate = templates.get(0);
         assertNotNull(slaveTemplate.spotConfig);
-        assertEquals(AssociateIPStrategy.PRIVATE_IP, slaveTemplate.associateIPStrategy);
+        assertEquals(AssociateIPStrategy.DEFAULT, slaveTemplate.associateIPStrategy);
     }
 
     @Test
