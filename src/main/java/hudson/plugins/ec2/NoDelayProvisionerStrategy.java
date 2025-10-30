@@ -1,11 +1,8 @@
 package hudson.plugins.ec2;
 
-import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
-import hudson.model.Computer;
 import hudson.model.Label;
 import hudson.model.LoadStatistics;
-import hudson.model.Node;
 import hudson.slaves.Cloud;
 import hudson.slaves.NodeProvisioner;
 import java.util.Collection;
@@ -31,19 +28,11 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
 
         LoadStatistics.LoadStatisticsSnapshot snapshot = strategyState.getSnapshot();
 
-        // JENKINS-76171: Count provisioned EC2 nodes that exist but haven't started executing jobs yet.
-        // This prevents over-provisioning by accounting for nodes in the gap between:
-        // 1) PlannedNode future completing (instance RUNNING)
-        // 2) Agent showing as "connecting" in the snapshot
-        // 3) Agent executing jobs
-        int provisionedButNotExecuting = countProvisionedButNotExecutingNodes(label);
-
         int availableCapacity = snapshot.getAvailableExecutors() // live executors (idle)
                 + snapshot.getConnectingExecutors() // executors present but not yet connected
                 + strategyState
                         .getPlannedCapacitySnapshot() // capacity added by previous strategies from previous rounds
-                + strategyState.getAdditionalPlannedCapacity() // capacity added by previous strategies _this round_
-                + provisionedButNotExecuting; // EC2 nodes that exist but aren't yet counted above
+                + strategyState.getAdditionalPlannedCapacity(); // capacity added by previous strategies _this round_
         int currentDemand = snapshot.getQueueLength();
 
         LOGGER.log(
@@ -84,69 +73,5 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
             LOGGER.log(Level.FINE, "Provisioning not complete, consulting remaining strategies");
             return NodeProvisioner.StrategyDecision.CONSULT_REMAINING_STRATEGIES;
         }
-    }
-
-    /**
-     * Counts executors in EC2 nodes that have been provisioned (exist in Jenkins) but are NOT yet counted in the
-     * LoadStatistics snapshot. This specifically targets the gap where nodes exist but are:
-     * - Offline (just added to Jenkins, before connecting starts)
-     *
-     * We explicitly DO NOT count:
-     * - Connecting nodes (already in snapshot.getConnectingExecutors())
-     * - Online nodes (already in snapshot.getAvailableExecutors() or busy executors)
-     *
-     * This prevents over-provisioning by accounting for nodes in the critical gap between:
-     * 1) Node added to Jenkins (after PlannedNode future completes)
-     * 2) Node starts connecting (shows up in snapshot.getConnectingExecutor())
-     *
-     * @param label the label to match, or null for unlabeled nodes
-     * @return the number of executors from provisioned EC2 nodes in the offline->connecting gap
-     */
-    @VisibleForTesting
-    int countProvisionedButNotExecutingNodes(Label label) {
-        Jenkins jenkins = Jenkins.get();
-        // Use Label.getNodes() to leverage core's label matching and caching
-        java.util.Set<Node> nodes = (label != null) ? label.getNodes() : java.util.Set.copyOf(jenkins.getNodes());
-
-        int count = 0;
-        int totalEC2Nodes = 0;
-        int offlineNodes = 0;
-        int connectingNodes = 0;
-        int onlineNodes = 0;
-
-        for (Node node : nodes) {
-            // Only count EC2 nodes
-            if (!(node instanceof EC2AbstractSlave)) {
-                continue;
-            }
-            totalEC2Nodes++;
-
-            Computer computer = node.toComputer();
-            if (computer == null) {
-                continue;
-            }
-
-            // Track node states for debugging
-            if (computer.isOnline()) {
-                onlineNodes++;
-            } else if (computer.isConnecting()) {
-                connectingNodes++;
-            } else if (computer.isOffline()) {
-                offlineNodes++;
-            }
-
-            // Only count nodes that are OFFLINE (not connecting, not online)
-            // These are in the gap between being added to Jenkins and starting to connect
-            if (computer.isOffline() && !computer.isConnecting()) {
-                count += node.getNumExecutors();
-            }
-        }
-
-        LOGGER.log(
-                Level.FINER,
-                "EC2 nodes for label {0}: total={1}, offline={2}, connecting={3}, online={4}",
-                new Object[] {label, totalEC2Nodes, offlineNodes, connectingNodes, onlineNodes});
-
-        return count;
     }
 }
