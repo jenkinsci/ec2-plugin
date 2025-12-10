@@ -86,8 +86,19 @@ public class WindowsProcess {
             return;
         }
 
-        client.signal();
-        client.deleteShell();
+        // Instance may already be terminated, causing WinRM operations to fail
+        try {
+            client.signal();
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, () -> "Failed to signal WinRM shell: " + e.getMessage());
+        }
+
+        try {
+            client.deleteShell();
+        } catch (Exception e) {
+            LOGGER.log(Level.FINE, () -> "Failed to delete WinRM shell: " + e.getMessage());
+        }
+
         terminated = true;
         Closeables.closeQuietly(toCallersStdout);
         Closeables.closeQuietly(toCallersStdin);

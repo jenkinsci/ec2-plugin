@@ -61,10 +61,15 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
 
             logger.println("Creating tmp directory if it does not exist");
             WindowsProcess mkdirProcess = connection.execute("if not exist " + tmpDir + " mkdir " + tmpDir);
-            int exitCode = mkdirProcess.waitFor();
-            if (exitCode != 0) {
-                logger.println("Creating tmpdir failed=" + exitCode);
-                return;
+            try {
+                int exitCode = mkdirProcess.waitFor();
+                if (exitCode != 0) {
+                    logger.println("Creating tmpdir failed=" + exitCode);
+                    return;
+                }
+            } catch (Exception e) {
+                mkdirProcess.destroy();
+                throw e;
             }
 
             if (initScript != null && !initScript.trim().isEmpty() && !connection.exists(tmpDir + ".jenkins-init")) {
@@ -74,12 +79,17 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                 }
 
                 WindowsProcess initProcess = connection.execute("cmd /c " + tmpDir + "init.bat");
-                IOUtils.copy(initProcess.getStdout(), logger);
+                try {
+                    IOUtils.copy(initProcess.getStdout(), logger);
 
-                int exitStatus = initProcess.waitFor();
-                if (exitStatus != 0) {
-                    logger.println("init script failed: exit code=" + exitStatus);
-                    return;
+                    int exitStatus = initProcess.waitFor();
+                    if (exitStatus != 0) {
+                        logger.println("init script failed: exit code=" + exitStatus);
+                        return;
+                    }
+                } catch (Exception e) {
+                    initProcess.destroy();
+                    throw e;
                 }
 
                 try (OutputStream initGuard = connection.putFile(tmpDir + ".jenkins-init")) {
@@ -102,13 +112,18 @@ public class EC2WindowsLauncher extends EC2ComputerLauncher {
                     + AGENT_JAR + " -workDir " + workDir;
             logger.println("Launching via WinRM:" + launchString);
             final WindowsProcess process = connection.execute(launchString, 86400);
-            computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
-                @Override
-                public void onClosed(Channel channel, IOException cause) {
-                    process.destroy();
-                    connection.close();
-                }
-            });
+            try {
+                computer.setChannel(process.getStdout(), process.getStdin(), logger, new Listener() {
+                    @Override
+                    public void onClosed(Channel channel, IOException cause) {
+                        process.destroy();
+                        connection.close();
+                    }
+                });
+            } catch (Exception e) {
+                process.destroy();
+                throw e;
+            }
         } catch (EOFException eof) {
             // When we launch java with connection.execute(launchString... it keeps running, but if java is not
             // installed
