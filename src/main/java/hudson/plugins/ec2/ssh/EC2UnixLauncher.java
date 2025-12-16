@@ -205,20 +205,43 @@ public class EC2UnixLauncher extends EC2SSHLauncher {
                         }
                     }
 
-                    executeRemote(
-                            computer,
-                            clientSession,
-                            javaPath + " -fullversion",
-                            "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
-                            logger,
-                            listener);
-                    executeRemote(
-                            computer,
-                            clientSession,
-                            "which scp",
-                            "sudo yum install -y openssh-clients",
-                            logger,
-                            listener);
+                    if (executeRemote(clientSession, "which yum", logger)) {
+                        logInfo(computer, listener, "Using yum as package manager...");
+
+                        executeRemote(
+                                computer,
+                                clientSession,
+                                javaPath + " -fullversion",
+                                "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
+                                logger,
+                                listener);
+                        executeRemote(
+                                computer,
+                                clientSession,
+                                "which scp",
+                                "sudo yum install -y openssh-clients",
+                                logger,
+                                listener);
+
+                    }
+
+                    if (executeRemote(clientSession, "which apt", logger)) {
+                        logInfo(computer, listener, "Using apt as package manager...");
+                        executeRemote(
+                                computer,
+                                clientSession,
+                                javaPath + " -fullversion",
+                                "apt install -y --no-install-recommends fontconfig openjdk-11-jdk-headless",
+                                logger,
+                                listener);
+                        executeRemote(
+                                computer,
+                                clientSession,
+                                "which scp",
+                                "sudo apt install -y openssh-client",
+                                logger,
+                                listener);
+                    }
 
                     // Always copy so we get the most recent remoting.jar
                     logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
