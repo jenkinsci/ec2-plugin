@@ -209,7 +209,10 @@ public class EC2UnixLauncher extends EC2SSHLauncher {
                             computer,
                             clientSession,
                             javaPath + " -fullversion",
-                            "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
+                            "(command -v amazon-linux-extras >/dev/null 2>&1 && " +
+                            "sudo amazon-linux-extras install java-openjdk11 -y && " +
+                            "sudo yum install -y fontconfig java-11-openjdk) || " +
+                            "sudo dnf install -y java-11-amazon-corretto-devel fontconfig",
                             logger,
                             listener);
                     executeRemote(
