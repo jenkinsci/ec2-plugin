@@ -12,6 +12,7 @@
           slaveCommandSuffix: "-fakeFlag"
           sshPort: "22"
       associateIPStrategy: DEFAULT
+      collectInitScriptLogs: false
       connectBySSHProcess: false
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false

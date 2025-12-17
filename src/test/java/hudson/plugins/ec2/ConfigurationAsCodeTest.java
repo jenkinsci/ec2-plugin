@@ -415,4 +415,37 @@ class ConfigurationAsCodeTest {
         String expected = Util.toStringFromYamlFile(this, "WindowsSSHDataExport-withAltEndpointAndJavaPath.yml");
         assertEquals(expected, exported);
     }
+
+    @Test
+    @ConfiguredWithCode("UnixDataWithCollectInitScriptLogs.yml")
+    void testUnixDataWithInitLogs(JenkinsConfiguredWithCodeRule j) throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "UnixDataExportWithCollectInitScriptLogs.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("MacDataWithCollectInitScriptLogs.yml")
+    void testMacDataWithInitLogs(JenkinsConfiguredWithCodeRule j) throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "MacDataExportWithCollectInitScriptLogs.yml");
+        assertEquals(expected, exported);
+    }
+
+    @Test
+    @ConfiguredWithCode("WindowsSSHDataWithCollectInitScriptLogs.yml")
+    void testWindowsDataWithInitLogs(JenkinsConfiguredWithCodeRule j) throws Exception {
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+        ConfigurationContext context = new ConfigurationContext(registry);
+        CNode clouds = Util.getJenkinsRoot(context).get("clouds");
+        String exported = Util.toYamlString(clouds);
+        String expected = Util.toStringFromYamlFile(this, "WindowsSSHDataExportWithCollectInitScriptLogs.yml");
+        assertEquals(expected, exported);
+    }
 }

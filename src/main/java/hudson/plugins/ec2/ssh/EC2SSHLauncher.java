@@ -155,6 +155,81 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         computer.setChannel(invertedOut, invertedIn, logger, channelListener);
     }
 
+    protected boolean executeRemote(ClientSession session, String command, OutputStream logger) {
+        return executeRemote(session, command, logger, false, null);
+    }
+
+    // Add overloaded method with collectOutput parameter
+    protected boolean executeRemote(
+            ClientSession session, String command, OutputStream logger, boolean collectOutput, TaskListener listener) {
+        try {
+            if (collectOutput && listener != null) {
+                // Execute with output capture
+                ChannelExec channelExec = session.createExecChannel(command);
+                java.io.ByteArrayOutputStream stdout = new java.io.ByteArrayOutputStream();
+                java.io.ByteArrayOutputStream stderr = new java.io.ByteArrayOutputStream();
+
+                // Send to both the original logger and our capture streams
+                java.io.OutputStream combinedOut = new java.io.OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
+                        logger.write(b);
+                        stdout.write(b);
+                    }
+
+                    @Override
+                    public void write(byte[] b, int off, int len) throws IOException {
+                        logger.write(b, off, len);
+                        stdout.write(b, off, len);
+                    }
+                };
+
+                java.io.OutputStream combinedErr = new java.io.OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
+                        logger.write(b);
+                        stderr.write(b);
+                    }
+
+                    @Override
+                    public void write(byte[] b, int off, int len) throws IOException {
+                        logger.write(b, off, len);
+                        stderr.write(b, off, len);
+                    }
+                };
+
+                channelExec.setOut(combinedOut);
+                channelExec.setErr(combinedErr);
+                channelExec.open();
+                channelExec.waitFor(java.util.EnumSet.of(org.apache.sshd.client.channel.ClientChannelEvent.CLOSED), 0);
+
+                // Log the captured output to Logger
+                String stdoutStr = stdout.toString(java.nio.charset.StandardCharsets.UTF_8);
+                String stderrStr = stderr.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+                if (!stdoutStr.trim().isEmpty()) {
+                    // Replace all line breaks with "||" so that it appears as a single line in the logs
+                    LOGGER.info("Init script STDOUT for command '" + command + "': "
+                            + stdoutStr.replaceAll("\\r\\n|\\r|\\n", "||"));
+                }
+                if (!stderrStr.trim().isEmpty()) {
+                    // Replace all line breaks with "||" so that it appears as a single line in the logs
+                    LOGGER.warning("Init script STDERR for command '" + command + "': "
+                            + stderrStr.replaceAll("\\r\\n|\\r|\\n", "||"));
+                }
+
+                return channelExec.getExitStatus() == 0;
+            } else {
+                // Use existing implementation
+                session.executeRemoteCommand(command, logger, logger, null);
+                return true;
+            }
+        } catch (IOException e) {
+            LOGGER.log(Level.FINE, "Failed to execute remote command: " + command, e);
+            return false;
+        }
+    }
+
     protected boolean executeRemote(
             EC2Computer computer,
             ClientSession clientSession,
@@ -162,25 +237,26 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             String command,
             PrintStream logger,
             TaskListener listener) {
+        return executeRemote(computer, clientSession, checkCommand, command, logger, listener, false);
+    }
+
+    protected boolean executeRemote(
+            EC2Computer computer,
+            ClientSession clientSession,
+            String checkCommand,
+            String command,
+            PrintStream logger,
+            TaskListener listener,
+            boolean collectOutput) {
         logInfo(computer, listener, "Verifying: " + checkCommand);
-        if (!executeRemote(clientSession, checkCommand, logger)) {
+        if (!executeRemote(clientSession, checkCommand, logger, collectOutput, listener)) {
             logInfo(computer, listener, "Installing: " + command);
-            if (!executeRemote(clientSession, command, logger)) {
+            if (!executeRemote(clientSession, command, logger, collectOutput, listener)) {
                 logWarning(computer, listener, "Failed to install: " + command);
                 return false;
             }
         }
         return true;
-    }
-
-    protected boolean executeRemote(ClientSession session, String command, OutputStream logger) {
-        try {
-            session.executeRemoteCommand(command, logger, logger, null);
-            return true;
-        } catch (IOException e) {
-            LOGGER.log(Level.FINE, "Failed to execute remote command: " + command, e);
-            return false;
-        }
     }
 
     protected File createIdentityKeyFile(EC2Computer computer) throws IOException {
