@@ -35,6 +35,7 @@ import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.InstanceState;
+import java.security.PublicKey;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -64,6 +65,19 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
      * @since 1.12
      */
     public abstract boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws Exception;
+
+    /**
+     * Check if the given key is valid for the host identifier.
+     * @param computer the computer this connection is being initiated for
+     * @param serverKey the {@link PublicKey} that was transmitted by the remote host for the current connection. This
+     *                  is the key that should be checked to see if we trust it by the current verifier.
+     * @param listener the connection listener to write any output log to
+     * @return whether the provided {@link PublicKey}  is trusted and the current connection can therefore continue.
+     * @since TODO
+     */
+    public boolean verify(EC2Computer computer, PublicKey serverKey, TaskListener listener) throws Exception {
+        return verify(computer, HostKeyHelper.getInstance().getHostKey(serverKey), listener);
+    }
 
     public abstract static class SshHostKeyVerificationStrategyDescriptor
             extends Descriptor<SshHostKeyVerificationStrategy> {}

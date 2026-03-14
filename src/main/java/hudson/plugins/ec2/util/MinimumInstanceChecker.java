@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import jenkins.model.Jenkins;
@@ -74,8 +75,30 @@ public class MinimumInstanceChecker {
                 .count();
     }
 
-    public static void checkForMinimumInstances() {
-        Jenkins.get().clouds.stream()
+    /**
+     * Checks all EC2 cloud templates and provisions agents to meet minimum instance requirements.
+     * Synchronized to prevent concurrent provisioning decisions that could lead to over-provisioning
+     * when multiple agents accept tasks simultaneously.
+     *
+     * @see <a href="https://issues.jenkins.io/browse/JENKINS-76171">JENKINS-76171</a>
+     */
+    public static synchronized void checkForMinimumInstances() {
+        Jenkins jenkins = Jenkins.get();
+
+        // Early exit if no templates have minimum instance requirements
+        boolean hasMinimumRequirements = jenkins.clouds.stream()
+                .filter(EC2Cloud.class::isInstance)
+                .map(EC2Cloud.class::cast)
+                .flatMap(cloud -> cloud.getTemplates().stream())
+                .anyMatch(template ->
+                        template.getMinimumNumberOfInstances() > 0 || template.getMinimumNumberOfSpareInstances() > 0);
+
+        if (!hasMinimumRequirements) {
+            // No templates require minimum instances - exit immediately
+            return;
+        }
+
+        jenkins.clouds.stream()
                 .filter(EC2Cloud.class::isInstance)
                 .map(EC2Cloud.class::cast)
                 .forEach(cloud -> cloud.getTemplates().forEach(agentTemplate -> {
@@ -104,15 +127,25 @@ public class MinimumInstanceChecker {
                     // Check if we need to provision any agents because we
                     // don't have the minimum number of spare agents.
                     // Don't double provision if minAgents and minSpareAgents are set.
-                    provisionForMinSpareAgents = (requiredMinSpareAgents + currentBuildsWaitingForTemplate)
-                            - (currentNumberOfSpareAgentsForTemplate
-                                    + provisionForMinAgents
-                                    + currentNumberOfProvisioningAgentsForTemplate);
-                    if (provisionForMinSpareAgents < 0) {
-                        provisionForMinSpareAgents = 0;
+                    if (requiredMinSpareAgents > 0) {
+                        provisionForMinSpareAgents = (requiredMinSpareAgents + currentBuildsWaitingForTemplate)
+                                - (currentNumberOfSpareAgentsForTemplate
+                                        + provisionForMinAgents
+                                        + currentNumberOfProvisioningAgentsForTemplate);
+                        if (provisionForMinSpareAgents < 0) {
+                            provisionForMinSpareAgents = 0;
+                        }
                     }
 
                     int numberToProvision = provisionForMinAgents + provisionForMinSpareAgents;
+
+                    if (numberToProvision > 0 || requiredMinAgents > 0 || requiredMinSpareAgents > 0) {
+                        LOGGER.log(
+                                Level.FINE,
+                                "MinimumInstanceChecker for template {0}: toProvision={1}",
+                                new Object[] {agentTemplate.description, numberToProvision});
+                    }
+
                     if (numberToProvision > 0) {
                         cloud.provision(agentTemplate, numberToProvision);
                     }

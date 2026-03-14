@@ -27,12 +27,14 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         final Label label = strategyState.getLabel();
 
         LoadStatistics.LoadStatisticsSnapshot snapshot = strategyState.getSnapshot();
-        int availableCapacity = snapshot.getAvailableExecutors() // live executors
+
+        int availableCapacity = snapshot.getAvailableExecutors() // live executors (idle)
                 + snapshot.getConnectingExecutors() // executors present but not yet connected
                 + strategyState
                         .getPlannedCapacitySnapshot() // capacity added by previous strategies from previous rounds
                 + strategyState.getAdditionalPlannedCapacity(); // capacity added by previous strategies _this round_
         int currentDemand = snapshot.getQueueLength();
+
         LOGGER.log(
                 Level.FINE, "Available capacity={0}, currentDemand={1}", new Object[] {availableCapacity, currentDemand
                 });
@@ -49,8 +51,12 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
                     continue;
                 }
 
+                int numToProvision = currentDemand - availableCapacity;
+                LOGGER.log(Level.FINE, "Planned {0} new nodes", numToProvision);
+
                 Collection<NodeProvisioner.PlannedNode> plannedNodes =
-                        cloud.provision(new Cloud.CloudState(label, 0), currentDemand - availableCapacity);
+                        cloud.provision(new Cloud.CloudState(label, 0), numToProvision);
+
                 LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
                 strategyState.recordPendingLaunches(plannedNodes);
                 availableCapacity += plannedNodes.size();

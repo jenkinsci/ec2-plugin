@@ -18,9 +18,12 @@ public class MockEC2Computer extends EC2Computer {
 
     private final EC2AbstractSlave slave;
 
+    private final SlaveTemplate slaveTemplate;
+
     public MockEC2Computer(EC2AbstractSlave slave) {
         super(slave);
         this.slave = slave;
+        this.slaveTemplate = createSlaveTemplate();
     }
 
     // Create a computer
@@ -70,23 +73,8 @@ public class MockEC2Computer extends EC2Computer {
         return new MockEC2Computer(slave);
     }
 
-    @Override
-    public String getDecodedConsoleOutput() throws SdkException {
-        return getConsole();
-    }
-
-    @Override
-    public InstanceState getState() {
-        return state;
-    }
-
-    @Override
-    public EC2AbstractSlave getNode() {
-        return slave;
-    }
-
-    @Override
-    public SlaveTemplate getSlaveTemplate() {
+    // Create a SlaveTemplate
+    public static SlaveTemplate createSlaveTemplate() {
         return new SlaveTemplate(
                 "ami-123",
                 EC2AbstractSlave.TEST_ZONE,
@@ -133,6 +121,26 @@ public class MockEC2Computer extends EC2Computer {
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
                 EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+    }
+
+    @Override
+    public String getDecodedConsoleOutput() throws SdkException {
+        return getConsole();
+    }
+
+    @Override
+    public InstanceState getState() {
+        return state;
+    }
+
+    @Override
+    public EC2AbstractSlave getNode() {
+        return slave;
+    }
+
+    @Override
+    public SlaveTemplate getSlaveTemplate() {
+        return slaveTemplate;
     }
 
     public void setState(InstanceState state) {

@@ -8,6 +8,6 @@ jenkins:
         privateKey: "${PRIVATE_KEY}"
         templates:
           - description:
-            connectUsingPublicIp: false
-            usePrivateDnsName: true
-
+            associatePublicIp: true
+            spotConfig:
+              useBidPrice: true

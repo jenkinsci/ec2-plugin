@@ -133,6 +133,58 @@ class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("BackwardsCompatibleAssignIPStrategyUsePublicIp.yml")
+    void testBackwardsCompatibleAssociateIPStrategy(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertNull(slaveTemplate.spotConfig);
+        assertEquals(AssociateIPStrategy.PUBLIC_IP, slaveTemplate.associateIPStrategy);
+    }
+
+    @Test
+    @ConfiguredWithCode("BackwardsCompatibleAssignIPStrategyUsePublicIpSpot.yml")
+    void testBackwardsCompatibleAssociateIPStrategySpot(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertNotNull(slaveTemplate.spotConfig);
+        assertEquals(AssociateIPStrategy.PUBLIC_IP, slaveTemplate.associateIPStrategy);
+    }
+
+    @Test
+    @ConfiguredWithCode("BackwardsCompatibleAssignIPStrategyUsePublicIpFalse.yml")
+    void testBackwardsCompatibleAssociateIPStrategyFalse(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertNull(slaveTemplate.spotConfig);
+        assertEquals(AssociateIPStrategy.DEFAULT, slaveTemplate.associateIPStrategy);
+    }
+
+    @Test
+    @ConfiguredWithCode("BackwardsCompatibleAssignIPStrategyUsePublicIpFalseSpot.yml")
+    void testBackwardsCompatibleAssociateIPStrategyFalseSpot(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("us-east-1");
+        assertNotNull(ec2Cloud);
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(1, templates.size());
+        final SlaveTemplate slaveTemplate = templates.get(0);
+        assertNotNull(slaveTemplate.spotConfig);
+        assertEquals(AssociateIPStrategy.DEFAULT, slaveTemplate.associateIPStrategy);
+    }
+
+    @Test
     @ConfiguredWithCode("UnixData.yml")
     void testConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
@@ -306,7 +358,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData.yml")
-    public void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
+    void testWindowsSSHData(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("production");
         assertNotNull(ec2Cloud);
         assertTrue(ec2Cloud.isUseInstanceProfileForCredentials());
@@ -344,7 +396,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData.yml")
-    public void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
+    void testWindowsSSHConfigAsCodeExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
@@ -355,8 +407,7 @@ class ConfigurationAsCodeTest {
 
     @Test
     @ConfiguredWithCode("WindowsSSHData-withAltEndpointAndJavaPath.yml")
-    public void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j)
-            throws Exception {
+    void testWindowsSSHConfigAsCodeWithAltEndpointAndJavaPathExport(JenkinsConfiguredWithCodeRule j) throws Exception {
         ConfiguratorRegistry registry = ConfiguratorRegistry.get();
         ConfigurationContext context = new ConfigurationContext(registry);
         CNode clouds = Util.getJenkinsRoot(context).get("clouds");
