@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -30,6 +32,25 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 public class MinimumInstanceChecker {
 
     private static final Logger LOGGER = Logger.getLogger(MinimumInstanceChecker.class.getName());
+
+    /**
+     * Executor for deferred minimum-instance checks. Heavy provisioning (EC2 API, cloud.provision)
+     * runs here so callers (taskAccepted, EC2SlaveMonitor) return immediately.
+     */
+    private static final ExecutorService EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "MinimumInstanceChecker");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /**
+     * Schedules a minimum-instance check to run asynchronously. Use this instead of
+     * {@link #checkForMinimumInstances()} when the caller must return immediately (e.g. taskAccepted).
+     */
+    public static void scheduleCheck() {
+        EXECUTOR.execute(MinimumInstanceChecker::checkForMinimumInstances);
+    }
 
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Needs to be overridden from tests")
     public static Clock clock = Clock.systemDefaultZone();

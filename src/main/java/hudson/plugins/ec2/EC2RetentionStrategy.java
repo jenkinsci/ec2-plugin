@@ -34,6 +34,8 @@ import hudson.slaves.RetentionStrategy;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -50,9 +52,20 @@ import software.amazon.awssdk.core.exception.SdkException;
 public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> implements ExecutorListener {
     private static final Logger LOGGER = Logger.getLogger(EC2RetentionStrategy.class.getName());
 
+    /**
+     * Executor for heavy retention work (EC2 API calls, idle timeout, reconnect).
+     * Runs outside the Queue lock so the Queue can complete its periodic routine in under a second.
+     */
+    private static final ExecutorService HEAVY_WORK_EXECUTOR =
+            Executors.newCachedThreadPool(r -> {
+                Thread t = new Thread(r, "EC2RetentionStrategy-heavy");
+                t.setDaemon(true);
+                return t;
+            });
+
     public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
 
-    private long nextCheckAfter = -1;
+    private volatile long nextCheckAfter = -1;
     private transient Clock clock;
 
     /**
@@ -94,25 +107,44 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
         return this.nextCheckAfter;
     }
 
+    /**
+     * Lightweight path: returns immediately so the Queue lock is not held during EC2 API calls.
+     * Heavy work (getState, getUptime, idle timeout, reconnect) is scheduled to run asynchronously
+     * outside the Queue lock. See docs/EC2_QUEUE_AUDIT.md.
+     */
     @Override
     public long check(EC2Computer c) {
         if (!checkLock.tryLock()) {
             return CHECK_INTERVAL_MINUTES;
-        } else {
-            try {
-                long currentTime = this.clock.millis();
-
-                if (currentTime > nextCheckAfter) {
-                    attemptReconnectIfOffline(c);
-                    long intervalMins = internalCheck(c);
-                    nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(intervalMins);
-                    return intervalMins;
-                } else {
-                    return CHECK_INTERVAL_MINUTES;
-                }
-            } finally {
-                checkLock.unlock();
+        }
+        try {
+            long currentTime = this.clock.millis();
+            if (currentTime <= nextCheckAfter) {
+                return CHECK_INTERVAL_MINUTES;
             }
+            // Schedule heavy work to run outside the Queue lock; return immediately.
+            nextCheckAfter = currentTime + TimeUnit.MINUTES.toMillis(CHECK_INTERVAL_MINUTES);
+            final EC2Computer computer = c;
+            HEAVY_WORK_EXECUTOR.execute(() -> runHeavyCheck(computer));
+            return CHECK_INTERVAL_MINUTES;
+        } finally {
+            checkLock.unlock();
+        }
+    }
+
+    /**
+     * Runs outside the Queue lock. Performs EC2 API calls and retention logic.
+     * State-changing operations (disconnect, terminate) use Queue.withLock for brief sections.
+     */
+    private void runHeavyCheck(EC2Computer computer) {
+        if (!checkLock.tryLock()) {
+            return;
+        }
+        try {
+            attemptReconnectIfOffline(computer);
+            internalCheck(computer);
+        } finally {
+            checkLock.unlock();
         }
     }
 
@@ -166,7 +198,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 if (computer.isOnline()) {
                     LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status"
                             + state);
-                    computer.disconnect(null);
+                    try {
+                        Queue.withLock(() -> computer.disconnect(null));
+                    } catch (Exception e) {
+                        LOGGER.log(Level.FINE, "Error disconnecting " + computer.getName(), e);
+                    }
                 }
                 return CHECK_INTERVAL_MINUTES;
             }
@@ -193,7 +229,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                         LOGGER.info("Startup timeout of " + computer.getName() + " after "
                                 + uptime + " milliseconds (timeout: "
                                 + launchTimeout + " milliseconds), instance status: " + state.toString());
-                        node.launchTimeout();
+                        try {
+                            Queue.withLock(node::launchTimeout);
+                        } catch (Exception e) {
+                            LOGGER.log(Level.FINE, "Error launching timeout for " + computer.getName(), e);
+                        }
                     }
                     return CHECK_INTERVAL_MINUTES;
                 } else {
@@ -211,15 +251,26 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 // TODO: really think about the right strategy here, see
                 // JENKINS-23792
 
+                boolean queueHasItemsForSlave;
+                try {
+                    queueHasItemsForSlave = Queue.withLock(() -> itemsInQueueForThisSlave(computer));
+                } catch (Exception e) {
+                    LOGGER.log(Level.FINE, "Error checking queue for " + computer.getName(), e);
+                    queueHasItemsForSlave = true; // safe default: do not terminate
+                }
                 if (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleTerminationMinutes)
-                        && !itemsInQueueForThisSlave(computer)) {
+                        && !queueHasItemsForSlave) {
 
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, instance status"
                             + state.toString());
                     EC2AbstractSlave slaveNode = computer.getNode();
                     if (slaveNode != null) {
-                        slaveNode.idleTimeout();
+                        try {
+                            Queue.withLock(slaveNode::idleTimeout);
+                        } catch (Exception e) {
+                            LOGGER.log(Level.FINE, "Error idle timeout for " + computer.getName(), e);
+                        }
                     }
                 }
             } else {
@@ -233,15 +284,26 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 // if we have less "free" (aka already paid for) time left than
                 // our idle time, stop/terminate the instance
                 // See JENKINS-23821
+                boolean queueHasItemsForSlaveBilling;
+                try {
+                    queueHasItemsForSlaveBilling = Queue.withLock(() -> itemsInQueueForThisSlave(computer));
+                } catch (Exception e) {
+                    LOGGER.log(Level.FINE, "Error checking queue for " + computer.getName(), e);
+                    queueHasItemsForSlaveBilling = true;
+                }
                 if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes))
-                        && !itemsInQueueForThisSlave(computer)) {
+                        && !queueHasItemsForSlaveBilling) {
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
                             + TimeUnit.SECONDS.toMinutes(freeSecondsLeft)
                             + " minutes remaining in billing period");
                     EC2AbstractSlave slaveNode = computer.getNode();
                     if (slaveNode != null) {
-                        slaveNode.idleTimeout();
+                        try {
+                            Queue.withLock(slaveNode::idleTimeout);
+                        } catch (Exception e) {
+                            LOGGER.log(Level.FINE, "Error idle timeout for " + computer.getName(), e);
+                        }
                     }
                 }
             }
@@ -261,7 +323,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 if (!computer.isConnecting()) {
                     // Keep retrying connection to agent until the job times out
                     LOGGER.warning("Attempting to reconnect EC2Computer " + computer.getName());
-                    computer.connect(false);
+                    try {
+                        computer.connect(false);
+                    } catch (Exception e) {
+                        LOGGER.log(Level.FINE, "Error reconnecting " + computer.getName(), e);
+                    }
                 }
             }
         } catch (SdkException | InterruptedException e) {
@@ -299,31 +365,33 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     }
 
     /**
-     * Called when a new {@link EC2Computer} object is introduced (such as when Hudson started, or when
-     * a new agent is added.)
-     * <p>
-     * When Jenkins has just started, we don't want to spin up all the instances, so we only start if
-     * the EC2 instance is already running
+     * Lightweight path: returns immediately. Heavy work (getState, connect) runs asynchronously
+     * so the caller is not blocked by EC2 API calls.
      */
     @Override
     public void start(EC2Computer c) {
-        // Jenkins is in the process of starting up
-        if (Jenkins.get().getInitLevel() != InitMilestone.COMPLETED) {
-            InstanceState state = null;
+        final EC2Computer computer = c;
+        HEAVY_WORK_EXECUTOR.execute(() -> {
+            if (Jenkins.get().getInitLevel() != InitMilestone.COMPLETED) {
+                InstanceState state = null;
+                try {
+                    state = computer.getState();
+                } catch (SdkException | InterruptedException e) {
+                    LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + computer.getName(), e);
+                }
+                if (!(InstanceState.PENDING.equals(state) || InstanceState.RUNNING.equals(state))) {
+                    LOGGER.info("Ignoring start request for " + computer.getName()
+                            + " during Jenkins startup due to EC2 instance state of " + state);
+                    return;
+                }
+            }
+            LOGGER.info("Start requested for " + computer.getName());
             try {
-                state = c.getState();
-            } catch (SdkException | InterruptedException e) {
-                LOGGER.log(Level.FINE, "Error getting EC2 instance state for " + c.getName(), e);
+                computer.connect(false);
+            } catch (Exception e) {
+                LOGGER.log(Level.FINE, "Error connecting " + computer.getName(), e);
             }
-            if (!(InstanceState.PENDING.equals(state) || InstanceState.RUNNING.equals(state))) {
-                LOGGER.info("Ignoring start request for " + c.getName()
-                        + " during Jenkins startup due to EC2 instance state of " + state);
-                return;
-            }
-        }
-
-        LOGGER.info("Start requested for " + c.getName());
-        c.connect(false);
+        });
     }
 
     // no registration since this retention strategy is used only for EC2 nodes
@@ -355,7 +423,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 } else if (maxTotalUses <= 1) {
                     LOGGER.info("maxTotalUses drained - suspending agent " + slaveNode.instanceId);
                     computer.setAcceptingTasks(false);
-                    MinimumInstanceChecker.checkForMinimumInstances();
+                    MinimumInstanceChecker.scheduleCheck();
                 } else {
                     slaveNode.maxTotalUses = slaveNode.maxTotalUses - 1;
                     LOGGER.info("Agent " + slaveNode.instanceId + " has " + slaveNode.maxTotalUses + " builds left");
