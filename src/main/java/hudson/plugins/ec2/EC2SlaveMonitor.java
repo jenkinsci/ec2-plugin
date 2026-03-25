@@ -78,7 +78,8 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                         if (inst == null) {
                             LOGGER.info("EC2 instance not found (likely terminated): " + ec2Slave.getInstanceId());
                             ec2Slave.terminate();
-                        } else if (InstanceStateName.TERMINATED.equals(inst.state().name())) {
+                        } else if (InstanceStateName.TERMINATED.equals(
+                                inst.state().name())) {
                             LOGGER.info("EC2 instance is dead: " + ec2Slave.getInstanceId());
                             ec2Slave.terminate();
                         } else {
@@ -97,7 +98,11 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
                     }
                 }
             } catch (SdkException e) {
-                LOGGER.log(Level.WARNING, "Batch describeInstances failed for cloud " + cloud.getName() + ", falling back to per-node check", e);
+                LOGGER.log(
+                        Level.WARNING,
+                        "Batch describeInstances failed for cloud " + cloud.getName()
+                                + ", falling back to per-node check",
+                        e);
                 for (EC2AbstractSlave ec2Slave : slaves) {
                     try {
                         if (!ec2Slave.isAlive(true)) {

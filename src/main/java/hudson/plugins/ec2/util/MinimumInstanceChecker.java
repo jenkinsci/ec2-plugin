@@ -37,12 +37,11 @@ public class MinimumInstanceChecker {
      * Executor for deferred minimum-instance checks. Heavy provisioning (EC2 API, cloud.provision)
      * runs here so callers (taskAccepted, EC2SlaveMonitor) return immediately.
      */
-    private static final ExecutorService EXECUTOR =
-            Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, "MinimumInstanceChecker");
-                t.setDaemon(true);
-                return t;
-            });
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "MinimumInstanceChecker");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * Schedules a minimum-instance check to run asynchronously. Use this instead of

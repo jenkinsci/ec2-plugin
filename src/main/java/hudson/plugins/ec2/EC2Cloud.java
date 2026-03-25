@@ -171,30 +171,32 @@ public class EC2Cloud extends Cloud {
     private transient ReentrantLock slaveCountingLock = new ReentrantLock();
 
     /** TTL for instance count cache (ms). Avoids repeated EC2 API calls during provisioning. */
-    private static final long INSTANCE_COUNT_CACHE_TTL_MS =
-            Long.getLong("jenkins.ec2.instanceCountCacheTtlMs", 30_000);
+    private static final long INSTANCE_COUNT_CACHE_TTL_MS = Long.getLong("jenkins.ec2.instanceCountCacheTtlMs", 30_000);
 
     private volatile long instanceCountCacheTimestamp;
     private volatile int cachedTotalSlaves = -1;
     private final ConcurrentHashMap<String, Integer> cachedTemplateSlaves = new ConcurrentHashMap<>();
 
-    private static final ExecutorService PROVISIONING_EXECUTOR =
-            Executors.newCachedThreadPool(r -> {
-                Thread t = new Thread(r, "EC2Cloud-provisioning");
-                t.setDaemon(true);
-                return t;
-            });
+    private static final ExecutorService PROVISIONING_EXECUTOR = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "EC2Cloud-provisioning");
+        t.setDaemon(true);
+        return t;
+    });
 
     private static final long SCHEDULE_MAINTENANCE_DELAY_MS =
             Long.getLong("jenkins.ec2.scheduleMaintenanceDelayMs", 1000);
 
     static void scheduleQueueMaintenance() {
-        Timer.get().schedule(() -> {
-            Jenkins j = Jenkins.getInstanceOrNull();
-            if (j != null) {
-                j.getQueue().scheduleMaintenance();
-            }
-        }, SCHEDULE_MAINTENANCE_DELAY_MS, TimeUnit.MILLISECONDS);
+        Timer.get()
+                .schedule(
+                        () -> {
+                            Jenkins j = Jenkins.getInstanceOrNull();
+                            if (j != null) {
+                                j.getQueue().scheduleMaintenance();
+                            }
+                        },
+                        SCHEDULE_MAINTENANCE_DELAY_MS,
+                        TimeUnit.MILLISECONDS);
     }
 
     private final boolean useInstanceProfileForCredentials;
@@ -1103,26 +1105,29 @@ public class EC2Cloud extends Cloud {
             final int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
 
             // Defer runInstances to background; return PlannedNodes immediately for fast NodeProvisioner response
-            CompletableFuture<List<EC2AbstractSlave>> provisionFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return getNewOrExistingAvailableSlave(t, number, false);
-                } catch (AwsServiceException e) {
-                    LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-                    if ("RequestExpired".equals(e.awsErrorDetails().errorCode())
-                            || "ExpiredToken".equals(e.awsErrorDetails().errorCode())) {
-                        LOGGER.log(Level.INFO, "Reconnecting to EC2 due to RequestExpired or ExpiredToken error");
+            CompletableFuture<List<EC2AbstractSlave>> provisionFuture = CompletableFuture.supplyAsync(
+                    () -> {
                         try {
-                            reconnectToEc2();
-                        } catch (IOException e2) {
-                            LOGGER.log(Level.WARNING, "Failed to reconnect ec2", e2);
+                            return getNewOrExistingAvailableSlave(t, number, false);
+                        } catch (AwsServiceException e) {
+                            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+                            if ("RequestExpired".equals(e.awsErrorDetails().errorCode())
+                                    || "ExpiredToken".equals(e.awsErrorDetails().errorCode())) {
+                                LOGGER.log(
+                                        Level.INFO, "Reconnecting to EC2 due to RequestExpired or ExpiredToken error");
+                                try {
+                                    reconnectToEc2();
+                                } catch (IOException e2) {
+                                    LOGGER.log(Level.WARNING, "Failed to reconnect ec2", e2);
+                                }
+                            }
+                            return null;
+                        } catch (SdkException | IOException e) {
+                            LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
+                            return null;
                         }
-                    }
-                    return null;
-                } catch (SdkException | IOException e) {
-                    LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
-                    return null;
-                }
-            }, PROVISIONING_EXECUTOR);
+                    },
+                    PROVISIONING_EXECUTOR);
 
             provisionFuture.whenComplete((slaves, ex) -> {
                 if (slaves != null && !slaves.isEmpty()) {
@@ -1134,19 +1139,21 @@ public class EC2Cloud extends Cloud {
             for (int i = 0; i < number; i++) {
                 final int index = i;
                 CompletableFuture<Node> nodeFuture = provisionFuture
-                        .thenApplyAsync(slaves -> slaves != null && index < slaves.size() ? slaves.get(index) : null,
+                        .thenApplyAsync(
+                                slaves -> slaves != null && index < slaves.size() ? slaves.get(index) : null,
                                 PROVISIONING_EXECUTOR)
-                        .thenComposeAsync(slave -> slave != null
-                                ? waitForRunningAndConnectAsync(t, slave)
-                                : CompletableFuture.completedFuture(null),
+                        .thenComposeAsync(
+                                slave -> slave != null
+                                        ? waitForRunningAndConnectAsync(t, slave)
+                                        : CompletableFuture.completedFuture(null),
                                 Computer.threadPoolForRemoting);
 
                 plannedNodes.add(new PlannedNode(t.getDisplayName(), nodeFuture, t.getNumExecutors()));
             }
 
-            LOGGER.log(Level.INFO, "{0}. Provision scheduled for {1} nodes, returning immediately", new Object[] {
-                t, number
-            });
+            LOGGER.log(
+                    Level.INFO, "{0}. Provision scheduled for {1} nodes, returning immediately", new Object[] {t, number
+                    });
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more", new Object[] {
                 jenkinsInstance.getComputers().length, plannedNodes.size()
             });
@@ -1159,82 +1166,83 @@ public class EC2Cloud extends Cloud {
      * Waits for the instance to reach RUNNING, adds the node to Jenkins, connects, then returns it.
      * Runs on Computer.threadPoolForRemoting to avoid blocking the provisioning executor.
      */
-    private CompletableFuture<Node> waitForRunningAndConnectAsync(
-            final SlaveTemplate t, final EC2AbstractSlave slave) {
-        return CompletableFuture.supplyAsync(() -> {
-            int retryCount = 0;
-            final int describeLimit = 2;
-            while (true) {
-                String instanceId = slave.getInstanceId();
-                if (slave instanceof EC2SpotSlave) {
-                    if (((EC2SpotSlave) slave).isSpotRequestDead()) {
-                        LOGGER.log(
-                                Level.WARNING,
-                                "{0} Spot request died, can't do anything. Terminate provisioning",
-                                t);
-                        return null;
-                    }
-                    if (StringUtils.isEmpty(instanceId)) {
+    private CompletableFuture<Node> waitForRunningAndConnectAsync(final SlaveTemplate t, final EC2AbstractSlave slave) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    int retryCount = 0;
+                    final int describeLimit = 2;
+                    while (true) {
+                        String instanceId = slave.getInstanceId();
+                        if (slave instanceof EC2SpotSlave) {
+                            if (((EC2SpotSlave) slave).isSpotRequestDead()) {
+                                LOGGER.log(
+                                        Level.WARNING,
+                                        "{0} Spot request died, can't do anything. Terminate provisioning",
+                                        t);
+                                return null;
+                            }
+                            if (StringUtils.isEmpty(instanceId)) {
+                                try {
+                                    Thread.sleep(5000);
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    return null;
+                                }
+                                continue;
+                            }
+                        }
+
                         try {
+                            Instance instance = CloudHelper.getInstanceWithRetry(instanceId, slave.getCloud());
+                            if (instance == null) {
+                                LOGGER.log(
+                                        Level.WARNING,
+                                        "{0} Can't find instance with instance id `{1}` in cloud {2}. Terminate provisioning ",
+                                        new Object[] {t, instanceId, slave.cloudName});
+                                return null;
+                            }
+
+                            InstanceStateName state = instance.state().name();
+                            if (state.equals(InstanceStateName.RUNNING)) {
+                                Computer c = slave.toComputer();
+                                if (c != null) {
+                                    c.connect(false);
+                                }
+                                long secondsSinceStart = Instant.now().until(instance.launchTime(), ChronoUnit.SECONDS);
+                                LOGGER.log(
+                                        Level.INFO,
+                                        "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
+                                        new Object[] {t, slave.getNodeName(), secondsSinceStart});
+                                scheduleQueueMaintenance();
+                                return slave;
+                            }
+
+                            if (!state.equals(InstanceStateName.PENDING)) {
+                                if (retryCount >= describeLimit) {
+                                    LOGGER.log(
+                                            Level.WARNING,
+                                            "Instance {0} did not move to running after {1} attempts, terminating provisioning",
+                                            new Object[] {instanceId, retryCount});
+                                    return null;
+                                }
+                                LOGGER.log(
+                                        Level.INFO,
+                                        "Attempt {0}: {1}. Node {2} is neither pending, neither running, it''s {3}. Will try again after 5s",
+                                        new Object[] {retryCount, t, slave.getNodeName(), state});
+                                retryCount++;
+                            }
+
                             Thread.sleep(5000);
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             return null;
-                        }
-                        continue;
-                    }
-                }
-
-                try {
-                    Instance instance = CloudHelper.getInstanceWithRetry(instanceId, slave.getCloud());
-                    if (instance == null) {
-                        LOGGER.log(
-                                Level.WARNING,
-                                "{0} Can't find instance with instance id `{1}` in cloud {2}. Terminate provisioning ",
-                                new Object[] {t, instanceId, slave.cloudName});
-                        return null;
-                    }
-
-                    InstanceStateName state = instance.state().name();
-                    if (state.equals(InstanceStateName.RUNNING)) {
-                        Computer c = slave.toComputer();
-                        if (c != null) {
-                            c.connect(false);
-                        }
-                        long secondsSinceStart = Instant.now().until(instance.launchTime(), ChronoUnit.SECONDS);
-                        LOGGER.log(
-                                Level.INFO,
-                                "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
-                                new Object[] {t, slave.getNodeName(), secondsSinceStart});
-                        scheduleQueueMaintenance();
-                        return slave;
-                    }
-
-                    if (!state.equals(InstanceStateName.PENDING)) {
-                        if (retryCount >= describeLimit) {
-                            LOGGER.log(
-                                    Level.WARNING,
-                                    "Instance {0} did not move to running after {1} attempts, terminating provisioning",
-                                    new Object[] {instanceId, retryCount});
+                        } catch (SdkException e) {
+                            LOGGER.log(Level.WARNING, t + ". Exception waiting for instance", e);
                             return null;
                         }
-                        LOGGER.log(
-                                Level.INFO,
-                                "Attempt {0}: {1}. Node {2} is neither pending, neither running, it''s {3}. Will try again after 5s",
-                                new Object[] {retryCount, t, slave.getNodeName(), state});
-                        retryCount++;
                     }
-
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return null;
-                } catch (SdkException e) {
-                    LOGGER.log(Level.WARNING, t + ". Exception waiting for instance", e);
-                    return null;
-                }
-            }
-        }, Computer.threadPoolForRemoting);
+                },
+                Computer.threadPoolForRemoting);
     }
 
     private static void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t)

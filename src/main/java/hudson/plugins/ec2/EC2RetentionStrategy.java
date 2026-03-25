@@ -57,12 +57,11 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      * Runs outside the Queue lock so the Queue can complete its periodic routine in under a second.
      * Package-private and non-final so tests can replace with a direct (same-thread) executor.
      */
-    static ExecutorService HEAVY_WORK_EXECUTOR =
-            Executors.newCachedThreadPool(r -> {
-                Thread t = new Thread(r, "EC2RetentionStrategy-heavy");
-                t.setDaemon(true);
-                return t;
-            });
+    static ExecutorService HEAVY_WORK_EXECUTOR = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "EC2RetentionStrategy-heavy");
+        t.setDaemon(true);
+        return t;
+    });
 
     public static final boolean DISABLED = Boolean.getBoolean(EC2RetentionStrategy.class.getName() + ".disabled");
 
@@ -259,8 +258,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     LOGGER.log(Level.FINE, "Error checking queue for " + computer.getName(), e);
                     queueHasItemsForSlave = true; // safe default: do not terminate
                 }
-                if (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleTerminationMinutes)
-                        && !queueHasItemsForSlave) {
+                if (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleTerminationMinutes) && !queueHasItemsForSlave) {
 
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, instance status"

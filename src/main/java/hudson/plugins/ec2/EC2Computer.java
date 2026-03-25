@@ -66,8 +66,8 @@ public class EC2Computer extends SlaveComputer {
     private volatile long instanceCacheTimestamp;
 
     /** TTL in ms for instance/state cache. Configurable via system property. */
-    private static final long INSTANCE_CACHE_TTL_MS = Long.getLong(
-            EC2Computer.class.getName() + ".instanceCacheTTLMs", 30_000);
+    private static final long INSTANCE_CACHE_TTL_MS =
+            Long.getLong(EC2Computer.class.getName() + ".instanceCacheTTLMs", 30_000);
 
     private volatile Boolean isNitro;
 
