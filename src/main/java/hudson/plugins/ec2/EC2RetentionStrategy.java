@@ -55,8 +55,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     /**
      * Executor for heavy retention work (EC2 API calls, idle timeout, reconnect).
      * Runs outside the Queue lock so the Queue can complete its periodic routine in under a second.
+     * Package-private and non-final so tests can replace with a direct (same-thread) executor.
      */
-    private static final ExecutorService HEAVY_WORK_EXECUTOR =
+    static ExecutorService HEAVY_WORK_EXECUTOR =
             Executors.newCachedThreadPool(r -> {
                 Thread t = new Thread(r, "EC2RetentionStrategy-heavy");
                 t.setDaemon(true);
