@@ -415,6 +415,11 @@ public class EC2Cloud extends Cloud {
             throw new Exception(
                     String.format("A SlaveTemplate with description %s already exists", newTemplateDescription));
         }
+        if (newTemplate.parent != null) {
+            throw new Exception(
+                    String.format("The new SlaveTemplate with description %s already has a parent", newTemplateDescription));
+        }
+        newTemplate.parent = this;
         List<SlaveTemplate> templatesHolder = new ArrayList<>(templates);
         templatesHolder.add(newTemplate);
         templates = templatesHolder;
