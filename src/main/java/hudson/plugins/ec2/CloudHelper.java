@@ -3,7 +3,9 @@ package hudson.plugins.ec2;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import org.apache.commons.lang.StringUtils;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -76,6 +78,29 @@ final class CloudHelper {
             throw SdkException.builder().message(message).build();
         }
         return instances.get(0);
+    }
+
+    /**
+     * Fetches multiple instances in a single EC2 API call. More efficient than N single-instance calls.
+     * Instance IDs not found (e.g. terminated) are omitted from the result.
+     */
+    static Map<String, Instance> getInstancesBatch(List<String> instanceIds, EC2Cloud cloud) throws SdkException {
+        if (instanceIds == null || instanceIds.isEmpty() || cloud == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, Instance> result = new HashMap<>();
+        final int chunkSize = 100;
+        for (int i = 0; i < instanceIds.size(); i += chunkSize) {
+            List<String> chunk = instanceIds.subList(i, Math.min(i + chunkSize, instanceIds.size()));
+            DescribeInstancesRequest request =
+                    DescribeInstancesRequest.builder().instanceIds(chunk).build();
+            for (Reservation r : cloud.connect().describeInstances(request).reservations()) {
+                for (Instance inst : r.instances()) {
+                    result.put(inst.instanceId(), inst);
+                }
+            }
+        }
+        return result;
     }
 
     @CheckForNull

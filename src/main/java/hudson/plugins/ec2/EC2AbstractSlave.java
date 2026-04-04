@@ -951,6 +951,17 @@ public abstract class EC2AbstractSlave extends Slave {
             return;
         }
 
+        updateFromFetchedInstance(i);
+    }
+
+    /**
+     * Updates instance data from a pre-fetched Instance. Used by batch operations (e.g. EC2SlaveMonitor)
+     * to avoid per-node EC2 API calls.
+     */
+    protected void updateFromFetchedInstance(Instance i) {
+        long now = System.currentTimeMillis();
+        lastFetchTime = now;
+        lastFetchInstance = i;
         publicDNS = i.publicDnsName();
         privateDNS = i.privateIpAddress();
         createdTime = i.launchTime();

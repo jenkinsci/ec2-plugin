@@ -59,6 +59,16 @@ public class EC2Computer extends SlaveComputer {
      */
     private volatile Instance ec2InstanceDescription;
 
+    /**
+     * Timestamp when {@link #ec2InstanceDescription} was last fetched.
+     * Used for TTL cache to avoid repeated EC2 API calls during SSH verification retries.
+     */
+    private volatile long instanceCacheTimestamp;
+
+    /** TTL in ms for instance/state cache. Configurable via system property. */
+    private static final long INSTANCE_CACHE_TTL_MS =
+            Long.getLong(EC2Computer.class.getName() + ".instanceCacheTTLMs", 30_000);
+
     private volatile Boolean isNitro;
 
     public EC2Computer(EC2AbstractSlave slave) {
@@ -171,15 +181,18 @@ public class EC2Computer extends SlaveComputer {
      * Obtains the instance state description in EC2.
      *
      * <p>
-     * This method returns a cached state, so it's not suitable to check {@link Instance#state()} from the returned
-     * instance (but all the other fields are valid as it won't change.)
+     * This method returns a cached state (with TTL), so it's not suitable to check {@link Instance#state()} from the
+     * returned instance (but all the other fields are valid as it won't change.)
      * <p>
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
     public Instance describeInstance() throws SdkException, InterruptedException {
-        if (ec2InstanceDescription == null) {
-            ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        long now = System.currentTimeMillis();
+        if (ec2InstanceDescription != null && (now - instanceCacheTimestamp) < INSTANCE_CACHE_TTL_MS) {
+            return ec2InstanceDescription;
         }
+        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        instanceCacheTimestamp = now;
         return ec2InstanceDescription;
     }
 
@@ -187,18 +200,19 @@ public class EC2Computer extends SlaveComputer {
      * This will flush any cached description held by {@link #describeInstance()}.
      */
     public Instance updateInstanceDescription() throws SdkException, InterruptedException {
-        return ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        instanceCacheTimestamp = System.currentTimeMillis();
+        return ec2InstanceDescription;
     }
 
     /**
      * Gets the current state of the instance.
      *
      * <p>
-     * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
+     * Uses a short TTL cache to avoid repeated EC2 API calls during SSH verification retries.
      */
     public InstanceState getState() throws SdkException, InterruptedException {
-        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
-        return InstanceState.find(ec2InstanceDescription.state().name().toString());
+        return InstanceState.find(describeInstance().state().name().toString());
     }
 
     /**

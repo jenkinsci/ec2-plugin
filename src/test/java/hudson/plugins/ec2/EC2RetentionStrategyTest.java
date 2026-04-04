@@ -34,7 +34,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,10 +62,48 @@ class EC2RetentionStrategyTest {
 
     private JenkinsRule r;
     private final LogRecorder logging = new LogRecorder();
+    private ExecutorService originalExecutor;
+
+    private static class DirectExecutorService extends AbstractExecutorService {
+        @Override
+        public void execute(Runnable command) {
+            command.run();
+        }
+
+        @Override
+        public void shutdown() {}
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return List.of();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return false;
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return false;
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) {
+            return true;
+        }
+    }
 
     @BeforeEach
     void setUp(JenkinsRule rule) {
         r = rule;
+        originalExecutor = EC2RetentionStrategy.HEAVY_WORK_EXECUTOR;
+        EC2RetentionStrategy.HEAVY_WORK_EXECUTOR = new DirectExecutorService();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        EC2RetentionStrategy.HEAVY_WORK_EXECUTOR = originalExecutor;
     }
 
     @Test
