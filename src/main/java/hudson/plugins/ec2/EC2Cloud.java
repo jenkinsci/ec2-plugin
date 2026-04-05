@@ -175,7 +175,7 @@ public class EC2Cloud extends Cloud {
 
     private volatile long instanceCountCacheTimestamp;
     private volatile int cachedTotalSlaves = -1;
-    private final ConcurrentHashMap<String, Integer> cachedTemplateSlaves = new ConcurrentHashMap<>();
+    private transient ConcurrentHashMap<String, Integer> cachedTemplateSlaves = new ConcurrentHashMap<>();
 
     private static final ExecutorService PROVISIONING_EXECUTOR = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "EC2Cloud-provisioning");
@@ -557,6 +557,10 @@ public class EC2Cloud extends Cloud {
                     Level.WARNING,
                     "EC2 Plugin could not migrate credentials to the Jenkins Global Credentials Store, EC2 Plugin for cloud {0} must be manually reconfigured",
                     getDisplayName());
+        }
+
+        if (this.cachedTemplateSlaves == null) {
+            this.cachedTemplateSlaves = new ConcurrentHashMap<>();
         }
 
         return this;
