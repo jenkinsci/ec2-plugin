@@ -46,6 +46,7 @@ import hudson.model.Node;
 import hudson.model.PeriodicWork;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.util.AmazonEC2Factory;
+import hudson.plugins.ec2.util.AmazonSSMFactory;
 import hudson.plugins.ec2.util.FIPS140Utils;
 import hudson.plugins.ec2.util.KeyPair;
 import hudson.security.ACL;
@@ -140,6 +141,7 @@ import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.SpotInstanceRequest;
 import software.amazon.awssdk.services.ec2.model.SpotInstanceState;
 import software.amazon.awssdk.services.ec2.model.Tag;
+import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -244,6 +246,8 @@ public class EC2Cloud extends Cloud {
 
     private boolean noDelayProvisioning;
 
+    private boolean useSSM;
+
     private boolean cleanUpOrphanedNodes;
 
     private transient volatile Ec2Client connection;
@@ -332,6 +336,9 @@ public class EC2Cloud extends Cloud {
 
     @CheckForNull
     public EC2PrivateKey resolvePrivateKey() {
+        if (useSSM) {
+            return null;
+        }
         if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
             LOGGER.fine(() -> "(resolvePrivateKey) secret key file configured, will load from disk");
             return EC2PrivateKey.fetchFromDisk();
@@ -422,6 +429,15 @@ public class EC2Cloud extends Cloud {
     @DataBoundSetter
     public void setNoDelayProvisioning(boolean noDelayProvisioning) {
         this.noDelayProvisioning = noDelayProvisioning;
+    }
+
+    public boolean isUseSSM() {
+        return useSSM;
+    }
+
+    @DataBoundSetter
+    public void setUseSSM(boolean useSSM) {
+        this.useSSM = useSSM;
     }
 
     public boolean isCleanUpOrphanedNodes() {
@@ -673,6 +689,9 @@ public class EC2Cloud extends Cloud {
      */
     @CheckForNull
     public synchronized KeyPair getKeyPair() throws SdkException, IOException {
+        if (useSSM) {
+            return null;
+        }
         if (usableKeyPair == null) {
             EC2PrivateKey ec2PrivateKey = this.resolvePrivateKey();
             if (ec2PrivateKey != null) {
@@ -1425,6 +1444,11 @@ public class EC2Cloud extends Cloud {
         }
     }
 
+    public SsmClient createSsmClient() {
+        return AmazonSSMFactory.getInstance()
+                .connect(createCredentialsProvider(), parseRegion(getRegion()), parseEndpoint(getAltEC2Endpoint()));
+    }
+
     public static SdkHttpClient getHttpClient() {
         Jenkins instance = Jenkins.getInstanceOrNull();
 
@@ -1554,9 +1578,14 @@ public class EC2Cloud extends Cloud {
 
         @RequirePOST
         public FormValidation doCheckSshKeysCredentialsId(
-                @AncestorInPath ItemGroup context, @QueryParameter String value) throws IOException, ServletException {
+                @AncestorInPath ItemGroup context, @QueryParameter String value, @QueryParameter boolean useSSM)
+                throws IOException, ServletException {
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 // Don't do anything if the user is only reading the configuration
+                return FormValidation.ok();
+            }
+
+            if (useSSM) {
                 return FormValidation.ok();
             }
 
@@ -1650,7 +1679,8 @@ public class EC2Cloud extends Cloud {
                 @QueryParameter String credentialsId,
                 @QueryParameter String sshKeysCredentialsId,
                 @QueryParameter String roleArn,
-                @QueryParameter String roleSessionName)
+                @QueryParameter String roleSessionName,
+                @QueryParameter boolean useSSM)
                 throws IOException, ServletException {
             if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
                 return FormValidation.ok();
@@ -1659,30 +1689,6 @@ public class EC2Cloud extends Cloud {
                 List<FormValidation> validations = new ArrayList<>();
 
                 LOGGER.fine(() -> "begin doTestConnection()");
-                String privateKey = "";
-                if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
-                    LOGGER.fine(() -> "static credential is in use");
-                    SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
-                    if (sshCredential != null) {
-                        privateKey = sshCredential.getPrivateKey();
-                    } else {
-                        return FormValidation.error(
-                                "Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
-                    }
-                } else {
-                    EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
-                    if (k == null) {
-                        validations.add(FormValidation.error(
-                                "Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
-                        if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
-                            validations.add(FormValidation.warning(
-                                    "Private key file path defined, selected credential will be ignored"));
-                        }
-                        return FormValidation.aggregate(validations);
-                    }
-                    privateKey = k.getPrivateKey();
-                }
-                LOGGER.fine(() -> "private key found ok");
 
                 if (Util.fixEmpty(region) == null) {
                     region = DEFAULT_EC2_HOST;
@@ -1694,29 +1700,58 @@ public class EC2Cloud extends Cloud {
                         .connect(credentialsProvider, parseRegion(region), parseEndpoint(altEC2Endpoint));
                 ec2.describeInstances();
 
-                if (!privateKey.trim().isEmpty()) {
-                    // check if this key exists
-                    EC2PrivateKey pk = new EC2PrivateKey(privateKey);
-                    if (pk.find(ec2) == null) {
-                        validations.add(FormValidation.error(
-                                "The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
-                                        + pk.getFingerprint() + ")"));
-                    }
-                }
-
-                if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
-                    if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
-                        validations.add(
-                                FormValidation.warning("Using private key file instead of selected credential"));
+                if (useSSM) {
+                    validations.add(FormValidation.ok("SSM connection mode selected. SSH key validation skipped."));
+                } else {
+                    String privateKey = "";
+                    if (System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                        LOGGER.fine(() -> "static credential is in use");
+                        SSHUserPrivateKey sshCredential = getSshCredential(sshKeysCredentialsId, context);
+                        if (sshCredential != null) {
+                            privateKey = sshCredential.getPrivateKey();
+                        } else {
+                            return FormValidation.error(
+                                    "Failed to find credential \"" + sshKeysCredentialsId + "\" in store.");
+                        }
                     } else {
-                        validations.add(FormValidation.ok("Using private key file"));
+                        EC2PrivateKey k = EC2PrivateKey.fetchFromDisk();
+                        if (k == null) {
+                            validations.add(FormValidation.error(
+                                    "Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
+                            if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                                validations.add(FormValidation.warning(
+                                        "Private key file path defined, selected credential will be ignored"));
+                            }
+                            return FormValidation.aggregate(validations);
+                        }
+                        privateKey = k.getPrivateKey();
                     }
-                }
+                    LOGGER.fine(() -> "private key found ok");
 
-                try {
-                    FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
-                } catch (IllegalArgumentException ex) {
-                    validations.add(FormValidation.error(ex, ex.getLocalizedMessage()));
+                    if (!privateKey.trim().isEmpty()) {
+                        // check if this key exists
+                        EC2PrivateKey pk = new EC2PrivateKey(privateKey);
+                        if (pk.find(ec2) == null) {
+                            validations.add(FormValidation.error(
+                                    "The EC2 key pair private key isn't registered to this EC2 region (fingerprint is "
+                                            + pk.getFingerprint() + ")"));
+                        }
+                    }
+
+                    if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
+                        if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                            validations.add(
+                                    FormValidation.warning("Using private key file instead of selected credential"));
+                        } else {
+                            validations.add(FormValidation.ok("Using private key file"));
+                        }
+                    }
+
+                    try {
+                        FIPS140Utils.ensurePrivateKeyInFipsMode(privateKey);
+                    } catch (IllegalArgumentException ex) {
+                        validations.add(FormValidation.error(ex, ex.getLocalizedMessage()));
+                    }
                 }
 
                 validations.add(FormValidation.ok(Messages.EC2Cloud_Success()));

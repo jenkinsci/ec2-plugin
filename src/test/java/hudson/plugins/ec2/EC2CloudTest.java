@@ -206,6 +206,53 @@ class EC2CloudTest {
         assertThat(actual.resolvePrivateKey(), notNullValue());
     }
 
+    @Test
+    void testUseSSMDefaultFalse() {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        assertFalse(actual.isUseSSM());
+    }
+
+    @Test
+    void testUseSSMSetterGetter() {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        actual.setUseSSM(true);
+        assertTrue(actual.isUseSSM());
+        actual.setUseSSM(false);
+        assertFalse(actual.isUseSSM());
+    }
+
+    @Test
+    void testResolvePrivateKeyReturnsNullWhenUseSSM() {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        actual.setUseSSM(true);
+        assertNull(actual.resolvePrivateKey());
+    }
+
+    @Test
+    void testGetKeyPairReturnsNullWhenUseSSM() throws Exception {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        actual.setUseSSM(true);
+        assertNull(actual.getKeyPair());
+    }
+
+    @Test
+    void testDoCheckSshKeysCredentialsIdReturnsOkWhenUseSSM() throws Exception {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
+        FormValidation result = descriptor.doCheckSshKeysCredentialsId(Jenkins.get(), "", true);
+        assertThat(result.kind, is(FormValidation.Kind.OK));
+    }
+
+    @Test
+    void testDoTestConnectionSkipsSshKeyValidationWhenUseSSM() throws Exception {
+        EC2Cloud actual = r.jenkins.clouds.get(EC2Cloud.class);
+        EC2Cloud.DescriptorImpl descriptor = (EC2Cloud.DescriptorImpl) actual.getDescriptor();
+        FormValidation result = descriptor.doTestConnection(
+                Jenkins.get(), "us-east-1", null, true, "abc", null, "roleArn", "roleSessionName", true);
+        // Should succeed without SSH key validation
+        assertNotEquals(FormValidation.Kind.ERROR, result.kind);
+    }
+
     private HtmlForm getConfigForm() throws IOException, SAXException {
         return r.createWebClient().goTo(cloud.getUrl() + "configure").getFormByName("config");
     }
