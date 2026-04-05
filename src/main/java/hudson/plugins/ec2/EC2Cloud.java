@@ -505,6 +505,9 @@ public class EC2Cloud extends Cloud {
 
     protected Object readResolve() {
         this.slaveCountingLock = new ReentrantLock();
+        if (this.cachedTemplateSlaves == null) {
+            this.cachedTemplateSlaves = new ConcurrentHashMap<>();
+        }
 
         for (SlaveTemplate t : templates) {
             t.parent = this;
@@ -557,10 +560,6 @@ public class EC2Cloud extends Cloud {
                     Level.WARNING,
                     "EC2 Plugin could not migrate credentials to the Jenkins Global Credentials Store, EC2 Plugin for cloud {0} must be manually reconfigured",
                     getDisplayName());
-        }
-
-        if (this.cachedTemplateSlaves == null) {
-            this.cachedTemplateSlaves = new ConcurrentHashMap<>();
         }
 
         return this;
