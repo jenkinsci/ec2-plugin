@@ -157,7 +157,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -167,6 +168,10 @@ class SlaveTemplateTest {
 
         r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+
+        // Assert that collectInitScriptLogs defaults to false
+        assertFalse(received.getCollectInitScriptLogs(), "collectInitScriptLogs should default to false");
+
         r.assertEqualBeans(
                 orig,
                 received,
@@ -227,7 +232,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -305,7 +311,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -377,7 +384,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -441,7 +449,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -505,7 +514,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -574,7 +584,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         slaveTemplate.setMinimumNumberOfInstancesTimeRangeConfig(minimumNumberOfInstancesTimeRangeConfig);
 
         List<SlaveTemplate> templates = new ArrayList<>();
@@ -667,7 +678,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         SlaveTemplate noSubnet = new SlaveTemplate(
                 TEST_AMI,
@@ -714,7 +726,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         for (SlaveTemplate template : List.of(orig, noSubnet)) {
             Ec2Client mockedEC2 = setupTestForProvisioning(template);
@@ -784,7 +797,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         SlaveTemplate spotNoSubnet = new SlaveTemplate(
                 TEST_AMI,
@@ -831,7 +845,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         for (SlaveTemplate template : List.of(spot, spotNoSubnet)) {
             Ec2Client mockedEC2 = setupTestForProvisioning(template);
@@ -931,7 +946,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
@@ -1059,7 +1075,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
 
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
@@ -1120,7 +1137,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         SlaveTemplate working = new SlaveTemplate(
                 TEST_AMI,
                 TEST_ZONE,
@@ -1166,7 +1184,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(broken);
         templates.add(working);
@@ -1228,6 +1247,7 @@ class SlaveTemplateTest {
                 true,
                 2,
                 true,
+                false,
                 false);
 
         List<SlaveTemplate> templates = Collections.singletonList(orig);
@@ -1290,6 +1310,7 @@ class SlaveTemplateTest {
                 false,
                 2,
                 false,
+                false,
                 false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
@@ -1351,6 +1372,7 @@ class SlaveTemplateTest {
                 false,
                 2,
                 true,
+                false,
                 false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
@@ -1414,6 +1436,7 @@ class SlaveTemplateTest {
                 true,
                 2,
                 true,
+                false,
                 false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
@@ -1540,6 +1563,7 @@ class SlaveTemplateTest {
                 true,
                 null,
                 true,
+                false,
                 false);
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
         when(mockedEC2.runInstances(any(RunInstancesRequest.class)))
@@ -1596,7 +1620,8 @@ class SlaveTemplateTest {
                 true,
                 null,
                 true,
-                true);
+                true,
+                false);
 
         Ec2Client mockedEC2 = setupTestForProvisioning(template);
 
@@ -1659,7 +1684,8 @@ class SlaveTemplateTest {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
         List<SlaveTemplate> templates = new ArrayList<>();
         templates.add(orig);
 
@@ -1669,6 +1695,203 @@ class SlaveTemplateTest {
         r.submit(getConfigForm(ac));
         SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
         r.assertEqualBeans(orig, received, "amiType");
+    }
+
+    @Test
+    void testInitScriptLogCapture() throws Exception {
+        String description = "init script log capture test";
+        String initScript = "echo 'Starting initialization'\necho 'Setting up environment'\necho 'Init complete'";
+
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description,
+                initScript, // Set init script with echo statements
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                AssociateIPStrategy.SUBNET,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                true,
+                2,
+                true,
+                false,
+                true); // collectInitScriptLogs set to true
+
+        List<SlaveTemplate> templates = Collections.singletonList(template);
+
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+        SlaveTemplate received = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description);
+
+        // Assert that collectInitScriptLogs is preserved correctly
+        assertTrue(received.getCollectInitScriptLogs(), "collectInitScriptLogs should be true");
+
+        // Assert other important fields are preserved
+        assertEquals(initScript, received.getInitScript(), "Init script should be preserved");
+        r.assertEqualBeans(
+                template,
+                received,
+                "ami,zone,description,remoteFS,type,javaPath,jvmopts,stopOnTerminate,securityGroups,subnetId,initScript,collectInitScriptLogs");
+    }
+
+    @Test
+    void testCollectInitScriptLogsRoundTrip() throws Exception {
+        String description = "collect init script logs roundtrip test";
+
+        // Test with collectInitScriptLogs = true
+        SlaveTemplate origTrue = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description + " true",
+                "echo 'test with logging enabled'",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                AssociateIPStrategy.SUBNET,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                true,
+                2,
+                true,
+                false,
+                true); // collectInitScriptLogs = true
+
+        // Test with collectInitScriptLogs = false
+        SlaveTemplate origFalse = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                description + " false",
+                "echo 'test with logging disabled'",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                AssociateIPStrategy.SUBNET,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                true,
+                true,
+                2,
+                true,
+                false,
+                false); // collectInitScriptLogs = false
+
+        List<SlaveTemplate> templates = new ArrayList<>();
+        templates.add(origTrue);
+        templates.add(origFalse);
+
+        EC2Cloud ac = new EC2Cloud("us-east-1", false, "abc", "us-east-1", "ghi", null, "3", templates, null, null);
+        r.jenkins.clouds.add(ac);
+
+        r.submit(r.createWebClient().goTo("configure").getFormByName("config"));
+
+        SlaveTemplate receivedTrue = ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description + " true");
+        SlaveTemplate receivedFalse =
+                ((EC2Cloud) r.jenkins.clouds.iterator().next()).getTemplate(description + " false");
+
+        // Assert that both configurations are preserved correctly
+        assertTrue(receivedTrue.getCollectInitScriptLogs(), "collectInitScriptLogs should be true for first template");
+        assertFalse(
+                receivedFalse.getCollectInitScriptLogs(), "collectInitScriptLogs should be false for second template");
+
+        // Assert other fields are preserved
+        r.assertEqualBeans(origTrue, receivedTrue, "collectInitScriptLogs,initScript");
+        r.assertEqualBeans(origFalse, receivedFalse, "collectInitScriptLogs,initScript");
     }
 
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {

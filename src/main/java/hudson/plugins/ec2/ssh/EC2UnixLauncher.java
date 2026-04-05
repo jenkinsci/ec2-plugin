@@ -181,8 +181,12 @@ public class EC2UnixLauncher extends EC2SSHLauncher {
 
                         logInfo(computer, listener, "Executing init script");
                         String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
+
+                        // Check if collectInitScriptLogs flag is set
+                        boolean collectInitScriptLogs = template.getCollectInitScriptLogs();
+
                         // Set the flag only when init script executed successfully.
-                        if (executeRemote(clientSession, initCommand, logger)) {
+                        if (executeRemote(clientSession, initCommand, logger, collectInitScriptLogs, listener)) {
                             log(
                                     Level.FINE,
                                     computer,

@@ -5,14 +5,14 @@
     templates:
     - ami: "ami-12345"
       amiType:
-        windowsSSHData:
+        unixData:
           bootDelay: "180"
-          rootCommandPrefix: "CMD /C"
-          slaveCommandPrefix: "CMD /C"
+          rootCommandPrefix: "sudo"
+          slaveCommandPrefix: "sudo -u jenkins"
           slaveCommandSuffix: "-fakeFlag"
           sshPort: "22"
       associateIPStrategy: DEFAULT
-      collectInitScriptLogs: false
+      collectInitScriptLogs: true
       connectBySSHProcess: false
       connectionStrategy: PRIVATE_IP
       deleteRootOnTermination: false
@@ -21,7 +21,7 @@
       enclaveEnabled: false
       hostKeyVerificationStrategy: CHECK_NEW_SOFT
       javaPath: "java"
-      labelString: "windows server"
+      labelString: "linux ubuntu"
       maxTotalUses: -1
       metadataEndpointEnabled: true
       metadataHopsLimit: 1
@@ -32,7 +32,7 @@
       mode: NORMAL
       monitoring: false
       numExecutors: 1
-      remoteFS: "C:\\Users\\ec2-user"
+      remoteFS: "/home/ec2-user"
       spotConfig:
         fallbackToOndemand: true
         spotBlockReservationDuration: 3
