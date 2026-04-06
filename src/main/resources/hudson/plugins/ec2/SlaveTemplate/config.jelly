@@ -251,6 +251,10 @@ THE SOFTWARE.
       <f:checkbox default="false"/>
     </f:entry>
 
+    <f:entry title="${%Collect Init Script Logs}" field="collectInitScriptLogs">
+      <f:checkbox />
+    </f:entry>
+
   </f:advanced>
 
   <f:entry title="">

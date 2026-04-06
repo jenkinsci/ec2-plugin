@@ -254,6 +254,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private Boolean enclaveEnabled;
 
+    private boolean collectInitScriptLogs;
+
     private transient /* almost final */ Set<LabelAtom> labelSet;
 
     private transient /* almost final */ Set<String> securityGroupSet;
@@ -343,7 +345,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Boolean metadataTokensRequired,
             Integer metadataHopsLimit,
             Boolean metadataSupported,
-            Boolean enclaveEnabled) {
+            Boolean enclaveEnabled,
+            boolean collectInitScriptLogs) {
 
         if (StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)) {
             LOGGER.log(
@@ -434,6 +437,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataHopsLimit != null ? metadataHopsLimit : EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         this.enclaveEnabled = enclaveEnabled != null ? enclaveEnabled : EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED;
         this.associateIPStrategy = associateIPStrategy != null ? associateIPStrategy : AssociateIPStrategy.DEFAULT;
+        this.collectInitScriptLogs = collectInitScriptLogs;
 
         readResolve(); // initialize
     }
@@ -530,7 +534,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataTokensRequired,
                 metadataHopsLimit,
                 metadataSupported,
-                enclaveEnabled);
+                enclaveEnabled,
+                false);
     }
 
     @Deprecated
@@ -609,7 +614,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 deleteRootOnTermination,
                 useEphemeralDevices,
                 launchTimeoutStr,
-                associatePublicIp,
+                AssociateIPStrategy.backwardsCompatible(associatePublicIp),
                 customDeviceMapping,
                 connectBySSHProcess,
                 monitoring,
@@ -624,7 +629,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataTokensRequired,
                 metadataHopsLimit,
                 metadataSupported,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
     }
 
     @Deprecated
@@ -703,7 +709,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 deleteRootOnTermination,
                 useEphemeralDevices,
                 launchTimeoutStr,
-                associatePublicIp,
+                AssociateIPStrategy.backwardsCompatible(associatePublicIp),
                 customDeviceMapping,
                 connectBySSHProcess,
                 monitoring,
@@ -718,7 +724,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 metadataTokensRequired,
                 metadataHopsLimit,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
     }
 
     @Deprecated
@@ -792,7 +799,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 deleteRootOnTermination,
                 useEphemeralDevices,
                 launchTimeoutStr,
-                associatePublicIp,
+                AssociateIPStrategy.backwardsCompatible(associatePublicIp),
                 customDeviceMapping,
                 connectBySSHProcess,
                 monitoring,
@@ -807,7 +814,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
                 EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
                 EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED,
+                false);
     }
 
     @Deprecated
@@ -2072,6 +2080,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     public Boolean getEnclaveEnabled() {
         return enclaveEnabled;
+    }
+
+    public boolean getCollectInitScriptLogs() {
+        return collectInitScriptLogs;
+    }
+
+    @DataBoundSetter
+    public void setCollectInitScriptLogs(boolean collectInitScriptLogs) {
+        this.collectInitScriptLogs = collectInitScriptLogs;
     }
 
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
