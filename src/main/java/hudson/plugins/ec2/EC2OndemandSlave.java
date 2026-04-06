@@ -7,6 +7,7 @@ import hudson.model.Node;
 import hudson.plugins.ec2.ssh.EC2MacLauncher;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.ssh.EC2WindowsSSHLauncher;
+import hudson.plugins.ec2.ssm.EC2SSMLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
@@ -433,6 +434,71 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
             Boolean metadataSupported,
             Boolean enclaveEnabled)
             throws FormException, IOException {
+        this(
+                name,
+                instanceId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                labelString,
+                mode,
+                initScript,
+                tmpDir,
+                nodeProperties,
+                remoteAdmin,
+                javaPath,
+                jvmopts,
+                stopOnTerminate,
+                idleTerminationMinutes,
+                publicDNS,
+                privateDNS,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                connectionStrategy,
+                maxTotalUses,
+                tenancy,
+                metadataEndpointEnabled,
+                metadataTokensRequired,
+                metadataHopsLimit,
+                metadataSupported,
+                enclaveEnabled,
+                false);
+    }
+
+    public EC2OndemandSlave(
+            String name,
+            String instanceId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            String labelString,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            List<? extends NodeProperty<?>> nodeProperties,
+            String remoteAdmin,
+            String javaPath,
+            String jvmopts,
+            boolean stopOnTerminate,
+            String idleTerminationMinutes,
+            String publicDNS,
+            String privateDNS,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            Tenancy tenancy,
+            Boolean metadataEndpointEnabled,
+            Boolean metadataTokensRequired,
+            Integer metadataHopsLimit,
+            Boolean metadataSupported,
+            Boolean enclaveEnabled,
+            boolean useSSM)
+            throws FormException, IOException {
         super(
                 name,
                 instanceId,
@@ -441,11 +507,13 @@ public class EC2OndemandSlave extends EC2AbstractSlave {
                 numExecutors,
                 mode,
                 labelString,
-                (amiType.isWinRMAgent()
-                        ? new EC2WindowsLauncher()
-                        : (amiType.isWindows()
-                                ? new EC2WindowsSSHLauncher()
-                                : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher()))),
+                useSSM
+                        ? new EC2SSMLauncher()
+                        : (amiType.isWinRMAgent()
+                                ? new EC2WindowsLauncher()
+                                : (amiType.isWindows()
+                                        ? new EC2WindowsSSHLauncher()
+                                        : (amiType.isMac() ? new EC2MacLauncher() : new EC2UnixLauncher()))),
                 new EC2RetentionStrategy(idleTerminationMinutes),
                 initScript,
                 tmpDir,

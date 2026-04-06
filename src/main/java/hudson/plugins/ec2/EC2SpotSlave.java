@@ -6,6 +6,7 @@ import hudson.model.Computer;
 import hudson.model.Descriptor.FormException;
 import hudson.plugins.ec2.ssh.EC2UnixLauncher;
 import hudson.plugins.ec2.ssh.EC2WindowsSSHLauncher;
+import hudson.plugins.ec2.ssm.EC2SSMLauncher;
 import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
@@ -137,6 +138,53 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
             ConnectionStrategy connectionStrategy,
             int maxTotalUses)
             throws FormException, IOException {
+        this(
+                name,
+                spotInstanceRequestId,
+                templateDescription,
+                remoteFS,
+                numExecutors,
+                mode,
+                initScript,
+                tmpDir,
+                labelString,
+                nodeProperties,
+                remoteAdmin,
+                javaPath,
+                jvmopts,
+                idleTerminationMinutes,
+                tags,
+                cloudName,
+                launchTimeout,
+                amiType,
+                connectionStrategy,
+                maxTotalUses,
+                false);
+    }
+
+    public EC2SpotSlave(
+            String name,
+            String spotInstanceRequestId,
+            String templateDescription,
+            String remoteFS,
+            int numExecutors,
+            Mode mode,
+            String initScript,
+            String tmpDir,
+            String labelString,
+            List<? extends NodeProperty<?>> nodeProperties,
+            String remoteAdmin,
+            String javaPath,
+            String jvmopts,
+            String idleTerminationMinutes,
+            List<EC2Tag> tags,
+            String cloudName,
+            int launchTimeout,
+            AMITypeData amiType,
+            ConnectionStrategy connectionStrategy,
+            int maxTotalUses,
+            boolean useSSM)
+            throws FormException, IOException {
 
         super(
                 name,
@@ -146,9 +194,11 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
                 numExecutors,
                 mode,
                 labelString,
-                (amiType.isWinRMAgent()
-                        ? new EC2WindowsLauncher()
-                        : (amiType.isWindows() ? new EC2WindowsSSHLauncher() : new EC2UnixLauncher())),
+                useSSM
+                        ? new EC2SSMLauncher()
+                        : (amiType.isWinRMAgent()
+                                ? new EC2WindowsLauncher()
+                                : (amiType.isWindows() ? new EC2WindowsSSHLauncher() : new EC2UnixLauncher())),
                 new EC2RetentionStrategy(idleTerminationMinutes),
                 initScript,
                 tmpDir,
