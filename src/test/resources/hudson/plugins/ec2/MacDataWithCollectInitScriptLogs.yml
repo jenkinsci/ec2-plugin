@@ -1,0 +1,23 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        name: "production"
+        useInstanceProfileForCredentials: true
+        sshKeysCredentialsId: "random credentials id"
+        templates:
+          - description:
+            ami: "ami-12345"
+            labelString: "mac metal"
+            type: "mac1.metal"
+            remoteFS: "/Users/ec2-user"
+            mode: "NORMAL"
+            tenancy: Host
+            collectInitScriptLogs: true
+            amiType:
+              macData:
+                rootCommandPrefix: "sudo"
+                slaveCommandPrefix: "sudo -u jenkins"
+                slaveCommandSuffix: "-fakeFlag"
+                sshPort: "22"
+                bootDelay: "180"
