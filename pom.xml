@@ -122,6 +122,10 @@ THE SOFTWARE.
       <artifactId>aws-java-sdk2-ec2</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+      <artifactId>aws-java-sdk2-ssm</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.jenkins.plugins.mina-sshd-api</groupId>
       <artifactId>mina-sshd-api-core</artifactId>
     </dependency>
