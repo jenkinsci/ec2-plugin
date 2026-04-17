@@ -31,7 +31,6 @@ import hudson.plugins.ec2.EC2Readiness;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.util.KeyHelper;
 import hudson.plugins.ec2.util.KeyPair;
-import hudson.plugins.ec2.util.SSHClientHelper;
 import hudson.slaves.CommandLauncher;
 import hudson.slaves.ComputerLauncher;
 import java.io.File;
@@ -45,7 +44,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
-import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
@@ -123,113 +121,97 @@ public class EC2UnixLauncher extends EC2SSHLauncher {
         final String javaPath = node.javaPath;
         String tmpDir = (Util.fixEmptyAndTrim(node.tmpDir) != null ? node.tmpDir : "/tmp");
 
-        try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer)) {
-            boolean isBootstrapped = bootstrap(computer, listener, template);
-            if (!isBootstrapped) {
-                logWarning(computer, listener, "bootstrapresult failed");
-                return; // bootstrap closed for us.
+        boolean isBootstrapped = bootstrap(computer, listener, template);
+        if (!isBootstrapped) {
+            logWarning(computer, listener, "bootstrapresult failed");
+            return; // bootstrap closed for us.
+        }
+        int bootDelay = node.getBootDelay();
+        if (bootDelay > 0) {
+            logInfo(computer, listener, "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
+            Thread.sleep(bootDelay);
+            logInfo(computer, listener, "SSH service should have stabilized");
+        }
+
+        // connect fresh as ROOT
+        logInfo(computer, listener, "connect fresh as root");
+        try (ClientSession clientSession = connectToSsh(computer, listener, template)) {
+            KeyPair key = computer.getCloud().getKeyPair();
+
+            final boolean isAuthenticated;
+            if (key == null) {
+                isAuthenticated = false;
+            } else {
+                clientSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
+                clientSession.auth().await(timeout);
+                isAuthenticated = clientSession.isAuthenticated();
             }
-            int bootDelay = node.getBootDelay();
-            if (bootDelay > 0) {
-                logInfo(
-                        computer,
-                        listener,
-                        "SSH service responded. Waiting " + bootDelay + "ms for service to stabilize");
-                Thread.sleep(bootDelay);
-                logInfo(computer, listener, "SSH service should have stabilized");
+            if (!isAuthenticated) {
+                logWarning(computer, listener, "Authentication failed");
+                return; // failed to connect as root.
             }
 
-            // connect fresh as ROOT
-            logInfo(computer, listener, "connect fresh as root");
-            try (ClientSession clientSession = connectToSsh(client, computer, listener, template)) {
-                KeyPair key = computer.getCloud().getKeyPair();
+            try (CloseableScpClient scp = createScpClient(clientSession)) {
+                String timestamp = Duration.ofMillis(System.currentTimeMillis()).toSeconds() + " 0";
+                ScpTimestampCommandDetails scpTimestamp =
+                        ScpTimestampCommandDetails.parse("T" + timestamp + " " + timestamp);
+                String initScript = node.initScript;
 
-                final boolean isAuthenticated;
-                if (key == null) {
-                    isAuthenticated = false;
-                } else {
-                    clientSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
-                    clientSession.auth().await(timeout);
-                    isAuthenticated = clientSession.isAuthenticated();
-                }
-                if (!isAuthenticated) {
-                    logWarning(computer, listener, "Authentication failed");
-                    return; // failed to connect as root.
-                }
+                logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
+                executeRemote(clientSession, "mkdir -p " + tmpDir, logger);
 
-                try (CloseableScpClient scp = createScpClient(clientSession)) {
-                    String timestamp =
-                            Duration.ofMillis(System.currentTimeMillis()).toSeconds() + " 0";
-                    ScpTimestampCommandDetails scpTimestamp =
-                            ScpTimestampCommandDetails.parse("T" + timestamp + " " + timestamp);
-                    String initScript = node.initScript;
-
-                    logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
-                    executeRemote(clientSession, "mkdir -p " + tmpDir, logger);
-
-                    if (StringUtils.isNotBlank(initScript)
-                            && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
-                        logInfo(computer, listener, "Upload init script");
-                        scp.upload(
-                                initScript.getBytes(StandardCharsets.UTF_8),
-                                tmpDir + "/init.sh",
-                                List.of(
-                                        PosixFilePermission.OWNER_READ,
-                                        PosixFilePermission.OWNER_WRITE,
-                                        PosixFilePermission.OWNER_EXECUTE),
-                                scpTimestamp);
-
-                        logInfo(computer, listener, "Executing init script");
-                        String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
-                        // Set the flag only when init script executed successfully.
-                        if (executeRemote(clientSession, initCommand, logger)) {
-                            log(
-                                    Level.FINE,
-                                    computer,
-                                    listener,
-                                    "Init script executed successfully and creating ~/.hudson-run-init");
-                            String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
-                            if (!executeRemote(clientSession, createHudsonRunInitCommand, logger)) {
-                                logInfo(computer, listener, "Unable to create ~/.hudson-run-init");
-                            }
-                        } else {
-                            log(
-                                    Level.WARNING,
-                                    computer,
-                                    listener,
-                                    "Failed to execute init script on " + node.getInstanceId());
-                            clientSession.close();
-                            scp.close();
-                            client.stop();
-                            throw new IOException("Failed to execute init script on " + node.getInstanceId());
-                        }
-                    }
-
-                    executeRemote(
-                            computer,
-                            clientSession,
-                            javaPath + " -fullversion",
-                            "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
-                            logger,
-                            listener);
-                    executeRemote(
-                            computer,
-                            clientSession,
-                            "which scp",
-                            "sudo yum install -y openssh-clients",
-                            logger,
-                            listener);
-
-                    // Always copy so we get the most recent remoting.jar
-                    logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                if (StringUtils.isNotBlank(initScript)
+                        && !executeRemote(clientSession, "test -e ~/.hudson-run-init", logger)) {
+                    logInfo(computer, listener, "Upload init script");
                     scp.upload(
-                            Jenkins.get().getJnlpJars("remoting.jar").readFully(),
-                            tmpDir + "/remoting.jar",
-                            List.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
+                            initScript.getBytes(StandardCharsets.UTF_8),
+                            tmpDir + "/init.sh",
+                            List.of(
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.OWNER_WRITE,
+                                    PosixFilePermission.OWNER_EXECUTE),
                             scpTimestamp);
+
+                    logInfo(computer, listener, "Executing init script");
+                    String initCommand = buildUpCommand(computer, tmpDir + "/init.sh");
+                    if (executeRemote(clientSession, initCommand, logger)) {
+                        log(
+                                Level.FINE,
+                                computer,
+                                listener,
+                                "Init script executed successfully and creating ~/.hudson-run-init");
+                        String createHudsonRunInitCommand = buildUpCommand(computer, "touch ~/.hudson-run-init");
+                        if (!executeRemote(clientSession, createHudsonRunInitCommand, logger)) {
+                            logInfo(computer, listener, "Unable to create ~/.hudson-run-init");
+                        }
+                    } else {
+                        log(
+                                Level.WARNING,
+                                computer,
+                                listener,
+                                "Failed to execute init script on " + node.getInstanceId());
+                        throw new IOException("Failed to execute init script on " + node.getInstanceId());
+                    }
                 }
+
+                executeRemote(
+                        computer,
+                        clientSession,
+                        javaPath + " -fullversion",
+                        "sudo amazon-linux-extras install java-openjdk11 -y; sudo yum install -y fontconfig java-11-openjdk",
+                        logger,
+                        listener);
+                executeRemote(
+                        computer, clientSession, "which scp", "sudo yum install -y openssh-clients", logger, listener);
+
+                // Always copy so we get the most recent remoting.jar
+                logInfo(computer, listener, "Copying remoting.jar to: " + tmpDir);
+                scp.upload(
+                        Jenkins.get().getJnlpJars("remoting.jar").readFully(),
+                        tmpDir + "/remoting.jar",
+                        List.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
+                        scpTimestamp);
             }
-            client.stop();
         }
 
         final String jvmopts = node.jvmopts;
