@@ -11,7 +11,7 @@ import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.SlaveTemplate;
 import hudson.plugins.ec2.util.KeyHelper;
 import hudson.plugins.ec2.util.KeyPair;
-import hudson.plugins.ec2.util.SSHClientHelper;
+import hudson.plugins.ec2.util.SSHClientManager;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -54,9 +54,8 @@ class InitScriptExecutionTest {
     private KeyPair mockKp;
     private KeyPairInfo mockKPInfo;
     private Instance mockInstance;
-    private MockedStatic<SSHClientHelper> mockStaticSSHClientHelper;
+    private MockedStatic<SSHClientManager> mockStaticSSHClientManager;
     private MockedStatic<KeyHelper> mockStaticKeyHelper;
-    private SSHClientHelper mockSSHClientHelper;
     private ClientSession mockClientSession;
     private SshClient mockSshClient;
     private ScpClient mockScpClient;
@@ -90,9 +89,8 @@ class InitScriptExecutionTest {
         mockKp = mock(KeyPair.class);
         mockKPInfo = mock(KeyPairInfo.class);
         mockInstance = mock(Instance.class);
-        mockStaticSSHClientHelper = mockStatic(SSHClientHelper.class);
+        mockStaticSSHClientManager = mockStatic(SSHClientManager.class);
         mockStaticKeyHelper = mockStatic(KeyHelper.class);
-        mockSSHClientHelper = mock(SSHClientHelper.class);
         mockClientSession = mock(ClientSession.class);
         mockSshClient = mock(SshClient.class);
         mockScpClient = mock(ScpClient.class);
@@ -109,7 +107,7 @@ class InitScriptExecutionTest {
 
     @AfterEach
     void tearDown() {
-        mockStaticSSHClientHelper.close();
+        mockStaticSSHClientManager.close();
         mockStaticKeyHelper.close();
         mockStaticClosableScpClient.close();
         mockStaticScpClientCreator.close();
@@ -244,8 +242,7 @@ class InitScriptExecutionTest {
         when(mockListener.error(any())).thenReturn(mockPW);
         when(mockEC2Computer.getNode()).thenReturn(mockNode);
         when(mockEC2Computer.getSlaveTemplate()).thenReturn(mockTemplate);
-        mockStaticSSHClientHelper.when(SSHClientHelper::getInstance).thenReturn(mockSSHClientHelper);
-        when(mockSSHClientHelper.setupSshClient(any())).thenReturn(mockSshClient);
+        mockStaticSSHClientManager.when(SSHClientManager::sshClient).thenReturn(mockSshClient);
         when(mockEC2Computer.getCloud()).thenReturn(mockCloud);
         when(mockCloud.getKeyPair()).thenReturn(mockKp);
         when(mockKp.getKeyPairInfo()).thenReturn(mockKPInfo);
@@ -264,11 +261,9 @@ class InitScriptExecutionTest {
         mockStaticScpClientCreator
                 .when(() -> CloseableScpClient.singleSessionInstance(mockScpClient))
                 .thenReturn(mockClosableScpClient);
-        doNothing().when(mockSshClient).setServerKeyVerifier(any());
-        doNothing().when(mockSshClient).start();
-        doNothing().when(mockSshClient).setClientProxyConnector(any());
         when(mockEC2Computer.getRemoteAdmin()).thenReturn(mockAdmin);
-        when(mockSshClient.connect(mockAdmin, mockHost, 0)).thenReturn(mockConnectFuture);
+        when(mockSshClient.connect(eq(mockAdmin), eq(mockHost), eq(0), any(), any()))
+                .thenReturn(mockConnectFuture);
         when(mockConnectFuture.verify(10000, TimeUnit.SECONDS)).thenReturn(mockConnectFuture);
         when(mockConnectFuture.getClientSession()).thenReturn(mockClientSession);
         when(mockKp.getMaterial()).thenReturn("initscripttest_keymaterial");
