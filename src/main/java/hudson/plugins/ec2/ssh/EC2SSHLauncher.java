@@ -116,43 +116,60 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         logInfo(computer, listener, "Launching remoting agent (via SSH2 Connection): " + launchString);
 
         final SshClient remotingClient = SSHClientHelper.getInstance().setupSshClient(computer);
-        final ClientSession remotingSession = connectToSsh(remotingClient, computer, listener, template);
-        KeyPair key = computer.getCloud().getKeyPair();
-        if (key != null) {
-            remotingSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
-        }
-        remotingSession.auth().await(timeout);
-        ChannelExec agentExecChannel = remotingSession.createExecChannel(
-                launchString, StandardCharsets.US_ASCII, null, Collections.emptyMap());
-        agentExecChannel.open().verify(timeout);
+        boolean launched = false;
+        try {
+            final ClientSession remotingSession = connectToSsh(remotingClient, computer, listener, template);
+            KeyPair key = computer.getCloud().getKeyPair();
+            if (key != null) {
+                remotingSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
+            }
+            remotingSession.auth().await(timeout);
+            ChannelExec agentExecChannel = remotingSession.createExecChannel(
+                    launchString, StandardCharsets.US_ASCII, null, Collections.emptyMap());
+            agentExecChannel.open().verify(timeout);
 
-        InputStream invertedOut = agentExecChannel.getInvertedOut();
-        OutputStream invertedIn = agentExecChannel.getInvertedIn();
+            InputStream invertedOut = agentExecChannel.getInvertedOut();
+            OutputStream invertedIn = agentExecChannel.getInvertedIn();
 
-        Listener channelListener = new Listener() {
+            Listener channelListener = new Listener() {
 
-            @Override
-            public void onClosed(Channel channel, IOException cause) {
-                try {
-                    agentExecChannel.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Error when closing the channel", e);
+                @Override
+                public void onClosed(Channel channel, IOException cause) {
+                    try {
+                        agentExecChannel.close();
+                    } catch (IOException e) {
+                        LOGGER.log(Level.WARNING, "Error when closing the channel", e);
+                    }
+                    try {
+                        remotingSession.close();
+                    } catch (IOException e) {
+                        LOGGER.log(Level.WARNING, "Error when closing the session", e);
+                    }
+                    try {
+                        remotingClient.stop();
+                        remotingClient.close();
+                    } catch (IOException e) {
+                        LOGGER.log(Level.WARNING, "Error when closing the client", e);
+                    }
                 }
-                try {
-                    remotingSession.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Error when closing the session", e);
-                }
+            };
+
+            computer.setChannel(invertedOut, invertedIn, logger, channelListener);
+            launched = true;
+        } finally {
+            if (!launched) {
                 try {
                     remotingClient.stop();
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error stopping SSH client after failed launch", e);
+                }
+                try {
                     remotingClient.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Error when closing the client", e);
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error closing SSH client after failed launch", e);
                 }
             }
-        };
-
-        computer.setChannel(invertedOut, invertedIn, logger, channelListener);
+        }
     }
 
     protected boolean executeRemote(
