@@ -20,6 +20,7 @@ import hudson.plugins.ec2.ssh.verifiers.Messages;
 import hudson.plugins.ec2.util.KeyHelper;
 import hudson.plugins.ec2.util.KeyPair;
 import hudson.plugins.ec2.util.SSHClientHelper;
+import hudson.plugins.ec2.util.SSHClientManager;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
@@ -37,7 +38,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.PublicKey;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,6 +52,8 @@ import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.future.ConnectFuture;
 import org.apache.sshd.client.keyverifier.ServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.AttributeRepository;
+import org.apache.sshd.common.AttributeStore;
 import org.apache.sshd.common.config.keys.OpenSshCertificate;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -115,8 +121,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             throws InterruptedException, IOException {
         logInfo(computer, listener, "Launching remoting agent (via SSH2 Connection): " + launchString);
 
-        final SshClient remotingClient = SSHClientHelper.getInstance().setupSshClient(computer);
-        final ClientSession remotingSession = connectToSsh(remotingClient, computer, listener, template);
+        final ClientSession remotingSession = connectToSsh(computer, listener, template);
         KeyPair key = computer.getCloud().getKeyPair();
         if (key != null) {
             remotingSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
@@ -142,12 +147,6 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                     remotingSession.close();
                 } catch (IOException e) {
                     LOGGER.log(Level.WARNING, "Error when closing the session", e);
-                }
-                try {
-                    remotingClient.stop();
-                    remotingClient.close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Error when closing the client", e);
                 }
             }
         };
@@ -242,7 +241,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         ClientSession bootstrapSession = null;
-        try (SshClient client = SSHClientHelper.getInstance().setupSshClient(computer)) {
+        try {
             int tries = bootstrapAuthTries;
             boolean isAuthenticated = false;
             logInfo(computer, listener, "Getting keypair...");
@@ -260,7 +259,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             while (tries-- > 0) {
                 logInfo(computer, listener, "Authenticating as " + computer.getRemoteAdmin());
                 try {
-                    bootstrapSession = connectToSsh(client, computer, listener, template);
+                    bootstrapSession = connectToSsh(computer, listener, template);
                     bootstrapSession.addPublicKeyIdentity(KeyHelper.decodeKeyPair(key.getMaterial(), ""));
                     bootstrapSession.auth().await(timeout);
 
@@ -287,12 +286,56 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
         return true;
     }
 
-    protected ClientSession connectToSsh(
-            SshClient client, EC2Computer computer, TaskListener listener, SlaveTemplate template)
+    protected ClientSession connectToSsh(EC2Computer computer, TaskListener listener, SlaveTemplate template)
             throws SdkException, InterruptedException {
         final EC2AbstractSlave node = computer.getNode();
         final long timeout = node == null ? 0L : node.getLaunchTimeoutInMillis();
         final long startTime = System.currentTimeMillis();
+        SshClient client = SSHClientManager.sshClient();
+
+        List<String> preferredAlgorithms = SSHClientHelper.getInstance().getPreferredAlgorithmNames(computer);
+        AttributeStore context = null;
+        if (!preferredAlgorithms.isEmpty()) {
+            context = new AttributeStore() {
+                private final ConcurrentHashMap<AttributeRepository.AttributeKey<?>, Object> attributes =
+                        new ConcurrentHashMap<>();
+
+                @Override
+                @SuppressWarnings("unchecked")
+                public <T> T getAttribute(AttributeRepository.AttributeKey<T> key) {
+                    return (T) attributes.get(key);
+                }
+
+                @Override
+                @SuppressWarnings("unchecked")
+                public <T> T setAttribute(AttributeRepository.AttributeKey<T> key, T value) {
+                    return value != null ? (T) attributes.put(key, value) : (T) attributes.remove(key);
+                }
+
+                @Override
+                @SuppressWarnings("unchecked")
+                public <T> T removeAttribute(AttributeRepository.AttributeKey<T> key) {
+                    return (T) attributes.remove(key);
+                }
+
+                @Override
+                public int getAttributesCount() {
+                    return attributes.size();
+                }
+
+                @Override
+                public void clearAttributes() {
+                    attributes.clear();
+                }
+
+                @Override
+                public Collection<AttributeRepository.AttributeKey<?>> attributeKeys() {
+                    return attributes.keySet();
+                }
+            };
+            context.setAttribute(SSHClientManager.PREFERRED_ALGORITHMS_KEY, preferredAlgorithms);
+        }
+
         while (true) {
             try {
                 long waitTime = System.currentTimeMillis() - startTime;
@@ -306,8 +349,6 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                 String host = getEC2HostAddress(computer, template);
 
                 if ((node instanceof EC2SpotSlave) && computer.getInstanceId() == null) {
-                    // getInstanceId() on EC2SpotSlave can return null if the spot request doesn't yet know
-                    // the instance id that it is starting. Continue to wait until the instanceId is set.
                     logInfo(computer, listener, "empty instanceId for Spot Slave.");
                     throw new IOException("goto sleep");
                 }
@@ -332,10 +373,6 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                         listener,
                         "Connecting to " + host + " on port " + port + ", with timeout " + slaveConnectTimeout + ".");
 
-                // Configure Host key verification
-                client.setServerKeyVerifier(new ServerKeyVerifierImpl(computer, listener));
-                client.start();
-
                 ConnectFuture connectFuture;
 
                 ProxyConfiguration proxyConfig = Jenkins.get().proxy;
@@ -346,25 +383,26 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
 
                     client.setClientProxyConnector(new ProxyCONNECTListener(host, port, username, password));
 
-                    connectFuture = client.connect(computer.getRemoteAdmin(), address);
+                    connectFuture = client.connect(computer.getRemoteAdmin(), address, context, null);
 
                     logInfo(computer, listener, "Using HTTP Proxy Configuration");
                 } else {
-                    connectFuture = client.connect(computer.getRemoteAdmin(), host, port);
+                    connectFuture = client.connect(computer.getRemoteAdmin(), host, port, context, null);
                 }
 
                 ClientSession clientSession = connectFuture
-                        .verify(slaveConnectTimeout, TimeUnit.SECONDS) // successfully connected
+                        .verify(slaveConnectTimeout, TimeUnit.SECONDS)
                         .getClientSession();
+
+                clientSession
+                        .getMetadataMap()
+                        .put(ServerKeyVerifier.class, new ServerKeyVerifierImpl(computer, listener));
 
                 logInfo(computer, listener, "Connected via SSH.");
                 return clientSession;
             } catch (IOException e) {
-                // keep retrying until SSH comes up
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
 
-                // If the computer was set offline because it's not trusted, we avoid persisting in connecting to it.
-                // The computer is offline for a long period
                 if (computer.isOffline()
                         && StringUtils.isNotBlank(computer.getOfflineCauseReason())
                         && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
