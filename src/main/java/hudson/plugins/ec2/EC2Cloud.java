@@ -1105,13 +1105,56 @@ public class EC2Cloud extends Cloud {
                     Level.INFO,
                     "{0}. Attempting to provision agent needed by excess workload of " + excessWorkload + " units",
                     t);
-            final int number = Math.max(excessWorkload / t.getNumExecutors(), 1);
+            final int requestedNumber = Math.max(excessWorkload / t.getNumExecutors(), 1);
+
+            // Check capacity before attempting to provision
+            int actualNumber;
+            try {
+                slaveCountingLock.lock();
+                int possibleSlavesCount = getPossibleNewSlavesCount(t);
+                if (possibleSlavesCount <= 0) {
+                    LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity, trying next template", t);
+                    continue; // Try next template
+                }
+                actualNumber = Math.min(requestedNumber, possibleSlavesCount);
+            } catch (SdkException e) {
+                LOGGER.log(Level.WARNING, t + ". Exception checking capacity, trying next template", e);
+                continue;
+            } finally {
+                slaveCountingLock.unlock();
+            }
+
+            final int number = actualNumber;
 
             // Defer runInstances to background; return PlannedNodes immediately for fast NodeProvisioner response
             CompletableFuture<List<EC2AbstractSlave>> provisionFuture = CompletableFuture.supplyAsync(
                     () -> {
                         try {
-                            return getNewOrExistingAvailableSlave(t, number, false);
+                            slaveCountingLock.lock();
+                            try {
+                                int possibleSlavesCount = getPossibleNewSlavesCount(t);
+                                if (possibleSlavesCount <= 0) {
+                                    LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity", t);
+                                    return null;
+                                }
+
+                                EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions =
+                                        EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
+                                int provisionCount = Math.min(number, possibleSlavesCount);
+
+                                if (provisionCount != number) {
+                                    LOGGER.log(
+                                            Level.INFO,
+                                            String.format(
+                                                    "%d nodes were requested for the template %s, "
+                                                            + "but because of instance cap only %d can be provisioned",
+                                                    number, t, provisionCount));
+                                }
+
+                                return t.provision(provisionCount, provisionOptions);
+                            } finally {
+                                slaveCountingLock.unlock();
+                            }
                         } catch (AwsServiceException e) {
                             LOGGER.log(Level.WARNING, t + ". Exception during provisioning", e);
                             if ("RequestExpired".equals(e.awsErrorDetails().errorCode())
@@ -1154,13 +1197,15 @@ public class EC2Cloud extends Cloud {
                 plannedNodes.add(new PlannedNode(t.getDisplayName(), nodeFuture, t.getNumExecutors()));
             }
 
-            LOGGER.log(
-                    Level.INFO, "{0}. Provision scheduled for {1} nodes, returning immediately", new Object[] {t, number
-                    });
+            excessWorkload -= number * t.getNumExecutors();
+            if (excessWorkload <= 0) {
+                break;
+            }
+
+            LOGGER.log(Level.INFO, "{0}. Provision scheduled for {1} nodes", new Object[] {t, number});
             LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more", new Object[] {
                 jenkinsInstance.getComputers().length, plannedNodes.size()
             });
-            return plannedNodes;
         }
         return plannedNodes;
     }
