@@ -1,0 +1,18 @@
+<div>
+  <p>
+    If checked, the instance is launched with nested virtualization enabled, allowing it to run a
+    hypervisor (KVM or Hyper-V) and start nested virtual machines.
+  </p>
+  <p>
+    Nested virtualization is only supported on specific instance families (for example C8i, M8i and
+    R8i) and requires an AMI with a compatible L1 hypervisor. Leave it unchecked for instance types
+    or AMIs that do not support it. Enabling nested virtualization automatically disables Virtual
+    Secure Mode (VSM).
+  </p>
+  <p>
+    See
+    <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-nested-virtualization.html" rel="noopener noreferrer" target="_blank">
+      Use nested virtualization to run hypervisors in Amazon EC2 instances</a>
+    for details.
+  </p>
+</div>

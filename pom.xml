@@ -94,6 +94,24 @@ THE SOFTWARE.
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!--
+        Override the aws-java-sdk2 plugin (which bundles the AWS SDK v2) to a release providing
+        AWS SDK >= 2.42.33. That version adds CpuOptionsRequest#nestedVirtualization, required to
+        launch instances with nested virtualization enabled. This release still targets Jenkins
+        core 2.479.1, so the plugin baseline does not need to change. These direct entries take
+        precedence over the version managed by the imported bom and can be dropped once the Jenkins
+        BOM baseline ships this aws-java-sdk2 version.
+      -->
+      <dependency>
+        <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+        <artifactId>aws-java-sdk2-core</artifactId>
+        <version>2.42.33-70.vd69c0763fa_60</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jenkins.plugins.aws-java-sdk2</groupId>
+        <artifactId>aws-java-sdk2-ec2</artifactId>
+        <version>2.42.33-70.vd69c0763fa_60</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
