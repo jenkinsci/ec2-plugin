@@ -89,6 +89,7 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
 import software.amazon.awssdk.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import software.amazon.awssdk.services.ec2.model.CpuOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
 import software.amazon.awssdk.services.ec2.model.CreditSpecificationRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
@@ -119,6 +120,7 @@ import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.InstanceTypeHypervisor;
 import software.amazon.awssdk.services.ec2.model.InstanceTypeInfo;
 import software.amazon.awssdk.services.ec2.model.MarketType;
+import software.amazon.awssdk.services.ec2.model.NestedVirtualizationSpecification;
 import software.amazon.awssdk.services.ec2.model.NitroEnclavesSupport;
 import software.amazon.awssdk.services.ec2.model.Placement;
 import software.amazon.awssdk.services.ec2.model.RequestSpotInstancesRequest;
@@ -253,6 +255,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private Integer metadataHopsLimit;
 
     private Boolean enclaveEnabled;
+
+    private Boolean nestedVirtualizationEnabled;
 
     private transient /* almost final */ Set<LabelAtom> labelSet;
 
@@ -2074,6 +2078,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return enclaveEnabled;
     }
 
+    public boolean getNestedVirtualizationEnabled() {
+        return nestedVirtualizationEnabled != null && nestedVirtualizationEnabled;
+    }
+
+    @DataBoundSetter
+    public void setNestedVirtualizationEnabled(boolean nestedVirtualizationEnabled) {
+        this.nestedVirtualizationEnabled = nestedVirtualizationEnabled;
+    }
+
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
         return Objects.requireNonNull(nodeProperties);
     }
@@ -2321,6 +2334,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             EnclaveOptionsRequest.Builder enclaveOptionsRequestBuilder =
                     EnclaveOptionsRequest.builder().enabled(true);
             riRequestBuilder.enclaveOptions(enclaveOptionsRequestBuilder.build());
+        }
+
+        if (getNestedVirtualizationEnabled()) {
+            riRequestBuilder.cpuOptions(CpuOptionsRequest.builder()
+                    .nestedVirtualization(NestedVirtualizationSpecification.ENABLED)
+                    .build());
+            logProvisionInfo("Setting CPU Options: NestedVirtualization=enabled");
         }
 
         HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
@@ -3741,6 +3761,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("The selected instance type does not support AWS Nitro Enclaves.");
                     }
                 }
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckNestedVirtualizationEnabled(@QueryParameter boolean nestedVirtualizationEnabled) {
+            if (nestedVirtualizationEnabled) {
+                return FormValidation.warning(
+                        "Nested virtualization is only supported on specific instance families (for example C8i, M8i, R8i)"
+                                + " and requires an AMI with a compatible L1 hypervisor (KVM or Hyper-V)."
+                                + " Enabling it automatically disables Virtual Secure Mode (VSM).");
             }
             return FormValidation.ok();
         }

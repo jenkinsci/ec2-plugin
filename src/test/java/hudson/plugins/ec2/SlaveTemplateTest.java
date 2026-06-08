@@ -74,6 +74,7 @@ import software.amazon.awssdk.services.ec2.model.InstanceNetworkInterfaceSpecifi
 import software.amazon.awssdk.services.ec2.model.InstanceStateName;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.KeyPairInfo;
+import software.amazon.awssdk.services.ec2.model.NestedVirtualizationSpecification;
 import software.amazon.awssdk.services.ec2.model.RequestSpotInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
@@ -1608,6 +1609,130 @@ class SlaveTemplateTest {
         RunInstancesRequest actualRequest = riRequestCaptor.getValue();
         EnclaveOptionsRequest enclaveOptionsRequest = actualRequest.enclaveOptions();
         assertEquals(Boolean.TRUE, enclaveOptionsRequest.enabled());
+    }
+
+    @Test
+    void provisionOnDemandWithNestedVirtualizationEnabled() throws Exception {
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                AssociateIPStrategy.SUBNET,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true,
+                false);
+        template.setNestedVirtualizationEnabled(true);
+
+        Ec2Client mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        assertNotNull(actualRequest.cpuOptions());
+        assertEquals(
+                NestedVirtualizationSpecification.ENABLED,
+                actualRequest.cpuOptions().nestedVirtualization());
+    }
+
+    @Test
+    void provisionOnDemandWithoutNestedVirtualizationEnabled() throws Exception {
+        SlaveTemplate template = new SlaveTemplate(
+                TEST_AMI,
+                TEST_ZONE,
+                TEST_SPOT_CFG,
+                TEST_SEC_GROUPS,
+                TEST_REMOTE_FS,
+                TEST_INSTANCE_TYPE.toString(),
+                TEST_EBSO,
+                TEST_LABEL,
+                Node.Mode.NORMAL,
+                "",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                "java",
+                "-Xmx1g",
+                false,
+                "subnet 456",
+                null,
+                null,
+                0,
+                0,
+                null,
+                "",
+                true,
+                false,
+                "",
+                AssociateIPStrategy.SUBNET,
+                "",
+                true,
+                false,
+                false,
+                ConnectionStrategy.PUBLIC_IP,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                null,
+                true,
+                null,
+                true,
+                false);
+
+        Ec2Client mockedEC2 = setupTestForProvisioning(template);
+
+        ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
+
+        template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
+        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+
+        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
+        assertNull(actualRequest.cpuOptions());
     }
 
     @Test
