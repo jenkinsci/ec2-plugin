@@ -2694,6 +2694,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             RequestSpotLaunchSpecification.Builder launchSpecificationBuilder =
                     RequestSpotLaunchSpecification.builder();
 
+            // Build tags early so they can be included in the launch specification
+            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
+
             launchSpecificationBuilder.imageId(imageId);
             launchSpecificationBuilder.instanceType(type);
             launchSpecificationBuilder.ebsOptimized(ebsOptimized);
@@ -2752,8 +2755,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             netBuilder.deviceIndex(0);
             launchSpecificationBuilder.networkInterfaces(netBuilder.build());
 
-            HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
-
             if (StringUtils.isNotBlank(getIamInstanceProfile())) {
                 launchSpecificationBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
                         .arn(getIamInstanceProfile())
@@ -2763,6 +2764,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecificationBuilder.blockDeviceMappings(getBlockDeviceMappings(image));
 
             spotRequestBuilder.launchSpecification(launchSpecificationBuilder.build());
+
+            // Add tag specifications to automatically tag the instance when fulfilled
+            // This ensures tags are applied before boot delay, enabling external automation
+            if (!instTags.isEmpty()) {
+                TagSpecification tagSpec = TagSpecification.builder()
+                        .resourceType("instance")
+                        .tags(instTags)
+                        .build();
+                spotRequestBuilder.tagSpecifications(tagSpec);
+            }
 
             if (getSpotBlockReservationDuration() != 0) {
                 spotRequestBuilder.blockDurationMinutes(getSpotBlockReservationDuration() * 60);
