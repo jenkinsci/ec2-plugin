@@ -673,7 +673,7 @@ class EC2RetentionStrategyTest {
                                 "offline but not connecting, will check if it should be terminated because of the idle time configured")));
     }
 
-    @Issue("jenkinsci/ec2-plugin#1752")
+    @Issue("https://github.com/jenkinsci/ec2-plugin/issues/1752")
     @Test
     void testDoNotReconnectOfflineIdleComputer() throws Exception {
         logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
@@ -685,8 +685,8 @@ class EC2RetentionStrategyTest {
         (Current time - IdleStartTime) > Idle Termination Minutes.
 
         The mock based setup doesn't allow us to force old value to be returned for `Computer#getIdleStartMilliseconds()`,
-        so we bump the - Current Time - value to +5min1sec to simulate the same behavior.
-        * */
+        so we bump the Current Time value to +5min1sec to simulate the same behavior.
+        */
         Instant fiveMinutesFromNow = Instant.now().plus(Duration.ofMinutes(5));
         long nextCheckAfter = fiveMinutesFromNow.toEpochMilli();
         Clock clock = Clock.fixed(fiveMinutesFromNow.plusSeconds(1), zoneId);
