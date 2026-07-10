@@ -680,11 +680,11 @@ class EC2RetentionStrategyTest {
         logging.capture(5);
 
         /*
-        Our goal here it to call the EC2RetentionStrategy#check, which invokes the EC2AbstractSlave#idleTimeout.
+        Our goal here is to call the EC2RetentionStrategy#check, which invokes the EC2AbstractSlave#idleTimeout.
         To make it possible, the Computer#getIdleStartMilliseconds() should return a value that is matches,
         (Current time - IdleStartTime) > Idle Termination Minutes.
 
-        The mock machinery doesn't allow us to cause old value to be returned for `Computer#getIdleStartMilliseconds()`,
+        The mock based setup doesn't allow us to force old value to be returned for `Computer#getIdleStartMilliseconds()`,
         so we bump the - Current Time - value to +5min1sec to simulate the same behavior.
         * */
         Instant fiveMinutesFromNow = Instant.now().plus(Duration.ofMinutes(5));
