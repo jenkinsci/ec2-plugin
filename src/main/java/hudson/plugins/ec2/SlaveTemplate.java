@@ -3048,7 +3048,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .tags(instTags)
                     .build());
         } catch (AwsServiceException e) {
-            LOGGER.log(Level.WARNING, "Failed to tag spot instance " + instanceId + " at creation: " + e.awsErrorDetails().errorMessage(), e);
+            LOGGER.log(
+                    Level.WARNING,
+                    "Failed to tag spot instance " + instanceId + " at creation: "
+                            + e.awsErrorDetails().errorMessage(),
+                    e);
         }
     }
 
