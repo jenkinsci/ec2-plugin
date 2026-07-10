@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -710,9 +711,7 @@ class EC2RetentionStrategyTest {
 
         // Also assert there was no reconnection attempt logs.
         assertThat(
-                "No reconnection logs",
-                logging.getMessages().stream().noneMatch(m -> m.contains("Attempting to reconnect")),
-                equalTo(true));
+                "No reconnection logs", logging.getMessages(), not(hasItem(containsString("Attempting to reconnect"))));
     }
 
     /**
