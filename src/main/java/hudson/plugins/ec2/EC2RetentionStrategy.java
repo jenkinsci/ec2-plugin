@@ -317,7 +317,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
      */
     private void attemptReconnectIfOffline(EC2Computer computer) {
         try {
-            if (computer.getState() == InstanceState.RUNNING && computer.isOffline()) {
+            if (computer.isOffline() && !computer.isIdle() && computer.getState() == InstanceState.RUNNING) {
                 LOGGER.warning("EC2Computer " + computer.getName() + " is offline");
                 if (!computer.isConnecting()) {
                     // Keep retrying connection to agent until the job times out
