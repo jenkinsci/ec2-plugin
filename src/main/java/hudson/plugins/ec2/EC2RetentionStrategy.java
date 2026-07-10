@@ -196,7 +196,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     || (slaveTemplate != null && slaveTemplate.stopOnTerminate)
                             && (InstanceState.STOPPED.equals(state) || InstanceState.STOPPING.equals(state))) {
                 if (computer.isOnline()) {
-                    LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status"
+                    LOGGER.info("External Stop of " + computer.getName() + " detected - disconnecting. instance status "
                             + state);
                     try {
                         Queue.withLock(() -> computer.disconnect(null));
