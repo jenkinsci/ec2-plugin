@@ -24,6 +24,6 @@ THE SOFTWARE.
 <?jelly escape-by-default='true'?>
 <div>
   This plugin integrates Jenkins with 
-  <a href="http://aws.amazon.com/ec2/">Amazon EC2</a> or anything implementing
-  the EC2 API's such as an Ubuntu.
+  <a href="http://aws.amazon.com/ec2/">Amazon EC2</a> or anything else implementing
+  the EC2 APIs.
 </div>
