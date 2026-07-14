@@ -41,7 +41,8 @@ public class EC2AgentFactoryImpl implements EC2AgentFactory {
                 config.metadataTokensRequired,
                 config.metadataHopsLimit,
                 config.metadataSupported,
-                config.enclaveEnabled);
+                config.enclaveEnabled,
+                config.useSSM);
     }
 
     @Override
@@ -66,6 +67,7 @@ public class EC2AgentFactoryImpl implements EC2AgentFactory {
                 config.launchTimeout,
                 config.amiType,
                 config.connectionStrategy,
-                config.maxTotalUses);
+                config.maxTotalUses,
+                config.useSSM);
     }
 }

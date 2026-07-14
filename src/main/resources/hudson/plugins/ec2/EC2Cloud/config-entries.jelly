@@ -36,9 +36,20 @@ THE SOFTWARE.
   <f:entry title="${%Region}" field="region">
     <f:select/>
   </f:entry>
-  <f:entry field="sshKeysCredentialsId" title="${%EC2 Key Pair's Private Key}">
-    <c:select includeUser="false" checkMethod="post"/>
-  </f:entry>
+  <f:radioBlock name="useSSM" value="false" title="EC2 Key Pair's Private Key"
+                checked="${!instance.useSSM}" inline="true">
+    <f:entry field="sshKeysCredentialsId" title="${%SSH Credentials}">
+      <c:select includeUser="false" checkMethod="post"/>
+    </f:entry>
+  </f:radioBlock>
+  <f:radioBlock name="useSSM" value="true" title="Use AWS Systems Manager (SSM)"
+                checked="${instance.useSSM}" inline="true">
+    <f:description>
+      Connects to instances using AWS Systems Manager instead of SSH.
+      Requires SSM Agent on instances and appropriate IAM permissions.
+      The AWS CLI and session-manager-plugin must be installed on the Jenkins controller.
+    </f:description>
+  </f:radioBlock>
   <f:advanced>
     <f:entry title="${%Instance Cap}" field="instanceCapStr">
       <f:textbox />
@@ -56,5 +67,5 @@ THE SOFTWARE.
       <f:checkbox/>
     </f:entry>
   </f:advanced>
-  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,altEC2Endpoint,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName" />
+  <f:validateButton title="${%Test Connection}" progress="${%Testing...}" method="testConnection" with="region,altEC2Endpoint,useInstanceProfileForCredentials,credentialsId,sshKeysCredentialsId,roleArn,roleSessionName,useSSM" />
 </j:jelly>

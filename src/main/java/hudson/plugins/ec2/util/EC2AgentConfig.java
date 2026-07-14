@@ -29,6 +29,7 @@ public abstract class EC2AgentConfig {
     final AMITypeData amiType;
     final ConnectionStrategy connectionStrategy;
     final int maxTotalUses;
+    final boolean useSSM;
 
     private EC2AgentConfig(Builder<? extends Builder, ? extends EC2AgentConfig> builder) {
         this.name = builder.name;
@@ -50,6 +51,7 @@ public abstract class EC2AgentConfig {
         this.amiType = builder.amiType;
         this.connectionStrategy = builder.connectionStrategy;
         this.maxTotalUses = builder.maxTotalUses;
+        this.useSSM = builder.useSSM;
     }
 
     public static class OnDemand extends EC2AgentConfig {
@@ -117,6 +119,7 @@ public abstract class EC2AgentConfig {
         private AMITypeData amiType;
         private ConnectionStrategy connectionStrategy;
         private int maxTotalUses;
+        private boolean useSSM;
 
         public B withName(String name) {
             this.name = name;
@@ -214,6 +217,11 @@ public abstract class EC2AgentConfig {
 
         public B withMaxTotalUses(int maxTotalUses) {
             this.maxTotalUses = maxTotalUses;
+            return self();
+        }
+
+        public B withUseSSM(boolean useSSM) {
+            this.useSSM = useSSM;
             return self();
         }
 

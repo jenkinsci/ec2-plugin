@@ -2194,17 +2194,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         diFilters.add(Filter.builder().name("image-id").values(imageId).build());
         diFilters.add(Filter.builder().name("instance-type").values(type).build());
 
-        KeyPair keyPair = getKeyPair(ec2);
-        if (keyPair == null) {
-            logProvisionInfo("Could not retrieve a valid key pair.");
-            return null;
-        }
         riRequestBuilder.userData(Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8)));
-        riRequestBuilder.keyName(keyPair.getKeyPairInfo().keyName());
-        diFilters.add(Filter.builder()
-                .name("key-name")
-                .values(keyPair.getKeyPairInfo().keyName())
-                .build());
+        if (!getParent().isUseSSM()) {
+            KeyPair keyPair = getKeyPair(ec2);
+            if (keyPair == null) {
+                logProvisionInfo("Could not retrieve a valid key pair.");
+                return null;
+            }
+            riRequestBuilder.keyName(keyPair.getKeyPairInfo().keyName());
+            diFilters.add(Filter.builder()
+                    .name("key-name")
+                    .values(keyPair.getKeyPairInfo().keyName())
+                    .build());
+        }
 
         Placement.Builder placementBuilder = Placement.builder();
         if (StringUtils.isNotBlank(getZone())) {
@@ -2677,7 +2679,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             LOGGER.info("Launching " + imageId + " for template " + description);
 
-            KeyPair keyPair = getKeyPair(ec2);
+            KeyPair keyPair = getParent().isUseSSM() ? null : getKeyPair(ec2);
 
             RequestSpotInstancesRequest.Builder spotRequestBuilder = RequestSpotInstancesRequest.builder();
 
@@ -2734,7 +2736,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             String userDataString = Base64.getEncoder().encodeToString(userData.getBytes(StandardCharsets.UTF_8));
 
             launchSpecificationBuilder.userData(userDataString);
-            launchSpecificationBuilder.keyName(keyPair.getKeyPairInfo().keyName());
+            if (keyPair != null) {
+                launchSpecificationBuilder.keyName(keyPair.getKeyPairInfo().keyName());
+            }
             launchSpecificationBuilder.instanceType(type);
 
             switch (getAssociateIPStrategy()) {
@@ -2936,6 +2940,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 .withMetadataEndpointEnabled(metadataEndpointEnabled)
                 .withMetadataTokensRequired(metadataTokensRequired)
                 .withMetadataHopsLimit(metadataHopsLimit)
+                .withUseSSM(parent.isUseSSM())
                 .build();
         return EC2AgentFactory.getInstance().createOnDemandAgent(config);
     }
@@ -2962,6 +2967,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 .withAmiType(amiType)
                 .withConnectionStrategy(connectionStrategy)
                 .withMaxTotalUses(maxTotalUses)
+                .withUseSSM(parent.isUseSSM())
                 .build();
         return EC2AgentFactory.getInstance().createSpotAgent(config);
     }
@@ -2971,6 +2977,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     @CheckForNull
     private KeyPair getKeyPair(Ec2Client ec2) throws IOException, SdkException {
+        if (getParent().isUseSSM()) {
+            return null;
+        }
         EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
         if (ec2PrivateKey == null) {
             throw SdkException.builder()
