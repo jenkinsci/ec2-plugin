@@ -46,7 +46,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.future.ConnectFuture;
@@ -353,7 +352,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                     throw new IOException("goto sleep");
                 }
 
-                if (StringUtils.isBlank(host)) {
+                if (host == null || host.isBlank()) {
                     logWarning(computer, listener, "Empty host, your host is most likely waiting for an ip address.");
                     throw new IOException("goto sleep");
                 }
@@ -403,9 +402,11 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             } catch (IOException e) {
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
 
+                String offlineCauseReason = computer.getOfflineCauseReason();
                 if (computer.isOffline()
-                        && StringUtils.isNotBlank(computer.getOfflineCauseReason())
-                        && computer.getOfflineCauseReason().equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
+                        && offlineCauseReason != null
+                        && !offlineCauseReason.isBlank()
+                        && offlineCauseReason.equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
                     throw SdkException.create(
                             "The connection couldn't be established and the computer is now offline", e);
                 } else {

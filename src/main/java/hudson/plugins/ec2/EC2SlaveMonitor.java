@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.ec2.model.Instance;
@@ -51,7 +50,7 @@ public class EC2SlaveMonitor extends AsyncPeriodicWork {
         for (Node node : Jenkins.get().getNodes()) {
             if (node instanceof EC2AbstractSlave ec2Slave) {
                 String instanceId = ec2Slave.getInstanceId();
-                if (StringUtils.isEmpty(instanceId)) {
+                if (instanceId == null || instanceId.isEmpty()) {
                     continue;
                 }
                 EC2Cloud cloud = ec2Slave.getCloud();

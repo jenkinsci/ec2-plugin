@@ -16,7 +16,6 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -308,7 +307,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
 
     @Override
     public String getInstanceId() {
-        if (StringUtils.isEmpty(instanceId)) {
+        if (instanceId == null || instanceId.isEmpty()) {
             SpotInstanceRequest sr = getSpotRequest();
             if (sr != null) {
                 instanceId = sr.instanceId();

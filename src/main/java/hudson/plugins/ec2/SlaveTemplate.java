@@ -74,7 +74,6 @@ import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -349,7 +348,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Boolean metadataSupported,
             Boolean enclaveEnabled) {
 
-        if (StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)) {
+        if ((remoteAdmin != null && !remoteAdmin.isBlank())
+                || (jvmopts != null && !jvmopts.isBlank())
+                || (tmpDir != null && !tmpDir.isBlank())) {
             LOGGER.log(
                     Level.FINE,
                     "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
@@ -374,11 +375,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.description = description;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
-        this.userData = StringUtils.trimToEmpty(userData);
+        this.userData = userData == null ? "" : userData.trim();
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
 
-        if (StringUtils.isNotBlank(javaPath)) {
+        if (javaPath != null && !javaPath.isBlank()) {
             this.javaPath = javaPath;
         } else {
             this.javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
@@ -1714,7 +1715,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String chooseSubnetId() {
-        if (StringUtils.isBlank(subnetId)) {
+        if (subnetId == null || subnetId.isBlank()) {
             return null;
         } else {
             String[] subnetIdList = getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS);
@@ -2136,7 +2137,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private boolean isSameIamInstanceProfile(Instance instance) {
-        return StringUtils.isBlank(getIamInstanceProfile())
+        return (getIamInstanceProfile() == null || getIamInstanceProfile().isBlank())
                 || (instance.iamInstanceProfile() != null
                         && instance.iamInstanceProfile().arn().equals(getIamInstanceProfile()));
     }
@@ -2207,7 +2208,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 .build());
 
         Placement.Builder placementBuilder = Placement.builder();
-        if (StringUtils.isNotBlank(getZone())) {
+        if (getZone() != null && !getZone().isBlank()) {
             if (getTenancyAttribute().equals(Tenancy.Dedicated)) {
                 placementBuilder.tenancy("dedicated");
             }
@@ -2238,7 +2239,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
 
         InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
-        if (StringUtils.isNotBlank(subnetId)) {
+        if (subnetId != null && !subnetId.isBlank()) {
             netBuilder.subnetId(subnetId);
 
             diFilters.add(Filter.builder().name("subnet-id").values(subnetId).build());
@@ -2295,7 +2296,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .build());
         }
 
-        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+        if (getIamInstanceProfile() != null && !getIamInstanceProfile().isBlank()) {
             riRequestBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
                     .arn(getIamInstanceProfile())
                     .build());
@@ -2657,7 +2658,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
-        if (StringUtils.isNotBlank(customDeviceMapping)) {
+        if (customDeviceMapping != null && !customDeviceMapping.isBlank()) {
             deviceMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
@@ -2700,7 +2701,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecificationBuilder.monitoring(
                     RunInstancesMonitoringEnabled.builder().enabled(monitoring).build());
 
-            if (StringUtils.isNotBlank(getZone())) {
+            if (getZone() != null && !getZone().isBlank()) {
                 SpotPlacement placement =
                         SpotPlacement.builder().availabilityZone(getZone()).build();
                 launchSpecificationBuilder.placement(placement);
@@ -2709,7 +2710,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
             String subnetId = chooseSubnetId();
             LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
-            if (StringUtils.isNotBlank(subnetId)) {
+            if (subnetId != null && !subnetId.isBlank()) {
                 netBuilder.subnetId(subnetId);
 
                 /*
@@ -2754,7 +2755,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
-            if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            if (getIamInstanceProfile() != null && !getIamInstanceProfile().isBlank()) {
                 launchSpecificationBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
                         .arn(getIamInstanceProfile())
                         .build());
@@ -2860,7 +2861,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (useEphemeralDevices) {
             newMappings.addAll(getNewEphemeralDeviceMapping(image));
         } else {
-            if (StringUtils.isNotBlank(customDeviceMapping)) {
+            if (customDeviceMapping != null && !customDeviceMapping.isBlank()) {
                 newMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
             }
         }
@@ -2874,10 +2875,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (tags != null && !tags.isEmpty()) {
             for (EC2Tag t : tags) {
                 instTags.add(Tag.builder().key(t.getName()).value(t.getValue()).build());
-                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                if (Objects.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                     hasCustomTypeTag = true;
                 }
-                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                if (Objects.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
                     hasJenkinsServerUrlTag = true;
                 }
             }
@@ -2896,7 +2897,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .build());
         }
 
-        if (parent != null && StringUtils.isNotBlank(parent.name)) {
+        if (parent != null && parent.name != null && !parent.name.isBlank()) {
             instTags.add(Tag.builder()
                     .key(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME)
                     .value(parent.name)
@@ -3175,7 +3176,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (metadataHopsLimit == null) {
             metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         }
-        if (StringUtils.isBlank(javaPath)) {
+        if (javaPath == null || javaPath.isBlank()) {
             javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
         if (enclaveEnabled == null) {

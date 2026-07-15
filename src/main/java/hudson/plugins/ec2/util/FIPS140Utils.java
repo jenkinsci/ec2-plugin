@@ -11,7 +11,6 @@ import java.security.interfaces.ECKey;
 import java.security.interfaces.RSAKey;
 import jenkins.bouncycastle.api.PEMEncodable;
 import jenkins.security.FIPS140;
-import org.apache.commons.lang.StringUtils;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
@@ -75,7 +74,7 @@ public class FIPS140Utils {
      * @throws IllegalArgumentException if there is a risk that the password will leak
      */
     public static void ensureNoPasswordLeak(boolean useHTTPS, String password) {
-        ensureNoPasswordLeak(useHTTPS, !StringUtils.isEmpty(password));
+        ensureNoPasswordLeak(useHTTPS, password != null && !password.isEmpty());
     }
 
     /**
@@ -101,7 +100,7 @@ public class FIPS140Utils {
      */
     public static void ensurePasswordLength(String password) {
         if (FIPS140.useCompliantAlgorithms()) {
-            if (StringUtils.isBlank(password) || password.length() < 14) {
+            if (password == null || password.isBlank() || password.length() < 14) {
                 throw new IllegalArgumentException(Messages.EC2Cloud_passwordLengthInFIPSMode());
             }
         }
@@ -137,7 +136,7 @@ public class FIPS140Utils {
         if (!FIPS140.useCompliantAlgorithms()) {
             return;
         }
-        if (StringUtils.isBlank(privateKeyString)) {
+        if (privateKeyString == null || privateKeyString.isBlank()) {
             throw new IllegalArgumentException(Messages.EC2Cloud_keyIsMandatoryInFIPSMode());
         }
         try {

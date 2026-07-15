@@ -94,7 +94,6 @@ import java.util.regex.Pattern;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.util.Timer;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -924,8 +923,8 @@ public class EC2Cloud extends Cloud {
                 if (template != null) {
                     List<Tag> instanceTags = sir.tags();
                     for (Tag tag : instanceTags) {
-                        if (StringUtils.equals(tag.key(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
-                                && StringUtils.equals(
+                        if (Objects.equals(tag.key(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)
+                                && Objects.equals(
                                         tag.value(), getSlaveTypeTagValue(EC2_SLAVE_TYPE_SPOT, template.description))
                                 && sir.launchSpecification().imageId().equals(template.getAmi())) {
 
@@ -988,16 +987,16 @@ public class EC2Cloud extends Cloud {
 
     private boolean isEc2ProvisionedAmiSlave(List<Tag> tags, String description) {
         for (Tag tag : tags) {
-            if (StringUtils.equals(tag.key(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+            if (Objects.equals(tag.key(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                 if (description == null) {
                     return true;
-                } else if (StringUtils.equals(tag.value(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
-                        || StringUtils.equals(tag.value(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
+                } else if (Objects.equals(tag.value(), EC2Cloud.EC2_SLAVE_TYPE_DEMAND)
+                        || Objects.equals(tag.value(), EC2Cloud.EC2_SLAVE_TYPE_SPOT)) {
                     // To handle cases where description is null and also upgrade cases for existing agent nodes.
                     return true;
-                } else if (StringUtils.equals(
+                } else if (Objects.equals(
                                 tag.value(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_DEMAND, description))
-                        || StringUtils.equals(
+                        || Objects.equals(
                                 tag.value(), getSlaveTypeTagValue(EC2Cloud.EC2_SLAVE_TYPE_SPOT, description))) {
                     return true;
                 } else {
@@ -1229,7 +1228,7 @@ public class EC2Cloud extends Cloud {
                                         t);
                                 return null;
                             }
-                            if (StringUtils.isEmpty(instanceId)) {
+                            if (instanceId == null || instanceId.isEmpty()) {
                                 try {
                                     Thread.sleep(5000);
                                 } catch (InterruptedException e) {
@@ -1394,7 +1393,7 @@ public class EC2Cloud extends Cloud {
             final boolean useInstanceProfileForCredentials, final String credentialsId) {
         if (useInstanceProfileForCredentials) {
             return InstanceProfileCredentialsProvider.create();
-        } else if (StringUtils.isBlank(credentialsId)) {
+        } else if (credentialsId == null || credentialsId.isBlank()) {
             return DefaultCredentialsProvider.builder().build();
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
@@ -1414,10 +1413,11 @@ public class EC2Cloud extends Cloud {
 
         AwsCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
 
-        if (StringUtils.isNotEmpty(roleArn)) {
+        if (roleArn != null && !roleArn.isEmpty()) {
             AssumeRoleRequest assumeRoleRequest = AssumeRoleRequest.builder()
                     .roleArn(roleArn)
-                    .roleSessionName(StringUtils.defaultIfBlank(roleSessionName, "Jenkins"))
+                    .roleSessionName(
+                            roleSessionName != null && !roleSessionName.isBlank() ? roleSessionName : "Jenkins")
                     .build();
 
             StsClientBuilder stsClientBuilder = StsClient.builder()
@@ -1441,7 +1441,7 @@ public class EC2Cloud extends Cloud {
 
     @CheckForNull
     private static AmazonWebServicesCredentials getCredentials(@CheckForNull String credentialsId) {
-        if (StringUtils.isBlank(credentialsId)) {
+        if (credentialsId == null || credentialsId.isBlank()) {
             return null;
         }
         return CredentialsMatchers.firstOrNull(
@@ -1592,7 +1592,7 @@ public class EC2Cloud extends Cloud {
                 @QueryParameter String roleArn, @QueryParameter String roleSessionName) {
             // Don't do anything if the user is only reading the configuration
             if (Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-                if (StringUtils.isNotEmpty(roleArn) && StringUtils.isBlank(roleSessionName)) {
+                if (roleArn != null && !roleArn.isEmpty() && (roleSessionName == null || roleSessionName.isBlank())) {
                     return FormValidation.warning(
                             "Session Name is recommended when specifying an Arn Role. If empty, 'Jenkins' will be used.");
                 }
@@ -1628,7 +1628,7 @@ public class EC2Cloud extends Cloud {
                 if (k == null) {
                     validations.add(FormValidation.error(
                             "Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
-                    if (!StringUtils.isEmpty(value)) {
+                    if (value != null && !value.isEmpty()) {
                         validations.add(FormValidation.warning(
                                 "Private key file path defined, selected credential will be ignored"));
                     }
@@ -1658,7 +1658,7 @@ public class EC2Cloud extends Cloud {
             }
 
             if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
-                if (!StringUtils.isEmpty(value)) {
+                if (value != null && !value.isEmpty()) {
                     validations.add(FormValidation.warning("Using private key file instead of selected credential"));
                 } else {
                     validations.add(FormValidation.ok("Using private key file"));
@@ -1722,7 +1722,7 @@ public class EC2Cloud extends Cloud {
                     if (k == null) {
                         validations.add(FormValidation.error(
                                 "Failed to find private key file " + System.getProperty(SSH_PRIVATE_KEY_FILEPATH)));
-                        if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                        if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
                             validations.add(FormValidation.warning(
                                     "Private key file path defined, selected credential will be ignored"));
                         }
@@ -1753,7 +1753,7 @@ public class EC2Cloud extends Cloud {
                 }
 
                 if (!System.getProperty(SSH_PRIVATE_KEY_FILEPATH, "").isEmpty()) {
-                    if (!StringUtils.isEmpty(sshKeysCredentialsId)) {
+                    if (sshKeysCredentialsId != null && !sshKeysCredentialsId.isEmpty()) {
                         validations.add(
                                 FormValidation.warning("Using private key file instead of selected credential"));
                     } else {
