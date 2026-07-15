@@ -41,6 +41,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -402,11 +403,9 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
             } catch (IOException e) {
                 logInfo(computer, listener, "Failed to connect via ssh: " + e.getMessage());
 
-                String offlineCauseReason = computer.getOfflineCauseReason();
                 if (computer.isOffline()
-                        && offlineCauseReason != null
-                        && !offlineCauseReason.isBlank()
-                        && offlineCauseReason.equals(Messages.OfflineCause_SSHKeyCheckFailed())) {
+                        && Objects.equals(
+                                computer.getOfflineCauseReason(), Messages.OfflineCause_SSHKeyCheckFailed())) {
                     throw SdkException.create(
                             "The connection couldn't be established and the computer is now offline", e);
                 } else {

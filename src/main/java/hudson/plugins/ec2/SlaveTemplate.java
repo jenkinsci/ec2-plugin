@@ -2137,9 +2137,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private boolean isSameIamInstanceProfile(Instance instance) {
-        return (getIamInstanceProfile() == null || getIamInstanceProfile().isBlank())
+        String iamProfile = getIamInstanceProfile();
+        return (iamProfile == null || iamProfile.isBlank())
                 || (instance.iamInstanceProfile() != null
-                        && instance.iamInstanceProfile().arn().equals(getIamInstanceProfile()));
+                        && instance.iamInstanceProfile().arn().equals(iamProfile));
     }
 
     private boolean isTerminatingOrShuttindDown(InstanceStateName instanceStateName) {
@@ -2208,13 +2209,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 .build());
 
         Placement.Builder placementBuilder = Placement.builder();
-        if (getZone() != null && !getZone().isBlank()) {
+        String zone = getZone();
+        if (zone != null && !zone.isBlank()) {
             if (getTenancyAttribute().equals(Tenancy.Dedicated)) {
                 placementBuilder.tenancy("dedicated");
             }
             riRequestBuilder.placement(placementBuilder.build());
             diFilters.add(
-                    Filter.builder().name("availability-zone").values(getZone()).build());
+                    Filter.builder().name("availability-zone").values(zone).build());
         }
 
         if (getTenancyAttribute().equals(Tenancy.Host)) {
@@ -2296,10 +2298,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .build());
         }
 
-        if (getIamInstanceProfile() != null && !getIamInstanceProfile().isBlank()) {
-            riRequestBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
-                    .arn(getIamInstanceProfile())
-                    .build());
+        String iamProfile = getIamInstanceProfile();
+        if (iamProfile != null && !iamProfile.isBlank()) {
+            riRequestBuilder.iamInstanceProfile(
+                    IamInstanceProfileSpecification.builder().arn(iamProfile).build());
         }
 
         List<TagSpecification> tagList = new ArrayList<>();
@@ -2701,9 +2703,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecificationBuilder.monitoring(
                     RunInstancesMonitoringEnabled.builder().enabled(monitoring).build());
 
-            if (getZone() != null && !getZone().isBlank()) {
+            String zone = getZone();
+            if (zone != null && !zone.isBlank()) {
                 SpotPlacement placement =
-                        SpotPlacement.builder().availabilityZone(getZone()).build();
+                        SpotPlacement.builder().availabilityZone(zone).build();
                 launchSpecificationBuilder.placement(placement);
             }
 
@@ -2755,9 +2758,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
-            if (getIamInstanceProfile() != null && !getIamInstanceProfile().isBlank()) {
+            String iamProfile = getIamInstanceProfile();
+            if (iamProfile != null && !iamProfile.isBlank()) {
                 launchSpecificationBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
-                        .arn(getIamInstanceProfile())
+                        .arn(iamProfile)
                         .build());
             }
 
