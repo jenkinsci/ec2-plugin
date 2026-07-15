@@ -99,8 +99,7 @@ class EC2SpotSlaveUnitTest {
         assertEquals(2, tagRequest.tags().size());
         assertTrue(tagRequest.tags().stream()
                 .anyMatch(t -> "Name".equals(t.key()) && "my-spot-instance".equals(t.value())));
-        assertTrue(tagRequest.tags().stream()
-                .anyMatch(t -> "Team".equals(t.key()) && "platform".equals(t.value())));
+        assertTrue(tagRequest.tags().stream().anyMatch(t -> "Team".equals(t.key()) && "platform".equals(t.value())));
     }
 
     @Test
@@ -189,8 +188,7 @@ class EC2SpotSlaveUnitTest {
                 .build();
         when(ec2.describeSpotInstanceRequests(any(DescribeSpotInstanceRequestsRequest.class)))
                 .thenReturn(response);
-        when(ec2.createTags(any(CreateTagsRequest.class)))
-                .thenThrow(new RuntimeException("AWS API failure"));
+        when(ec2.createTags(any(CreateTagsRequest.class))).thenThrow(new RuntimeException("AWS API failure"));
 
         List<EC2Tag> tags = new ArrayList<>();
         tags.add(new EC2Tag("Name", "my-spot-instance"));

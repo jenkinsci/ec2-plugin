@@ -1262,57 +1262,58 @@ class SlaveTemplateUnitTest {
             }
         };
 
-        SlaveTemplate template = new SlaveTemplate(
-                "ami1",
-                EC2AbstractSlave.TEST_ZONE,
-                null,
-                "default",
-                "foo",
-                InstanceType.M1_LARGE.toString(),
-                false,
-                "ttt",
-                Node.Mode.NORMAL,
-                "foo ami",
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "subnet 456",
-                null,
-                null,
-                0,
-                0,
-                null,
-                "",
-                false,
-                true,
-                "",
-                false,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.PRIVATE_IP,
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
-            @Override
-            protected Object readResolve() {
-                return null;
-            }
-        };
+        SlaveTemplate template =
+                new SlaveTemplate(
+                        "ami1",
+                        EC2AbstractSlave.TEST_ZONE,
+                        null,
+                        "default",
+                        "foo",
+                        InstanceType.M1_LARGE.toString(),
+                        false,
+                        "ttt",
+                        Node.Mode.NORMAL,
+                        "foo ami",
+                        "bar",
+                        "bbb",
+                        "aaa",
+                        "10",
+                        "fff",
+                        null,
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                        "-Xmx1g",
+                        false,
+                        "subnet 456",
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        "",
+                        false,
+                        true,
+                        "",
+                        false,
+                        "",
+                        false,
+                        false,
+                        false,
+                        ConnectionStrategy.PRIVATE_IP,
+                        -1,
+                        Collections.emptyList(),
+                        null,
+                        Tenancy.Default,
+                        EbsEncryptRootVolume.DEFAULT,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
+                    @Override
+                    protected Object readResolve() {
+                        return null;
+                    }
+                };
 
         ArrayList<Tag> instTags = new ArrayList<>();
         instTags.add(Tag.builder().key("Name").value("test-instance").build());
@@ -1327,8 +1328,10 @@ class SlaveTemplateUnitTest {
         CreateTagsRequest request = capturedRequests.get(0);
         assertEquals(Collections.singletonList("i-12345"), request.resources());
         assertEquals(2, request.tags().size());
-        assertTrue(request.tags().contains(Tag.builder().key("Name").value("test-instance").build()));
-        assertTrue(request.tags().contains(Tag.builder().key("Environment").value("dev").build()));
+        assertTrue(request.tags()
+                .contains(Tag.builder().key("Name").value("test-instance").build()));
+        assertTrue(request.tags()
+                .contains(Tag.builder().key("Environment").value("dev").build()));
     }
 
     @Test
@@ -1354,57 +1357,58 @@ class SlaveTemplateUnitTest {
             }
         };
 
-        SlaveTemplate template = new SlaveTemplate(
-                "ami1",
-                EC2AbstractSlave.TEST_ZONE,
-                null,
-                "default",
-                "foo",
-                InstanceType.M1_LARGE.toString(),
-                false,
-                "ttt",
-                Node.Mode.NORMAL,
-                "foo ami",
-                "bar",
-                "bbb",
-                "aaa",
-                "10",
-                "fff",
-                null,
-                EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                "-Xmx1g",
-                false,
-                "subnet 456",
-                null,
-                null,
-                0,
-                0,
-                null,
-                "",
-                false,
-                true,
-                "",
-                false,
-                "",
-                false,
-                false,
-                false,
-                ConnectionStrategy.PRIVATE_IP,
-                -1,
-                Collections.emptyList(),
-                null,
-                Tenancy.Default,
-                EbsEncryptRootVolume.DEFAULT,
-                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
-            @Override
-            protected Object readResolve() {
-                return null;
-            }
-        };
+        SlaveTemplate template =
+                new SlaveTemplate(
+                        "ami1",
+                        EC2AbstractSlave.TEST_ZONE,
+                        null,
+                        "default",
+                        "foo",
+                        InstanceType.M1_LARGE.toString(),
+                        false,
+                        "ttt",
+                        Node.Mode.NORMAL,
+                        "foo ami",
+                        "bar",
+                        "bbb",
+                        "aaa",
+                        "10",
+                        "fff",
+                        null,
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                        "-Xmx1g",
+                        false,
+                        "subnet 456",
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        "",
+                        false,
+                        true,
+                        "",
+                        false,
+                        "",
+                        false,
+                        false,
+                        false,
+                        ConnectionStrategy.PRIVATE_IP,
+                        -1,
+                        Collections.emptyList(),
+                        null,
+                        Tenancy.Default,
+                        EbsEncryptRootVolume.DEFAULT,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
+                    @Override
+                    protected Object readResolve() {
+                        return null;
+                    }
+                };
 
         ArrayList<Tag> instTags = new ArrayList<>();
         instTags.add(Tag.builder().key("Name").value("test-instance").build());
