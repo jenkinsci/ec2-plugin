@@ -6,23 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import hudson.Extension;
 import hudson.model.Computer;
-import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
-import hudson.plugins.ec2.util.SSHCredentialHelper;
-import hudson.slaves.ComputerLauncher;
 import hudson.slaves.NodeProvisioner.PlannedNode;
-import hudson.slaves.RetentionStrategy;
 import java.io.File;
-import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecution;
@@ -66,7 +57,7 @@ class CloudStatsAsyncOndemandTest {
     @Test
     void asyncProvisionRecordsProvisioningActivityMatchingResultingAgent() throws Exception {
         SlaveTemplate template = MockEC2Computer.createSlaveTemplate();
-        EC2Cloud cloud = registerCloud(template);
+        EC2Cloud cloud = CloudStatsTestSupport.registerCloud(r, template);
 
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 1);
@@ -107,7 +98,7 @@ class CloudStatsAsyncOndemandTest {
     @Test
     void eachPlannedAgentGetsItsOwnActivity() throws Exception {
         SlaveTemplate template = MockEC2Computer.createSlaveTemplate();
-        EC2Cloud cloud = registerCloud(template);
+        EC2Cloud cloud = CloudStatsTestSupport.registerCloud(r, template);
 
         Label label = r.jenkins.getLabel(template.getLabelString());
         // Excess workload of two full agents' worth of executors asks the cloud for two planned agents.
@@ -132,8 +123,8 @@ class CloudStatsAsyncOndemandTest {
     @Test
     void launchingThenOperatingThenCleanCompletedOnRetirement() throws Exception {
         ProvisioningActivity.Id id = new ProvisioningActivity.Id("testcloud", "testtemplate", "operating-node");
-        LocalLaunchSlave slave =
-                new LocalLaunchSlave("operating-node", remoteRoot.getAbsolutePath(), r.createComputerLauncher(null));
+        CloudStatsTestSupport.LocalLaunchSlave slave = new CloudStatsTestSupport.LocalLaunchSlave(
+                "operating-node", remoteRoot.getAbsolutePath(), r.createComputerLauncher(null));
         slave.setCloudStatsId(id);
 
         // Create the PROVISIONING activity as the provisioning path would, and keep the live handle so completion
@@ -147,7 +138,7 @@ class CloudStatsAsyncOndemandTest {
         assertNotNull(computer, "the added agent must have a computer");
         computer.connect(false).get(60, TimeUnit.SECONDS);
 
-        awaitPhase(activity, ProvisioningActivity.Phase.OPERATING);
+        CloudStatsTestSupport.awaitPhase(activity, ProvisioningActivity.Phase.OPERATING);
         assertEquals(
                 ProvisioningActivity.Phase.OPERATING,
                 activity.getCurrentPhase(),
@@ -160,7 +151,7 @@ class CloudStatsAsyncOndemandTest {
 
         // Healthy retirement: removing the node auto-completes the activity via cloud-stats' completion detector.
         r.jenkins.removeNode(slave);
-        awaitPhase(activity, ProvisioningActivity.Phase.COMPLETED);
+        CloudStatsTestSupport.awaitPhase(activity, ProvisioningActivity.Phase.COMPLETED);
         assertEquals(
                 ProvisioningActivity.Phase.COMPLETED,
                 activity.getCurrentPhase(),
@@ -184,7 +175,7 @@ class CloudStatsAsyncOndemandTest {
     @Test
     void slaveFactoryNeverMintsIdentity() throws Exception {
         SlaveTemplate template = MockEC2Computer.createSlaveTemplate();
-        registerCloud(template);
+        CloudStatsTestSupport.registerCloud(r, template);
 
         List<EC2AbstractSlave> slaves = template.provision(1, EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE));
         assertNotNull(slaves);
@@ -192,94 +183,5 @@ class CloudStatsAsyncOndemandTest {
         assertNull(
                 slaves.get(0).getId(),
                 "the shared slave factory must never mint a cloud-stats identity; only the caller injects it");
-    }
-
-    /** Registers a real {@link EC2Cloud} (with SSH credentials available) that offers the given template. */
-    private EC2Cloud registerCloud(SlaveTemplate template) {
-        SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
-        EC2Cloud cloud = new EC2Cloud(
-                "testcloud",
-                true,
-                "abc",
-                "us-east-1",
-                null,
-                "ghi",
-                "10",
-                Collections.singletonList(template),
-                null,
-                null);
-        r.jenkins.clouds.add(cloud);
-        return cloud;
-    }
-
-    /** Waits briefly for {@code cloud-stats} to record {@code phase}, tolerating any asynchrony in phase advancement. */
-    private static void awaitPhase(ProvisioningActivity activity, ProvisioningActivity.Phase phase)
-            throws InterruptedException {
-        for (int i = 0; i < 200 && activity.getPhaseExecution(phase) == null; i++) {
-            Thread.sleep(50);
-        }
-    }
-
-    /**
-     * A minimal concrete {@link EC2AbstractSlave} that launches through a substituted, real-but-local
-     * {@link ComputerLauncher} (so it reaches OPERATING) instead of the AWS SSH launchers the production subclasses
-     * hardcode. It carries no live EC2 instance, so its retention is a no-op and retirement is driven by the test.
-     */
-    public static class LocalLaunchSlave extends EC2AbstractSlave {
-
-        @SuppressWarnings("unchecked")
-        LocalLaunchSlave(String name, String remoteFS, ComputerLauncher launcher)
-                throws Descriptor.FormException, IOException {
-            super(
-                    name,
-                    "i-" + name,
-                    "local launch test agent",
-                    remoteFS,
-                    1,
-                    Mode.NORMAL,
-                    "",
-                    launcher,
-                    // NOOP never retires the agent; the test controls retirement via removeNode. A raw narrowing is
-                    // required because NOOP is typed RetentionStrategy<Computer> and generics are invariant.
-                    (RetentionStrategy<EC2Computer>) (RetentionStrategy<?>) RetentionStrategy.NOOP,
-                    "",
-                    remoteFS,
-                    Collections.emptyList(),
-                    "",
-                    DEFAULT_JAVA_PATH,
-                    "",
-                    false,
-                    "0",
-                    null,
-                    "testcloud",
-                    -1,
-                    null,
-                    ConnectionStrategy.PRIVATE_IP,
-                    -1,
-                    Tenancy.Default,
-                    DEFAULT_METADATA_ENDPOINT_ENABLED,
-                    DEFAULT_METADATA_TOKENS_REQUIRED,
-                    DEFAULT_METADATA_HOPS_LIMIT,
-                    DEFAULT_METADATA_SUPPORTED,
-                    DEFAULT_ENCLAVE_ENABLED);
-        }
-
-        @Override
-        public Future<?> terminate() {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public String getEc2Type() {
-            return "LocalLaunch";
-        }
-
-        @Extension
-        public static class DescriptorImpl extends EC2AbstractSlave.DescriptorImpl {
-            @Override
-            public String getDisplayName() {
-                return "LocalLaunchSlave";
-            }
-        }
     }
 }

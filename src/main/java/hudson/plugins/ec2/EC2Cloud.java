@@ -96,6 +96,7 @@ import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.util.Timer;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
@@ -1207,6 +1208,15 @@ public class EC2Cloud extends Cloud {
                                         : CompletableFuture.completedFuture(null),
                                 Computer.threadPoolForRemoting);
 
+                // A cloud-stats activity that never yields an agent would otherwise dangle forever: when the node
+                // future completes normally with no node (no capacity, cap reached, or a swallowed API error),
+                // NodeProvisioner drops it silently without firing any CloudProvisioningListener callback. Record
+                // the failure ourselves so the activity completes. This is fire-and-forget: the original nodeFuture
+                // is still what the TrackedPlannedNode hands to NodeProvisioner, so provisioning behaviour is
+                // unchanged.
+                nodeFuture.whenComplete(
+                        (node, throwable) -> reportProvisioningFailureIfUnfulfilled(id, node, throwable));
+
                 plannedNodes.add(new TrackedPlannedNode(id, t.getNumExecutors(), nodeFuture));
             }
 
@@ -1221,6 +1231,35 @@ public class EC2Cloud extends Cloud {
             });
         }
         return plannedNodes;
+    }
+
+    /**
+     * Reports a {@code cloud-stats} provisioning failure for a planned agent that never materialised.
+     *
+     * <p>Fire-and-forget completion handler for a planned agent's node future. It acts only when the future
+     * completed <em>normally</em> with no node -- the one outcome {@code NodeProvisioner} drops silently (firing no
+     * {@code CloudProvisioningListener} callback), which would otherwise leave the activity dangling in
+     * {@code PROVISIONING}. A future that materialised an agent needs no failure, and one that completed
+     * exceptionally is already reported by core via {@code CloudProvisioningListener.onFailure}, so both are skipped.
+     * cloud-stats attaches the failure to the {@code PROVISIONING} phase and then completes and archives the activity.
+     *
+     * <p>This relies on the activity already existing when it fires: {@code NodeProvisioner} creates it (via
+     * {@code CloudProvisioningListener.onStarted}) synchronously the instant {@code provision} returns, long before
+     * the asynchronous node future can complete against real EC2 latency, so in practice the activity is always
+     * present here. If the activity is somehow absent, cloud-stats' {@code onFailure} is a no-op -- and cloud-stats'
+     * own scavenger does not reap a dangling {@code PROVISIONING}-only activity -- but that ordering cannot arise
+     * with a real EC2 backend.
+     */
+    private static void reportProvisioningFailureIfUnfulfilled(
+            ProvisioningActivity.Id id, Node node, Throwable throwable) {
+        if (node != null || throwable != null) {
+            return;
+        }
+        CloudStatistics.ProvisioningListener.get()
+                .onFailure(
+                        id,
+                        new IOException("EC2 provisioning produced no instance (no capacity, instance cap reached, "
+                                + "or an API error); see the logs for details"));
     }
 
     /**

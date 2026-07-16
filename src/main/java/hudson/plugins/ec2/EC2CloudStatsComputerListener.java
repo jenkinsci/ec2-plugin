@@ -32,17 +32,20 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 
 /**
- * Advances the {@code cloud-stats} {@link ProvisioningActivity} of an EC2 agent through its launch phases.
+ * Advances the {@code cloud-stats} {@link ProvisioningActivity} of an EC2 agent through its launch phases and
+ * records a launch failure when one occurs.
  *
  * <p>cloud-stats ships its own {@code OperationListener}, but that listener resolves the activity identity only
  * for computers that extend {@code AbstractCloudComputer}. EC2 agents are plain {@link hudson.slaves.SlaveComputer}s,
  * so it silently no-ops for them. This listener fills the gap: it resolves the activity through the agent node
  * (which implements {@link org.jenkinsci.plugins.cloudstats.TrackedItem}) and drives the {@code LAUNCHING} and
- * {@code OPERATING} transitions. It is scoped strictly to {@link EC2AbstractSlave} nodes, so it has no effect on
- * agents contributed by other plugins, and cloud-stats' own gated listener still fires and harmlessly no-ops.
+ * {@code OPERATING} transitions, and on a launch failure attaches a {@code FAIL} so the activity never dangles. It
+ * is scoped strictly to {@link EC2AbstractSlave} nodes, so it has no effect on agents contributed by other plugins,
+ * and cloud-stats' own gated listener still fires and harmlessly no-ops.
  */
 @Extension
 public class EC2CloudStatsComputerListener extends ComputerListener {
@@ -60,26 +63,55 @@ public class EC2CloudStatsComputerListener extends ComputerListener {
     }
 
     /**
-     * Enters {@code phase} on the tracked activity of an EC2 agent, if not already there, and persists the change.
-     * Resolving through the node keeps this working for a plain {@code SlaveComputer}; an untracked agent (no
-     * injected identity) resolves to a {@code null} activity and is skipped.
+     * Records a launch failure on the agent's activity. The instance was provisioned (so the activity is never
+     * reaped as a dangling provision), but its agent never came online; without this the activity would sit in
+     * {@code LAUNCHING} forever. Attaching a {@code FAIL} to the current phase records the failure and, via
+     * cloud-stats, completes and archives the activity.
      */
-    private static void advance(Computer c, ProvisioningActivity.Phase phase) {
-        Node node = c.getNode();
-        if (!(node instanceof EC2AbstractSlave)) {
+    @Override
+    public void onLaunchFailure(Computer c, TaskListener listener) {
+        ProvisioningActivity activity = trackedActivityFor(c);
+        if (activity == null) {
             return;
         }
-        CloudStatistics stats = CloudStatistics.get();
-        ProvisioningActivity activity = stats.getActivityFor((EC2AbstractSlave) node);
+        String reason = c.getOfflineCauseReason();
+        if (reason == null || reason.isBlank()) {
+            reason = "Agent " + c.getName() + " failed to launch";
+        }
+        CloudStatistics.get()
+                .attach(
+                        activity,
+                        activity.getCurrentPhase(),
+                        new PhaseExecutionAttachment(ProvisioningActivity.Status.FAIL, reason));
+    }
+
+    /**
+     * Enters {@code phase} on the agent's tracked activity, if not already there, and persists the change.
+     */
+    private static void advance(Computer c, ProvisioningActivity.Phase phase) {
+        ProvisioningActivity activity = trackedActivityFor(c);
         if (activity == null || !activity.enterIfNotAlready(phase)) {
             return;
         }
         // Mirror cloud-stats' own OperationListener, which persists after entering a phase; save() is the public
         // equivalent of its package-private persist() (both just save() and log an IOException).
         try {
-            stats.save();
+            CloudStatistics.get().save();
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Unable to persist cloud-stats " + phase + " phase for " + node.getNodeName(), e);
+            LOGGER.log(Level.WARNING, "Unable to persist cloud-stats " + phase + " phase for " + c.getName(), e);
         }
+    }
+
+    /**
+     * Resolves the tracked cloud-stats activity for an EC2 agent's computer, or {@code null} if the computer is not
+     * a tracked EC2 agent. Resolving through the node keeps this working for a plain {@code SlaveComputer}; a non-EC2
+     * node, or one with no injected identity, resolves to {@code null} and is skipped by every callback.
+     */
+    private static ProvisioningActivity trackedActivityFor(Computer c) {
+        Node node = c.getNode();
+        if (!(node instanceof EC2AbstractSlave)) {
+            return null;
+        }
+        return CloudStatistics.get().getActivityFor((EC2AbstractSlave) node);
     }
 }
