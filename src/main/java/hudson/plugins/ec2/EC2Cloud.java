@@ -96,6 +96,8 @@ import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.util.Timer;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
@@ -1184,9 +1186,20 @@ public class EC2Cloud extends Cloud {
 
             for (int i = 0; i < number; i++) {
                 final int index = i;
+                // Mint one cloud-stats activity identity per planned agent. It is injected into the agent
+                // below at the list-index join -- never inside the shared slave factory -- so the planned
+                // node and the resulting agent share a single fingerprint and no activity is orphaned.
+                final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, t.getDisplayName());
                 CompletableFuture<Node> nodeFuture = provisionFuture
                         .thenApplyAsync(
-                                slaves -> slaves != null && index < slaves.size() ? slaves.get(index) : null,
+                                slaves -> {
+                                    EC2AbstractSlave slave =
+                                            slaves != null && index < slaves.size() ? slaves.get(index) : null;
+                                    if (slave != null) {
+                                        slave.setCloudStatsId(id.named(slave.getNodeName()));
+                                    }
+                                    return slave;
+                                },
                                 PROVISIONING_EXECUTOR)
                         .thenComposeAsync(
                                 slave -> slave != null
@@ -1194,7 +1207,7 @@ public class EC2Cloud extends Cloud {
                                         : CompletableFuture.completedFuture(null),
                                 Computer.threadPoolForRemoting);
 
-                plannedNodes.add(new PlannedNode(t.getDisplayName(), nodeFuture, t.getNumExecutors()));
+                plannedNodes.add(new TrackedPlannedNode(id, t.getNumExecutors(), nodeFuture));
             }
 
             excessWorkload -= number * t.getNumExecutors();
