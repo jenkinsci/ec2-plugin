@@ -1185,6 +1185,9 @@ public class EC2Cloud extends Cloud {
                 scheduleQueueMaintenance();
             });
 
+            // Precompute the message a dangling activity will fail with, so an unfulfilled spot request is
+            // distinguishable from a plain on-demand shortfall (see provisioningFailureReason for the selection rule).
+            final String failureReason = provisioningFailureReason(t);
             for (int i = 0; i < number; i++) {
                 final int index = i;
                 // Mint one cloud-stats activity identity per planned agent. It is injected into the agent
@@ -1214,8 +1217,8 @@ public class EC2Cloud extends Cloud {
                 // the failure ourselves so the activity completes. This is fire-and-forget: the original nodeFuture
                 // is still what the TrackedPlannedNode hands to NodeProvisioner, so provisioning behaviour is
                 // unchanged.
-                nodeFuture.whenComplete(
-                        (node, throwable) -> reportProvisioningFailureIfUnfulfilled(id, node, throwable));
+                nodeFuture.whenComplete((node, throwable) ->
+                        reportProvisioningFailureIfUnfulfilled(id, node, throwable, failureReason));
 
                 plannedNodes.add(new TrackedPlannedNode(id, t.getNumExecutors(), nodeFuture));
             }
@@ -1251,15 +1254,30 @@ public class EC2Cloud extends Cloud {
      * with a real EC2 backend.
      */
     private static void reportProvisioningFailureIfUnfulfilled(
-            ProvisioningActivity.Id id, Node node, Throwable throwable) {
+            ProvisioningActivity.Id id, Node node, Throwable throwable, String reason) {
         if (node != null || throwable != null) {
             return;
         }
-        CloudStatistics.ProvisioningListener.get()
-                .onFailure(
-                        id,
-                        new IOException("EC2 provisioning produced no instance (no capacity, instance cap reached, "
-                                + "or an API error); see the logs for details"));
+        CloudStatistics.ProvisioningListener.get().onFailure(id, new IOException(reason));
+    }
+
+    /**
+     * The message an unfulfilled provisioning attempt for {@code t} will fail with. A pure spot-market request -- one
+     * that places a spot bid and does not fall back to on-demand -- reports a spot-specific reason so it can be told
+     * apart from an on-demand shortfall. Every other template (including a spot template that may fall back) reports
+     * the generic reason: once fallback is in play a terminal no-instance result cannot be attributed to the spot leg
+     * rather than the on-demand one, so the generic reason avoids mislabeling an on-demand shortfall as a spot-market
+     * failure. This only selects the text of a possible failure -- it makes no provisioning decision and changes no
+     * provisioning path.
+     */
+    private static String provisioningFailureReason(SlaveTemplate t) {
+        SpotConfiguration spotConfig = t.getSpotConfig();
+        if (spotConfig != null && spotConfig.useBidPrice && !spotConfig.getFallbackToOndemand()) {
+            return "EC2 spot request was not fulfilled (no spot capacity, bid below the market price, "
+                    + "or an API error); see the logs for details";
+        }
+        return "EC2 provisioning produced no instance (no capacity, instance cap reached, "
+                + "or an API error); see the logs for details";
     }
 
     /**

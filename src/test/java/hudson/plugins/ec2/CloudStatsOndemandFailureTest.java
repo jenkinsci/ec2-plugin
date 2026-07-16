@@ -19,7 +19,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
-import org.jenkinsci.plugins.cloudstats.PhaseExecution;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
@@ -116,7 +115,7 @@ class CloudStatsOndemandFailureTest {
                 ProvisioningActivity.Status.FAIL,
                 activity.getStatus(),
                 "a provisioning that yields no agent must be recorded as FAIL");
-        PhaseExecutionAttachment attachment = failAttachment(activity);
+        PhaseExecutionAttachment attachment = CloudStatsTestSupport.failAttachment(activity);
         assertNotNull(attachment, "the unfulfilled provisioning must record a FAIL attachment");
         assertFalse(attachment.getTitle().isBlank(), "the failure attachment must carry a human-readable reason");
     }
@@ -182,14 +181,18 @@ class CloudStatsOndemandFailureTest {
                 ProvisioningActivity.Status.FAIL,
                 second.getStatus(),
                 "the unfulfilled planned agent must be recorded as FAIL");
-        assertNotNull(failAttachment(second), "the unfulfilled planned agent must record a FAIL attachment");
+        assertNotNull(
+                CloudStatsTestSupport.failAttachment(second),
+                "the unfulfilled planned agent must record a FAIL attachment");
 
         // The fulfilled planned agent keeps progressing and carries no failure.
         assertEquals(
                 ProvisioningActivity.Status.OK,
                 first.getStatus(),
                 "the fulfilled planned agent must not be marked as failed");
-        assertNull(failAttachment(first), "the fulfilled planned agent must record no failure attachment");
+        assertNull(
+                CloudStatsTestSupport.failAttachment(first),
+                "the fulfilled planned agent must record no failure attachment");
     }
 
     /**
@@ -230,7 +233,7 @@ class CloudStatsOndemandFailureTest {
                 "a launch failure must complete the activity rather than leave it dangling in LAUNCHING");
         assertEquals(
                 ProvisioningActivity.Status.FAIL, activity.getStatus(), "a launch failure must be recorded as FAIL");
-        PhaseExecutionAttachment attachment = failAttachment(activity);
+        PhaseExecutionAttachment attachment = CloudStatsTestSupport.failAttachment(activity);
         assertNotNull(attachment, "the launch failure must record a FAIL attachment");
         assertFalse(attachment.getTitle().isBlank(), "the failure attachment must carry a human-readable reason");
     }
@@ -258,7 +261,9 @@ class CloudStatsOndemandFailureTest {
                 ProvisioningActivity.Status.OK,
                 activity.getStatus(),
                 "a healthy provision must not be marked as failed");
-        assertNull(failAttachment(activity), "a healthy provision must record no failure attachment");
+        assertNull(
+                CloudStatsTestSupport.failAttachment(activity),
+                "a healthy provision must record no failure attachment");
     }
 
     /**
@@ -278,20 +283,5 @@ class CloudStatsOndemandFailureTest {
                 .runInstances(Mockito.any(RunInstancesRequest.class));
         AmazonEC2FactoryMockImpl.mock = client;
         return release;
-    }
-
-    /** The first {@code FAIL} attachment recorded on any phase of {@code activity}, or {@code null} if none. */
-    private static PhaseExecutionAttachment failAttachment(ProvisioningActivity activity) {
-        for (PhaseExecution execution : activity.getPhaseExecutions().values()) {
-            if (execution == null) {
-                continue; // phases not yet entered map to a null execution
-            }
-            for (PhaseExecutionAttachment attachment : execution.getAttachments()) {
-                if (attachment.getStatus() == ProvisioningActivity.Status.FAIL) {
-                    return attachment;
-                }
-            }
-        }
-        return null;
     }
 }

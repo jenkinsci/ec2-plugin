@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import org.jenkinsci.plugins.cloudstats.PhaseExecution;
+import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jvnet.hudson.test.JenkinsRule;
 
@@ -46,6 +48,21 @@ final class CloudStatsTestSupport {
         for (int i = 0; i < 200 && activity.getPhaseExecution(phase) == null; i++) {
             Thread.sleep(50);
         }
+    }
+
+    /** The first {@code FAIL} attachment recorded on any phase of {@code activity}, or {@code null} if none. */
+    static PhaseExecutionAttachment failAttachment(ProvisioningActivity activity) {
+        for (PhaseExecution execution : activity.getPhaseExecutions().values()) {
+            if (execution == null) {
+                continue; // phases not yet entered map to a null execution
+            }
+            for (PhaseExecutionAttachment attachment : execution.getAttachments()) {
+                if (attachment.getStatus() == ProvisioningActivity.Status.FAIL) {
+                    return attachment;
+                }
+            }
+        }
+        return null;
     }
 
     /**
