@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -51,6 +52,8 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
+import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
@@ -75,7 +78,7 @@ import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
  * @author Kohsuke Kawaguchi
  */
 @SuppressWarnings("serial")
-public abstract class EC2AbstractSlave extends Slave {
+public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
     public static final Boolean DEFAULT_METADATA_SUPPORTED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.TRUE;
@@ -119,6 +122,16 @@ public abstract class EC2AbstractSlave extends Slave {
     private Integer metadataHopsLimit;
 
     private Boolean enclaveEnabled;
+
+    /**
+     * Identity of this agent's provisioning activity in the {@code cloud-stats} plugin. Persisted (via XStream) so
+     * that {@code cloud-stats} tracking survives a controller restart. Always injected by the provisioning caller and
+     * never minted in the shared slave factory, so the agent carries the same {@link ProvisioningActivity.Id}
+     * fingerprint that was minted for its planned node. {@code null} for agents provisioned before this field existed,
+     * or adopted out-of-band; such agents are simply left untracked.
+     */
+    @CheckForNull
+    private ProvisioningActivity.Id cloudStatsId;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
@@ -552,6 +565,25 @@ public abstract class EC2AbstractSlave extends Slave {
 
     public EC2Cloud getCloud() {
         return (EC2Cloud) Jenkins.get().getCloud(cloudName);
+    }
+
+    /**
+     * The {@code cloud-stats} identity of this agent's provisioning activity, or {@code null} if this agent is not
+     * tracked. See {@link #cloudStatsId} for when that happens.
+     */
+    @Override
+    @CheckForNull
+    public ProvisioningActivity.Id getId() {
+        return cloudStatsId;
+    }
+
+    /**
+     * Assigns the {@code cloud-stats} provisioning activity identity for this agent. Invoked by the provisioning
+     * caller (never by the shared slave factory) so the agent carries the same {@link ProvisioningActivity.Id}
+     * fingerprint that was minted for its planned node.
+     */
+    public void setCloudStatsId(@CheckForNull ProvisioningActivity.Id cloudStatsId) {
+        this.cloudStatsId = cloudStatsId;
     }
 
     /**
