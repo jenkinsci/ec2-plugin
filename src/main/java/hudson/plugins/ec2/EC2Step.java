@@ -28,12 +28,17 @@ import hudson.Util;
 import hudson.model.TaskListener;
 import hudson.slaves.Cloud;
 import hudson.util.ListBoxModel;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -58,6 +63,8 @@ import software.amazon.awssdk.services.ec2.model.Instance;
  * @author Alicia Doblas
  */
 public class EC2Step extends Step {
+
+    private static final Logger LOGGER = Logger.getLogger(EC2Step.class.getName());
 
     private String cloud;
     private String template;
@@ -148,14 +155,28 @@ public class EC2Step extends Step {
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    List<EC2AbstractSlave> instances = t.provision(1, opt);
-                    if (instances == null) {
-                        throw new IllegalArgumentException(
-                                "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
-                    }
+                    // Record a cloud-stats activity for the instance this step provisions. The step bypasses the
+                    // NodeProvisioner and never registers a Jenkins node, so no ComputerListener/removal machinery
+                    // ever advances or completes this activity -- the step owns its whole lifecycle here.
+                    ProvisioningActivity.Id id = new ProvisioningActivity.Id(cl.getDisplayName(), t.getDisplayName());
+                    CloudStatistics.ProvisioningListener.get().onStarted(id);
+                    try {
+                        List<EC2AbstractSlave> instances = t.provision(1, opt);
+                        if (instances == null) {
+                            throw new IllegalArgumentException(
+                                    "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                        }
 
-                    EC2AbstractSlave slave = instances.get(0);
-                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (EC2Cloud) cl);
+                        EC2AbstractSlave slave = instances.get(0);
+                        Instance instance = CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (EC2Cloud) cl);
+                        completeWithoutPrematureWarning(id);
+                        return instance;
+                    } catch (Exception e) {
+                        // The instance never became a tracked Jenkins agent; complete the activity as failed rather
+                        // than let it dangle, then preserve the step's existing behaviour by rethrowing unchanged.
+                        CloudStatistics.ProvisioningListener.get().onFailure(id, e);
+                        throw e;
+                    }
                 } else {
                     throw new IllegalArgumentException(
                             "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
@@ -163,6 +184,27 @@ public class EC2Step extends Step {
             } else {
                 throw new IllegalArgumentException(
                         "Error in AWS Cloud. Please review EC2 settings in Jenkins configuration.");
+            }
+        }
+
+        /**
+         * Completes the step's activity without the "completed before reaching OPERATING" warning cloud-stats
+         * attaches to a healthy PROVISIONING -&gt; COMPLETED jump. The provisioned instance is genuinely running, so
+         * advancing through OPERATING first both reflects that and keeps the clean completion warning-free.
+         */
+        private static void completeWithoutPrematureWarning(ProvisioningActivity.Id id) {
+            ProvisioningActivity activity = CloudStatistics.get().getActivityFor(id);
+            if (activity == null) {
+                return;
+            }
+            activity.enter(ProvisioningActivity.Phase.OPERATING);
+            activity.enter(ProvisioningActivity.Phase.COMPLETED);
+            // Persist as the ComputerListener path does, but a persistence failure must only be logged: cloud-stats
+            // observes provisioning, it never breaks it.
+            try {
+                CloudStatistics.get().save();
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Unable to persist cloud-stats completion for activity " + id, e);
             }
         }
 

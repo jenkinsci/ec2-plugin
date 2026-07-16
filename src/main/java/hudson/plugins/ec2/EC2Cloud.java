@@ -1083,9 +1083,43 @@ public class EC2Cloud extends Cloud {
                 number = possibleSlavesCount;
             }
 
-            return t.provision(number, provisionOptions);
+            List<EC2AbstractSlave> provisioned = t.provision(number, provisionOptions);
+            trackBypassProvisioning(t, provisioned);
+            return provisioned;
         } finally {
             slaveCountingLock.unlock();
+        }
+    }
+
+    /**
+     * Records one cloud-stats {@link ProvisioningActivity} per freshly provisioned agent for the two
+     * NodeProvisioner-bypass paths that funnel through {@link #getNewOrExistingAvailableSlave}: the min-instances /
+     * spare-capacity checker ({@link #provision(SlaveTemplate, int)}) and the UI/CLI provision button
+     * ({@link #doProvision}). The async {@link #provision(Label, int)} path never reaches this choke point -- it calls
+     * {@link SlaveTemplate#provision} directly and is tracked as a {@link TrackedPlannedNode} -- so a given agent is
+     * tracked here or there, never both, without any runtime guard flag.
+     *
+     * <p>Each agent is given its caller-injected identity before the caller registers it as a Jenkins node, so the
+     * existing {@link EC2CloudStatsComputerListener} and cloud-stats' completion detector then carry the activity
+     * through LAUNCHING/OPERATING/COMPLETED. Only materialized agents get an activity -- a request that yields no
+     * instance records nothing -- honouring the principle that a missing activity is acceptable but a dangling one is
+     * not.
+     */
+    private void trackBypassProvisioning(SlaveTemplate t, List<EC2AbstractSlave> slaves) {
+        if (slaves == null) {
+            return;
+        }
+        for (EC2AbstractSlave slave : slaves) {
+            if (slave == null) {
+                continue;
+            }
+            // The agent already exists here, so name the activity at creation via the 3-arg Id constructor. The async
+            // path instead mints a 2-arg Id and backfills the name with Id.named() only because it must create the id
+            // before the agent exists; here we have the node name up front, so cloud-stats can label the activity from
+            // the start.
+            ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, t.getDisplayName(), slave.getNodeName());
+            CloudStatistics.ProvisioningListener.get().onStarted(id);
+            slave.setCloudStatsId(id);
         }
     }
 
