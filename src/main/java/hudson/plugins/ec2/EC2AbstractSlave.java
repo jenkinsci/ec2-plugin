@@ -134,6 +134,10 @@ public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
     // volatile: written on the async provisioning thread (EC2Cloud) and read on Jenkins event threads
     // (EC2CloudStatsComputerListener). The node-registration handoff already establishes a happens-before,
     // but volatile makes the cross-thread visibility explicit and self-evident. XStream-persisted as normal.
+    // S3077 is suppressed rather than switching to AtomicReference: the reference is published once and the Id is
+    // treated as immutable (never mutated through this field), so volatile visibility of the reference suffices --
+    // and an AtomicReference would change the XStream-persisted form, breaking restart-reattach of existing agents.
+    @SuppressWarnings("java:S3077")
     private volatile ProvisioningActivity.Id cloudStatsId;
 
     // Temporary stuff that is obtained live from EC2

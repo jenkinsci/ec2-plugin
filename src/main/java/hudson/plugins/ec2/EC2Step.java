@@ -147,9 +147,8 @@ public class EC2Step extends Step {
         @Override
         protected Instance run() throws Exception {
             Cloud cl = getByDisplayName(jenkins.model.Jenkins.get().clouds, this.cloud);
-            if (cl instanceof EC2Cloud) {
-                SlaveTemplate t;
-                t = ((EC2Cloud) cl).getTemplate(this.template);
+            if (cl instanceof EC2Cloud ec2Cloud) {
+                SlaveTemplate t = ec2Cloud.getTemplate(this.template);
                 if (t != null) {
                     SlaveTemplate.ProvisionOptions universe = SlaveTemplate.ProvisionOptions.ALLOW_CREATE;
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
@@ -162,16 +161,16 @@ public class EC2Step extends Step {
                     CloudStatistics.ProvisioningListener.get().onStarted(id);
                     try {
                         List<EC2AbstractSlave> instances = t.provision(1, opt);
-                        // provision() is declared to return a non-null list, but guard the empty case too: an empty
-                        // list would otherwise fall through to get(0) and throw an opaque IndexOutOfBoundsException
-                        // instead of this actionable message (and either way the catch below fails the activity).
-                        if (instances == null || instances.isEmpty()) {
+                        // provision() is declared @NonNull, so only the empty case can occur; guard it so an empty
+                        // list throws this actionable message instead of falling through to get(0) and throwing an
+                        // opaque IndexOutOfBoundsException (and either way the catch below fails the activity).
+                        if (instances.isEmpty()) {
                             throw new IllegalArgumentException(
                                     "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                         }
 
                         EC2AbstractSlave slave = instances.get(0);
-                        Instance instance = CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (EC2Cloud) cl);
+                        Instance instance = CloudHelper.getInstanceWithRetry(slave.getInstanceId(), ec2Cloud);
                         completeWithoutPrematureWarning(id);
                         return instance;
                     } catch (Exception e) {
@@ -211,7 +210,7 @@ public class EC2Step extends Step {
             try {
                 CloudStatistics.get().save();
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Unable to persist cloud-stats completion for activity " + id, e);
+                LOGGER.log(Level.WARNING, e, () -> "Unable to persist cloud-stats completion for activity " + id);
             }
         }
 

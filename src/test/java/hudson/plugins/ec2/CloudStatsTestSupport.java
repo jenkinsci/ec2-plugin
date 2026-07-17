@@ -45,6 +45,9 @@ final class CloudStatsTestSupport {
     }
 
     /** Waits briefly for {@code cloud-stats} to record {@code phase}, tolerating any asynchrony in phase advancement. */
+    // S2925 (Thread.sleep): standard poll-until-recorded loop for cloud-stats' asynchronous phase advancement;
+    // a short sleep between polls is the idiom, and Awaitility is not on the test classpath.
+    @SuppressWarnings("java:S2925")
     static void awaitPhase(ProvisioningActivity activity, ProvisioningActivity.Phase phase)
             throws InterruptedException {
         for (int i = 0; i < 200 && activity.getPhaseExecution(phase) == null; i++) {

@@ -242,6 +242,9 @@ class CloudStatsOndemandFailureTest {
      * job is to fail activities that never yield an agent -- must record no failure.
      */
     @Test
+    // S2925 (Thread.sleep): this negative control asserts the async rescue records NO failure -- you cannot
+    // poll-until a non-event, so a short fixed settle after the node resolves is the honest wait here.
+    @SuppressWarnings("java:S2925")
     void healthyProvisionRecordsNoFailureAttachment() throws Exception {
         SlaveTemplate template = MockEC2Computer.createSlaveTemplate();
         EC2Cloud cloud = CloudStatsTestSupport.registerCloud(r, template);

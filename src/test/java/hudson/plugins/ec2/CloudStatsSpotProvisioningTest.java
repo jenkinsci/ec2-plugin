@@ -222,6 +222,9 @@ class CloudStatsSpotProvisioningTest {
      * A spot {@link SlaveTemplate} built from the same known-good full constructor {@code MockEC2Computer} uses for its
      * on-demand template, differing only in the injected {@code spotConfig}. Its label is {@code "ttt"}.
      */
+    // S1874 (deprecated constructor): deliberately the same deprecated SlaveTemplate constructor MockEC2Computer
+    // uses for the on-demand template, so spot and on-demand templates stay identically built.
+    @SuppressWarnings("java:S1874")
     private static SlaveTemplate spotTemplate(SpotConfiguration spotConfig) {
         return new SlaveTemplate(
                 "ami-123",

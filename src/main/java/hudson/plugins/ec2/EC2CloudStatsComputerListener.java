@@ -98,7 +98,7 @@ public class EC2CloudStatsComputerListener extends ComputerListener {
         try {
             CloudStatistics.get().save();
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Unable to persist cloud-stats " + phase + " phase for " + c.getName(), e);
+            LOGGER.log(Level.WARNING, e, () -> "Unable to persist cloud-stats " + phase + " phase for " + c.getName());
         }
     }
 

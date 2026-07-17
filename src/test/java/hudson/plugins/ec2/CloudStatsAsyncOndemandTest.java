@@ -96,7 +96,7 @@ class CloudStatsAsyncOndemandTest {
      * the list-index join against sharing or reusing a single {@code Id} across the agents it provisions.
      */
     @Test
-    void eachPlannedAgentGetsItsOwnActivity() throws Exception {
+    void eachPlannedAgentGetsItsOwnActivity() {
         SlaveTemplate template = MockEC2Computer.createSlaveTemplate();
         EC2Cloud cloud = CloudStatsTestSupport.registerCloud(r, template);
 

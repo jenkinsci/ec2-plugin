@@ -60,7 +60,7 @@ class CloudStatsBypassProvisioningTest {
      * activity per agent it provisions, and each provisioned agent carries the matching activity's identity.
      */
     @Test
-    void minInstanceSyncProvisionRecordsOneActivityPerAgent() throws Exception {
+    void minInstanceSyncProvisionRecordsOneActivityPerAgent() {
         SlaveTemplate template = MockEC2Computer.createSlaveTemplate();
         EC2Cloud cloud = CloudStatsTestSupport.registerCloud(r, template);
 
