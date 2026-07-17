@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 
 import hudson.model.Label;
 import hudson.model.Node;
@@ -171,7 +173,7 @@ class CloudStatsSpotProvisioningTest {
     @Test
     void spotFallbackToOndemandRemainsSingleActivity() throws Exception {
         Ec2Client client = AmazonEC2FactoryMockImpl.createAmazonEC2Mock();
-        Mockito.doThrow(maxSpotInstanceCountExceeded())
+        doThrow(maxSpotInstanceCountExceeded())
                 .when(client)
                 .requestSpotInstances(Mockito.any(RequestSpotInstancesRequest.class));
         AmazonEC2FactoryMockImpl.mock = client;
@@ -281,7 +283,7 @@ class CloudStatsSpotProvisioningTest {
                 .state(InstanceState.builder().name(InstanceStateName.RUNNING).build())
                 .launchTime(Instant.now())
                 .build());
-        Mockito.doReturn(RequestSpotInstancesResponse.builder()
+        doReturn(RequestSpotInstancesResponse.builder()
                         .spotInstanceRequests(SpotInstanceRequest.builder()
                                 .spotInstanceRequestId(spotRequestId)
                                 .state(SpotInstanceState.OPEN)
@@ -289,7 +291,7 @@ class CloudStatsSpotProvisioningTest {
                         .build())
                 .when(client)
                 .requestSpotInstances(Mockito.any(RequestSpotInstancesRequest.class));
-        Mockito.doReturn(DescribeSpotInstanceRequestsResponse.builder()
+        doReturn(DescribeSpotInstanceRequestsResponse.builder()
                         .spotInstanceRequests(SpotInstanceRequest.builder()
                                 .spotInstanceRequestId(spotRequestId)
                                 .instanceId(instanceId)

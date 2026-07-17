@@ -13,7 +13,6 @@ import java.io.File;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -216,6 +215,6 @@ class CloudStatsRestartReattachTest {
         return r.jenkins.getNodes().stream()
                 .filter(EC2AbstractSlave.class::isInstance)
                 .map(EC2AbstractSlave.class::cast)
-                .collect(Collectors.toList());
+                .toList();
     }
 }

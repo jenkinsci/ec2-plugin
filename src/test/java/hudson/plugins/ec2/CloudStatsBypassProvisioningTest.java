@@ -194,7 +194,7 @@ class CloudStatsBypassProvisioningTest {
         return r.jenkins.getNodes().stream()
                 .filter(EC2AbstractSlave.class::isInstance)
                 .map(EC2AbstractSlave.class::cast)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private static Set<Integer> fingerprints(List<ProvisioningActivity> activities) {

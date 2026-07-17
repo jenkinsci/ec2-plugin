@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -133,7 +132,7 @@ class CloudStatsOndemandFailureTest {
             List<Tag> tags = request.tagSpecifications().stream()
                     .map(TagSpecification::tags)
                     .flatMap(List::stream)
-                    .collect(Collectors.toList());
+                    .toList();
             List<Instance> localInstances = new ArrayList<>();
             localInstances.add(Instance.builder()
                     .instanceId("i-partial-0")
@@ -156,7 +155,7 @@ class CloudStatsOndemandFailureTest {
         Collection<PlannedNode> planned = cloud.provision(label, 2 * template.getNumExecutors());
         assertEquals(2, planned.size(), "two planned agents were requested");
         List<TrackedPlannedNode> nodes =
-                planned.stream().map(p -> (TrackedPlannedNode) p).collect(Collectors.toList());
+                planned.stream().map(p -> (TrackedPlannedNode) p).toList();
 
         CloudStatistics.ProvisioningListener.get().onStarted(cloud, label, planned);
         // Capture both live handles before the FAIL one auto-archives and drops out of getActivityFor(Id).

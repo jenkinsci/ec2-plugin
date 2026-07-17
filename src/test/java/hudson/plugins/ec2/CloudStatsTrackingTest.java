@@ -20,6 +20,9 @@ import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 @WithJenkins
 class CloudStatsTrackingTest {
 
+    // Injecting the JenkinsRule boots the Jenkins instance these tests need to construct EC2 agents (label parsing
+    // and XStream both reach Jenkins.get()); the field also mirrors the idiom the sibling CloudStats* tests use.
+    @SuppressWarnings("unused")
     private JenkinsRule r;
 
     @BeforeEach
