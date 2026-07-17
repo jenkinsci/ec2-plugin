@@ -131,7 +131,10 @@ public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
      * or adopted out-of-band; such agents are simply left untracked.
      */
     @CheckForNull
-    private ProvisioningActivity.Id cloudStatsId;
+    // volatile: written on the async provisioning thread (EC2Cloud) and read on Jenkins event threads
+    // (EC2CloudStatsComputerListener). The node-registration handoff already establishes a happens-before,
+    // but volatile makes the cross-thread visibility explicit and self-evident. XStream-persisted as normal.
+    private volatile ProvisioningActivity.Id cloudStatsId;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;

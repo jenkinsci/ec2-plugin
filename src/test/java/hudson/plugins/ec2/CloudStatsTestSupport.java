@@ -1,5 +1,7 @@
 package hudson.plugins.ec2;
 
+import static org.junit.jupiter.api.Assertions.fail;
+
 import hudson.Extension;
 import hudson.model.Descriptor;
 import hudson.plugins.ec2.util.SSHCredentialHelper;
@@ -47,6 +49,9 @@ final class CloudStatsTestSupport {
             throws InterruptedException {
         for (int i = 0; i < 200 && activity.getPhaseExecution(phase) == null; i++) {
             Thread.sleep(50);
+        }
+        if (activity.getPhaseExecution(phase) == null) {
+            fail("Timed out after 10s waiting for cloud-stats to record phase " + phase);
         }
     }
 

@@ -162,7 +162,10 @@ public class EC2Step extends Step {
                     CloudStatistics.ProvisioningListener.get().onStarted(id);
                     try {
                         List<EC2AbstractSlave> instances = t.provision(1, opt);
-                        if (instances == null) {
+                        // provision() is declared to return a non-null list, but guard the empty case too: an empty
+                        // list would otherwise fall through to get(0) and throw an opaque IndexOutOfBoundsException
+                        // instead of this actionable message (and either way the catch below fails the activity).
+                        if (instances == null || instances.isEmpty()) {
                             throw new IllegalArgumentException(
                                     "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
                         }
@@ -197,8 +200,12 @@ public class EC2Step extends Step {
             if (activity == null) {
                 return;
             }
-            activity.enter(ProvisioningActivity.Phase.OPERATING);
-            activity.enter(ProvisioningActivity.Phase.COMPLETED);
+            // enterIfNotAlready (not enter) for idempotency, matching EC2CloudStatsComputerListener. The step owns
+            // this activity's whole lifecycle so it is always freshly at PROVISIONING here, but this stays safe if
+            // that ever changes. LAUNCHING is deliberately skipped: this path provisions a running instance and no
+            // agent ever launches/connects, so there is no launch phase to record.
+            activity.enterIfNotAlready(ProvisioningActivity.Phase.OPERATING);
+            activity.enterIfNotAlready(ProvisioningActivity.Phase.COMPLETED);
             // Persist as the ComputerListener path does, but a persistence failure must only be logged: cloud-stats
             // observes provisioning, it never breaks it.
             try {
