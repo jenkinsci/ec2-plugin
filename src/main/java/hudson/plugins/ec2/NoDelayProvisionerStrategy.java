@@ -4,6 +4,7 @@ import hudson.Extension;
 import hudson.model.Label;
 import hudson.model.LoadStatistics;
 import hudson.slaves.Cloud;
+import hudson.slaves.CloudProvisioningListener;
 import hudson.slaves.NodeProvisioner;
 import java.util.Collection;
 import java.util.logging.Level;
@@ -58,6 +59,11 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
                         cloud.provision(new Cloud.CloudState(label, 0), numToProvision);
 
                 LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
+                // Core's NodeProvisioner.StandardStrategy fires CloudProvisioningListener.onStarted after
+                // provisioning; because this strategy short-circuits the strategy chain, that never happens
+                // unless we do it here. Without it, listeners such as cloud-stats never observe nodes
+                // provisioned on demand (e.g. from a pipeline label), so they are not tracked.
+                fireOnStarted(cloud, label, plannedNodes);
                 strategyState.recordPendingLaunches(plannedNodes);
                 availableCapacity += plannedNodes.size();
                 LOGGER.log(Level.FINE, "After provisioning, available capacity={0}, currentDemand={1}", new Object[] {
@@ -72,6 +78,32 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
         } else {
             LOGGER.log(Level.FINE, "Provisioning not complete, consulting remaining strategies");
             return NodeProvisioner.StrategyDecision.CONSULT_REMAINING_STRATEGIES;
+        }
+    }
+
+    /**
+     * Notifies every {@link CloudProvisioningListener} that provisioning has started, mirroring what
+     * {@code hudson.slaves.NodeProvisioner.StandardStrategy} does. A misbehaving listener must not
+     * prevent the nodes from being launched, so throwables (other than {@link Error}) are logged and
+     * swallowed.
+     */
+    // S1181 (catch Error/Throwable): deliberately mirrors Jenkins core's NodeProvisioner.StandardStrategy -- rethrow
+    // Error, but log and swallow every other Throwable so a misbehaving listener cannot block agent launches.
+    @SuppressWarnings("java:S1181")
+    private static void fireOnStarted(
+            final Cloud cloud, final Label label, final Collection<NodeProvisioner.PlannedNode> plannedNodes) {
+        for (CloudProvisioningListener cl : CloudProvisioningListener.all()) {
+            try {
+                cl.onStarted(cloud, label, plannedNodes);
+            } catch (Error e) {
+                throw e;
+            } catch (Throwable e) {
+                LOGGER.log(
+                        Level.SEVERE,
+                        e,
+                        () -> "Unexpected uncaught exception encountered while processing "
+                                + "onStarted() listener call in " + cl + " for label " + label);
+            }
         }
     }
 }

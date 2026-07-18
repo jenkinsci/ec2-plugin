@@ -8,6 +8,7 @@ import hudson.plugins.ec2.util.SSHCredentialHelper;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.RetentionStrategy;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -26,27 +27,19 @@ final class CloudStatsTestSupport {
 
     private CloudStatsTestSupport() {}
 
-    /** Registers a real {@link EC2Cloud} (with SSH credentials available) that offers the given template. */
-    static EC2Cloud registerCloud(JenkinsRule r, SlaveTemplate template) {
+    /** Registers a real {@link EC2Cloud} (with SSH credentials available) that offers the given templates in order. */
+    static EC2Cloud registerCloud(JenkinsRule r, SlaveTemplate... templates) {
         SSHCredentialHelper.assureSshCredentialAvailableThroughCredentialProviders("ghi");
         EC2Cloud cloud = new EC2Cloud(
-                "testcloud",
-                true,
-                "abc",
-                "us-east-1",
-                null,
-                "ghi",
-                "10",
-                Collections.singletonList(template),
-                null,
-                null);
+                "testcloud", true, "abc", "us-east-1", null, "ghi", "10", Arrays.asList(templates), null, null);
         r.jenkins.clouds.add(cloud);
         return cloud;
     }
 
     /** Waits briefly for {@code cloud-stats} to record {@code phase}, tolerating any asynchrony in phase advancement. */
-    // S2925 (Thread.sleep): standard poll-until-recorded loop for cloud-stats' asynchronous phase advancement;
-    // a short sleep between polls is the idiom, and Awaitility is not on the test classpath.
+    // Cloud-stats advances phases asynchronously with no event hook to await, and Awaitility is not on the test
+    // classpath, so this polls until the phase is recorded with a short pause between checks -- hence the S2925
+    // suppression for the sleep-in-loop below.
     @SuppressWarnings("java:S2925")
     static void awaitPhase(ProvisioningActivity activity, ProvisioningActivity.Phase phase)
             throws InterruptedException {
