@@ -50,7 +50,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
@@ -1124,7 +1123,7 @@ public abstract class EC2AbstractSlave extends Slave {
     public static ListBoxModel fillZoneItems(AwsCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
 
-        if (!StringUtils.isEmpty(region)) {
+        if (region != null && !region.isEmpty()) {
             Ec2Client client =
                     AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.parseRegion(region), null);
             DescribeAvailabilityZonesResponse zones = client.describeAvailabilityZones();

@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.scp.client.CloseableScpClient;
 import org.apache.sshd.scp.common.helpers.ScpTimestampCommandDetails;
@@ -134,7 +133,8 @@ public class EC2WindowsSSHLauncher extends EC2SSHLauncher {
                 logInfo(computer, listener, "Creating tmp directory (" + tmpDir + ") if it does not exist");
                 executeRemote(clientSession, "IF NOT EXIST " + tmpDir + " MKDIR " + tmpDir, logger);
 
-                if (StringUtils.isNotBlank(initScript)
+                if (initScript != null
+                        && !initScript.isBlank()
                         && !executeRemote(
                                 clientSession, "IF NOT EXIST %USERPROFILE%\\.hudson-run-init EXIT /B 999", logger)) {
                     logInfo(computer, listener, "Upload init script");

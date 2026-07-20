@@ -3,7 +3,6 @@ package hudson.plugins.ec2;
 import hudson.Extension;
 import hudson.model.Descriptor;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 public class MacData extends SSHData {
@@ -59,29 +58,29 @@ public class MacData extends SSHData {
             return false;
         }
         final MacData other = (MacData) obj;
-        if (StringUtils.isEmpty(rootCommandPrefix)) {
-            if (!StringUtils.isEmpty(other.rootCommandPrefix)) {
+        if (rootCommandPrefix == null || rootCommandPrefix.isEmpty()) {
+            if (other.rootCommandPrefix != null && !other.rootCommandPrefix.isEmpty()) {
                 return false;
             }
         } else if (!rootCommandPrefix.equals(other.rootCommandPrefix)) {
             return false;
         }
-        if (StringUtils.isEmpty(slaveCommandPrefix)) {
-            if (!StringUtils.isEmpty(other.slaveCommandPrefix)) {
+        if (slaveCommandPrefix == null || slaveCommandPrefix.isEmpty()) {
+            if (other.slaveCommandPrefix != null && !other.slaveCommandPrefix.isEmpty()) {
                 return false;
             }
         } else if (!slaveCommandPrefix.equals(other.slaveCommandPrefix)) {
             return false;
         }
-        if (StringUtils.isEmpty(slaveCommandSuffix)) {
-            if (!StringUtils.isEmpty(other.slaveCommandSuffix)) {
+        if (slaveCommandSuffix == null || slaveCommandSuffix.isEmpty()) {
+            if (other.slaveCommandSuffix != null && !other.slaveCommandSuffix.isEmpty()) {
                 return false;
             }
         } else if (!slaveCommandSuffix.equals(other.slaveCommandSuffix)) {
             return false;
         }
-        if (StringUtils.isEmpty(sshPort)) {
-            if (!StringUtils.isEmpty(other.sshPort)) {
+        if (sshPort == null || sshPort.isEmpty()) {
+            if (other.sshPort != null && !other.sshPort.isEmpty()) {
                 return false;
             }
         } else if (!sshPort.equals(other.sshPort)) {
