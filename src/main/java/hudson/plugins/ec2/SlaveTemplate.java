@@ -2849,7 +2849,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotInstReqBuilder.tags(instTags);
 
                 // If the spot request is already fulfilled with an instance ID, tag the instance immediately
-                if (StringUtils.isNotBlank(spotInstReq.instanceId())) {
+                if (spotInstReq.instanceId() != null
+                        && !spotInstReq.instanceId().isBlank()) {
                     tagSpotInstance(ec2, spotInstReq.instanceId(), instTags);
                 }
 
