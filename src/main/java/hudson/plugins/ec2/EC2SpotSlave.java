@@ -310,7 +310,7 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
     public String getInstanceId() {
         if (instanceId == null || instanceId.isEmpty()) {
             SpotInstanceRequest sr = getSpotRequest();
-            if (sr != null && sr.instanceId() != null && !sr.instanceId().isblank()) {
+            if (sr != null && sr.instanceId() != null && !sr.instanceId().isBlank()) {
                 instanceId = sr.instanceId();
                 // Tag the instance immediately when it becomes available
                 // Note: Only tag the instance itself, not volumes, as volumes may not be attached yet
