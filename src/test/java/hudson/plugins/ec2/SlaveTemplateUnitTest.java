@@ -1243,6 +1243,187 @@ class SlaveTemplateUnitTest {
         assertEquals("subnet-123", subnet3);
     }
 
+    @Test
+    void testTagSpotInstanceSuccess() throws Exception {
+        List<CreateTagsRequest> capturedRequests = new ArrayList<>();
+        Ec2Client ec2 = new Ec2Client() {
+            @Override
+            public CreateTagsResponse createTags(CreateTagsRequest createTagsRequest) {
+                capturedRequests.add(createTagsRequest);
+                return CreateTagsResponse.builder().build();
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public String serviceName() {
+                return "AmazonEC2";
+            }
+        };
+
+        SlaveTemplate template =
+                new SlaveTemplate(
+                        "ami1",
+                        EC2AbstractSlave.TEST_ZONE,
+                        null,
+                        "default",
+                        "foo",
+                        InstanceType.M1_LARGE.toString(),
+                        false,
+                        "ttt",
+                        Node.Mode.NORMAL,
+                        "foo ami",
+                        "bar",
+                        "bbb",
+                        "aaa",
+                        "10",
+                        "fff",
+                        null,
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                        "-Xmx1g",
+                        false,
+                        "subnet 456",
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        "",
+                        false,
+                        true,
+                        "",
+                        false,
+                        "",
+                        false,
+                        false,
+                        false,
+                        ConnectionStrategy.PRIVATE_IP,
+                        -1,
+                        Collections.emptyList(),
+                        null,
+                        Tenancy.Default,
+                        EbsEncryptRootVolume.DEFAULT,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
+                    @Override
+                    protected Object readResolve() {
+                        return null;
+                    }
+                };
+
+        ArrayList<Tag> instTags = new ArrayList<>();
+        instTags.add(Tag.builder().key("Name").value("test-instance").build());
+        instTags.add(Tag.builder().key("Environment").value("dev").build());
+
+        Method tagSpotInstance = SlaveTemplate.class.getDeclaredMethod(
+                "tagSpotInstance", Ec2Client.class, String.class, Collection.class);
+        tagSpotInstance.setAccessible(true);
+        tagSpotInstance.invoke(template, ec2, "i-12345", instTags);
+
+        assertEquals(1, capturedRequests.size());
+        CreateTagsRequest request = capturedRequests.get(0);
+        assertEquals(Collections.singletonList("i-12345"), request.resources());
+        assertEquals(2, request.tags().size());
+        assertTrue(request.tags()
+                .contains(Tag.builder().key("Name").value("test-instance").build()));
+        assertTrue(request.tags()
+                .contains(Tag.builder().key("Environment").value("dev").build()));
+    }
+
+    @Test
+    void testTagSpotInstanceHandlesAwsServiceException() throws Exception {
+        Ec2Client ec2 = new Ec2Client() {
+            @Override
+            public CreateTagsResponse createTags(CreateTagsRequest createTagsRequest) {
+                throw AwsServiceException.builder()
+                        .message("Instance not found")
+                        .awsErrorDetails(AwsErrorDetails.builder()
+                                .errorCode("InvalidInstanceID.NotFound")
+                                .errorMessage("The instance ID 'i-99999' does not exist")
+                                .build())
+                        .build();
+            }
+
+            @Override
+            public void close() {}
+
+            @Override
+            public String serviceName() {
+                return "AmazonEC2";
+            }
+        };
+
+        SlaveTemplate template =
+                new SlaveTemplate(
+                        "ami1",
+                        EC2AbstractSlave.TEST_ZONE,
+                        null,
+                        "default",
+                        "foo",
+                        InstanceType.M1_LARGE.toString(),
+                        false,
+                        "ttt",
+                        Node.Mode.NORMAL,
+                        "foo ami",
+                        "bar",
+                        "bbb",
+                        "aaa",
+                        "10",
+                        "fff",
+                        null,
+                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                        "-Xmx1g",
+                        false,
+                        "subnet 456",
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        "",
+                        false,
+                        true,
+                        "",
+                        false,
+                        "",
+                        false,
+                        false,
+                        false,
+                        ConnectionStrategy.PRIVATE_IP,
+                        -1,
+                        Collections.emptyList(),
+                        null,
+                        Tenancy.Default,
+                        EbsEncryptRootVolume.DEFAULT,
+                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED) {
+                    @Override
+                    protected Object readResolve() {
+                        return null;
+                    }
+                };
+
+        ArrayList<Tag> instTags = new ArrayList<>();
+        instTags.add(Tag.builder().key("Name").value("test-instance").build());
+
+        Method tagSpotInstance = SlaveTemplate.class.getDeclaredMethod(
+                "tagSpotInstance", Ec2Client.class, String.class, Collection.class);
+        tagSpotInstance.setAccessible(true);
+
+        // Should not throw - exception is caught internally and logged as warning
+        tagSpotInstance.invoke(template, ec2, "i-99999", instTags);
+
+        assertTrue(handler.getRecords().stream()
+                .anyMatch(r -> r.getMessage().contains("Failed to tag spot instance i-99999")));
+    }
+
     @Issue("JENKINS-59460")
     @Test
     void testConnectionStrategyDeprecatedFieldsAreExported() {

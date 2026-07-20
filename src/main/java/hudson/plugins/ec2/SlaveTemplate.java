@@ -2773,6 +2773,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 spotRequestBuilder.blockDurationMinutes(getSpotBlockReservationDuration() * 60);
             }
 
+            List<TagSpecification> tagList = new ArrayList<>();
+            tagList.add(TagSpecification.builder()
+                    .tags(instTags)
+                    .resourceType(ResourceType.SPOT_INSTANCES_REQUEST)
+                    .build());
+            spotRequestBuilder.tagSpecifications(tagList);
+
             RequestSpotInstancesResponse reqResult;
             try {
                 // Make the request for a new Spot instance
@@ -2840,6 +2847,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 // That was a remote request - we should also update our local instance data
                 SpotInstanceRequest.Builder spotInstReqBuilder = spotInstReq.toBuilder();
                 spotInstReqBuilder.tags(instTags);
+
+                // If the spot request is already fulfilled with an instance ID, tag the instance immediately
+                if (StringUtils.isNotBlank(spotInstReq.instanceId())) {
+                    tagSpotInstance(ec2, spotInstReq.instanceId(), instTags);
+                }
 
                 LOGGER.info("Spot instance id in provision: " + spotInstReq.spotInstanceRequestId());
 
@@ -3019,6 +3031,33 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
                 LOGGER.log(Level.SEVERE, e.awsErrorDetails().errorMessage(), e);
             }
+        }
+    }
+
+    /**
+     * Tag a spot instance and its volumes immediately when the instance ID becomes available.
+     * This ensures tags are applied at instance creation time rather than waiting for connection.
+     *
+     * @param ec2
+     * @param instanceId
+     * @param instTags
+     */
+    private void tagSpotInstance(Ec2Client ec2, String instanceId, Collection<Tag> instTags) {
+        try {
+            LOGGER.info("Tagging spot instance " + instanceId + " at creation time");
+            List<String> resources = new ArrayList<>();
+            resources.add(instanceId);
+
+            ec2.createTags(CreateTagsRequest.builder()
+                    .resources(resources)
+                    .tags(instTags)
+                    .build());
+        } catch (AwsServiceException e) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Failed to tag spot instance " + instanceId + " at creation: "
+                            + e.awsErrorDetails().errorMessage(),
+                    e);
         }
     }
 
