@@ -1,7 +1,6 @@
 package hudson.plugins.ec2;
 
 import java.util.Optional;
-import org.apache.commons.lang.StringUtils;
 import software.amazon.awssdk.services.ec2.model.Instance;
 
 public class EC2HostAddressProvider {
@@ -62,6 +61,6 @@ public class EC2HostAddressProvider {
     }
 
     private static Optional<String> filterNonEmpty(String value) {
-        return Optional.ofNullable(value).filter(StringUtils::isNotEmpty);
+        return Optional.ofNullable(value).filter(s -> !s.isEmpty());
     }
 }

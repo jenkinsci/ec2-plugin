@@ -51,7 +51,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.stapler.QueryParameter;
@@ -1163,7 +1162,7 @@ public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
     public static ListBoxModel fillZoneItems(AwsCredentialsProvider credentialsProvider, String region) {
         ListBoxModel model = new ListBoxModel();
 
-        if (!StringUtils.isEmpty(region)) {
+        if (region != null && !region.isEmpty()) {
             Ec2Client client =
                     AmazonEC2Factory.getInstance().connect(credentialsProvider, EC2Cloud.parseRegion(region), null);
             DescribeAvailabilityZonesResponse zones = client.describeAvailabilityZones();
