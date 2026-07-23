@@ -12,6 +12,9 @@ import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
+import org.jenkinsci.plugins.cloudstats.PhaseExecution;
+import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -107,6 +110,81 @@ class EC2StepTest {
                 true));
         WorkflowRun b = r.buildAndAssertSuccess(boot);
         r.assertLogContains("SUCCESS", b);
+    }
+
+    /**
+     * The {@code ec2} step provisions an instance without ever registering a Jenkins node, so no
+     * {@code NodeProvisioner}/{@code ComputerListener} machinery advances or completes its cloud-stats activity -- the
+     * step owns the whole lifecycle. It must therefore record exactly one activity and drive it to COMPLETED itself,
+     * advancing through OPERATING first so the clean completion carries no attachment: cloud-stats attaches a
+     * premature-completion WARN to a PROVISIONING -&gt; COMPLETED jump, and this step deliberately avoids that.
+     */
+    @Test
+    void bootInstanceRecordsCompletedCloudStatsActivity() throws Exception {
+        WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
+        boot.setDefinition(new CpsFlowDefinition(
+                " node('" + builtInNodeLabel + "') {\n" + "    def X = ec2 cloud: 'myCloud', template: 'aws-CentOS-7'\n"
+                        + "}",
+                true));
+        r.buildAndAssertSuccess(boot);
+
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertEquals(1, activities.size(), "the ec2 step must record exactly one cloud-stats activity");
+        ProvisioningActivity activity = activities.get(0);
+        assertEquals(
+                ProvisioningActivity.Phase.COMPLETED,
+                activity.getCurrentPhase(),
+                "the step owns the whole lifecycle and must complete its own activity");
+        assertNotNull(
+                activity.getPhaseExecution(ProvisioningActivity.Phase.OPERATING),
+                "the step must advance through OPERATING, not jump straight from PROVISIONING to COMPLETED");
+        assertEquals(
+                ProvisioningActivity.Status.OK, activity.getStatus(), "a successful boot must not be marked as failed");
+        // Advancing through OPERATING is what keeps the completion clean: no premature-completion WARN, no FAIL.
+        for (PhaseExecution execution : activity.getPhaseExecutions().values()) {
+            if (execution != null) {
+                assertTrue(
+                        execution.getAttachments().isEmpty(),
+                        "a clean step completion must record no attachments, but " + execution.getPhase() + " had "
+                                + execution.getAttachments());
+            }
+        }
+    }
+
+    /**
+     * The FAIL branch of the step's self-owned lifecycle: when provisioning yields no instance (empty list from the
+     * template -- capacity exhausted, cap reached, or a swallowed API error), the step must not leave its activity
+     * dangling in PROVISIONING. It completes the activity as FAIL with the reason attached, and rethrows so the build
+     * still fails.
+     */
+    @Test
+    void bootInstanceRecordsFailedCloudStatsActivityWhenNoInstanceProvisioned() throws Exception {
+        // The template accepts the request but yields no instance; the step turns that into an actionable failure.
+        when(st.provision(anyInt(), any())).thenReturn(Collections.emptyList());
+
+        WorkflowJob boot = r.createProject(WorkflowJob.class);
+        String builtInNodeLabel = r.jenkins.getSelfLabel().getName(); // compatibility with 2.307+
+        boot.setDefinition(new CpsFlowDefinition(
+                " node('" + builtInNodeLabel + "') {\n" + "    def X = ec2 cloud: 'myCloud', template: 'aws-CentOS-7'\n"
+                        + "}",
+                true));
+        r.buildAndAssertStatus(Result.FAILURE, boot);
+
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertEquals(1, activities.size(), "a failed provision must still record exactly one cloud-stats activity");
+        ProvisioningActivity activity = activities.get(0);
+        assertEquals(
+                ProvisioningActivity.Phase.COMPLETED,
+                activity.getCurrentPhase(),
+                "a failed provision must complete its activity, not leave it dangling in PROVISIONING");
+        assertEquals(
+                ProvisioningActivity.Status.FAIL,
+                activity.getStatus(),
+                "a provision that yielded no instance must be marked FAIL");
+        assertNotNull(
+                CloudStatsTestSupport.failAttachment(activity),
+                "the failure must carry a FAIL attachment so the reason is visible in the stats");
     }
 
     @Test
