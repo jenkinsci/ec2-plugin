@@ -301,8 +301,11 @@ restart for agents provisioned by this version.
 As a result, any tool that reads `CloudStatistics.getActivities()` (dashboards,
 metrics, capacity reports) now sees EC2 alongside the other clouds that already
 report, resolving the long-standing coverage gap tracked in
-[JENKINS-55084](https://issues.jenkins.io/browse/JENKINS-55084). `cloud-stats` is a
-required dependency and is installed automatically with the plugin.
+[JENKINS-55084](https://issues.jenkins.io/browse/JENKINS-55084). `cloud-stats` is an
+**optional** dependency: these statistics are recorded only when the
+[`cloud-stats`](https://plugins.jenkins.io/cloud-stats/) plugin is installed. Without
+it, the plugin loads and provisions agents exactly as before — nothing is recorded,
+and no `cloud-stats` classes are referenced on the always-loaded path.
 
 # Configure plugin via Groovy script
 
