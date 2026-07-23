@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,15 +13,19 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 /**
- * Unit tests for the {@code cloud-stats}-free provisioning-tracker seam. This issue introduces the seam beside the
- * existing typed integration but wires no implementation, so with no {@code cloud-stats}-backed tracker on the
- * extension list every lookup resolves to the silent no-op: the contract that lets the always-loaded core call the
- * tracker unconditionally.
+ * Unit tests for the {@code cloud-stats}-free provisioning-tracker seam.
+ *
+ * <p>{@code cloud-stats} is on the test classpath, so the {@code @OptionalExtension(requirePlugins = "cloud-stats")}
+ * implementation registers and {@link EC2ProvisioningTracker#get()} resolves to the real, cloud-stats-backed tracker.
+ * These tests assert that seam's observable contract against cloud-stats 423: a "started" operation mints a non-null
+ * correlation id that resolves to a real {@code CloudStatistics} activity, and null or unrecognised ids are safe
+ * no-ops. The load-safe fallback used when {@code cloud-stats} is absent -- which cannot be exercised while the plugin
+ * is installed -- is covered directly against the private {@link EC2ProvisioningTracker} {@code NoOp} singleton.
  */
 @WithJenkins
 class EC2ProvisioningTrackerTest {
 
-    // ExtensionList.lookup (inside EC2ProvisioningTracker.get()) needs a running Jenkins.
+    // ExtensionList.lookup (inside EC2ProvisioningTracker.get()) and CloudStatistics both need a running Jenkins.
     @SuppressWarnings("unused")
     private JenkinsRule r;
 
@@ -34,25 +39,59 @@ class EC2ProvisioningTrackerTest {
         assertNotNull(EC2ProvisioningTracker.get(), "get() must always return a tracker, real or no-op");
     }
 
+    /**
+     * With {@code cloud-stats} installed, {@link EC2ProvisioningTracker#get()} resolves to the real tracker, so both
+     * the nameless (async / step) and the named (bypass) "started" operations must mint a non-null correlation id that
+     * resolves back to a real {@code CloudStatistics} activity by fingerprint.
+     */
     @Test
-    void startedOpsReturnNullCorrelationIdWhenNoTrackerRegistered() {
+    void startedOpsMintResolvableCorrelationIdWhenCloudStatsInstalled() {
         EC2ProvisioningTracker tracker = EC2ProvisioningTracker.get();
-        assertNull(
-                tracker.onProvisioningStarted("myCloud", "myTemplate"),
-                "with no tracker installed the planned-agent start must yield a null correlation id");
-        assertNull(
-                tracker.onProvisioningStarted("myCloud", "myTemplate", "myNode"),
-                "with no tracker installed the known-node start must yield a null correlation id");
+
+        String namelessId = tracker.onProvisioningStarted("myCloud", "myTemplate");
+        assertNotNull(namelessId, "the cloud-stats-backed tracker must mint a correlation id for a nameless start");
+        assertNotNull(
+                CloudStatsTestSupport.activityForCorrelationId(namelessId),
+                "the nameless-start correlation id must resolve to a real activity by fingerprint");
+
+        String namedId = tracker.onProvisioningStarted("myCloud", "myTemplate", "myNode");
+        assertNotNull(namedId, "the cloud-stats-backed tracker must mint a correlation id for a named start");
+        assertNotNull(
+                CloudStatsTestSupport.activityForCorrelationId(namedId),
+                "the named-start correlation id must resolve to a real activity by fingerprint");
     }
 
+    /**
+     * The report operations must tolerate a {@code null} correlation id (what a start returns when no tracker is
+     * active) and an id that matches no activity, treating both as silent no-ops rather than throwing.
+     */
     @Test
-    void failureAndCompletionAreSilentNoOpsWhenNoTrackerRegistered() {
+    void nullAndUnknownCorrelationIdsAreSafeNoOps() {
         EC2ProvisioningTracker tracker = EC2ProvisioningTracker.get();
-        // A null correlation id (what the started ops just returned) must be safe to hand back to every op.
         assertDoesNotThrow(() -> tracker.onProvisioningFailed(null, "no capacity"));
-        assertDoesNotThrow(() -> tracker.onProvisioningFailed("some-correlation-id", "no capacity"));
+        assertDoesNotThrow(() -> tracker.onProvisioningFailed("not-a-fingerprint", "no capacity"));
         assertDoesNotThrow(() -> tracker.onProvisioningCompleted(null));
-        assertDoesNotThrow(() -> tracker.onProvisioningCompleted("some-correlation-id"));
+        assertDoesNotThrow(() -> tracker.onProvisioningCompleted("not-a-fingerprint"));
+    }
+
+    /**
+     * When {@code cloud-stats} is absent the extension list is empty and {@link EC2ProvisioningTracker#get()} falls
+     * back to the silent {@code NoOp}: every start yields a {@code null} correlation id and every report is dropped
+     * without throwing. That branch cannot be reached while cloud-stats is installed, so the fallback singleton is
+     * exercised directly here -- the one honest way to cover the plugin's load-safe-without-cloud-stats contract in an
+     * environment where cloud-stats is present.
+     */
+    @Test
+    void absentCloudStatsFallsBackToSilentNoOp() throws Exception {
+        EC2ProvisioningTracker noOp = noOpFallback();
+        assertNull(noOp.onProvisioningStarted("myCloud", "myTemplate"), "the no-op start must yield a null id");
+        assertNull(
+                noOp.onProvisioningStarted("myCloud", "myTemplate", "myNode"),
+                "the no-op named start must yield a null id");
+        assertDoesNotThrow(() -> noOp.onProvisioningFailed(null, "no capacity"));
+        assertDoesNotThrow(() -> noOp.onProvisioningFailed("some-correlation-id", "no capacity"));
+        assertDoesNotThrow(() -> noOp.onProvisioningCompleted(null));
+        assertDoesNotThrow(() -> noOp.onProvisioningCompleted("some-correlation-id"));
     }
 
     /**
@@ -77,5 +116,21 @@ class EC2ProvisioningTrackerTest {
 
     private static boolean isCloudStats(Class<?> type) {
         return type.getName().startsWith("org.jenkinsci.plugins.cloudstats");
+    }
+
+    /**
+     * Returns the private {@code NoOp} fallback singleton {@link EC2ProvisioningTracker#get()} would hand back when the
+     * extension list is empty. Reached reflectively because the fallback is deliberately package-invisible (it is never
+     * an {@code @Extension}); testing the exact singleton keeps this honest to what production returns.
+     */
+    private static EC2ProvisioningTracker noOpFallback() throws Exception {
+        for (Class<?> nested : EC2ProvisioningTracker.class.getDeclaredClasses()) {
+            if ("NoOp".equals(nested.getSimpleName())) {
+                Field instance = nested.getDeclaredField("INSTANCE");
+                instance.setAccessible(true);
+                return (EC2ProvisioningTracker) instance.get(null);
+            }
+        }
+        throw new AssertionError("EC2ProvisioningTracker.NoOp fallback singleton not found");
     }
 }

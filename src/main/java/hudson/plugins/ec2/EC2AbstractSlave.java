@@ -51,8 +51,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
@@ -77,7 +75,7 @@ import software.amazon.awssdk.services.ec2.model.TerminateInstancesRequest;
  * @author Kohsuke Kawaguchi
  */
 @SuppressWarnings("serial")
-public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
+public abstract class EC2AbstractSlave extends Slave {
     public static final Boolean DEFAULT_METADATA_SUPPORTED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_ENDPOINT_ENABLED = Boolean.TRUE;
     public static final Boolean DEFAULT_METADATA_TOKENS_REQUIRED = Boolean.TRUE;
@@ -123,21 +121,20 @@ public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
     private Boolean enclaveEnabled;
 
     /**
-     * Identity of this agent's provisioning activity in the {@code cloud-stats} plugin. Persisted (via XStream) so
-     * that {@code cloud-stats} tracking survives a controller restart. Always injected by the provisioning caller and
-     * never minted in the shared slave factory, so the agent carries the same {@link ProvisioningActivity.Id}
-     * fingerprint that was minted for its planned node. {@code null} for agents provisioned before this field existed,
-     * or adopted out-of-band; such agents are simply left untracked.
+     * Opaque correlation id linking this agent to its provisioning activity in the {@code cloud-stats} plugin.
+     * Persisted (via XStream) so that {@code cloud-stats} tracking survives a controller restart. It is the activity's
+     * stable fingerprint rendered as a {@link String}, minted inside the {@code cloud-stats}-backed
+     * {@code EC2ProvisioningTracker} extension and handed back to this always-loaded core to persist verbatim -- core
+     * never interprets it and never names a {@code cloud-stats} type. Always injected by the provisioning caller and
+     * never minted in the shared slave factory, so the agent carries the same fingerprint that was minted for its
+     * planned node. {@code null} for agents provisioned before this field existed, provisioned while {@code cloud-stats}
+     * was absent, or adopted out-of-band; such agents are simply left untracked.
      */
     @CheckForNull
-    // volatile: written on the async provisioning thread (EC2Cloud) and read on Jenkins event threads
-    // (EC2CloudStatsComputerListener). The node-registration handoff already establishes a happens-before,
-    // but volatile makes the cross-thread visibility explicit and self-evident. XStream-persisted as normal.
-    // S3077 is suppressed rather than switching to AtomicReference: the reference is published once and the Id is
-    // treated as immutable (never mutated through this field), so volatile visibility of the reference suffices --
-    // and an AtomicReference would change the XStream-persisted form, breaking restart-reattach of existing agents.
-    @SuppressWarnings("java:S3077")
-    private volatile ProvisioningActivity.Id cloudStatsId;
+    // volatile: written on the async provisioning thread (EC2Cloud) and read on Jenkins event threads (the optional
+    // cloud-stats listeners). The node-registration handoff already establishes a happens-before, but volatile makes
+    // the cross-thread visibility explicit and self-evident. XStream-persisted as normal.
+    private volatile String cloudStatsCorrelationId;
 
     // Temporary stuff that is obtained live from EC2
     public transient String publicDNS;
@@ -574,22 +571,21 @@ public abstract class EC2AbstractSlave extends Slave implements TrackedItem {
     }
 
     /**
-     * The {@code cloud-stats} identity of this agent's provisioning activity, or {@code null} if this agent is not
-     * tracked. See {@link #cloudStatsId} for when that happens.
+     * The opaque correlation id linking this agent to its {@code cloud-stats} provisioning activity, or {@code null}
+     * if this agent is not tracked. See {@link #cloudStatsCorrelationId} for when that happens. Core treats this as an
+     * opaque token; only the optional {@code cloud-stats}-backed extensions resolve it back to an activity.
      */
-    @Override
     @CheckForNull
-    public ProvisioningActivity.Id getId() {
-        return cloudStatsId;
+    public String getCloudStatsCorrelationId() {
+        return cloudStatsCorrelationId;
     }
 
     /**
-     * Assigns the {@code cloud-stats} provisioning activity identity for this agent. Invoked by the provisioning
-     * caller (never by the shared slave factory) so the agent carries the same {@link ProvisioningActivity.Id}
-     * fingerprint that was minted for its planned node.
+     * Assigns the opaque {@code cloud-stats} correlation id for this agent. Invoked by the provisioning caller (never
+     * by the shared slave factory) so the agent carries the same fingerprint that was minted for its planned node.
      */
-    public void setCloudStatsId(@CheckForNull ProvisioningActivity.Id cloudStatsId) {
-        this.cloudStatsId = cloudStatsId;
+    public void setCloudStatsCorrelationId(@CheckForNull String cloudStatsCorrelationId) {
+        this.cloudStatsCorrelationId = cloudStatsCorrelationId;
     }
 
     /**

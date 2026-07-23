@@ -173,15 +173,6 @@ THE SOFTWARE.
       <optional>true</optional>
     </dependency>
     <dependency>
-      <!--
-        Provides @OptionalExtension, used by the cloud-stats integration classes. Declared explicitly (a required,
-        non-optional dependency; version from the Jenkins plugin BOM) rather than relied on transitively through the
-        now-optional cloud-stats, so the annotation is always present.
-      -->
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>variant</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>command-launcher</artifactId>
     </dependency>
@@ -196,6 +187,15 @@ THE SOFTWARE.
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
+    </dependency>
+    <dependency>
+      <!--
+        Provides @OptionalExtension, used by the cloud-stats integration classes. Declared explicitly (a required,
+        non-optional dependency; version from the Jenkins plugin BOM) rather than relied on transitively through the
+        now-optional cloud-stats, so the annotation is always present.
+      -->
+      <groupId>org.jenkins-ci.plugins</groupId>
+      <artifactId>variant</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>

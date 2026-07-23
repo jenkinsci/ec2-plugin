@@ -61,8 +61,11 @@ public class NoDelayProvisionerStrategy extends NodeProvisioner.Strategy {
                 LOGGER.log(Level.FINE, "Planned {0} new nodes", plannedNodes.size());
                 // Core's NodeProvisioner.StandardStrategy fires CloudProvisioningListener.onStarted after
                 // provisioning; because this strategy short-circuits the strategy chain, that never happens
-                // unless we do it here. Without it, listeners such as cloud-stats never observe nodes
-                // provisioned on demand (e.g. from a pipeline label), so they are not tracked.
+                // unless we do it here. We fire it to preserve that core contract for any listener registered on
+                // the extension point. Note this is no longer what makes cloud-stats track EC2 agents: the
+                // cloud-stats activity is opened inside EC2Cloud.provision (by the reference-free provisioning
+                // tracker), independently of this call. The planned nodes are plain PlannedNodes, so cloud-stats'
+                // own core CloudProvisioningListener finds no id for them and creates no (phantom) activity here.
                 fireOnStarted(cloud, label, plannedNodes);
                 strategyState.recordPendingLaunches(plannedNodes);
                 availableCapacity += plannedNodes.size();

@@ -35,8 +35,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedItem;
 import org.kohsuke.stapler.HttpRedirect;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.verb.POST;
@@ -52,7 +50,7 @@ import software.amazon.awssdk.services.ec2.model.InstanceTypeHypervisor;
 /**
  * @author Kohsuke Kawaguchi
  */
-public class EC2Computer extends SlaveComputer implements TrackedItem {
+public class EC2Computer extends SlaveComputer {
 
     private static final Logger LOGGER = Logger.getLogger(EC2Computer.class.getName());
 
@@ -290,17 +288,5 @@ public class EC2Computer extends SlaveComputer implements TrackedItem {
         if (node != null) {
             node.onConnected();
         }
-    }
-
-    /**
-     * The {@code cloud-stats} identity of this computer's provisioning activity, delegated to its node. Returns
-     * {@code null} when the node is gone or is not tracked, so {@code cloud-stats} can match {@code OPERATING} and
-     * completion by fingerprint.
-     */
-    @Override
-    @CheckForNull
-    public ProvisioningActivity.Id getId() {
-        EC2AbstractSlave node = getNode();
-        return node == null ? null : node.getId();
     }
 }

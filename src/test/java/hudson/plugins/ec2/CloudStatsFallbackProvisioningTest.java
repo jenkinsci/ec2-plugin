@@ -11,10 +11,10 @@ import hudson.plugins.ec2.util.AmazonEC2FactoryMockImpl;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -25,13 +25,15 @@ import software.amazon.awssdk.services.ec2.model.InstanceType;
  * Guards {@code cloud-stats} tracking across the multi-template provisioning path of {@link EC2Cloud#provision(Label,
  * int)}. When several templates match a label, the cloud tries them in order and falls back to a later template if an
  * earlier one has no capacity (see {@code EC2CloudTest#testMultipleTemplatesWithSameLabel} and the fallback fix it
- * covers). The cloud-stats identity is minted <em>inside</em> that per-template loop, so a regression there would let a
+ * covers). The cloud-stats activity is opened <em>inside</em> that per-template loop, so a regression there would let a
  * fallback-provisioned agent escape tracking even though a first-template agent is tracked.
  *
  * <p>These tests assert the external cloud-stats contract of that loop: every {@link PlannedNode} the cloud returns is
- * a {@link TrackedPlannedNode} (the marker cloud-stats keys on) carrying its own identity, and the fallback agent's
- * resolved node shares the activity's fingerprint -- no orphan activity, no orphan agent -- regardless of which
- * template produced it.
+ * matched by its own {@link ProvisioningActivity} (one activity per planned agent, each with its own fingerprint), the
+ * activities name the templates that produced them, and the fallback agent's resolved node shares its activity's
+ * fingerprint through the opaque correlation id core persists -- no orphan activity, no orphan agent -- regardless of
+ * which template produced it. The returned planned nodes are plain {@link PlannedNode}s: core names no
+ * {@code cloud-stats} type.
  */
 @WithJenkins
 class CloudStatsFallbackProvisioningTest {
@@ -50,8 +52,8 @@ class CloudStatsFallbackProvisioningTest {
 
     /**
      * The first matching template is exhausted (instance cap 0), so provisioning falls back to the second template.
-     * The fallback agent must still be tracked: the returned planned node is a {@link TrackedPlannedNode} whose
-     * activity names the fallback template, and the resolved agent shares the activity's single fingerprint.
+     * The fallback agent must still be tracked: exactly one activity is recorded, it names the fallback template, and
+     * the resolved agent resolves back to it by fingerprint through its opaque correlation id.
      */
     @Test
     void fallbackToSecondTemplateTracksTheFallbackAgent() throws Exception {
@@ -63,36 +65,35 @@ class CloudStatsFallbackProvisioningTest {
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "the exhausted template must be skipped and the fallback must provision one");
 
-        TrackedPlannedNode tracked = assertInstanceOf(
-                TrackedPlannedNode.class,
-                planned.iterator().next(),
-                "a fallback-provisioned planned node must still be tracked by cloud-stats");
-
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(tracked.getId());
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertEquals(1, activities.size(), "exactly one activity for the fallback agent");
+        ProvisioningActivity activity = activities.get(0);
         assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
-        assertEquals(1, CloudStatistics.get().getActivities().size(), "exactly one activity for the fallback agent");
         assertTrue(
                 activity.getId().getTemplateName().contains("fallback-secondary"),
                 "the activity must be attributed to the fallback template, but was: "
                         + activity.getId().getTemplateName());
 
-        Node node = tracked.future.get(30, TimeUnit.SECONDS);
+        Node node = planned.iterator().next().future.get(30, TimeUnit.SECONDS);
         assertNotNull(node, "the fallback planned agent must resolve to a real node");
         EC2AbstractSlave slave =
                 assertInstanceOf(EC2AbstractSlave.class, node, "the fallback node must be an EC2 agent");
-        assertNotNull(slave.getId(), "the resolved fallback agent must carry a cloud-stats identity");
+        assertNotNull(
+                slave.getCloudStatsCorrelationId(),
+                "the resolved fallback agent must carry a cloud-stats correlation id");
+        ProvisioningActivity resolved = CloudStatsTestSupport.activityFor(slave);
+        assertNotNull(resolved, "the resolved fallback agent must resolve to its activity by fingerprint");
         assertEquals(
                 activity.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
+                resolved.getId().getFingerprint(),
                 "the activity and the resolved fallback agent must share a single fingerprint");
     }
 
     /**
      * When one provisioning request spans two templates (the first caps out at one agent, the second supplies the
-     * rest), every planned node the cloud returns must be a {@link TrackedPlannedNode} with its own distinct identity.
-     * This guards the per-template list-index join against ever emitting an untracked node or reusing an id across the
-     * template boundary.
+     * rest), every planned node the cloud returns is matched by its own activity with a distinct identity, and the two
+     * activities name the two different templates. This guards the per-template list-index join against ever leaving a
+     * planned agent untracked or reusing an id across the template boundary.
      */
     @Test
     void everyPlannedNodeAcrossTemplatesIsTracked() {
@@ -104,21 +105,22 @@ class CloudStatsFallbackProvisioningTest {
         Collection<PlannedNode> planned = cloud.provision(label, 2 * capOfOne.getNumExecutors());
         assertEquals(2, planned.size(), "the capped template supplies one agent and the second supplies the other");
 
-        assertTrue(
-                planned.stream().allMatch(TrackedPlannedNode.class::isInstance),
-                "every planned node across the template boundary must be tracked by cloud-stats");
-        long distinctFingerprints = planned.stream()
-                .map(p -> ((TrackedPlannedNode) p).getId().getFingerprint())
+        // One activity per planned agent (opened synchronously in the per-template loop): two planned nodes, two
+        // activities, so no planned agent was left untracked across the template boundary.
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertEquals(2, activities.size(), "every planned node across the template boundary must be tracked");
+        long distinctFingerprints = activities.stream()
+                .map(a -> a.getId().getFingerprint())
                 .distinct()
                 .count();
         assertEquals(2, distinctFingerprints, "each planned agent must carry its own distinct cloud-stats identity");
 
         // Two distinct fingerprints alone would also hold for two agents from a single template, so assert the two
-        // agents carry the two different template names -- proving the request really spanned the template boundary
+        // activities carry the two different template names -- proving the request really spanned the template boundary
         // (the cap-of-one template served one, the second template served the other) rather than one template serving
         // both.
-        long distinctTemplates = planned.stream()
-                .map(p -> ((TrackedPlannedNode) p).getId().getTemplateName())
+        long distinctTemplates = activities.stream()
+                .map(a -> a.getId().getTemplateName())
                 .distinct()
                 .count();
         assertEquals(
@@ -126,6 +128,11 @@ class CloudStatsFallbackProvisioningTest {
                 distinctTemplates,
                 "the two agents must be attributed to the two different templates, proving the request spanned the "
                         + "template boundary");
+        assertTrue(
+                activities.stream().anyMatch(a -> a.getId().getTemplateName().contains("invariant-primary"))
+                        && activities.stream()
+                                .anyMatch(a -> a.getId().getTemplateName().contains("invariant-secondary")),
+                "the two activities must name the capped template and the spillover template");
     }
 
     /**

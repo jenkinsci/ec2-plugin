@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,11 +49,13 @@ import software.amazon.awssdk.services.ec2.model.TagSpecification;
  *       M &lt; N instances come up. {@code NodeProvisioner} drops this outcome silently, so the plugin's own
  *       {@code whenComplete} rescue must record a {@code FAIL} and complete the activity.
  *   <li><b>The agent fails to launch</b> ({@code ComputerLauncher} seam): an instance is up but its agent process
- *       never comes online, so core fires {@code onLaunchFailure} and the listener attaches a {@code FAIL}.
+ *       never comes online, so core fires {@code onLaunchFailure} and the optional listener attaches a {@code FAIL}.
  * </ul>
  *
  * <p>A healthy provision is included as a negative control: the rescue must not record a failure when a real node
- * materialises.
+ * materialises. Activities are opened synchronously by the tracker inside {@link EC2Cloud#provision(Label, int)}, so
+ * they already exist when {@code provision} returns; the returned planned nodes are plain {@link PlannedNode}s (core
+ * names no {@code cloud-stats} type), and the resulting agents are correlated to their activities by fingerprint.
  */
 @WithJenkins
 class CloudStatsOndemandFailureTest {
@@ -95,15 +96,16 @@ class CloudStatsOndemandFailureTest {
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "exactly one planned agent for one unit of excess workload");
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
 
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(tracked.getId());
+        // Gating runInstances lets the synchronously-opened activity be observed at PROVISIONING before the background
+        // provisioning future can fail it.
+        assertEquals(1, CloudStatistics.get().getActivities().size(), "the provisioning attempt opens one activity");
+        ProvisioningActivity activity = CloudStatistics.get().getActivities().get(0);
         assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
 
         releaseProvisioning.countDown(); // let provisioning fail now that the activity exists
 
-        assertNull(tracked.future.get(30, TimeUnit.SECONDS), "a swallowed API error yields no node");
+        assertNull(planned.iterator().next().future.get(30, TimeUnit.SECONDS), "a swallowed API error yields no node");
         CloudStatsTestSupport.awaitPhase(activity, ProvisioningActivity.Phase.COMPLETED);
 
         assertEquals(
@@ -154,43 +156,45 @@ class CloudStatsOndemandFailureTest {
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 2 * template.getNumExecutors());
         assertEquals(2, planned.size(), "two planned agents were requested");
-        List<TrackedPlannedNode> nodes =
-                planned.stream().map(p -> (TrackedPlannedNode) p).toList();
+        List<PlannedNode> nodes = new ArrayList<>(planned);
 
-        CloudStatistics.ProvisioningListener.get().onStarted(cloud, label, planned);
-        // Capture both live handles before the FAIL one auto-archives and drops out of getActivityFor(Id).
-        ProvisioningActivity first =
-                CloudStatistics.get().getActivityFor(nodes.get(0).getId());
-        ProvisioningActivity second =
-                CloudStatistics.get().getActivityFor(nodes.get(1).getId());
-        assertNotNull(first);
-        assertNotNull(second);
+        // Both activities are opened synchronously in the per-planned-agent loop before either future can complete.
+        assertEquals(2, CloudStatistics.get().getActivities().size(), "one activity opened per planned agent");
 
         releaseProvisioning.countDown();
 
-        assertNotNull(nodes.get(0).future.get(30, TimeUnit.SECONDS), "the first planned agent materialises");
+        EC2AbstractSlave firstSlave = (EC2AbstractSlave) nodes.get(0).future.get(30, TimeUnit.SECONDS);
+        assertNotNull(firstSlave, "the first planned agent materialises");
         assertNull(nodes.get(1).future.get(30, TimeUnit.SECONDS), "the second planned agent never materialises");
 
-        CloudStatsTestSupport.awaitPhase(second, ProvisioningActivity.Phase.COMPLETED);
+        // The fulfilled activity is the one the materialised agent resolves to; the other is the unfulfilled one.
+        ProvisioningActivity fulfilled = CloudStatsTestSupport.activityFor(firstSlave);
+        assertNotNull(fulfilled, "the fulfilled agent must resolve to its activity by fingerprint");
+        ProvisioningActivity failed = CloudStatistics.get().getActivities().stream()
+                .filter(a -> a.getId().getFingerprint() != fulfilled.getId().getFingerprint())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("the unfulfilled planned agent must have its own activity"));
+
+        CloudStatsTestSupport.awaitPhase(failed, ProvisioningActivity.Phase.COMPLETED);
         assertEquals(
                 ProvisioningActivity.Phase.COMPLETED,
-                second.getCurrentPhase(),
+                failed.getCurrentPhase(),
                 "the unfulfilled planned agent must complete rather than dangle");
         assertEquals(
                 ProvisioningActivity.Status.FAIL,
-                second.getStatus(),
+                failed.getStatus(),
                 "the unfulfilled planned agent must be recorded as FAIL");
         assertNotNull(
-                CloudStatsTestSupport.failAttachment(second),
+                CloudStatsTestSupport.failAttachment(failed),
                 "the unfulfilled planned agent must record a FAIL attachment");
 
         // The fulfilled planned agent keeps progressing and carries no failure.
         assertEquals(
                 ProvisioningActivity.Status.OK,
-                first.getStatus(),
+                fulfilled.getStatus(),
                 "the fulfilled planned agent must not be marked as failed");
         assertNull(
-                CloudStatsTestSupport.failAttachment(first),
+                CloudStatsTestSupport.failAttachment(fulfilled),
                 "the fulfilled planned agent must record no failure attachment");
     }
 
@@ -203,15 +207,19 @@ class CloudStatsOndemandFailureTest {
      */
     @Test
     void agentThatFailsToLaunchRecordsFail() throws Exception {
-        ProvisioningActivity.Id id = new ProvisioningActivity.Id("testcloud", "testtemplate", "failing-node");
+        // Open the activity through the real seam so the agent carries the same opaque correlation id production would
+        // persist, and the optional launch listener can rediscover the activity from it.
+        String correlationId =
+                EC2ProvisioningTracker.get().onProvisioningStarted("testcloud", "testtemplate", "failing-node");
+        assertNotNull(correlationId, "the cloud-stats-backed tracker must mint a correlation id");
         CloudStatsTestSupport.LocalLaunchSlave slave = new CloudStatsTestSupport.LocalLaunchSlave(
                 "failing-node",
                 remoteRoot.getAbsolutePath(),
                 new SimpleCommandLauncher("this-agent-command-does-not-exist-ec2cloudstats"));
-        slave.setCloudStatsId(id);
+        slave.setCloudStatsCorrelationId(correlationId);
 
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(id);
+        ProvisioningActivity activity = CloudStatsTestSupport.activityForCorrelationId(correlationId);
+        assertNotNull(activity, "opening the activity must make it resolvable by the agent's correlation id");
         assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
 
         r.jenkins.addNode(slave);
@@ -251,11 +259,11 @@ class CloudStatsOndemandFailureTest {
 
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 1);
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(tracked.getId());
+        ProvisioningActivity activity = CloudStatistics.get().getActivities().get(0);
 
-        assertNotNull(tracked.future.get(30, TimeUnit.SECONDS), "a healthy provision must resolve to a real node");
+        assertNotNull(
+                planned.iterator().next().future.get(30, TimeUnit.SECONDS),
+                "a healthy provision must resolve to a real node");
         // Give the fire-and-forget rescue time to run; with a real node it must choose not to record a failure.
         Thread.sleep(500);
 
@@ -270,9 +278,8 @@ class CloudStatsOndemandFailureTest {
 
     /**
      * Installs a factory mock whose {@code runInstances} blocks until the returned latch is counted down, then runs
-     * {@code answer}. Gating the AWS call lets a test register the cloud-stats activity (via {@code onStarted}) before
-     * the provisioning future can complete -- mirroring NodeProvisioner, which calls {@code onStarted} synchronously
-     * right after {@code provision()} returns.
+     * {@code answer}. Gating the AWS call lets a test observe the synchronously-opened cloud-stats activity at
+     * PROVISIONING before the provisioning future can complete.
      */
     private static CountDownLatch gatedRunInstances(Answer<RunInstancesResponse> answer) {
         CountDownLatch release = new CountDownLatch(1);

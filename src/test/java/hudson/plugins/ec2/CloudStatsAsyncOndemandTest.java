@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecution;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,14 +27,16 @@ import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 /**
  * Exercises the async on-demand provisioning path and asserts the external {@code cloud-stats} behaviour:
  * a single {@link ProvisioningActivity} per planned agent, advancing PROVISIONING -> LAUNCHING -> OPERATING and
- * completing cleanly when the agent retires. Identity is asserted by fingerprint (the activity and the resulting
- * agent must share one), and the shared slave factory must never mint an identity of its own.
+ * completing cleanly when the agent retires. Correlation is asserted by fingerprint -- the activity and the resulting
+ * agent must share one, reached through the agent's opaque correlation id -- and the shared slave factory must never
+ * mint a correlation id of its own. The core carries no {@code cloud-stats} type; the activity is opened by the
+ * optional extension the moment {@link EC2Cloud#provision(Label, int)} runs, so it exists as soon as provision returns.
  *
  * <p>The lifecycle is proven across two seams. The {@code AmazonEC2Factory} mock drives the real async provisioning
- * path, so it proves PROVISIONING and the planned-node/agent identity match -- but its mock computer reports itself
- * online without a real launch, so it never fires {@code preLaunch}/{@code onOnline}. LAUNCHING, OPERATING and a clean
- * COMPLETED are therefore proven at the {@code ComputerLauncher} seam, where a substituted local launcher brings the
- * agent genuinely online.
+ * path, so it proves PROVISIONING and the planned-node/agent correlation match -- but its mock computer reports itself
+ * online without a real launch, and these tests never register the node with Jenkins, so no {@code ComputerListener}
+ * fires. LAUNCHING, OPERATING and a clean COMPLETED are therefore proven at the {@code ComputerLauncher} seam, where a
+ * substituted local launcher brings the agent genuinely online.
  */
 @WithJenkins
 class CloudStatsAsyncOndemandTest {
@@ -63,37 +64,31 @@ class CloudStatsAsyncOndemandTest {
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "exactly one planned agent for one unit of excess workload");
 
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
-
-        // NodeProvisioner creates the PROVISIONING activity by notifying cloud-stats' ProvisioningListener once the
-        // cloud has returned its planned nodes. Reproduce that single step faithfully rather than driving the whole
-        // (timing-sensitive) NodeProvisioner loop.
-        CloudStatistics.ProvisioningListener.get().onStarted(cloud, label, planned);
-
-        ProvisioningActivity activity = CloudStatistics.get().getActivityFor(tracked.getId());
-        assertNotNull(activity, "a PROVISIONING activity must exist for the planned agent");
+        // The optional extension opens the activity synchronously inside provision(), so it already exists -- no need
+        // to stand in for the NodeProvisioner's CloudProvisioningListener callback the way the old typed tests did.
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertEquals(1, activities.size(), "exactly one activity for one planned agent");
+        ProvisioningActivity activity = activities.get(0);
         assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
-        assertEquals(1, CloudStatistics.get().getActivities().size(), "exactly one activity for one planned agent");
 
         // The resulting agent must carry the same identity (fingerprint) as the activity: no orphan activity, no
-        // orphan agent. The planned node and the agent are correlated by the caller-injected id.
-        Node node = tracked.future.get(30, TimeUnit.SECONDS);
+        // orphan agent. The planned node and the agent are correlated by the caller-injected opaque correlation id.
+        PlannedNode plannedNode = planned.iterator().next();
+        Node node = plannedNode.future.get(30, TimeUnit.SECONDS);
         assertNotNull(node, "the planned agent must resolve to a real node");
         EC2AbstractSlave slave = (EC2AbstractSlave) node;
-        assertNotNull(slave.getId(), "the resolved agent must carry a cloud-stats identity");
+        assertNotNull(slave.getCloudStatsCorrelationId(), "the resolved agent must carry a cloud-stats correlation id");
+        ProvisioningActivity resolved = CloudStatsTestSupport.activityFor(slave);
+        assertNotNull(resolved, "the resolved agent's correlation id must resolve to its activity");
         assertEquals(
                 activity.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
+                resolved.getId().getFingerprint(),
                 "the activity and the resulting agent must share a single fingerprint");
-        assertEquals(
-                tracked.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
-                "the planned node and the resulting agent must share a single fingerprint");
     }
 
     /**
      * Primary seam: N planned agents yield N activities -- one per planned agent, each with its own identity. Guards
-     * the list-index join against sharing or reusing a single {@code Id} across the agents it provisions.
+     * the list-index join against sharing or reusing a single correlation id across the agents it provisions.
      */
     @Test
     void eachPlannedAgentGetsItsOwnActivity() {
@@ -105,14 +100,13 @@ class CloudStatsAsyncOndemandTest {
         Collection<PlannedNode> planned = cloud.provision(label, 2 * template.getNumExecutors());
         assertEquals(2, planned.size(), "one planned agent per agent's worth of excess workload");
 
-        long distinctFingerprints = planned.stream()
-                .map(p -> ((TrackedPlannedNode) p).getId().getFingerprint())
+        List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
+        assertEquals(2, activities.size(), "exactly one activity per planned agent");
+        long distinctFingerprints = activities.stream()
+                .map(a -> a.getId().getFingerprint())
                 .distinct()
                 .count();
         assertEquals(2, distinctFingerprints, "each planned agent must carry its own distinct cloud-stats identity");
-
-        CloudStatistics.ProvisioningListener.get().onStarted(cloud, label, planned);
-        assertEquals(2, CloudStatistics.get().getActivities().size(), "exactly one activity per planned agent");
     }
 
     /**
@@ -122,15 +116,17 @@ class CloudStatsAsyncOndemandTest {
      */
     @Test
     void launchingThenOperatingThenCleanCompletedOnRetirement() throws Exception {
-        ProvisioningActivity.Id id = new ProvisioningActivity.Id("testcloud", "testtemplate", "operating-node");
+        // Open the activity through the real seam so the agent carries the same opaque correlation id the production
+        // path would persist, and the optional listeners can rediscover the activity from it.
+        String correlationId =
+                EC2ProvisioningTracker.get().onProvisioningStarted("testcloud", "testtemplate", "operating-node");
+        assertNotNull(correlationId, "the cloud-stats-backed tracker must mint a correlation id");
         CloudStatsTestSupport.LocalLaunchSlave slave = new CloudStatsTestSupport.LocalLaunchSlave(
                 "operating-node", remoteRoot.getAbsolutePath(), r.createComputerLauncher(null));
-        slave.setCloudStatsId(id);
+        slave.setCloudStatsCorrelationId(correlationId);
 
-        // Create the PROVISIONING activity as the provisioning path would, and keep the live handle so completion
-        // (which drops the activity from getActivityFor(Id)) can still be observed on this same object.
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(id);
+        ProvisioningActivity activity = CloudStatsTestSupport.activityForCorrelationId(correlationId);
+        assertNotNull(activity, "opening the activity must make it resolvable by the agent's correlation id");
         assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
 
         r.jenkins.addNode(slave);
@@ -149,7 +145,7 @@ class CloudStatsAsyncOndemandTest {
         assertEquals(
                 ProvisioningActivity.Status.OK, activity.getStatus(), "a healthy launch carries no failure status");
 
-        // Healthy retirement: removing the node auto-completes the activity via cloud-stats' completion detector.
+        // Healthy retirement: removing the node completes the activity via the optional completion NodeListener.
         r.jenkins.removeNode(slave);
         CloudStatsTestSupport.awaitPhase(activity, ProvisioningActivity.Phase.COMPLETED);
         assertEquals(
@@ -161,16 +157,18 @@ class CloudStatsAsyncOndemandTest {
                 activity.getStatus(),
                 "a clean completion must not be marked as failed");
         for (PhaseExecution execution : activity.getPhaseExecutions().values()) {
-            assertTrue(
-                    execution.getAttachments().isEmpty(),
-                    "a clean lifecycle must record no attachments, but " + execution.getPhase() + " had "
-                            + execution.getAttachments());
+            if (execution != null) {
+                assertTrue(
+                        execution.getAttachments().isEmpty(),
+                        "a clean lifecycle must record no attachments, but " + execution.getPhase() + " had "
+                                + execution.getAttachments());
+            }
         }
     }
 
     /**
-     * Caller-injected-id invariant: the shared slave factory must never mint a {@code cloud-stats} identity. Only the
-     * provisioning caller injects it at the list-index join, so a slave built directly by the factory is untracked.
+     * Caller-injected-id invariant: the shared slave factory must never mint a {@code cloud-stats} correlation id. Only
+     * the provisioning caller injects it at the list-index join, so a slave built directly by the factory is untracked.
      */
     @Test
     void slaveFactoryNeverMintsIdentity() throws Exception {
@@ -181,7 +179,7 @@ class CloudStatsAsyncOndemandTest {
         assertNotNull(slaves);
         assertFalse(slaves.isEmpty(), "the template must provision an agent");
         assertNull(
-                slaves.get(0).getId(),
-                "the shared slave factory must never mint a cloud-stats identity; only the caller injects it");
+                slaves.get(0).getCloudStatsCorrelationId(),
+                "the shared slave factory must never mint a cloud-stats correlation id; only the caller injects it");
     }
 }

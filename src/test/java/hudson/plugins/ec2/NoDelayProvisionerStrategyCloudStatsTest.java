@@ -16,15 +16,18 @@ import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 /**
  * Regression test for the interaction between {@link NoDelayProvisionerStrategy} and {@code cloud-stats}.
  *
- * <p>When no-delay provisioning is enabled the strategy provisions on demand and short-circuits the strategy chain,
- * so Jenkins core's {@code NodeProvisioner.StandardStrategy} never runs. The strategy must therefore fire
- * {@code CloudProvisioningListener.onStarted} itself, exactly as {@code StandardStrategy} does -- otherwise
- * label/pipeline-provisioned agents (the async {@link EC2Cloud#provision(Label, int)} path, tracked as a
- * {@code TrackedPlannedNode}) are never recorded by cloud-stats, even though manually provisioned agents are.
+ * <p>When no-delay provisioning is enabled the strategy provisions on demand and short-circuits the strategy chain, so
+ * Jenkins core's {@code NodeProvisioner.StandardStrategy} never runs. This test drives
+ * {@link NoDelayProvisionerStrategy#apply} directly and asserts the external cloud-stats contract of that path: a
+ * label/pipeline-provisioned agent is recorded exactly once.
  *
- * <p>The other cloud-stats tests call the listener manually to stand in for the NodeProvisioner loop, so none of them
- * exercise the strategy itself; this test drives {@link NoDelayProvisionerStrategy#apply} directly and asserts the
- * listener was fired by checking that an activity now exists.
+ * <p>Two guarantees are pinned at once. First, the on-demand path <em>is</em> tracked: the cloud-stats activity is
+ * opened inside {@link EC2Cloud#provision(Label, int)} by the reference-free provisioning tracker, so an activity
+ * exists after {@code apply} regardless of what the strategy does with the returned planned nodes. Second, the strategy
+ * still fires {@code CloudProvisioningListener.onStarted} itself to preserve core's {@code StandardStrategy} contract
+ * for any listener on the extension point -- but because it hands over plain {@link NodeProvisioner.PlannedNode}s,
+ * cloud-stats' own core listener finds no id for them and mints no phantom activity. The activity count staying at
+ * exactly one (not two) is what proves no phantom was created.
  */
 @WithJenkins
 class NoDelayProvisionerStrategyCloudStatsTest {
@@ -59,7 +62,8 @@ class NoDelayProvisionerStrategyCloudStatsTest {
         assertEquals(
                 1,
                 CloudStatistics.get().getActivities().size(),
-                "the strategy must fire CloudProvisioningListener.onStarted so cloud-stats records the agent");
+                "the on-demand path must record exactly one activity (opened by the tracker inside provision) and no "
+                        + "phantom from firing onStarted with plain planned nodes");
         assertTrue(
                 CloudStatistics.get().getActivities().stream()
                         .allMatch(a -> cloud.name.equals(a.getId().getCloudName())),

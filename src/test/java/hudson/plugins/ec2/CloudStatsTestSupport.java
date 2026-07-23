@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecution;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
@@ -61,6 +62,30 @@ final class CloudStatsTestSupport {
                 if (attachment.getStatus() == ProvisioningActivity.Status.FAIL) {
                     return attachment;
                 }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolves the {@code cloud-stats} activity correlated to {@code slave} exactly as the production optional
+     * extension does: by scanning every activity cloud-stats knows about (active and archived) for the one whose
+     * fingerprint, rendered as a string, equals the agent's opaque correlation id. Returns {@code null} for an
+     * untracked agent (a null correlation id) or when no activity matches. This is the observable correlation that
+     * replaces the removed persisted {@code ProvisioningActivity.Id} field: core carries only the opaque string.
+     */
+    static ProvisioningActivity activityFor(EC2AbstractSlave slave) {
+        return activityForCorrelationId(slave.getCloudStatsCorrelationId());
+    }
+
+    /** Resolves the activity carrying {@code correlationId} (a fingerprint rendered as a string), or {@code null}. */
+    static ProvisioningActivity activityForCorrelationId(String correlationId) {
+        if (correlationId == null) {
+            return null;
+        }
+        for (ProvisioningActivity activity : CloudStatistics.get().getActivities()) {
+            if (correlationId.equals(Integer.toString(activity.getId().getFingerprint()))) {
+                return activity;
             }
         }
         return null;

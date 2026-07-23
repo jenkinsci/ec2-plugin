@@ -95,9 +95,6 @@ import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.util.Timer;
 import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.cloudstats.CloudStatistics;
-import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
@@ -1091,34 +1088,33 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
-     * Records one cloud-stats {@link ProvisioningActivity} per freshly provisioned agent for the two
-     * NodeProvisioner-bypass paths that funnel through {@link #getNewOrExistingAvailableSlave}: the min-instances /
-     * spare-capacity checker ({@link #provision(SlaveTemplate, int)}) and the UI/CLI provision button
-     * ({@link #doProvision}). The async {@link #provision(Label, int)} path never reaches this choke point -- it calls
-     * {@link SlaveTemplate#provision} directly and is tracked as a {@link TrackedPlannedNode} -- so a given agent is
-     * tracked here or there, never both, without any runtime guard flag.
+     * Opens one provisioning activity per freshly provisioned agent, via the {@code cloud-stats}-free
+     * {@link EC2ProvisioningTracker} seam, for the two NodeProvisioner-bypass paths that funnel through
+     * {@link #getNewOrExistingAvailableSlave}: the min-instances / spare-capacity checker
+     * ({@link #provision(SlaveTemplate, int)}) and the UI/CLI provision button ({@link #doProvision}). The async
+     * {@link #provision(Label, int)} path never reaches this choke point -- it opens its activities directly against the
+     * seam -- so a given agent is tracked here or there, never both, without any runtime guard flag.
      *
-     * <p>Each agent is given its caller-injected identity before the caller registers it as a Jenkins node, so the
-     * existing {@link EC2CloudStatsComputerListener} and cloud-stats' completion detector then carry the activity
-     * through LAUNCHING/OPERATING/COMPLETED. Only materialized agents get an activity -- a request that yields no
-     * instance records nothing -- honouring the principle that a missing activity is acceptable but a dangling one is
-     * not.
+     * <p>Each agent is given its caller-injected correlation id before the caller registers it as a Jenkins node, so
+     * the optional {@code cloud-stats}-backed listeners then carry the activity through LAUNCHING/OPERATING/COMPLETED.
+     * Only materialized agents get an activity -- a request that yields no instance records nothing -- honouring the
+     * principle that a missing activity is acceptable but a dangling one is not. When {@code cloud-stats} is absent the
+     * seam is a silent no-op and every correlation id is {@code null}.
      */
     private void trackBypassProvisioning(SlaveTemplate t, List<EC2AbstractSlave> slaves) {
         if (slaves == null) {
             return;
         }
+        EC2ProvisioningTracker tracker = EC2ProvisioningTracker.get();
         for (EC2AbstractSlave slave : slaves) {
             if (slave == null) {
                 continue;
             }
-            // The agent already exists here, so name the activity at creation via the 3-arg Id constructor. The async
-            // path instead mints a 2-arg Id and backfills the name with Id.named() only because it must create the id
-            // before the agent exists; here we have the node name up front, so cloud-stats can label the activity from
-            // the start.
-            ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, t.getDisplayName(), slave.getNodeName());
-            CloudStatistics.ProvisioningListener.get().onStarted(id);
-            slave.setCloudStatsId(id);
+            // The agent already exists here, so name the activity from the start via the 3-arg started operation. The
+            // async path instead opens a nameless activity and lets the OPERATING relabel backfill the node name, only
+            // because it must open the activity before the agent exists; here we have the node name up front.
+            String correlationId = tracker.onProvisioningStarted(name, t.getDisplayName(), slave.getNodeName());
+            slave.setCloudStatsCorrelationId(correlationId);
         }
     }
 
@@ -1221,19 +1217,22 @@ public class EC2Cloud extends Cloud {
             // Precompute the message a dangling activity will fail with, so an unfulfilled spot request is
             // distinguishable from a plain on-demand shortfall (see provisioningFailureReason for the selection rule).
             final String failureReason = provisioningFailureReason(t);
+            final EC2ProvisioningTracker tracker = EC2ProvisioningTracker.get();
             for (int i = 0; i < number; i++) {
                 final int index = i;
-                // Mint one cloud-stats activity identity per planned agent. It is injected into the agent
-                // below at the list-index join -- never inside the shared slave factory -- so the planned
-                // node and the resulting agent share a single fingerprint and no activity is orphaned.
-                final ProvisioningActivity.Id id = new ProvisioningActivity.Id(name, t.getDisplayName());
+                // Open one provisioning activity per planned agent through the cloud-stats-free seam and get back its
+                // opaque correlation id. It is injected into the agent below at the list-index join -- never inside the
+                // shared slave factory -- so the planned node and the resulting agent share a single fingerprint and no
+                // activity is orphaned. The activity is nameless until the OPERATING relabel backfills the node name,
+                // because it must be opened here before the agent exists. When cloud-stats is absent this id is null.
+                final String correlationId = tracker.onProvisioningStarted(name, t.getDisplayName());
                 CompletableFuture<Node> nodeFuture = provisionFuture
                         .thenApplyAsync(
                                 slaves -> {
                                     EC2AbstractSlave slave =
                                             slaves != null && index < slaves.size() ? slaves.get(index) : null;
                                     if (slave != null) {
-                                        slave.setCloudStatsId(id.named(slave.getNodeName()));
+                                        slave.setCloudStatsCorrelationId(correlationId);
                                     }
                                     return slave;
                                 },
@@ -1248,12 +1247,14 @@ public class EC2Cloud extends Cloud {
                 // future completes normally with no node (no capacity, cap reached, or a swallowed API error),
                 // NodeProvisioner drops it silently without firing any CloudProvisioningListener callback. Record
                 // the failure ourselves so the activity completes. This is fire-and-forget: the original nodeFuture
-                // is still what the TrackedPlannedNode hands to NodeProvisioner, so provisioning behaviour is
-                // unchanged.
+                // is still what the PlannedNode hands to NodeProvisioner, so provisioning behaviour is unchanged.
                 nodeFuture.whenComplete((node, throwable) ->
-                        reportProvisioningFailureIfUnfulfilled(id, node, throwable, failureReason));
+                        reportProvisioningFailureIfUnfulfilled(tracker, correlationId, node, throwable, failureReason));
 
-                plannedNodes.add(new TrackedPlannedNode(id, t.getNumExecutors(), nodeFuture));
+                // A plain PlannedNode (no TrackedPlannedNode): tracking rides entirely on the persisted correlation
+                // id now, so core names no cloud-stats type. t.getDisplayName() reproduces the temporary label the
+                // TrackedPlannedNode derived from the nameless activity id.
+                plannedNodes.add(new PlannedNode(t.getDisplayName(), nodeFuture, t.getNumExecutors()));
             }
 
             excessWorkload -= number * t.getNumExecutors();
@@ -1270,28 +1271,30 @@ public class EC2Cloud extends Cloud {
     }
 
     /**
-     * Reports a {@code cloud-stats} provisioning failure for a planned agent that never materialised.
+     * Reports a provisioning failure, via the {@code cloud-stats}-free seam, for a planned agent that never
+     * materialised.
      *
      * <p>Fire-and-forget completion handler for a planned agent's node future. It acts only when the future
      * completed <em>normally</em> with no node -- the one outcome {@code NodeProvisioner} drops silently (firing no
      * {@code CloudProvisioningListener} callback), which would otherwise leave the activity dangling in
      * {@code PROVISIONING}. A future that materialised an agent needs no failure, and one that completed
      * exceptionally is already reported by core via {@code CloudProvisioningListener.onFailure}, so both are skipped.
-     * cloud-stats attaches the failure to the {@code PROVISIONING} phase and then completes and archives the activity.
+     * The seam attaches the failure to the current phase and then completes and archives the activity.
      *
-     * <p>This relies on the activity already existing when it fires: {@code NodeProvisioner} creates it (via
-     * {@code CloudProvisioningListener.onStarted}) synchronously the instant {@code provision} returns, long before
-     * the asynchronous node future can complete against real EC2 latency, so in practice the activity is always
-     * present here. If the activity is somehow absent, cloud-stats' {@code onFailure} is a no-op -- and cloud-stats'
-     * own scavenger does not reap a dangling {@code PROVISIONING}-only activity -- but that ordering cannot arise
-     * with a real EC2 backend.
+     * <p>This relies on the activity already existing when it fires -- it is opened synchronously above the instant the
+     * planned node is created, long before the asynchronous node future can complete against real EC2 latency, so in
+     * practice the activity is always present. A {@code null} correlation id (cloud-stats absent) makes this a no-op.
      */
     private static void reportProvisioningFailureIfUnfulfilled(
-            ProvisioningActivity.Id id, Node node, Throwable throwable, String reason) {
+            EC2ProvisioningTracker tracker,
+            @CheckForNull String correlationId,
+            Node node,
+            Throwable throwable,
+            String reason) {
         if (node != null || throwable != null) {
             return;
         }
-        CloudStatistics.ProvisioningListener.get().onFailure(id, new IOException(reason));
+        tracker.onProvisioningFailed(correlationId, reason);
     }
 
     /**

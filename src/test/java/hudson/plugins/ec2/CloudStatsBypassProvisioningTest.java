@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecution;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,10 +35,14 @@ import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
  * </ul>
  *
  * <p>The first two funnel through the {@code getNewOrExistingAvailableSlave} choke point and then register the agent
- * as a Jenkins node, so the existing {@code ComputerListener}/completion machinery carries them onward. The pipeline
+ * as a Jenkins node, so the optional {@code ComputerListener}/completion machinery carries them onward. The pipeline
  * step never registers a node, so it must complete its own activity rather than dangle. A final test pins the
  * call-graph-separation invariant: an async provision and a bypass provision are counted independently, so no agent
  * is double counted -- with no runtime guard flag mediating the two paths.
+ *
+ * <p>Correlation is asserted the way the reference-free core carries it: the agent holds an opaque correlation id (a
+ * rendered activity fingerprint) and resolves back to its activity by fingerprint scan (see
+ * {@link CloudStatsTestSupport#activityFor(EC2AbstractSlave)}); the agent names no {@code cloud-stats} type.
  */
 @WithJenkins
 class CloudStatsBypassProvisioningTest {
@@ -57,7 +60,7 @@ class CloudStatsBypassProvisioningTest {
     /**
      * The synchronous provisioning path the min-instances / spare-capacity checker uses
      * ({@link EC2Cloud#provision(SlaveTemplate, int)}, called from {@code MinimumInstanceChecker}) records exactly one
-     * activity per agent it provisions, and each provisioned agent carries the matching activity's identity.
+     * activity per agent it provisions, and each provisioned agent resolves to the matching activity by fingerprint.
      */
     @Test
     void minInstanceSyncProvisionRecordsOneActivityPerAgent() {
@@ -75,16 +78,20 @@ class CloudStatsBypassProvisioningTest {
         Set<Integer> activityFingerprints = fingerprints(activities);
         assertEquals(2, activityFingerprints.size(), "each agent must carry its own distinct activity identity");
         for (EC2AbstractSlave agent : agents) {
-            assertNotNull(agent.getId(), "each provisioned agent must carry a cloud-stats identity");
+            assertNotNull(
+                    agent.getCloudStatsCorrelationId(),
+                    "each provisioned agent must carry a cloud-stats correlation id");
+            ProvisioningActivity activity = CloudStatsTestSupport.activityFor(agent);
+            assertNotNull(activity, "each provisioned agent must resolve to its activity by fingerprint");
             assertTrue(
-                    activityFingerprints.contains(agent.getId().getFingerprint()),
+                    activityFingerprints.contains(activity.getId().getFingerprint()),
                     "each provisioned agent must be tracked by exactly one activity sharing its fingerprint");
         }
     }
 
     /**
      * The UI/CLI "Provision" button ({@code doProvision}) records exactly one activity for the single agent it
-     * provisions, and that agent carries the matching activity's identity.
+     * provisions, and that agent resolves to the matching activity by fingerprint.
      */
     @Test
     void doProvisionButtonRecordsOneActivityPerAgent() throws Exception {
@@ -98,10 +105,14 @@ class CloudStatsBypassProvisioningTest {
 
         List<ProvisioningActivity> activities = CloudStatistics.get().getActivities();
         assertEquals(1, activities.size(), "exactly one cloud-stats activity for the provisioned agent");
-        assertNotNull(agents.get(0).getId(), "the provisioned agent must carry a cloud-stats identity");
+        assertNotNull(
+                agents.get(0).getCloudStatsCorrelationId(),
+                "the provisioned agent must carry a cloud-stats correlation id");
+        ProvisioningActivity activity = CloudStatsTestSupport.activityFor(agents.get(0));
+        assertNotNull(activity, "the provisioned agent must resolve to its activity by fingerprint");
         assertEquals(
                 activities.get(0).getId().getFingerprint(),
-                agents.get(0).getId().getFingerprint(),
+                activity.getId().getFingerprint(),
                 "the activity and the provisioned agent must share a single fingerprint");
     }
 
@@ -160,12 +171,11 @@ class CloudStatsBypassProvisioningTest {
         EC2Cloud cloud = CloudStatsTestSupport.registerCloud(r, template);
         Label label = r.jenkins.getLabel(template.getLabelString());
 
-        // Async path: one planned agent, its activity created exactly as the NodeProvisioner would.
+        // Async path: one planned agent, its activity opened synchronously by the tracker inside provision().
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "exactly one planned agent for one unit of excess workload");
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
-        CloudStatistics.ProvisioningListener.get().onStarted(cloud, label, planned);
-        Node asyncNode = tracked.future.get(30, TimeUnit.SECONDS);
+        PlannedNode plannedNode = planned.iterator().next();
+        Node asyncNode = plannedNode.future.get(30, TimeUnit.SECONDS);
         assertNotNull(asyncNode, "the async planned agent must resolve to a real node");
 
         // Bypass path: one more agent through the synchronous choke point the min-instances checker uses.
@@ -177,17 +187,17 @@ class CloudStatsBypassProvisioningTest {
         Set<Integer> activityFingerprints = fingerprints(activities);
         assertEquals(2, activityFingerprints.size(), "the two agents carry two distinct activity identities");
 
-        // The async agent keeps its NodeProvisioner-minted identity and appears in exactly one activity -- proving it
-        // did not also acquire a second, style-B activity at the bypass choke point.
+        // The async agent keeps its own identity and resolves to exactly one activity -- proving it did not also
+        // acquire
+        // a second activity at the bypass choke point.
         EC2AbstractSlave asyncSlave = (EC2AbstractSlave) asyncNode;
-        assertNotNull(asyncSlave.getId(), "the async agent must carry a cloud-stats identity");
-        assertEquals(
-                tracked.getId().getFingerprint(),
-                asyncSlave.getId().getFingerprint(),
-                "the async agent keeps its NodeProvisioner identity, not a bypass one");
+        assertNotNull(
+                asyncSlave.getCloudStatsCorrelationId(), "the async agent must carry a cloud-stats correlation id");
+        ProvisioningActivity asyncActivity = CloudStatsTestSupport.activityFor(asyncSlave);
+        assertNotNull(asyncActivity, "the async agent must resolve to exactly one activity, not double counted");
         assertTrue(
-                activityFingerprints.contains(asyncSlave.getId().getFingerprint()),
-                "the async agent must be tracked by exactly one activity, not double counted");
+                activityFingerprints.contains(asyncActivity.getId().getFingerprint()),
+                "the async agent's activity must be one of the two recorded activities");
     }
 
     private List<EC2AbstractSlave> ec2Agents() {

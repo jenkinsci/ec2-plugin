@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import org.jenkinsci.plugins.cloudstats.CloudStatistics;
 import org.jenkinsci.plugins.cloudstats.PhaseExecutionAttachment;
 import org.jenkinsci.plugins.cloudstats.ProvisioningActivity;
-import org.jenkinsci.plugins.cloudstats.TrackedPlannedNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,13 +44,13 @@ import software.amazon.awssdk.services.ec2.model.SpotInstanceState;
 
 /**
  * Exercises the async spot provisioning path and asserts the external {@code cloud-stats} behaviour. Spot agents flow
- * through the same subtype-agnostic list-index join as on-demand agents (a single {@link ProvisioningActivity.Id} is
- * minted per planned agent and injected onto whatever the provisioning future yields), so this class proves the three
+ * through the same subtype-agnostic list-index join as on-demand agents (one activity is opened per planned agent and
+ * its opaque correlation id is injected onto whatever the provisioning future yields), so this class proves the three
  * spot-specific outcomes rather than re-proving the shared lifecycle:
  *
  * <ul>
- *   <li><b>Fulfilled</b>: a spot request that comes up as an {@link EC2SpotSlave} carries the activity's single
- *       fingerprint -- no orphan activity, no orphan agent.
+ *   <li><b>Fulfilled</b>: a spot request that comes up as an {@link EC2SpotSlave} resolves back to its single activity
+ *       by fingerprint -- no orphan activity, no orphan agent.
  *   <li><b>Unfulfilled</b> ({@code AmazonEC2Factory} seam): a spot request that is never fulfilled records a
  *       {@code FAIL} and completes rather than dangling. The precise AWS cause is swallowed on the async path (to
  *       preserve {@code NodeProvisioner} retry behaviour), so the reason is a generic-but-spot-specific one that
@@ -64,7 +63,8 @@ import software.amazon.awssdk.services.ec2.model.SpotInstanceState;
  * <p>The launch phases (LAUNCHING, OPERATING) and clean COMPLETED are proven subtype-agnostically in
  * {@code CloudStatsAsyncOndemandTest}: the listener that drives them resolves any {@link EC2AbstractSlave}, of which
  * {@link EC2SpotSlave} is one, so a spot agent needs no separate proof of them (and cannot reach OPERATING here, as
- * the mock computer reports itself online without a real launch).
+ * the mock computer reports itself online without a real launch). The returned planned nodes are plain
+ * {@link PlannedNode}s: core names no {@code cloud-stats} type.
  */
 @WithJenkins
 class CloudStatsSpotProvisioningTest {
@@ -84,8 +84,8 @@ class CloudStatsSpotProvisioningTest {
     }
 
     /**
-     * A fulfilled spot request yields an {@link EC2SpotSlave} that carries the same fingerprint as its single
-     * PROVISIONING activity: the spot subtype flows through the tracked provisioning path exactly like on-demand.
+     * A fulfilled spot request yields an {@link EC2SpotSlave} that resolves back to its single PROVISIONING activity by
+     * fingerprint: the spot subtype flows through the tracked provisioning path exactly like on-demand.
      */
     @Test
     void fulfilledSpotAgentIsTrackedWithStableFingerprint() throws Exception {
@@ -97,27 +97,25 @@ class CloudStatsSpotProvisioningTest {
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "exactly one planned agent for one unit of excess workload");
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
 
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(tracked.getId());
-        assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
+        // The activity is opened synchronously by the tracker inside provision(), so it already exists.
         assertEquals(
                 1, CloudStatistics.get().getActivities().size(), "a single fulfilled spot request is one activity");
+        ProvisioningActivity activity = CloudStatistics.get().getActivities().get(0);
+        assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
 
-        Node node = tracked.future.get(30, TimeUnit.SECONDS);
+        Node node = planned.iterator().next().future.get(30, TimeUnit.SECONDS);
         assertNotNull(node, "a fulfilled spot request must resolve to a real node");
         EC2SpotSlave slave =
                 assertInstanceOf(EC2SpotSlave.class, node, "a fulfilled spot request must yield an EC2SpotSlave");
-        assertNotNull(slave.getId(), "the resolved spot agent must carry a cloud-stats identity");
+        assertNotNull(
+                slave.getCloudStatsCorrelationId(), "the resolved spot agent must carry a cloud-stats correlation id");
+        ProvisioningActivity resolved = CloudStatsTestSupport.activityFor(slave);
+        assertNotNull(resolved, "the resolved spot agent must resolve to its activity by fingerprint");
         assertEquals(
                 activity.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
+                resolved.getId().getFingerprint(),
                 "the activity and the resulting spot agent must share a single fingerprint");
-        assertEquals(
-                tracked.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
-                "the planned node and the resulting spot agent must share a single fingerprint");
     }
 
     /**
@@ -137,15 +135,18 @@ class CloudStatsSpotProvisioningTest {
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "exactly one planned agent for one unit of excess workload");
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
 
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(tracked.getId());
+        // Gating requestSpotInstances lets the synchronously-opened activity be observed at PROVISIONING before the
+        // background provisioning future can fail it.
+        assertEquals(1, CloudStatistics.get().getActivities().size(), "the spot request opens one activity");
+        ProvisioningActivity activity = CloudStatistics.get().getActivities().get(0);
         assertEquals(ProvisioningActivity.Phase.PROVISIONING, activity.getCurrentPhase());
 
         releaseProvisioning.countDown(); // let the spot request fail now that the activity exists
 
-        assertNull(tracked.future.get(30, TimeUnit.SECONDS), "an unfulfilled spot request yields no node");
+        assertNull(
+                planned.iterator().next().future.get(30, TimeUnit.SECONDS),
+                "an unfulfilled spot request yields no node");
         CloudStatsTestSupport.awaitPhase(activity, ProvisioningActivity.Phase.COMPLETED);
 
         assertEquals(
@@ -166,9 +167,9 @@ class CloudStatsSpotProvisioningTest {
     /**
      * A spot request that falls back to on-demand (spot quota exceeded, fallback enabled -- the prior-art
      * {@code SlaveTemplateTest#provisionSpotFallsBackToOndemandWhenSpotQuotaExceeded} flow) remains a single
-     * {@link ProvisioningActivity} with one fingerprint. The one minted id is injected onto whichever agent the future
-     * yields -- here the fallback {@link EC2OndemandSlave} -- so the provision is not double-counted as both a spot and
-     * an on-demand activity.
+     * {@link ProvisioningActivity} with one fingerprint. The one activity's correlation id is injected onto whichever
+     * agent the future yields -- here the fallback {@link EC2OndemandSlave} -- so the provision is not double-counted as
+     * both a spot and an on-demand activity.
      */
     @Test
     void spotFallbackToOndemandRemainsSingleActivity() throws Exception {
@@ -185,12 +186,9 @@ class CloudStatsSpotProvisioningTest {
         Label label = r.jenkins.getLabel(template.getLabelString());
         Collection<PlannedNode> planned = cloud.provision(label, 1);
         assertEquals(1, planned.size(), "exactly one planned agent for one unit of excess workload");
-        TrackedPlannedNode tracked = (TrackedPlannedNode) planned.iterator().next();
+        ProvisioningActivity activity = CloudStatistics.get().getActivities().get(0);
 
-        ProvisioningActivity activity =
-                CloudStatistics.ProvisioningListener.get().onStarted(tracked.getId());
-
-        Node node = tracked.future.get(30, TimeUnit.SECONDS);
+        Node node = planned.iterator().next().future.get(30, TimeUnit.SECONDS);
         assertNotNull(node, "a spot request with fallback must resolve to an on-demand node");
         EC2OndemandSlave slave = assertInstanceOf(
                 EC2OndemandSlave.class, node, "spot-quota-exceeded with fallback must yield an EC2OndemandSlave");
@@ -200,14 +198,15 @@ class CloudStatsSpotProvisioningTest {
                 1,
                 CloudStatistics.get().getActivities().size(),
                 "a spot request that falls back to on-demand must remain a single activity, not double-counted");
+        assertNotNull(
+                slave.getCloudStatsCorrelationId(),
+                "the fallback on-demand agent must carry a cloud-stats correlation id");
+        ProvisioningActivity resolved = CloudStatsTestSupport.activityFor(slave);
+        assertNotNull(resolved, "the fallback on-demand agent must resolve to its activity by fingerprint");
         assertEquals(
                 activity.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
+                resolved.getId().getFingerprint(),
                 "the single activity and the fallback on-demand agent must share one fingerprint");
-        assertEquals(
-                tracked.getId().getFingerprint(),
-                slave.getId().getFingerprint(),
-                "the planned node and the fallback on-demand agent must share one fingerprint");
     }
 
     /** A bid-price spot configuration (max bid {@code .05}) that falls back to on-demand only if {@code fallback}. */
@@ -309,8 +308,8 @@ class CloudStatsSpotProvisioningTest {
 
     /**
      * Installs a factory mock whose {@code requestSpotInstances} blocks until the returned latch is counted down, then
-     * throws a spot-quota-exceeded error. Gating the AWS call lets the test register the cloud-stats activity (via
-     * {@code onStarted}) before the provisioning future can complete, mirroring NodeProvisioner.
+     * throws a spot-quota-exceeded error. Gating the AWS call lets the test observe the synchronously-opened cloud-stats
+     * activity at PROVISIONING before the provisioning future can fail it.
      */
     private static CountDownLatch gatedSpotRequest() {
         CountDownLatch release = new CountDownLatch(1);
