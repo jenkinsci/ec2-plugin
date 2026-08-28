@@ -1797,6 +1797,9 @@ class SlaveTemplateTest {
     }
 
     private HtmlForm getConfigForm(EC2Cloud ac) throws IOException, SAXException {
-        return r.createWebClient().goTo(ac.getUrl() + "configure").getFormByName("config");
+        JenkinsRule.WebClient webClient = r.createWebClient();
+        var page = webClient.goTo(ac.getUrl() + "configure");
+        webClient.waitForBackgroundJavaScript(5000);
+        return page.getFormByName("config");
     }
 }
