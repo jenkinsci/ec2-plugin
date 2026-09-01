@@ -13,6 +13,7 @@
          * [Configure Jenkins for Spot Support](#configure-jenkins-for-spot-support)
          * [Configure AMI for Spot Support](#configure-ami-for-spot-support)
       * [IAM setup](#iam-setup)
+      * [Provisioning statistics](#provisioning-statistics)
    * [Configure plugin via Groovy script](#configure-plugin-via-groovy-script)
    * [Security](#security)
       * [Securing the connection to Unix AMIs](#securing-the-connection-to-unix-amis)
@@ -284,6 +285,27 @@ permission is required.
 
 If you want to launch Windows agents and use the generated Administrator
 password, the "ec2:GetPasswordData" permission is also required.
+
+## Provisioning statistics
+
+This plugin is a [`cloud-stats`](https://plugins.jenkins.io/cloud-stats/) producer:
+every attempt to bring up an EC2 agent is recorded as a `ProvisioningActivity` and
+advanced through the standard `PROVISIONING → LAUNCHING → OPERATING → COMPLETED`
+phases, with a `FAIL`/`WARN` attachment on the phase where a failure or degradation
+is detected. This covers every way the plugin provisions an agent — the asynchronous
+`NodeProvisioner` path (on-demand and spot, including spot-to-on-demand fallback), the
+synchronous minimum-instances / spare-capacity checker, the UI/CLI **Provision**
+button, and the `ec2` pipeline step — and tracking continues across a controller
+restart for agents provisioned by this version.
+
+As a result, any tool that reads `CloudStatistics.getActivities()` (dashboards,
+metrics, capacity reports) now sees EC2 alongside the other clouds that already
+report, resolving the long-standing coverage gap tracked in
+[JENKINS-55084](https://issues.jenkins.io/browse/JENKINS-55084). `cloud-stats` is an
+**optional** dependency: these statistics are recorded only when the
+[`cloud-stats`](https://plugins.jenkins.io/cloud-stats/) plugin is installed. Without
+it, the plugin loads and provisions agents exactly as before — nothing is recorded,
+and no `cloud-stats` classes are referenced on the always-loaded path.
 
 # Configure plugin via Groovy script
 

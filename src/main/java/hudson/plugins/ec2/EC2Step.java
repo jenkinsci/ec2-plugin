@@ -140,22 +140,44 @@ public class EC2Step extends Step {
         @Override
         protected Instance run() throws Exception {
             Cloud cl = getByDisplayName(jenkins.model.Jenkins.get().clouds, this.cloud);
-            if (cl instanceof EC2Cloud) {
-                SlaveTemplate t;
-                t = ((EC2Cloud) cl).getTemplate(this.template);
+            if (cl instanceof EC2Cloud ec2Cloud) {
+                SlaveTemplate t = ec2Cloud.getTemplate(this.template);
                 if (t != null) {
                     SlaveTemplate.ProvisionOptions universe = SlaveTemplate.ProvisionOptions.ALLOW_CREATE;
                     EnumSet<SlaveTemplate.ProvisionOptions> opt = EnumSet.noneOf(SlaveTemplate.ProvisionOptions.class);
                     opt.add(universe);
 
-                    List<EC2AbstractSlave> instances = t.provision(1, opt);
-                    if (instances == null) {
-                        throw new IllegalArgumentException(
-                                "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
-                    }
+                    // Open a provisioning activity for the instance this step provisions, via the cloud-stats-free
+                    // seam. The step bypasses the NodeProvisioner and never registers a Jenkins node, so no
+                    // ComputerListener/removal machinery ever advances or completes this activity -- the step owns its
+                    // whole lifecycle here, self-managing OPERATING -> COMPLETED on success and FAIL on error. When
+                    // cloud-stats is absent the seam is a silent no-op and the correlation id is null.
+                    EC2ProvisioningTracker tracker = EC2ProvisioningTracker.get();
+                    String correlationId = tracker.onProvisioningStarted(cl.getDisplayName(), t.getDisplayName());
+                    try {
+                        List<EC2AbstractSlave> instances = t.provision(1, opt);
+                        // provision() is declared @NonNull, so only the empty case can occur; guard it so an empty
+                        // list throws this actionable message instead of falling through to get(0) and throwing an
+                        // opaque IndexOutOfBoundsException (and either way the catch below fails the activity).
+                        if (instances.isEmpty()) {
+                            throw new IllegalArgumentException(
+                                    "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
+                        }
 
-                    EC2AbstractSlave slave = instances.get(0);
-                    return CloudHelper.getInstanceWithRetry(slave.getInstanceId(), (EC2Cloud) cl);
+                        EC2AbstractSlave slave = instances.get(0);
+                        Instance instance = CloudHelper.getInstanceWithRetry(slave.getInstanceId(), ec2Cloud);
+                        // The provisioned instance is genuinely running, so complete the activity through OPERATING;
+                        // the seam handles the OPERATING -> COMPLETED jump (skipping LAUNCHING, since no agent ever
+                        // launches or connects) and keeps the clean completion warning-free.
+                        tracker.onProvisioningCompleted(correlationId);
+                        return instance;
+                    } catch (Exception e) {
+                        // The instance never became a tracked Jenkins agent; fail the activity rather than let it
+                        // dangle, then preserve the step's existing behaviour by rethrowing unchanged.
+                        String reason = e.getMessage();
+                        tracker.onProvisioningFailed(correlationId, reason != null ? reason : e.toString());
+                        throw e;
+                    }
                 } else {
                     throw new IllegalArgumentException(
                             "Error in AWS Cloud. Please review AWS template defined in Jenkins configuration.");
