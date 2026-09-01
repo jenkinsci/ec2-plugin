@@ -131,8 +131,9 @@ public final class SSHClientManager {
 
         for (String algo : algorithms) {
             String trimmed = algo.trim();
-            boolean isPreferred = preferredAlgorithms.stream().anyMatch(pref -> trimmed.toLowerCase()
-                    .contains(pref.toLowerCase().replace("ssh-", "")));
+            boolean isPreferred = preferredAlgorithms.stream()
+                    .anyMatch(pref ->
+                            trimmed.toLowerCase().contains(pref.toLowerCase().replace("ssh-", "")));
             if (isPreferred) {
                 preferred.add(trimmed);
             } else {

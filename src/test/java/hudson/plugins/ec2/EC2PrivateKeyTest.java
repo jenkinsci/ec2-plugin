@@ -39,8 +39,7 @@ import software.amazon.awssdk.core.exception.SdkException;
 class EC2PrivateKeyTest {
 
     private EC2PrivateKey getPrivateKey() {
-        return new EC2PrivateKey(
-                """
+        return new EC2PrivateKey("""
                 -----BEGIN RSA PRIVATE KEY-----
                 MIIEowIBAAKCAQEAlpK/pGxCRoHpbIObxYW53fl4qA+EQNHuSveNyxt+6m/HAdRLhEMGHe7/b7dR
                 e8bnJLtJD7+rTyKnhIiAQ3ZKSAXUNjbcwnH/lxfT39ht/PkupK0Vbdzgdm4vYfciFsqO/H1T5WPb
