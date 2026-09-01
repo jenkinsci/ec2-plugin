@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.apache.commons.lang.StringUtils;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -46,7 +45,7 @@ final class CloudHelper {
 
     @CheckForNull
     static Instance getInstance(String instanceId, EC2Cloud cloud) throws SdkException {
-        if (StringUtils.isEmpty(instanceId) || cloud == null) {
+        if (instanceId == null || instanceId.isEmpty() || cloud == null) {
             return null;
         }
 

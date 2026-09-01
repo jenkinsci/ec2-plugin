@@ -352,6 +352,7 @@ def slaveTemplateUsEast1Parameters = [
   metadataTokensRequired:        true, // `true` enforces IMDSv2 only (over IMDSv1), an important AWS security best practice
   metadataHopsLimit:             1,
   enclaveEnabled:                true, // launches the instance with Nitro Enclave enabled
+  nestedVirtualizationEnabled:   false, // launches the instance with nested virtualization enabled (set via setter, see below)
   minimumNumberOfInstances:      0,
   minimumNumberOfSpareInstances: 0,
   maxTotalUses:                  -1,
@@ -463,6 +464,9 @@ SlaveTemplate slaveTemplateUsEast1 = new SlaveTemplate(
   slaveTemplateUsEast1Parameters.metadataHopsLimit,
   slaveTemplateUsEast1Parameters.enclaveEnabled,
 )
+
+// Optional settings exposed as setters rather than constructor arguments
+slaveTemplateUsEast1.setNestedVirtualizationEnabled(slaveTemplateUsEast1Parameters.nestedVirtualizationEnabled)
 
 // https://javadoc.jenkins.io/plugin/ec2/hudson/plugins/ec2/EC2Cloud.html
 EC2Cloud ec2Cloud = new EC2Cloud(

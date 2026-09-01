@@ -53,6 +53,7 @@ import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -67,6 +68,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -74,7 +77,7 @@ import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import jenkins.slaves.iterators.api.NodeIterator;
-import org.apache.commons.lang.StringUtils;
+import jenkins.util.SystemProperties;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -89,6 +92,7 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
 import software.amazon.awssdk.services.ec2.model.CancelSpotInstanceRequestsRequest;
+import software.amazon.awssdk.services.ec2.model.CpuOptionsRequest;
 import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
 import software.amazon.awssdk.services.ec2.model.CreditSpecificationRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
@@ -119,6 +123,7 @@ import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.InstanceTypeHypervisor;
 import software.amazon.awssdk.services.ec2.model.InstanceTypeInfo;
 import software.amazon.awssdk.services.ec2.model.MarketType;
+import software.amazon.awssdk.services.ec2.model.NestedVirtualizationSpecification;
 import software.amazon.awssdk.services.ec2.model.NitroEnclavesSupport;
 import software.amazon.awssdk.services.ec2.model.Placement;
 import software.amazon.awssdk.services.ec2.model.RequestSpotInstancesRequest;
@@ -148,6 +153,39 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private static final Logger LOGGER = Logger.getLogger(SlaveTemplate.class.getName());
 
     private static final String EC2_RESOURCE_ID_DELIMETERS = "[\\s,;]+";
+
+    /**
+     * Default period, in milliseconds, during which a subnet is skipped by
+     * {@link #chooseSubnetId()} after it reported an insufficient-capacity error
+     * for this template's instance type.
+     */
+    static final long DEFAULT_SUBNET_CAPACITY_COOLDOWN_MILLIS = TimeUnit.MINUTES.toMillis(5);
+
+    /**
+     * How long (ms) a subnet is considered capacity-unavailable after an
+     * insufficient-capacity error. Configurable via the system property
+     * {@code hudson.plugins.ec2.SlaveTemplate.subnetCapacityCooldownMillis}.
+     */
+    private static final long SUBNET_CAPACITY_COOLDOWN_MILLIS = SystemProperties.getLong(
+            SlaveTemplate.class.getName() + ".subnetCapacityCooldownMillis", DEFAULT_SUBNET_CAPACITY_COOLDOWN_MILLIS);
+
+    /**
+     * AWS {@code RunInstances} error codes that indicate the chosen subnet/AZ cannot
+     * currently supply the requested instance type, so provisioning should try a
+     * different subnet rather than fail.
+     */
+    private static final Set<String> INSUFFICIENT_CAPACITY_ERROR_CODES =
+            Set.of("InsufficientInstanceCapacity", "InsufficientHostCapacity", "InsufficientReservedInstancesCapacity");
+
+    /**
+     * Maps a subnet id to the epoch-millis timestamp until which the subnet should be
+     * skipped because it recently reported insufficient capacity for this template's
+     * instance type. Transient: cooldowns are best-effort and need not survive restarts.
+     */
+    private transient ConcurrentHashMap<String, Long> subnetCapacityCooldownUntil;
+
+    /** Clock used for cooldown bookkeeping. Overridable in tests via {@link #setClock(Clock)}. */
+    private transient Clock clock;
 
     public String ami;
 
@@ -254,6 +292,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     private Boolean enclaveEnabled;
 
+    private Boolean nestedVirtualizationEnabled;
+
     private transient /* almost final */ Set<LabelAtom> labelSet;
 
     private transient /* almost final */ Set<String> securityGroupSet;
@@ -345,7 +385,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             Boolean metadataSupported,
             Boolean enclaveEnabled) {
 
-        if (StringUtils.isNotBlank(remoteAdmin) || StringUtils.isNotBlank(jvmopts) || StringUtils.isNotBlank(tmpDir)) {
+        if ((remoteAdmin != null && !remoteAdmin.isBlank())
+                || (jvmopts != null && !jvmopts.isBlank())
+                || (tmpDir != null && !tmpDir.isBlank())) {
             LOGGER.log(
                     Level.FINE,
                     "As remoteAdmin, jvmopts or tmpDir is not blank, we must ensure the user has ADMINISTER rights.");
@@ -370,11 +412,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         this.description = description;
         this.initScript = initScript;
         this.tmpDir = tmpDir;
-        this.userData = StringUtils.trimToEmpty(userData);
+        this.userData = userData == null ? "" : userData.trim();
         this.numExecutors = Util.fixNull(numExecutors).trim();
         this.remoteAdmin = remoteAdmin;
 
-        if (StringUtils.isNotBlank(javaPath)) {
+        if (javaPath != null && !javaPath.isBlank()) {
             this.javaPath = javaPath;
         } else {
             this.javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
@@ -1710,15 +1752,27 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     public String chooseSubnetId() {
-        if (StringUtils.isBlank(subnetId)) {
+        if (subnetId == null || subnetId.isBlank()) {
             return null;
         } else {
             String[] subnetIdList = getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS);
 
-            // Round-robin subnet selection.
+            // Round-robin subnet selection, skipping any subnet currently in a capacity
+            // cooldown (i.e. one that recently reported insufficient capacity for this
+            // template's instance type).
+            for (int i = 0; i < subnetIdList.length; i++) {
+                String candidate = subnetIdList[nextSubnet];
+                nextSubnet = (nextSubnet + 1) % subnetIdList.length;
+                if (!isSubnetInCooldown(candidate)) {
+                    currentSubnetId = candidate;
+                    return currentSubnetId;
+                }
+            }
+
+            // Every subnet is currently cooling down. Rather than refuse to provision,
+            // fall back to plain round-robin so we still attempt a launch.
             currentSubnetId = subnetIdList[nextSubnet];
             nextSubnet = (nextSubnet + 1) % subnetIdList.length;
-
             return currentSubnetId;
         }
     }
@@ -1729,6 +1783,84 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         } else {
             return this.currentSubnetId;
         }
+    }
+
+    /**
+     * @return the number of subnets configured for this template (0 if none).
+     */
+    int getSubnetCount() {
+        if (subnetId == null || subnetId.isBlank()) {
+            return 0;
+        }
+        return getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS).length;
+    }
+
+    private synchronized ConcurrentHashMap<String, Long> getSubnetCapacityCooldownMap() {
+        if (subnetCapacityCooldownUntil == null) {
+            subnetCapacityCooldownUntil = new ConcurrentHashMap<>();
+        }
+        return subnetCapacityCooldownUntil;
+    }
+
+    private synchronized Clock getClock() {
+        if (clock == null) {
+            clock = Clock.systemUTC();
+        }
+        return clock;
+    }
+
+    /**
+     * Overrides the clock used for subnet cooldown bookkeeping. For tests only.
+     */
+    void setClock(Clock clock) {
+        synchronized (this) {
+            this.clock = clock;
+        }
+    }
+
+    /**
+     * Marks a subnet as temporarily unavailable because it reported insufficient
+     * capacity for this template's instance type. The subnet will be skipped by
+     * {@link #chooseSubnetId()} until the cooldown period elapses.
+     */
+    void markSubnetUnavailable(String subnet) {
+        if (subnet == null || subnet.isBlank()) {
+            return;
+        }
+        long until = getClock().millis() + SUBNET_CAPACITY_COOLDOWN_MILLIS;
+        getSubnetCapacityCooldownMap().put(subnet, until);
+        LOGGER.log(
+                Level.FINE,
+                () -> String.format(
+                        "Marking subnet %s as capacity-unavailable for instance type %s until %d",
+                        subnet, type, until));
+    }
+
+    /**
+     * @return {@code true} if the subnet is currently in a capacity cooldown. Expired
+     *     cooldowns are cleaned up as a side effect.
+     */
+    boolean isSubnetInCooldown(String subnet) {
+        if (subnet == null) {
+            return false;
+        }
+        Long until = getSubnetCapacityCooldownMap().get(subnet);
+        if (until == null) {
+            return false;
+        }
+        if (getClock().millis() >= until) {
+            getSubnetCapacityCooldownMap().remove(subnet, until);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @return {@code true} if the given AWS error code indicates the subnet/AZ cannot
+     *     currently supply the requested instance type.
+     */
+    static boolean isInsufficientCapacityError(String errorCode) {
+        return errorCode != null && INSUFFICIENT_CAPACITY_ERROR_CODES.contains(errorCode);
     }
 
     public String getSubnetId() {
@@ -2074,6 +2206,15 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return enclaveEnabled;
     }
 
+    public boolean getNestedVirtualizationEnabled() {
+        return nestedVirtualizationEnabled != null && nestedVirtualizationEnabled;
+    }
+
+    @DataBoundSetter
+    public void setNestedVirtualizationEnabled(boolean nestedVirtualizationEnabled) {
+        this.nestedVirtualizationEnabled = nestedVirtualizationEnabled;
+    }
+
     public DescribableList<NodeProperty<?>, NodePropertyDescriptor> getNodeProperties() {
         return Objects.requireNonNull(nodeProperties);
     }
@@ -2123,9 +2264,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private boolean isSameIamInstanceProfile(Instance instance) {
-        return StringUtils.isBlank(getIamInstanceProfile())
+        String iamProfile = getIamInstanceProfile();
+        return (iamProfile == null || iamProfile.isBlank())
                 || (instance.iamInstanceProfile() != null
-                        && instance.iamInstanceProfile().arn().equals(getIamInstanceProfile()));
+                        && instance.iamInstanceProfile().arn().equals(iamProfile));
     }
 
     private boolean isTerminatingOrShuttindDown(InstanceStateName instanceStateName) {
@@ -2194,13 +2336,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 .build());
 
         Placement.Builder placementBuilder = Placement.builder();
-        if (StringUtils.isNotBlank(getZone())) {
+        String zone = getZone();
+        if (zone != null && !zone.isBlank()) {
             if (getTenancyAttribute().equals(Tenancy.Dedicated)) {
                 placementBuilder.tenancy("dedicated");
             }
             riRequestBuilder.placement(placementBuilder.build());
             diFilters.add(
-                    Filter.builder().name("availability-zone").values(getZone()).build());
+                    Filter.builder().name("availability-zone").values(zone).build());
         }
 
         if (getTenancyAttribute().equals(Tenancy.Host)) {
@@ -2225,7 +2368,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
 
         InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
-        if (StringUtils.isNotBlank(subnetId)) {
+        if (subnetId != null && !subnetId.isBlank()) {
             netBuilder.subnetId(subnetId);
 
             diFilters.add(Filter.builder().name("subnet-id").values(subnetId).build());
@@ -2282,10 +2425,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .build());
         }
 
-        if (StringUtils.isNotBlank(getIamInstanceProfile())) {
-            riRequestBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
-                    .arn(getIamInstanceProfile())
-                    .build());
+        String iamProfile = getIamInstanceProfile();
+        if (iamProfile != null && !iamProfile.isBlank()) {
+            riRequestBuilder.iamInstanceProfile(
+                    IamInstanceProfileSpecification.builder().arn(iamProfile).build());
         }
 
         List<TagSpecification> tagList = new ArrayList<>();
@@ -2321,6 +2464,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             EnclaveOptionsRequest.Builder enclaveOptionsRequestBuilder =
                     EnclaveOptionsRequest.builder().enabled(true);
             riRequestBuilder.enclaveOptions(enclaveOptionsRequestBuilder.build());
+        }
+
+        if (getNestedVirtualizationEnabled()) {
+            riRequestBuilder.cpuOptions(CpuOptionsRequest.builder()
+                    .nestedVirtualization(NestedVirtualizationSpecification.ENABLED)
+                    .build());
+            logProvisionInfo("Setting CPU Options: NestedVirtualization=enabled");
         }
 
         HashMap<RunInstancesRequest, List<Filter>> ret = new HashMap<>();
@@ -2417,15 +2567,8 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            try {
-                newInstances = new ArrayList<>(
-                        ec2.runInstances(riRequestBuilder.build()).instances());
-            } catch (Ec2Exception e) {
-                logProvisionInfo("Jenkins attempted to reserve "
-                        + riRequest.maxCount()
-                        + " instances and received this EC2 exception: " + e.getMessage());
-                throw e;
-            }
+            newInstances = runOndemandInstancesWithSubnetFailover(
+                    ec2, image, number - orphansOrStopped.size(), riRequestBuilder);
         }
         // Have to create a new instance
 
@@ -2436,6 +2579,69 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         newInstances.addAll(orphansOrStopped);
 
         return toSlaves(newInstances);
+    }
+
+    /**
+     * Runs on-demand instances, retrying against the next subnet if the current one
+     * reports an insufficient-capacity error. The exhausted subnet is put into a
+     * cooldown so subsequent provisioning rounds skip it. Up to one attempt per
+     * configured subnet is made; if all fail with capacity errors the last exception
+     * is rethrown.
+     */
+    private List<Instance> runOndemandInstancesWithSubnetFailover(
+            Ec2Client ec2, Image image, int countToCreate, RunInstancesRequest.Builder initialBuilder)
+            throws IOException {
+        int subnetCount = getSubnetCount();
+        int maxAttempts = Math.max(1, subnetCount);
+        RunInstancesRequest.Builder builder = initialBuilder;
+        Ec2Exception lastCapacityException = null;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                return new ArrayList<>(ec2.runInstances(builder.build()).instances());
+            } catch (Ec2Exception e) {
+                String errorCode =
+                        e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
+                boolean canFailover =
+                        isInsufficientCapacityError(errorCode) && subnetCount > 1 && attempt < maxAttempts - 1;
+                if (!canFailover) {
+                    logProvisionInfo(
+                            "Jenkins attempted to reserve " + builder.build().maxCount()
+                                    + " instances and received this EC2 exception: " + e.getMessage());
+                    throw e;
+                }
+
+                String exhaustedSubnet = getCurrentSubnetId();
+                markSubnetUnavailable(exhaustedSubnet);
+                lastCapacityException = e;
+                logProvisionInfo(String.format(
+                        "Subnet %s has insufficient capacity for instance type %s (%s); trying next subnet",
+                        exhaustedSubnet, type, errorCode));
+
+                // Rebuild the request against the next subnet. This re-selects the subnet
+                // (skipping cooled-down ones) and re-resolves the VPC security groups.
+                HashMap<RunInstancesRequest, List<Filter>> retryMap =
+                        makeRunInstancesRequestAndFilters(image, countToCreate, ec2);
+                if (retryMap == null || retryMap.isEmpty()) {
+                    throw e;
+                }
+                RunInstancesRequest retryRequest =
+                        retryMap.entrySet().iterator().next().getKey();
+                builder = retryRequest.toBuilder();
+                builder.maxCount(countToCreate);
+
+                // If rotation could only offer the same (exhausted) subnet, there is
+                // nothing left to try.
+                if (Objects.equals(exhaustedSubnet, getCurrentSubnetId())) {
+                    throw e;
+                }
+            }
+        }
+
+        if (lastCapacityException != null) {
+            throw lastCapacityException;
+        }
+        return new ArrayList<>();
     }
 
     void wakeOrphansOrStoppedUp(Ec2Client ec2, List<Instance> orphansOrStopped) {
@@ -2637,7 +2843,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
-        if (StringUtils.isNotBlank(customDeviceMapping)) {
+        if (customDeviceMapping != null && !customDeviceMapping.isBlank()) {
             deviceMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
         }
     }
@@ -2680,16 +2886,17 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             launchSpecificationBuilder.monitoring(
                     RunInstancesMonitoringEnabled.builder().enabled(monitoring).build());
 
-            if (StringUtils.isNotBlank(getZone())) {
+            String zone = getZone();
+            if (zone != null && !zone.isBlank()) {
                 SpotPlacement placement =
-                        SpotPlacement.builder().availabilityZone(getZone()).build();
+                        SpotPlacement.builder().availabilityZone(zone).build();
                 launchSpecificationBuilder.placement(placement);
             }
 
             InstanceNetworkInterfaceSpecification.Builder netBuilder = InstanceNetworkInterfaceSpecification.builder();
             String subnetId = chooseSubnetId();
             LOGGER.log(Level.FINE, () -> String.format("Chose subnetId %s", subnetId));
-            if (StringUtils.isNotBlank(subnetId)) {
+            if (subnetId != null && !subnetId.isBlank()) {
                 netBuilder.subnetId(subnetId);
 
                 /*
@@ -2734,9 +2941,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
             HashSet<Tag> instTags = buildTags(EC2Cloud.EC2_SLAVE_TYPE_SPOT);
 
-            if (StringUtils.isNotBlank(getIamInstanceProfile())) {
+            String iamProfile = getIamInstanceProfile();
+            if (iamProfile != null && !iamProfile.isBlank()) {
                 launchSpecificationBuilder.iamInstanceProfile(IamInstanceProfileSpecification.builder()
-                        .arn(getIamInstanceProfile())
+                        .arn(iamProfile)
                         .build());
             }
 
@@ -2747,6 +2955,13 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             if (getSpotBlockReservationDuration() != 0) {
                 spotRequestBuilder.blockDurationMinutes(getSpotBlockReservationDuration() * 60);
             }
+
+            List<TagSpecification> tagList = new ArrayList<>();
+            tagList.add(TagSpecification.builder()
+                    .tags(instTags)
+                    .resourceType(ResourceType.SPOT_INSTANCES_REQUEST)
+                    .build());
+            spotRequestBuilder.tagSpecifications(tagList);
 
             RequestSpotInstancesResponse reqResult;
             try {
@@ -2816,6 +3031,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 SpotInstanceRequest.Builder spotInstReqBuilder = spotInstReq.toBuilder();
                 spotInstReqBuilder.tags(instTags);
 
+                // If the spot request is already fulfilled with an instance ID, tag the instance immediately
+                if (spotInstReq.instanceId() != null
+                        && !spotInstReq.instanceId().isBlank()) {
+                    tagSpotInstance(ec2, spotInstReq.instanceId(), instTags);
+                }
+
                 LOGGER.info("Spot instance id in provision: " + spotInstReq.spotInstanceRequestId());
 
                 slaves.add(newSpotSlave(spotInstReqBuilder.build()));
@@ -2840,7 +3061,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (useEphemeralDevices) {
             newMappings.addAll(getNewEphemeralDeviceMapping(image));
         } else {
-            if (StringUtils.isNotBlank(customDeviceMapping)) {
+            if (customDeviceMapping != null && !customDeviceMapping.isBlank()) {
                 newMappings.addAll(DeviceMappingParser.parse(customDeviceMapping));
             }
         }
@@ -2854,10 +3075,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (tags != null && !tags.isEmpty()) {
             for (EC2Tag t : tags) {
                 instTags.add(Tag.builder().key(t.getName()).value(t.getValue()).build());
-                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
+                if (Objects.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SLAVE_TYPE)) {
                     hasCustomTypeTag = true;
                 }
-                if (StringUtils.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
+                if (Objects.equals(t.getName(), EC2Tag.TAG_NAME_JENKINS_SERVER_URL)) {
                     hasJenkinsServerUrlTag = true;
                 }
             }
@@ -2876,7 +3097,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                     .build());
         }
 
-        if (parent != null && StringUtils.isNotBlank(parent.name)) {
+        if (parent != null && parent.name != null && !parent.name.isBlank()) {
             instTags.add(Tag.builder()
                     .key(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME)
                     .value(parent.name)
@@ -2994,6 +3215,33 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
                 LOGGER.log(Level.SEVERE, e.awsErrorDetails().errorMessage(), e);
             }
+        }
+    }
+
+    /**
+     * Tag a spot instance and its volumes immediately when the instance ID becomes available.
+     * This ensures tags are applied at instance creation time rather than waiting for connection.
+     *
+     * @param ec2
+     * @param instanceId
+     * @param instTags
+     */
+    private void tagSpotInstance(Ec2Client ec2, String instanceId, Collection<Tag> instTags) {
+        try {
+            LOGGER.info("Tagging spot instance " + instanceId + " at creation time");
+            List<String> resources = new ArrayList<>();
+            resources.add(instanceId);
+
+            ec2.createTags(CreateTagsRequest.builder()
+                    .resources(resources)
+                    .tags(instTags)
+                    .build());
+        } catch (AwsServiceException e) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Failed to tag spot instance " + instanceId + " at creation: "
+                            + e.awsErrorDetails().errorMessage(),
+                    e);
         }
     }
 
@@ -3155,7 +3403,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         if (metadataHopsLimit == null) {
             metadataHopsLimit = EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT;
         }
-        if (StringUtils.isBlank(javaPath)) {
+        if (javaPath == null || javaPath.isBlank()) {
             javaPath = EC2AbstractSlave.DEFAULT_JAVA_PATH;
         }
         if (enclaveEnabled == null) {
@@ -3741,6 +3989,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                         return FormValidation.error("The selected instance type does not support AWS Nitro Enclaves.");
                     }
                 }
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckNestedVirtualizationEnabled(@QueryParameter boolean nestedVirtualizationEnabled) {
+            if (nestedVirtualizationEnabled) {
+                return FormValidation.warning(
+                        "Nested virtualization is only supported on specific instance families (for example C8i, M8i, R8i)"
+                                + " and requires an AMI with a compatible L1 hypervisor (KVM or Hyper-V)."
+                                + " Enabling it automatically disables Virtual Secure Mode (VSM).");
             }
             return FormValidation.ok();
         }

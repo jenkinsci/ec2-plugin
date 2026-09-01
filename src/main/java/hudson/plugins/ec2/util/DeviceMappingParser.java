@@ -25,7 +25,6 @@ package hudson.plugins.ec2.util;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.lang.StringUtils;
 import software.amazon.awssdk.services.ec2.model.BlockDeviceMapping;
 import software.amazon.awssdk.services.ec2.model.EbsBlockDevice;
 
@@ -65,25 +64,25 @@ public class DeviceMappingParser {
         String[] parts = blockDevice.split(":");
 
         EbsBlockDevice.Builder ebsBuilder = EbsBlockDevice.builder();
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 0))) {
+        if (!getOrEmpty(parts, 0).isBlank()) {
             ebsBuilder.snapshotId(parts[0]);
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 1))) {
+        if (!getOrEmpty(parts, 1).isBlank()) {
             ebsBuilder.volumeSize(Integer.valueOf(parts[1]));
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 2))) {
+        if (!getOrEmpty(parts, 2).isBlank()) {
             ebsBuilder.deleteOnTermination(Boolean.valueOf(parts[2]));
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 3))) {
+        if (!getOrEmpty(parts, 3).isBlank()) {
             ebsBuilder.volumeType(parts[3]);
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 4))) {
+        if (!getOrEmpty(parts, 4).isBlank()) {
             ebsBuilder.iops(Integer.valueOf(parts[4]));
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 5))) {
+        if (!getOrEmpty(parts, 5).isBlank()) {
             ebsBuilder.encrypted(parts[5].equals("encrypted"));
         }
-        if (StringUtils.isNotBlank(getOrEmpty(parts, 6))) {
+        if (!getOrEmpty(parts, 6).isBlank()) {
             ebsBuilder.throughput(Integer.valueOf(parts[6]));
         }
 

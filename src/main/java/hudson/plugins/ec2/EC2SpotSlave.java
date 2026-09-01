@@ -10,13 +10,13 @@ import hudson.plugins.ec2.win.EC2WindowsLauncher;
 import hudson.slaves.NodeProperty;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
@@ -308,13 +308,44 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
 
     @Override
     public String getInstanceId() {
-        if (StringUtils.isEmpty(instanceId)) {
+        if (instanceId == null || instanceId.isEmpty()) {
             SpotInstanceRequest sr = getSpotRequest();
-            if (sr != null) {
+            if (sr != null && sr.instanceId() != null && !sr.instanceId().isBlank()) {
                 instanceId = sr.instanceId();
+                // Tag the instance immediately when it becomes available
+                // Note: Only tag the instance itself, not volumes, as volumes may not be attached yet
+                tagInstanceOnFulfillment();
             }
         }
         return instanceId;
+    }
+
+    private void tagInstanceOnFulfillment() {
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+
+        try {
+            LOGGER.info("Tagging spot instance " + instanceId + " immediately on fulfillment");
+            HashSet<software.amazon.awssdk.services.ec2.model.Tag> instTags = new HashSet<>();
+
+            for (EC2Tag t : tags) {
+                instTags.add(software.amazon.awssdk.services.ec2.model.Tag.builder()
+                        .key(t.getName())
+                        .value(t.getValue())
+                        .build());
+            }
+
+            // Only tag the instance itself, not volumes (volumes may not be attached yet)
+            software.amazon.awssdk.services.ec2.model.CreateTagsRequest tagRequest =
+                    software.amazon.awssdk.services.ec2.model.CreateTagsRequest.builder()
+                            .resources(instanceId)
+                            .tags(instTags)
+                            .build();
+            getCloud().connect().createTags(tagRequest);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to tag spot instance " + instanceId + " on fulfillment", e);
+        }
     }
 
     @Override

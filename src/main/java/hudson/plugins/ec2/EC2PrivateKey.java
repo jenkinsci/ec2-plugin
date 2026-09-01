@@ -38,7 +38,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.crypto.Cipher;
 import jenkins.bouncycastle.api.PEMEncodable;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -145,7 +144,7 @@ public class EC2PrivateKey {
             cipher.init(
                     Cipher.DECRYPT_MODE,
                     PEMEncodable.decode(privateKey.getPlainText()).toPrivateKey());
-            byte[] cipherText = Base64.getDecoder().decode(StringUtils.deleteWhitespace(encodedPassword));
+            byte[] cipherText = Base64.getDecoder().decode(encodedPassword.replaceAll("\\s+", ""));
             byte[] plainText = cipher.doFinal(cipherText);
             return new String(plainText, StandardCharsets.US_ASCII);
         } catch (Exception e) {
@@ -161,7 +160,7 @@ public class EC2PrivateKey {
 
     @CheckForNull
     public static EC2PrivateKey fetchFromDisk(String filepath) {
-        if (StringUtils.isNotEmpty(filepath)) {
+        if (filepath != null && !filepath.isEmpty()) {
             try {
                 return new EC2PrivateKey(Files.readString(Paths.get(filepath), StandardCharsets.UTF_8));
             } catch (IOException e) {

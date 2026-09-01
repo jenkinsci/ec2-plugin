@@ -4,6 +4,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -46,6 +48,7 @@ import jenkins.model.Jenkins;
 import jenkins.util.NonLocalizable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LogRecorder;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
@@ -669,6 +672,46 @@ class EC2RetentionStrategyTest {
                 hasItem(
                         containsString(
                                 "offline but not connecting, will check if it should be terminated because of the idle time configured")));
+    }
+
+    @Issue("https://github.com/jenkinsci/ec2-plugin/issues/1752")
+    @Test
+    void testDoNotReconnectOfflineIdleComputer() throws Exception {
+        logging.record(hudson.plugins.ec2.EC2RetentionStrategy.class, Level.FINE);
+        logging.capture(5);
+
+        /*
+        Our goal here is to call the EC2RetentionStrategy#check, which invokes the EC2AbstractSlave#idleTimeout.
+        To make it possible, the Computer#getIdleStartMilliseconds() should return a value that is matches,
+        (Current time - IdleStartTime) > Idle Termination Minutes.
+
+        The mock based setup doesn't allow us to force old value to be returned for `Computer#getIdleStartMilliseconds()`,
+        so we bump the Current Time value to +5min1sec to simulate the same behavior.
+        */
+        Instant fiveMinutesFromNow = Instant.now().plus(Duration.ofMinutes(5));
+        long nextCheckAfter = fiveMinutesFromNow.toEpochMilli();
+        Clock clock = Clock.fixed(fiveMinutesFromNow.plusSeconds(1), zoneId);
+        EC2RetentionStrategy rs = new EC2RetentionStrategy("1", clock, nextCheckAfter);
+
+        // mock computer marked offline
+        EC2Computer computer = computerWithUpTime(0, 0, null, false);
+        computer.setTemporarilyOffline(true, OfflineCause.create(new NonLocalizable("test offline")));
+
+        // run the EC2RetentionStrategy#check
+        rs.check(computer);
+
+        // assert log line that appears just before the EC2AbstractSlave#idleTimeout call
+        assertThat(logging.getMessages(), hasItem(containsString("Idle timeout of " + computer.getName() + " after")));
+
+        // The idle timeout still expires and the instance is idle-terminated.
+        assertThat(
+                "The mock sets `idleTimeoutCalled` to true, if EC2AbstractSlave#idleTimeout is called",
+                idleTimeoutCalled.get(),
+                is(true));
+
+        // Also assert there was no reconnection attempt logs.
+        assertThat(
+                "No reconnection logs", logging.getMessages(), not(hasItem(containsString("Attempting to reconnect"))));
     }
 
     /**
