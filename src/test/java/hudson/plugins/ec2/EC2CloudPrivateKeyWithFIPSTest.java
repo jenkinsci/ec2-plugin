@@ -14,8 +14,7 @@ import org.junitpioneer.jupiter.SetSystemProperty;
 @SetSystemProperty(key = "jenkins.security.FIPS140.COMPLIANCE", value = "true")
 class EC2CloudPrivateKeyWithFIPSTest {
 
-    public static String PRIVATE_KEY_DSA_1024 =
-            """
+    public static String PRIVATE_KEY_DSA_1024 = """
             -----BEGIN DSA PRIVATE KEY-----"
             MIIBuwIBAAKBgQDdxPbkTmoDD5cK4W9bE5OVKO1Qu7vw32ZOAFHEdOCjK/JxLEyu
             yV/nlywOmG3fjMKjQdaFDggg9TAZx6Kjor/lXSnpxbWvS5/Blv6QXWMsJZCmVSen
@@ -30,8 +29,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END DSA PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_RSA_1024 =
-            """
+    public static String PRIVATE_KEY_RSA_1024 = """
             -----BEGIN RSA PRIVATE KEY-----
             MIICXQIBAAKBgQC/+fn2CosvVV26//CaY4tLHWxoK1XjSp2HYF6lxDgMWw4Rq+Rx
             ds62LC2oHjsO/YHtKmwh+C61jk0UNAENer5V9SiHCStzB/l8qLG4jHZb4JggpRsn
@@ -49,8 +47,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END RSA PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_RSA_2048 =
-            """
+    public static String PRIVATE_KEY_RSA_2048 = """
             -----BEGIN RSA PRIVATE KEY-----
             MIIEogIBAAKCAQEAuKaL32E+cTIvWlfX6U4Q+ky+9/PREwVw/HA0nNWdf1bV8qxU
             8XQh/JFHuGr8Jr5i64VE70rlvE/q/jM3m6G+s5INYjG5x0VXXtNEQoab12/WELFJ
@@ -80,8 +77,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END RSA PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_RSA_3072 =
-            """
+    public static String PRIVATE_KEY_RSA_3072 = """
             -----BEGIN RSA PRIVATE KEY-----
             MIIG4wIBAAKCAYEAxiHReDpOX+whDtLOFJ1lcisLs3qgnlrN2EocdQ6Ir64MkrE6
             9xnmFW2ePzyxpamWKGAkj5Bh97/4ShCVYr7lfzTy8KrrOOyy6Dxv7FL+RjljGNjE
@@ -123,8 +119,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END RSA PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_RSA_4096 =
-            """
+    public static String PRIVATE_KEY_RSA_4096 = """
             -----BEGIN RSA PRIVATE KEY-----
             MIIJKQIBAAKCAgEA34JSqlJeo9Kipy82+zprwJs9wLyDZJ5S4Obskz0kbNB3JQgQ
             J4lUkSCzOuLOOChGCxpuKgd2MmL1P4YmsHU77FMFisZlJ301Ts4EuYpn0uS8106E
@@ -178,8 +173,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END RSA PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_ECDSA_256 =
-            """
+    public static String PRIVATE_KEY_ECDSA_256 = """
             -----BEGIN EC PRIVATE KEY-----
             MHcCAQEEICK/NJcJmy18Co6iL023g9/4K+6CNqLJBAHE8/sGYarLoAoGCCqGSM49
             AwEHoUQDQgAE+P+p3NmQK4QnrFNgeiNOwjGkikQ3Gf3yuf8O5WbfRbUFunP/dtnp
@@ -187,8 +181,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END EC PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_ECDSA_384 =
-            """
+    public static String PRIVATE_KEY_ECDSA_384 = """
             -----BEGIN EC PRIVATE KEY-----
             MIGkAgEBBDDPRHa8rL2Gx9vmI70pjQJbnyDxU0TOkwqj7ILfsv90fSsO19qQARhB
             w7gH1qOkclmgBwYFK4EEACKhZANiAAR2v/iys6np24cCT+/5Hi/pmjsCpj9OQaUP
@@ -197,8 +190,7 @@ class EC2CloudPrivateKeyWithFIPSTest {
             -----END EC PRIVATE KEY-----
             """;
 
-    public static String PRIVATE_KEY_ECDSA_521 =
-            """
+    public static String PRIVATE_KEY_ECDSA_521 = """
             -----BEGIN EC PRIVATE KEY-----
             MIHcAgEBBEIBVoBkpQalEMfeJGPQubTF3EyEqc9uveqRGmHtzjsK1ZyXZPqGfTdA
             nyS22O2PDwyUh/tmQBZ98XY5f6zmf8+NIimgBwYFK4EEACOhgYkDgYYABACVlF0S

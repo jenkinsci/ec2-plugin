@@ -29,8 +29,7 @@ public class ConnectionExtension implements BeforeAllCallback, AfterAllCallback 
 
     private static final String USER = "jenkins";
     private static final int SSH_PORT = 22;
-    private static final String privateKey =
-            """
+    private static final String privateKey = """
                     -----BEGIN RSA PRIVATE KEY-----
                     MIIEowIBAAKCAQEA3x7Q+RNxkeqlDAbosRm7tXrFLuN1fcyZ4ERLEume/JLVSYny
                     BM4v0KhKMkTFsyVXiMukHCS0/mYnfTvjGld76pzYdoXSzncc8zZruDnMVgzAUoSS

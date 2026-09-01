@@ -270,10 +270,11 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
         Mockito.doAnswer(invocationOnMock -> {
                     TerminateInstancesRequest request = invocationOnMock.getArgument(0);
                     List<Instance> instancesToRemove = new ArrayList<>();
-                    request.instanceIds().forEach(instanceId -> instances.stream()
-                            .filter(instance -> instance.instanceId().equals(instanceId))
-                            .findFirst()
-                            .ifPresent(instancesToRemove::add));
+                    request.instanceIds()
+                            .forEach(instanceId -> instances.stream()
+                                    .filter(instance -> instance.instanceId().equals(instanceId))
+                                    .findFirst()
+                                    .ifPresent(instancesToRemove::add));
                     instances.removeAll(instancesToRemove);
                     return TerminateInstancesResponse.builder()
                             .terminatingInstances(instancesToRemove.stream()
