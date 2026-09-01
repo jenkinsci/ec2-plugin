@@ -106,6 +106,7 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.POST;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -1398,10 +1399,36 @@ public class EC2Cloud extends Cloud {
         } else {
             AmazonWebServicesCredentials credentials = getCredentials(credentialsId);
             if (credentials != null) {
+                // If the credential itself performs an IAM role assumption (rather than the EC2 cloud's own
+                // roleArn), resolveCredentials() returns temporary STS session credentials. Freezing those inside
+                // a StaticCredentialsProvider would leave provisioning broken once the session expires (~1h), so
+                // wrap them in the same auto-refreshing StsAssumeRoleCredentialsProvider used for the cloud-level
+                // roleArn below. See GH-2011.
+                if (credentials instanceof AWSCredentialsImpl roleCredentials
+                        && roleCredentials.getIamRoleArn() != null
+                        && !roleCredentials.getIamRoleArn().isBlank()) {
+                    return wrapWithStsAssumeRole(
+                            baseCredentialsProvider(roleCredentials),
+                            roleCredentials.getIamRoleArn(),
+                            roleCredentials.getIamExternalId(),
+                            "Jenkins",
+                            null,
+                            roleCredentials.getStsTokenDuration());
+                }
                 return StaticCredentialsProvider.create(credentials.resolveCredentials());
             }
         }
         return DefaultCredentialsProvider.builder().build();
+    }
+
+    private static AwsCredentialsProvider baseCredentialsProvider(AWSCredentialsImpl credentials) {
+        String accessKey = credentials.getAccessKey();
+        String secretKey = credentials.getSecretKey().getPlainText();
+        if ((accessKey == null || accessKey.isBlank()) && (secretKey == null || secretKey.isBlank())) {
+            // Delegate to instance profile, mirroring AWSCredentialsImpl#resolveCredentials()
+            return InstanceProfileCredentialsProvider.create();
+        }
+        return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
     }
 
     public static AwsCredentialsProvider createCredentialsProvider(
@@ -1414,29 +1441,44 @@ public class EC2Cloud extends Cloud {
         AwsCredentialsProvider provider = createCredentialsProvider(useInstanceProfileForCredentials, credentialsId);
 
         if (roleArn != null && !roleArn.isEmpty()) {
-            AssumeRoleRequest assumeRoleRequest = AssumeRoleRequest.builder()
-                    .roleArn(roleArn)
-                    .roleSessionName(
-                            roleSessionName != null && !roleSessionName.isBlank() ? roleSessionName : "Jenkins")
-                    .build();
-
-            StsClientBuilder stsClientBuilder = StsClient.builder()
-                    .credentialsProvider(provider)
-                    .httpClient(getHttpClient())
-                    .overrideConfiguration(createClientOverrideConfiguration());
-            Region parsed = parseRegion(region);
-            if (parsed != null) {
-                stsClientBuilder.region(parsed);
-            }
-            StsClient stsClient = stsClientBuilder.build();
-
-            return StsAssumeRoleCredentialsProvider.builder()
-                    .stsClient(stsClient)
-                    .refreshRequest(assumeRoleRequest)
-                    .build();
+            return wrapWithStsAssumeRole(provider, roleArn, null, roleSessionName, region, null);
         }
 
         return provider;
+    }
+
+    private static AwsCredentialsProvider wrapWithStsAssumeRole(
+            final AwsCredentialsProvider baseProvider,
+            final String roleArn,
+            final String externalId,
+            final String roleSessionName,
+            final String region,
+            final Integer durationSeconds) {
+        AssumeRoleRequest.Builder assumeRoleRequestBuilder = AssumeRoleRequest.builder()
+                .roleArn(roleArn)
+                .roleSessionName(roleSessionName != null && !roleSessionName.isBlank() ? roleSessionName : "Jenkins");
+        if (externalId != null && !externalId.isBlank()) {
+            assumeRoleRequestBuilder.externalId(externalId);
+        }
+        if (durationSeconds != null) {
+            assumeRoleRequestBuilder.durationSeconds(durationSeconds);
+        }
+
+        StsClientBuilder stsClientBuilder = StsClient.builder()
+                .credentialsProvider(baseProvider)
+                .httpClient(getHttpClient())
+                .overrideConfiguration(createClientOverrideConfiguration());
+        Region parsed = parseRegion(region);
+        // Fall back to a fixed region rather than relying on the SDK's default region provider chain, which
+        // throws when no region can be determined from the environment (e.g. not running on EC2, no AWS_REGION
+        // set) - this path can be reached before a region has been chosen, e.g. from doFillRegionItems.
+        stsClientBuilder.region(parsed != null ? parsed : Region.of(DEFAULT_EC2_HOST));
+        StsClient stsClient = stsClientBuilder.build();
+
+        return StsAssumeRoleCredentialsProvider.builder()
+                .stsClient(stsClient)
+                .refreshRequest(assumeRoleRequestBuilder.build())
+                .build();
     }
 
     @CheckForNull
