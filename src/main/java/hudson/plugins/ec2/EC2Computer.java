@@ -26,8 +26,10 @@ package hudson.plugins.ec2;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Node;
+import hudson.remoting.Channel;
 import hudson.slaves.SlaveComputer;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -73,6 +75,23 @@ public class EC2Computer extends SlaveComputer {
 
     public EC2Computer(EC2AbstractSlave slave) {
         super(slave);
+    }
+
+    /**
+     * Jenkins core reports every non-Windows node as a Unix agent. Rewrite that launch-log line for Mac nodes.
+     */
+    @Override
+    public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener)
+            throws IOException, InterruptedException {
+        if (isMacAgent() && launchLog != null) {
+            launchLog = new MacAgentLaunchLog(launchLog);
+        }
+        super.setChannel(channel, launchLog, listener);
+    }
+
+    private boolean isMacAgent() {
+        EC2AbstractSlave node = getNode();
+        return node != null && node.amiType != null && node.amiType.isMac();
     }
 
     @Override
