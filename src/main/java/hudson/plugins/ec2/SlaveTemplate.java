@@ -171,11 +171,14 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     /**
      * AWS {@code RunInstances} error codes that indicate the chosen subnet/AZ cannot
-     * currently supply the requested instance type, so provisioning should try a
-     * different subnet rather than fail.
+     * currently supply the requested instance type (including Mac dedicated hosts),
+     * so provisioning should try a different subnet rather than fail.
      */
-    private static final Set<String> INSUFFICIENT_CAPACITY_ERROR_CODES =
-            Set.of("InsufficientInstanceCapacity", "InsufficientHostCapacity", "InsufficientReservedInstancesCapacity");
+    private static final Set<String> INSUFFICIENT_CAPACITY_ERROR_CODES = Set.of(
+            "InsufficientInstanceCapacity",
+            "InsufficientHostCapacity",
+            "InsufficientReservedInstancesCapacity",
+            "DedicatedHostLimitExceeded");
 
     /**
      * Maps a subnet id to the epoch-millis timestamp until which the subnet should be
@@ -1795,6 +1798,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS).length;
     }
 
+    /**
+     * Replaces the single chosen-subnet describe filter with every configured subnet
+     * so existing instances can be reused regardless of AZ.
+     */
+    void expandDescribeFiltersToAllSubnets(List<Filter> diFilters) {
+        if (getSubnetCount() == 0) {
+            return;
+        }
+        diFilters.removeIf(f -> "subnet-id".equals(f.name()));
+        diFilters.add(Filter.builder()
+                .name("subnet-id")
+                .values(Arrays.asList(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS)))
+                .build());
+    }
+
     private synchronized ConcurrentHashMap<String, Long> getSubnetCapacityCooldownMap() {
         if (subnetCapacityCooldownUntil == null) {
             subnetCapacityCooldownUntil = new ConcurrentHashMap<>();
@@ -2511,6 +2529,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 runInstancesRequestFilterMap.entrySet().iterator().next();
         RunInstancesRequest riRequest = entry.getKey();
         List<Filter> diFilters = entry.getValue();
+        expandDescribeFiltersToAllSubnets(diFilters);
 
         DescribeInstancesRequest diRequest =
                 DescribeInstancesRequest.builder().filters(diFilters).build();
@@ -3472,23 +3491,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         List<Filter> diFilters = entry.getValue();
 
         if (allSubnets) {
-            /* remove any existing subnet-id filters */
-            List<Filter> rmvFilters = new ArrayList<>();
-            for (Filter f : diFilters) {
-                if (f.name().equals("subnet-id")) {
-                    rmvFilters.add(f);
-                }
-            }
-            for (Filter f : rmvFilters) {
-                diFilters.remove(f);
-            }
-
-            /* Add filter using all subnets defined for this SlaveTemplate */
-            Filter subnetFilter = Filter.builder()
-                    .name("subnet-id")
-                    .values(Arrays.asList(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS)))
-                    .build();
-            diFilters.add(subnetFilter);
+            expandDescribeFiltersToAllSubnets(diFilters);
         }
 
         DescribeInstancesRequest diRequest =

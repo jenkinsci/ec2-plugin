@@ -1579,6 +1579,7 @@ class SlaveTemplateUnitTest {
         assertTrue(SlaveTemplate.isInsufficientCapacityError("InsufficientInstanceCapacity"));
         assertTrue(SlaveTemplate.isInsufficientCapacityError("InsufficientHostCapacity"));
         assertTrue(SlaveTemplate.isInsufficientCapacityError("InsufficientReservedInstancesCapacity"));
+        assertTrue(SlaveTemplate.isInsufficientCapacityError("DedicatedHostLimitExceeded"));
         assertFalse(SlaveTemplate.isInsufficientCapacityError("RequestLimitExceeded"));
         assertFalse(SlaveTemplate.isInsufficientCapacityError(null));
     }
@@ -1588,6 +1589,23 @@ class SlaveTemplateUnitTest {
         assertEquals(3, slaveTemplateWithSubnets("subnet-1 subnet-2 subnet-3").getSubnetCount());
         assertEquals(1, slaveTemplateWithSubnets("subnet-1").getSubnetCount());
         assertEquals(0, slaveTemplateWithSubnets("").getSubnetCount());
+    }
+
+    @Test
+    void testExpandDescribeFiltersToAllSubnets() {
+        SlaveTemplate template = slaveTemplateWithSubnets("subnet-1 subnet-2 subnet-3");
+        List<Filter> filters = new ArrayList<>();
+        filters.add(Filter.builder().name("image-id").values("ami-123").build());
+        filters.add(Filter.builder().name("subnet-id").values("subnet-1").build());
+
+        template.expandDescribeFiltersToAllSubnets(filters);
+
+        Filter subnetFilter = filters.stream()
+                .filter(f -> "subnet-id".equals(f.name()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(List.of("subnet-1", "subnet-2", "subnet-3"), subnetFilter.values());
+        assertEquals(2, filters.size());
     }
 
     private static final class MutableClock extends Clock {
