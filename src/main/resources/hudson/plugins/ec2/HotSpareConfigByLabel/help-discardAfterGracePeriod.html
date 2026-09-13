@@ -1,0 +1,12 @@
+<div>
+    <p>What to do with an agent of this label that is still offline when the grace period expires.</p>
+
+    <p>When checked (the default), the instance is terminated straight away and the reason is logged
+    distinctly from a launch timeout. When unchecked, the instance is kept and the idle termination
+    clock starts from the grace deadline, so a slow but still expected agent gets its full idle
+    window before being reclaimed.</p>
+
+    <p>This follows whichever grace period applies: if a template overrides the rule's grace period,
+    the template's discard setting is used with it. It has no effect unless a grace period is
+    configured.</p>
+</div>

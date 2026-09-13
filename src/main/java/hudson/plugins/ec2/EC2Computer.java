@@ -239,6 +239,30 @@ public class EC2Computer extends SlaveComputer {
     }
 
     /**
+     * Epoch millis when this agent came online, or {@code 0} if it never has.
+     * <p>
+     * Normally recorded by {@link EC2AbstractSlave#onConnected()} via {@link EC2ComputerListener}. That
+     * value is transient, so after a controller restart a node whose channel is already up would report
+     * zero; {@link #getConnectTime()} covers that case.
+     */
+    public long getOnlineSinceMillis() {
+        EC2AbstractSlave node = getNode();
+        long onlineSince = node == null ? 0 : node.getOnlineSinceMillis();
+        if (onlineSince == 0 && isOnline()) {
+            return getConnectTime();
+        }
+        return onlineSince;
+    }
+
+    /**
+     * @return epoch millis when provisioning was requested for this agent, or {@code 0} if unknown.
+     */
+    public long getProvisionRequestedAtMillis() {
+        EC2AbstractSlave node = getNode();
+        return node == null ? 0 : node.getProvisionRequestedAtMillis();
+    }
+
+    /**
      * When the agent is deleted, terminate the instance.
      */
     @Override

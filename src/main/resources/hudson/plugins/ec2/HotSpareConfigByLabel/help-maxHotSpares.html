@@ -1,0 +1,13 @@
+<div>
+    <p>Ceiling on the spares held for this label, and therefore on how far the spare target can
+    climb while the label cannot keep up. It applies to the label group as a whole, so a maximum of
+    3 means three spares spread over every AMI carrying the label, not three per AMI.</p>
+
+    <p>Leave blank for no ceiling, in which case the target follows the label's load however large
+    that grows, limited only by the instance caps. Set it if the cost of a wide parallel build
+    warming an equally wide pool of spares is a concern.</p>
+
+    <p>This can only lower the number of spares, never raise it: each AMI's <i>Instance Cap</i> and
+    the cloud-wide cap still apply, so a template already at its cap is skipped even when this
+    maximum is higher.</p>
+</div>

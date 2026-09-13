@@ -1,0 +1,31 @@
+<div>
+    <p>The smallest pool the label holds while it is in use, and the amount of cover it is given on
+    top of its load. Jenkins does not hold a fixed number of spares for the label; it holds however
+    many the work in sight calls for, and this setting is what it starts from.</p>
+
+    <p>With a step of 5, the first build to take an executor for the label brings the target to 5
+    spares, so a label that has only just been asked for anything still warms up. After that the
+    target follows the load itself: the builds queued for the label plus the agents running one. A
+    build fanning out to 20 parallel branches takes the target to 20 straight away, because that
+    demand is already measurable &mdash; it does not climb there five at a time.</p>
+
+    <p>If the spares are still being taken the instant they appear, or builds are waiting that
+    neither the spares nor the instances already booting can take, the target is raised one step
+    above the load, and no further while the load stands still. So a label running 5 builds that
+    keeps emptying its pool settles at 10, and one running 20 settles at 25.</p>
+
+    <p>The target comes back down by the same step, once per <i>Idle termination time</i>: towards
+    the work still in sight while the label is in use, so the peak learned from a burst does not
+    outlive it, and to <i>Base hot spares</i> &mdash; zero by default &mdash; once nothing at all is
+    asking for the label, so an idle Jenkins pays for nothing. Agents are reclaimed as the target
+    passes them, which means a pool holding exactly what the target asks for is never recycled just
+    to be provisioned again.</p>
+
+    <p>A spare taken by a build is replaced the moment its executor is taken, because a busy agent
+    is not a spare: the replacement boots while that build runs, which is what keeps the label warm
+    for the build behind it. Instances already booting count towards the target, so a growing queue
+    does not provision the same shortfall repeatedly.</p>
+
+    <p><i>Maximum hot spares</i> caps how far the target can grow and is the setting to use if the
+    cost of an unexpected burst matters.</p>
+</div>

@@ -25,6 +25,17 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <st:include class="${descriptor.clazz}" page="config-entries.jelly" />
 
+  <f:entry title="${%Hot spares by label}" description="${%Idle agents to keep warm for a label, across every AMI that carries it}"
+           help="/descriptor/hudson.plugins.ec2.EC2Cloud/help/hotSpareConfigsByLabel">
+    <f:repeatableProperty field="hotSpareConfigsByLabel" add="${%Add hot spare rule}">
+      <f:block>
+        <div align="right">
+          <f:repeatableDeleteButton />
+        </div>
+      </f:block>
+    </f:repeatableProperty>
+  </f:entry>
+
   <f:entry title="${%AMIs}" description="${%List of AMIs to be launched as agents}">
     <f:repeatable field="templates">
       <st:include page="config.jelly" class="${descriptor.clazz}" />

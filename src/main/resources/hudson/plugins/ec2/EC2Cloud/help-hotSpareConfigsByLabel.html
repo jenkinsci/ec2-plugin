@@ -1,0 +1,58 @@
+<div>
+    <p>Keeps a number of idle agents warm per Jenkins label instead of per AMI, so a label that is
+    served by several AMIs is treated as one pool of interchangeable hardware.</p>
+
+    <p>Each rule names a label, a base number of spares to hold at all times, and the step by which
+    the number of spares grows and shrinks, with an optional ceiling. The counts cover every AMI
+    that carries the label, and the spares are spread over those AMIs in the same order provisioning
+    uses &mdash; so with <i>Round-robin templates matching the same label</i> enabled, their <i>Hot
+    spare weight</i> applies here too.</p>
+
+    <p>A rule's label may be an expression, in which case the rule sets the policy for every label
+    it covers while each of them is kept warm on its own account. A rule for
+    <code>x86_64 || arm64</code> says how both should behave, but a run of builds asking for
+    <code>x86_64</code> warms x86 hardware only: the arm64 instances could never have taken that
+    work. The label a job asks for is the unit throughout &mdash; the builds queued for it, the
+    builds running on its agents, and the spares it takes are all counted against that label, and a
+    job asking for <code>x86_64 &amp;&amp; gpu</code> is a third thing again, warmed on the AMIs
+    carrying both.</p>
+
+    <p>Scaling apart is not the same as having separate machines. An idle agent counts as a spare
+    for every label it could serve, so where one AMI carries several labels they draw on the same
+    warm agents rather than each paying for a set. The base number of spares belongs to the rule as
+    a whole rather than to each label it covers, so a rule over four labels with a base of two holds
+    two agents and not eight.</p>
+
+    <p>The number of spares is a prediction rather than a fixed setting, and it is revisited as soon
+    as a build is queued for the label or takes an executor on one of its agents, rather than on a
+    timer. A build queued for a label with nothing warm has its spares requested immediately, and
+    starts on whichever of them comes up first. A spare taken by a build is replaced as its executor
+    is taken, so the next spare is booting while that build runs and the label stays warm for the
+    whole of a busy period instead of draining. Beyond the first step, the
+    number follows the work in sight: the builds queued for the label plus the agents running one, so
+    a build fanning out to 20 branches warms 20 spares at once. If the spares are still being taken
+    the instant they appear, the target is given one step of cover above that load. It shrinks by
+    the step once per idle termination time, towards the work still in sight while the label is
+    busy and to the base count once nothing is asking for the label, so a label with a base count of
+    zero scales to nothing when Jenkins is idle and warms itself back up as work arrives. A label a
+    rule covers without naming fades all the way to nothing, since the base count is the rule's.</p>
+
+    <p>The prediction, not the idle termination time, is what decides how many agents a label keeps:
+    an agent is reclaimed only once the number of spares has faded past it. A pool that is holding
+    exactly what the prediction asks for is left alone, rather than being recycled by the idle
+    timeout and immediately provisioned again.</p>
+
+    <p>A rule takes over the spare count of the AMIs it matches: their <i>Minimum number of spare
+    instances</i> is ignored while it does. <i>Minimum number of instances</i> is unaffected and
+    still provisions its floor per AMI. Each AMI's <i>Instance Cap</i> and the cloud-wide cap remain
+    hard limits that a rule can only stay under.</p>
+
+    <p>An AMI configured with <i>Only apply minimum number of instances during specific time
+    range</i> holds spares only inside that range, and releases the ones it is holding at their idle
+    termination time when the range closes. The label keeps its spares on whichever of its AMIs is
+    on duty, so one AMI per shift adds up to a single pool that follows the schedule.</p>
+
+    <p>A rule can also own the idle termination time and grace period of the agents for its label,
+    so a label behaves consistently across instance types; see the settings under <i>Advanced</i> on
+    each rule.</p>
+</div>

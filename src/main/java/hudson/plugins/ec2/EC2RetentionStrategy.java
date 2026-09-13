@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.init.InitMilestone;
 import hudson.model.Descriptor;
 import hudson.model.Executor;
@@ -150,9 +151,20 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
 
     private long internalCheck(EC2Computer computer) {
         /*
-         * If we've been told never to terminate, or node is null(deleted), no checks to perform
+         * If the node is null (deleted), there is nothing left to check.
          */
-        if (idleTerminationMinutes == 0 || computer.getNode() == null) {
+        if (computer.getNode() == null) {
+            return CHECK_INTERVAL_MINUTES;
+        }
+
+        /*
+         * The effective values have to be resolved before any early return, because a template that
+         * never idle-terminates may still have a grace period to enforce, and a label rule may
+         * supply an idle timeout the template itself does not configure.
+         */
+        final int effectiveIdleMinutes = effectiveIdleTerminationMinutes(computer);
+        final int graceMinutes = effectiveGracePeriodMinutes(computer);
+        if (effectiveIdleMinutes == 0 && graceMinutes == 0) {
             return CHECK_INTERVAL_MINUTES;
         }
 
@@ -207,6 +219,40 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 return CHECK_INTERVAL_MINUTES;
             }
 
+            /*
+             * The grace period is measured from the moment provisioning was requested, so an agent
+             * that never establishes a channel is dealt with even while its launcher is still
+             * trying. The grace period and the launch timeout run independently and whichever
+             * expires first wins, so an unexpired grace period defers to the launch-timeout branch
+             * below instead of returning here.
+             */
+            boolean withinGracePeriod = false;
+            if (graceMinutes > 0 && computer.getOnlineSinceMillis() == 0) {
+                long provisionedAt = computer.getProvisionRequestedAtMillis();
+                if (provisionedAt == 0) {
+                    provisionedAt = launchedAt.toEpochMilli();
+                }
+                if (this.clock.millis() <= provisionedAt + TimeUnit.MINUTES.toMillis(graceMinutes)) {
+                    withinGracePeriod = true;
+                } else if (effectiveDiscardAfterGracePeriod(computer)) {
+                    LOGGER.info("Grace period of " + computer.getName() + " expired after " + graceMinutes
+                            + " minutes without the agent coming online, instance status " + state);
+                    EC2AbstractSlave node = computer.getNode();
+                    if (node != null) {
+                        try {
+                            Queue.withLock(node::graceTimeout);
+                        } catch (Exception e) {
+                            LOGGER.log(Level.FINE, "Error discarding after grace period for " + computer.getName(), e);
+                        }
+                    }
+                    return CHECK_INTERVAL_MINUTES;
+                }
+                /*
+                 * Expired without discarding: fall through so the idle clock runs from the grace
+                 * deadline rather than from the EC2 launch time.
+                 */
+            }
+
             // on rare occasions, AWS may return fault instance which shows running in AWS console but can not be
             // connected.
             // need terminate such fault instance.
@@ -244,13 +290,31 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                 }
             }
 
+            /*
+             * An agent that has not come online yet and is still inside its grace period is left
+             * alone: the idle clock only starts once the grace deadline has passed.
+             */
+            if (withinGracePeriod) {
+                return CHECK_INTERVAL_MINUTES;
+            }
+
+            /*
+             * Idle time is measured from the moment the agent became usable, not from when the EC2
+             * instance was launched, so that slow user data or init scripts do not consume the idle
+             * budget. See JENKINS-23792. An agent that never came online is measured from its grace
+             * deadline when one is configured, and otherwise keeps the instance launch time as its
+             * baseline.
+             */
+            long readyAtMillis = computer.getOnlineSinceMillis();
+            if (readyAtMillis == 0) {
+                readyAtMillis = graceMinutes > 0
+                        ? computer.getProvisionRequestedAtMillis() + TimeUnit.MINUTES.toMillis(graceMinutes)
+                        : launchedAt.toEpochMilli();
+            }
             final long idleMilliseconds =
-                    this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), launchedAt.toEpochMilli());
+                    this.clock.millis() - Math.max(computer.getIdleStartMilliseconds(), readyAtMillis);
 
-            if (idleTerminationMinutes > 0) {
-                // TODO: really think about the right strategy here, see
-                // JENKINS-23792
-
+            if (effectiveIdleMinutes > 0) {
                 boolean queueHasItemsForSlave;
                 try {
                     queueHasItemsForSlave = Queue.withLock(() -> itemsInQueueForThisSlave(computer));
@@ -258,7 +322,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     LOGGER.log(Level.FINE, "Error checking queue for " + computer.getName(), e);
                     queueHasItemsForSlave = true; // safe default: do not terminate
                 }
-                if (idleMilliseconds > TimeUnit.MINUTES.toMillis(idleTerminationMinutes) && !queueHasItemsForSlave) {
+                if (idleMilliseconds > TimeUnit.MINUTES.toMillis(effectiveIdleMinutes)
+                        && !queueHasItemsForSlave
+                        && !keptAsHotSpare(computer)) {
 
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, instance status"
@@ -272,7 +338,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                         }
                     }
                 }
-            } else {
+            } else if (effectiveIdleMinutes < 0) {
                 final int oneHourSeconds = (int) TimeUnit.SECONDS.convert(1, TimeUnit.HOURS);
                 // AWS bills by the hour for EC2 Instances, so calculate the remaining seconds left in the "billing
                 // hour"
@@ -290,8 +356,9 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
                     LOGGER.log(Level.FINE, "Error checking queue for " + computer.getName(), e);
                     queueHasItemsForSlaveBilling = true;
                 }
-                if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(idleTerminationMinutes))
-                        && !queueHasItemsForSlaveBilling) {
+                if (freeSecondsLeft <= TimeUnit.MINUTES.toSeconds(Math.abs(effectiveIdleMinutes))
+                        && !queueHasItemsForSlaveBilling
+                        && !keptAsHotSpare(computer)) {
                     LOGGER.info("Idle timeout of " + computer.getName() + " after "
                             + TimeUnit.MILLISECONDS.toMinutes(idleMilliseconds) + " idle minutes, with "
                             + TimeUnit.SECONDS.toMinutes(freeSecondsLeft)
@@ -308,6 +375,126 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
             }
         }
         return CHECK_INTERVAL_MINUTES;
+    }
+
+    /**
+     * @return whether a hot spare rule is still counting on this agent, in which case the idle
+     *     timeout leaves it alone. The target is the authority on how many spares a label holds, so
+     *     an agent is only reclaimed once the target has come down past it; letting the timeout
+     *     reclaim it first would just have the next pass provision a replacement.
+     */
+    private static boolean keptAsHotSpare(EC2Computer computer) {
+        EC2Cloud cloud = cloudOf(computer);
+        if (cloud == null) {
+            return false;
+        }
+        if (templateOf(computer) == null) {
+            return false;
+        }
+        if (MinimumInstanceChecker.isSpareStillWanted(cloud, computer)) {
+            LOGGER.log(
+                    Level.FINE,
+                    "Keeping {0} past its idle timeout: the hot spares of a label it serves are still counting on it",
+                    computer.getName());
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Tells the hot spare prediction that this agent has just stopped being a spare, and asks for a
+     * replacement to be provisioned now rather than at the next periodic pass.
+     *
+     * <p>Only the bookkeeping happens here. Provisioning is left to
+     * {@link MinimumInstanceChecker#scheduleCheck()} because this runs on the executor thread, which
+     * is no place to wait on EC2.
+     */
+    private static void noteConsumedSpare(EC2Computer computer, Queue.Task task) {
+        EC2Cloud cloud = cloudOf(computer);
+        if (cloud == null) {
+            return;
+        }
+        /*
+         * The pool that just lost a spare is the one the build asked for, not every pool the agent
+         * belongs to: a build that wanted x86 hardware is no reason to keep arm64 agents warm, even
+         * where one rule covers both labels.
+         */
+        Label assigned = task == null ? null : task.getAssignedLabel();
+        if (assigned == null || cloud.getHotSpareConfigForLabel(assigned) == null) {
+            return;
+        }
+        HotSpareDemand.spareConsumed(cloud, assigned.getName());
+        MinimumInstanceChecker.scheduleCheck();
+    }
+
+    /**
+     * @return the idle termination in minutes that applies to this computer. Zero means the agent
+     *     is never idle-terminated, negative values are minutes remaining in the billing period.
+     */
+    private int effectiveIdleTerminationMinutes(EC2Computer computer) {
+        EC2Cloud cloud = cloudOf(computer);
+        if (cloud != null) {
+            Integer fromLabelRule = cloud.resolveIdleTerminationMinutes(computer);
+            if (fromLabelRule != null) {
+                return fromLabelRule;
+            }
+        }
+        return idleTerminationMinutes;
+    }
+
+    /**
+     * @return the grace period in minutes that applies to this computer, or 0 when none is
+     *     configured.
+     */
+    private int effectiveGracePeriodMinutes(EC2Computer computer) {
+        EC2Cloud cloud = cloudOf(computer);
+        if (cloud != null) {
+            return cloud.resolveGracePeriodMinutes(computer);
+        }
+        SlaveTemplate template = computer.getSlaveTemplate();
+        return template == null ? 0 : template.getGracePeriodMinutes();
+    }
+
+    /**
+     * @return whether a computer still offline at the end of its grace period is discarded rather
+     *     than handed over to the idle-termination clock.
+     */
+    private boolean effectiveDiscardAfterGracePeriod(EC2Computer computer) {
+        EC2Cloud cloud = cloudOf(computer);
+        if (cloud != null) {
+            return cloud.resolveDiscardAfterGracePeriod(computer);
+        }
+        SlaveTemplate template = computer.getSlaveTemplate();
+        return template == null || template.isDiscardAfterGracePeriod();
+    }
+
+    /**
+     * The agent's template, or null for an agent whose cloud or template no longer exists. Resolving
+     * one goes through the cloud, so an agent left behind by a configuration change can fail here
+     * and must not take a build start down with it.
+     */
+    @CheckForNull
+    private static SlaveTemplate templateOf(EC2Computer computer) {
+        try {
+            return computer.getSlaveTemplate();
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.FINE, "Template not resolvable for " + computer.getName(), e);
+            return null;
+        }
+    }
+
+    @CheckForNull
+    private static EC2Cloud cloudOf(EC2Computer computer) {
+        EC2AbstractSlave node = computer.getNode();
+        if (node == null) {
+            return null;
+        }
+        try {
+            return node.getCloud();
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.FINE, "Cloud not resolvable for " + computer.getName(), e);
+            return null;
+        }
     }
 
     /**
@@ -413,6 +600,7 @@ public class EC2RetentionStrategy extends RetentionStrategy<EC2Computer> impleme
     public void taskAccepted(Executor executor, Queue.Task task) {
         EC2Computer computer = (EC2Computer) executor.getOwner();
         if (computer != null) {
+            noteConsumedSpare(computer, task);
             EC2AbstractSlave slaveNode = computer.getNode();
             if (slaveNode != null) {
                 int maxTotalUses = slaveNode.maxTotalUses;

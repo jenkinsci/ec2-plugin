@@ -249,6 +249,60 @@ class ConfigurationAsCodeTest {
     }
 
     @Test
+    @ConfiguredWithCode("Unix-withHotSparesByLabel.yml")
+    void testConfigAsCodeWithHotSparesByLabel(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("hotSpares");
+        assertNotNull(ec2Cloud);
+        assertTrue(ec2Cloud.isRoundRobinTemplatesByLabel());
+        assertTrue(ec2Cloud.isSaturateHighestWeightFirst());
+
+        final List<HotSpareConfigByLabel> rules = ec2Cloud.getHotSpareConfigsByLabel();
+        assertEquals(1, rules.size());
+        final HotSpareConfigByLabel rule = rules.get(0);
+        assertEquals("linux", rule.getLabel());
+        assertEquals(2, rule.getBaseHotSpares());
+        assertEquals(3, rule.getScalingFactor());
+        assertEquals(Integer.valueOf(6), rule.getMaxHotSpares());
+        assertEquals(20, rule.getIdleTimeoutMinutes());
+        assertEquals(7, rule.getGracePeriodMinutes());
+        assertFalse(rule.isDiscardAfterGracePeriod());
+        assertTrue(rule.isAllowTemplateIdleTimeoutOverride());
+        assertTrue(rule.isAllowTemplateGracePeriodOverride());
+
+        final List<SlaveTemplate> templates = ec2Cloud.getTemplates();
+        assertEquals(2, templates.size());
+
+        final SlaveTemplate spot = templates.get(0);
+        assertEquals(3, spot.getHotSpareWeight());
+        assertEquals(4, spot.getGracePeriodMinutes());
+        assertFalse(spot.isDiscardAfterGracePeriod());
+
+        final SlaveTemplate onDemand = templates.get(1);
+        assertEquals(1, onDemand.getHotSpareWeight());
+        assertEquals(0, onDemand.getGracePeriodMinutes());
+        assertTrue(onDemand.isDiscardAfterGracePeriod());
+    }
+
+    /**
+     * A configuration written before these settings existed must keep working, with the defaults
+     * that preserve the old behaviour.
+     */
+    @Test
+    @ConfiguredWithCode("Unix.yml")
+    void testConfigAsCodeWithoutHotSparesByLabel(JenkinsConfiguredWithCodeRule j) {
+        final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("staging");
+        assertNotNull(ec2Cloud);
+        assertFalse(ec2Cloud.isRoundRobinTemplatesByLabel());
+        assertFalse(ec2Cloud.isSaturateHighestWeightFirst());
+        assertTrue(ec2Cloud.getHotSpareConfigsByLabel().isEmpty());
+
+        final SlaveTemplate slaveTemplate = ec2Cloud.getTemplates().get(0);
+        assertEquals(1, slaveTemplate.getHotSpareWeight());
+        assertEquals(0, slaveTemplate.getGracePeriodMinutes());
+        assertTrue(slaveTemplate.isDiscardAfterGracePeriod());
+    }
+
+    @Test
     @ConfiguredWithCode("Ami.yml")
     void testAmi(JenkinsConfiguredWithCodeRule j) {
         final EC2Cloud ec2Cloud = (EC2Cloud) Jenkins.get().getCloud("test");

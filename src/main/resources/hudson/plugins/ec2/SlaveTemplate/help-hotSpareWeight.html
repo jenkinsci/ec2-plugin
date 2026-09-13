@@ -1,0 +1,23 @@
+<div>
+    <p>Relative weight used when several templates in this cloud match the same label. Requires
+    <i>Round-robin templates matching the same label</i> to be enabled on the cloud; without it,
+    templates are tried in configured order and this weight is ignored.</p>
+
+    <p>When rotation is enabled, Jenkins treats all templates matching a label as interchangeable
+    hardware and rotates between them so an instance for that label provisions as fast as
+    possible. A template with a higher weight is chosen proportionally more often &mdash; for
+    example, weight 3 on a spot template and weight 1 on an equivalent on-demand template attempts
+    spot three times as often, while still falling back to on-demand immediately if spot capacity
+    is unavailable.</p>
+
+    <p>If the cloud has <i>Saturate the highest weight before using a lower one</i> enabled, the
+    weight is a rank instead of a share: the same example attempts spot for every request, and the
+    on-demand template is only used once spot is at its instance cap or has been demoted for
+    reporting insufficient capacity. Templates sharing a weight still take turns.</p>
+
+    <p>The default of 1 gives plain round-robin. A weight of 0 excludes the template from normal
+    rotation; it is only used when every other template in the group is in a capacity cooldown.</p>
+
+    <p>This setting affects provisioning from hot spares by label as well as ordinary label-driven
+    provisioning.</p>
+</div>

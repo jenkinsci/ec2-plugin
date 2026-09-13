@@ -1,0 +1,21 @@
+<div>
+    <p>Idle termination time for the agents of this label, in minutes, counted from the moment the
+    agent came online rather than from the moment EC2 launched the instance.</p>
+
+    <p>The value means the same as the <i>Idle termination time</i> of an AMI: 0 never stops an idle
+    agent, a positive value is a plain timeout, and a negative value times the agent out within that
+    many minutes of the end of an hourly EC2 billing period.</p>
+
+    <p>This wins over the <i>Idle termination time</i> of the templates the rule matches unless
+    <i>Let a template override the idle termination time</i> is ticked.</p>
+
+    <p>It is also the rate at which the spare target fades: once per idle termination time the
+    target gives up one <i>Hot spare step</i>, towards the work the label still has in sight while
+    it is in use, or to <i>Hot spares</i> once nothing is asking for the label at all. When idle
+    termination is off, the default of 15 minutes is used for the fade, otherwise a target raised
+    once would never come back down.</p>
+
+    <p>An agent is only reclaimed once the target has faded past it, so a spare the label is still
+    counting on outlives this timeout. Reclaiming it would pay for the same capacity twice, because
+    the next pass would immediately provision a replacement, and a build would wait for that boot.</p>
+</div>

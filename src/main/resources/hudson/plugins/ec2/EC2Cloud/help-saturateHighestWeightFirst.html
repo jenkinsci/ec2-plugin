@@ -1,0 +1,35 @@
+<div>
+    <p><b>When to enable this option?</b> When the templates of a cloud are weighted by cost, with
+    the least expensive option carrying the highest weight. The highest weight is always
+    prioritized, so the least expensive provisioning is always prioritized, and a more expensive
+    template is only reached once the cheaper ones cannot supply an instance.</p>
+
+    <p>Changes what a template's <i>Hot spare weight</i> means when several AMI configurations in
+    this cloud match the same label. Requires <i>Round-robin templates matching the same label</i>
+    to be enabled; without it, templates are tried in configured order and weights are ignored.</p>
+
+    <p><b>Unticked (the default) &mdash; weighted capacity.</b> A weight is a share of the
+    provisioning requests, distributed by smooth weighted round-robin, the algorithm nginx uses to
+    balance load across servers. A spot template with weight 3 against an on-demand template with
+    weight 1 leads three requests out of four, and the on-demand template leads the fourth, evenly
+    spaced rather than in bursts. Every weight keeps receiving a share of the work whether or not
+    the heavier template has capacity, so the label runs on a deliberate mix of instance types.</p>
+
+    <p><b>Ticked &mdash; saturate the highest weight first.</b> A weight becomes a rank. Templates
+    sharing a weight form a band, and every request is offered to the highest band first; a lower
+    band is only used once every template above it is at its instance cap or has been demoted for
+    reporting insufficient capacity. Templates within a band still take turns leading, so a band
+    spreads across the instance types and availability zones it contains instead of concentrating
+    on one. Falling back costs nothing extra: the next band is tried inside the same provisioning
+    request, and the demotion lasts a few minutes so following requests go straight to a template
+    that can supply an instance.</p>
+
+    <p>Tick this when the weights express cost or preference rather than a mix &mdash; for example
+    spot templates above their on-demand equivalents, so a label only pays the on-demand price once
+    spot capacity is genuinely exhausted. Give equally-preferred templates the same weight to keep
+    spreading over them. Leave it unticked when you want a predictable proportion of each instance
+    type regardless of availability.</p>
+
+    <p>In both cases a weight of 0 keeps its meaning: the template is a last resort, used only when
+    every other template matching the label is in a capacity cooldown.</p>
+</div>

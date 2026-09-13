@@ -80,6 +80,7 @@ import jenkins.slaves.iterators.api.NodeIterator;
 import jenkins.util.SystemProperties;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -246,6 +247,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     private MinimumNumberOfInstancesTimeRangeConfig minimumNumberOfInstancesTimeRangeConfig;
 
     private final int minimumNumberOfSpareInstances;
+
+    /**
+     * Relative weight of this template when several templates match the same label and the cloud
+     * has {@link EC2Cloud#isRoundRobinTemplatesByLabel()} enabled. Boxed so a configuration saved
+     * before the field existed reads as unset and defaults to 1 rather than to 0, which would mean
+     * "exclude from rotation".
+     */
+    private Integer hotSpareWeight;
+
+    /**
+     * Minutes to wait for an agent to come online after provisioning was requested. 0 disables the
+     * grace period, which is the behaviour of configurations saved before it existed.
+     */
+    private int gracePeriodMinutes;
+
+    /**
+     * Whether an agent that is still offline when the grace period expires is discarded outright
+     * rather than handed to the idle-termination clock.
+     */
+    private boolean discardAfterGracePeriod = true;
 
     public final boolean stopOnTerminate;
 
@@ -1964,6 +1985,43 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return minimumNumberOfSpareInstances;
     }
 
+    /**
+     * @return the relative weight of this template in the label rotation. Defaults to 1, giving
+     *     plain round-robin. 0 excludes the template unless every other template in the group is in
+     *     a capacity cooldown. A weight is a share of the requests, or a rank when the cloud has
+     *     {@link EC2Cloud#isSaturateHighestWeightFirst()} enabled.
+     */
+    public int getHotSpareWeight() {
+        return hotSpareWeight == null ? 1 : Math.max(0, hotSpareWeight);
+    }
+
+    @DataBoundSetter
+    public void setHotSpareWeight(int hotSpareWeight) {
+        this.hotSpareWeight = Math.max(0, hotSpareWeight);
+    }
+
+    /**
+     * @return minutes an agent is given to come online before the grace period expires, or 0 when
+     *     no grace period is configured on this template.
+     */
+    public int getGracePeriodMinutes() {
+        return gracePeriodMinutes;
+    }
+
+    @DataBoundSetter
+    public void setGracePeriodMinutes(int gracePeriodMinutes) {
+        this.gracePeriodMinutes = Math.max(0, gracePeriodMinutes);
+    }
+
+    public boolean isDiscardAfterGracePeriod() {
+        return discardAfterGracePeriod;
+    }
+
+    @DataBoundSetter
+    public void setDiscardAfterGracePeriod(boolean discardAfterGracePeriod) {
+        this.discardAfterGracePeriod = discardAfterGracePeriod;
+    }
+
     public MinimumNumberOfInstancesTimeRangeConfig getMinimumNumberOfInstancesTimeRangeConfig() {
         return minimumNumberOfInstancesTimeRangeConfig;
     }
@@ -2536,39 +2594,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             }
         }
 
-        RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder();
-        riRequestBuilder.maxCount(number - orphansOrStopped.size());
+        int countToCreate = number - orphansOrStopped.size();
+        RunInstancesRequest.Builder riRequestBuilder = riRequest.toBuilder().maxCount(countToCreate);
 
         List<Instance> newInstances;
         if (spotWithoutBidPrice) {
-            InstanceMarketOptionsRequest.Builder instanceMarketOptionsRequestBuilder =
-                    InstanceMarketOptionsRequest.builder().marketType(MarketType.SPOT);
-            if (getSpotBlockReservationDuration() != 0) {
-                SpotMarketOptions spotOptions = SpotMarketOptions.builder()
-                        .blockDurationMinutes(getSpotBlockReservationDuration() * 60)
-                        .build();
-                instanceMarketOptionsRequestBuilder.spotOptions(spotOptions);
-            }
-            riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
+            InstanceMarketOptionsRequest marketOptions = spotMarketOptions();
+            riRequestBuilder.instanceMarketOptions(marketOptions);
             try {
-                newInstances = new ArrayList<>(
-                        ec2.runInstances(riRequestBuilder.build()).instances());
+                newInstances =
+                        runInstancesWithSubnetFailover(ec2, image, countToCreate, riRequestBuilder, marketOptions);
             } catch (Ec2Exception e) {
-                if (fallbackSpotToOndemand
-                        && "InsufficientInstanceCapacity"
-                                .equals(e.awsErrorDetails().errorCode())) {
-                    logProvisionInfo(
-                            "There is no spot capacity available matching your request, falling back to on-demand instance.");
-                    riRequestBuilder.instanceMarketOptions(instanceMarketOptionsRequestBuilder.build());
-                    newInstances = new ArrayList<>(
-                            ec2.runInstances(riRequestBuilder.build()).instances());
-                } else {
-                    throw e;
-                }
+                newInstances = launchOndemandInstead(ec2, image, countToCreate, fallbackSpotToOndemand, e);
             }
         } else {
-            newInstances = runOndemandInstancesWithSubnetFailover(
-                    ec2, image, number - orphansOrStopped.size(), riRequestBuilder);
+            newInstances = runInstancesWithSubnetFailover(ec2, image, countToCreate, riRequestBuilder, null);
         }
         // Have to create a new instance
 
@@ -2582,66 +2622,151 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Runs on-demand instances, retrying against the next subnet if the current one
-     * reports an insufficient-capacity error. The exhausted subnet is put into a
-     * cooldown so subsequent provisioning rounds skip it. Up to one attempt per
-     * configured subnet is made; if all fail with capacity errors the last exception
-     * is rethrown.
+     * Runs instances, moving to the next subnet when the one in hand cannot take the whole
+     * request, and keeping whatever each subnet did supply.
+     *
+     * <p>An instance type in one subnet is a single capacity pool. A pool can refuse a request
+     * outright, and it can also fill only part of it, because {@code RunInstances} launches as
+     * many instances as it can between {@code minCount} and {@code maxCount} rather than failing.
+     * Either way the rest of the request is asked of the next subnet, so a wide build reaches its
+     * capacity in one request instead of one availability zone's worth per provisioning round.
+     *
+     * <p>A subnet that reports insufficient capacity is also put into a cooldown, so subsequent
+     * rounds skip it. Up to one attempt per configured subnet is made. If every subnet refused and
+     * nothing at all was launched, the last capacity exception is rethrown, which is what lets the
+     * caller move the request on to the next template and demote this one.
+     *
+     * @param marketOptions the spot market options to re-apply when the request is rebuilt for the
+     *     next subnet, or {@code null} for an on-demand launch. Rebuilding is what selects the
+     *     next subnet, and it starts from a plain request, so without this a spot launch would
+     *     quietly become an on-demand one on its second subnet.
      */
-    private List<Instance> runOndemandInstancesWithSubnetFailover(
-            Ec2Client ec2, Image image, int countToCreate, RunInstancesRequest.Builder initialBuilder)
+    private List<Instance> runInstancesWithSubnetFailover(
+            Ec2Client ec2,
+            Image image,
+            int countToCreate,
+            RunInstancesRequest.Builder initialBuilder,
+            @CheckForNull InstanceMarketOptionsRequest marketOptions)
             throws IOException {
         int subnetCount = getSubnetCount();
         int maxAttempts = Math.max(1, subnetCount);
         RunInstancesRequest.Builder builder = initialBuilder;
+        List<Instance> launched = new ArrayList<>();
         Ec2Exception lastCapacityException = null;
 
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            String attemptedSubnet = getCurrentSubnetId();
+            boolean canTryAnotherSubnet = subnetCount > 1 && attempt < maxAttempts - 1;
             try {
-                return new ArrayList<>(ec2.runInstances(builder.build()).instances());
+                int before = launched.size();
+                launched.addAll(ec2.runInstances(builder.build()).instances());
+                /*
+                 * A subnet that launched nothing at all, without saying why, is not a part-filled
+                 * pool to carry a remainder from: EC2 reports a pool it cannot draw on as an
+                 * error rather than as an empty success, so there is nothing here to react to.
+                 */
+                boolean partlyFilled = launched.size() > before;
+                if (launched.size() >= countToCreate || !partlyFilled || !canTryAnotherSubnet) {
+                    return launched;
+                }
+                logProvisionInfo(String.format(
+                        "Subnet %s supplied %d of the %d instance(s) asked for; trying the next subnet for the rest",
+                        attemptedSubnet, launched.size(), countToCreate));
             } catch (Ec2Exception e) {
                 String errorCode =
                         e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
-                boolean canFailover =
-                        isInsufficientCapacityError(errorCode) && subnetCount > 1 && attempt < maxAttempts - 1;
-                if (!canFailover) {
+                if (!isInsufficientCapacityError(errorCode) || !canTryAnotherSubnet) {
+                    if (!launched.isEmpty()) {
+                        // Part of the request is in hand; let the caller place the remainder.
+                        return launched;
+                    }
                     logProvisionInfo(
                             "Jenkins attempted to reserve " + builder.build().maxCount()
                                     + " instances and received this EC2 exception: " + e.getMessage());
                     throw e;
                 }
 
-                String exhaustedSubnet = getCurrentSubnetId();
-                markSubnetUnavailable(exhaustedSubnet);
+                markSubnetUnavailable(attemptedSubnet);
                 lastCapacityException = e;
                 logProvisionInfo(String.format(
                         "Subnet %s has insufficient capacity for instance type %s (%s); trying next subnet",
-                        exhaustedSubnet, type, errorCode));
+                        attemptedSubnet, type, errorCode));
+            }
 
-                // Rebuild the request against the next subnet. This re-selects the subnet
-                // (skipping cooled-down ones) and re-resolves the VPC security groups.
-                HashMap<RunInstancesRequest, List<Filter>> retryMap =
-                        makeRunInstancesRequestAndFilters(image, countToCreate, ec2);
-                if (retryMap == null || retryMap.isEmpty()) {
-                    throw e;
-                }
-                RunInstancesRequest retryRequest =
-                        retryMap.entrySet().iterator().next().getKey();
-                builder = retryRequest.toBuilder();
-                builder.maxCount(countToCreate);
+            // Rebuild the request against the next subnet for what is still wanted. This
+            // re-selects the subnet (skipping cooled-down ones) and re-resolves the VPC
+            // security groups.
+            int remaining = countToCreate - launched.size();
+            builder = makeRunInstancesRequest(image, remaining, ec2);
+            if (builder == null) {
+                break;
+            }
+            if (marketOptions != null) {
+                builder.instanceMarketOptions(marketOptions);
+            }
 
-                // If rotation could only offer the same (exhausted) subnet, there is
-                // nothing left to try.
-                if (Objects.equals(exhaustedSubnet, getCurrentSubnetId())) {
-                    throw e;
-                }
+            // If rotation could only offer the same subnet, there is nothing left to try.
+            if (Objects.equals(attemptedSubnet, getCurrentSubnetId())) {
+                break;
             }
         }
 
-        if (lastCapacityException != null) {
+        if (launched.isEmpty() && lastCapacityException != null) {
             throw lastCapacityException;
         }
-        return new ArrayList<>();
+        return launched;
+    }
+
+    /**
+     * Answers a spot launch that no subnet would serve by launching the same instances on-demand,
+     * for a template configured to accept that. The request is built afresh so that it carries no
+     * spot market options: retrying the refused request unchanged is not a fallback.
+     *
+     * @throws Ec2Exception the original failure, if this template does not fall back, the failure
+     *     was not about capacity, or an on-demand request could not be built.
+     */
+    private List<Instance> launchOndemandInstead(
+            Ec2Client ec2, Image image, int countToCreate, boolean fallbackSpotToOndemand, Ec2Exception spotFailure)
+            throws IOException {
+        String errorCode = spotFailure.awsErrorDetails() == null
+                ? null
+                : spotFailure.awsErrorDetails().errorCode();
+        RunInstancesRequest.Builder ondemandBuilder = null;
+        if (fallbackSpotToOndemand && isInsufficientCapacityError(errorCode)) {
+            ondemandBuilder = makeRunInstancesRequest(image, countToCreate, ec2);
+        }
+        if (ondemandBuilder == null) {
+            throw spotFailure;
+        }
+
+        logProvisionInfo(
+                "No subnet has spot capacity available matching your request, falling back to on-demand instances.");
+        return runInstancesWithSubnetFailover(ec2, image, countToCreate, ondemandBuilder, null);
+    }
+
+    /**
+     * @return a request to launch {@code count} instances in the next subnet of the rotation, or
+     *     {@code null} if one could not be built.
+     */
+    @CheckForNull
+    private RunInstancesRequest.Builder makeRunInstancesRequest(Image image, int count, Ec2Client ec2)
+            throws IOException {
+        HashMap<RunInstancesRequest, List<Filter>> requestMap = makeRunInstancesRequestAndFilters(image, count, ec2);
+        if (requestMap == null || requestMap.isEmpty()) {
+            return null;
+        }
+        return requestMap.entrySet().iterator().next().getKey().toBuilder().maxCount(count);
+    }
+
+    private InstanceMarketOptionsRequest spotMarketOptions() {
+        InstanceMarketOptionsRequest.Builder marketOptionsBuilder =
+                InstanceMarketOptionsRequest.builder().marketType(MarketType.SPOT);
+        if (getSpotBlockReservationDuration() != 0) {
+            marketOptionsBuilder.spotOptions(SpotMarketOptions.builder()
+                    .blockDurationMinutes(getSpotBlockReservationDuration() * 60)
+                    .build());
+        }
+        return marketOptionsBuilder.build();
     }
 
     void wakeOrphansOrStoppedUp(Ec2Client ec2, List<Instance> orphansOrStopped) {
@@ -2849,12 +2974,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
     }
 
     /**
-     * Provision a new agent for an EC2 spot instance to call back to Jenkins
+     * Provision new agents for EC2 spot instances to call back to Jenkins
      */
     private List<EC2AbstractSlave> provisionSpot(Image image, int number, EnumSet<ProvisionOptions> provisionOptions)
             throws IOException {
         if (!spotConfig.useBidPrice) {
-            return provisionOndemand(image, 1, provisionOptions, true, spotConfig.getFallbackToOndemand());
+            /*
+             * Bidding the on-demand price launches through RunInstances with spot market options,
+             * which takes a count like any other launch. Asking for one at a time would serve a
+             * request for twenty agents one instance per provisioning pass, so a label whose
+             * cheapest hardware is spot would meet a burst on its more expensive templates.
+             */
+            return provisionOndemand(image, number, provisionOptions, true, spotConfig.getFallbackToOndemand());
         }
 
         Ec2Client ec2 = getParent().connect();
@@ -3732,6 +3863,32 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             } catch (NumberFormatException ignore) {
             }
             return FormValidation.error("Minimum number of spare instances must be a non-negative integer (or null)");
+        }
+
+        @POST
+        public FormValidation doCheckHotSpareWeight(@QueryParameter String value, @AncestorInPath EC2Cloud cloud) {
+            // The warning below reports how the cloud is configured, so only someone who may
+            // configure it gets an answer.
+            if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+                return FormValidation.ok();
+            }
+            if (value == null || value.trim().isEmpty()) {
+                return FormValidation.ok();
+            }
+            int val;
+            try {
+                val = Integer.parseInt(value);
+            } catch (NumberFormatException ignore) {
+                return FormValidation.error("Hot spare weight must be a non-negative integer (or null)");
+            }
+            if (val < 0) {
+                return FormValidation.error("Hot spare weight must be a non-negative integer (or null)");
+            }
+            if (val != 1 && cloud != null && !cloud.isRoundRobinTemplatesByLabel()) {
+                return FormValidation.warning(
+                        "This weight is ignored until \"Round-robin templates matching the same label\" is enabled on the cloud.");
+            }
+            return FormValidation.ok();
         }
 
         @POST

@@ -13,4 +13,9 @@
     have a high rate of incoming builds this value can be set higher.</p>
 
    <p>Note that value is local to this specific AMI and associated configurations.</p>
+
+   <p>This setting is ignored while a cloud-level <i>Hot spares by label</i> rule matches one of the
+    labels of this AMI, because such a rule owns the spare count for its whole label group. The
+    minimum number of instances above is unaffected, and so is its time range: a rule holds no
+    spares on this AMI outside the hours it is configured to keep instances in.</p>
 </div>

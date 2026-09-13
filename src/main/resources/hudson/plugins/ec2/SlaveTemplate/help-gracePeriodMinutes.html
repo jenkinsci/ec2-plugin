@@ -1,0 +1,16 @@
+<div>
+    <p>Minutes an agent is given to come online, counted from the moment provisioning was
+    requested rather than from the moment EC2 reported the instance as launched.</p>
+
+    <p>Leave this at 0 to disable the grace period, which is how configurations behaved before
+    this setting existed.</p>
+
+    <p>When the grace period expires and the agent still has not connected, the outcome depends
+    on <i>Discard agents that never come online</i>: either the instance is terminated
+    immediately, or the idle termination clock starts running from the grace deadline so that a
+    slow but still expected agent gets its full idle window.</p>
+
+    <p>This timer is independent of the launch timeout, and whichever of the two expires first
+    wins. Setting a grace period longer than the launch timeout will not extend the launch
+    timeout: the instance is terminated as soon as the launch timeout expires.</p>
+</div>

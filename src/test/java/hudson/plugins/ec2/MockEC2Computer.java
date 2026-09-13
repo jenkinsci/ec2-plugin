@@ -18,7 +18,11 @@ public class MockEC2Computer extends EC2Computer {
 
     private final EC2AbstractSlave slave;
 
-    private final SlaveTemplate slaveTemplate;
+    private SlaveTemplate slaveTemplate;
+
+    private long onlineSinceMillis;
+
+    private long provisionRequestedAtMillis;
 
     public MockEC2Computer(EC2AbstractSlave slave) {
         super(slave);
@@ -141,6 +145,28 @@ public class MockEC2Computer extends EC2Computer {
     @Override
     public SlaveTemplate getSlaveTemplate() {
         return slaveTemplate;
+    }
+
+    public void setSlaveTemplate(SlaveTemplate slaveTemplate) {
+        this.slaveTemplate = slaveTemplate;
+    }
+
+    @Override
+    public long getOnlineSinceMillis() {
+        return onlineSinceMillis;
+    }
+
+    public void setOnlineSinceMillis(long onlineSinceMillis) {
+        this.onlineSinceMillis = onlineSinceMillis;
+    }
+
+    @Override
+    public long getProvisionRequestedAtMillis() {
+        return provisionRequestedAtMillis == 0 ? super.getProvisionRequestedAtMillis() : provisionRequestedAtMillis;
+    }
+
+    public void setProvisionRequestedAtMillis(long provisionRequestedAtMillis) {
+        this.provisionRequestedAtMillis = provisionRequestedAtMillis;
     }
 
     public void setState(InstanceState state) {

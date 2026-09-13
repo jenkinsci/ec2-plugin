@@ -1,0 +1,13 @@
+<div>
+    <p>How many idle agents to keep for this label at all times, including while nothing is queued.
+    This is what makes them <i>hot</i> spares: they are paid for while idle so that the next build
+    for the label starts without waiting for an instance to boot.</p>
+
+    <p>It is also the floor the spare target decays to once the label goes quiet, so it is the
+    standing cost of the label.</p>
+
+    <p>0 lets the label scale all the way to nothing when it is idle. The first build after a quiet
+    period still has to wait for an instance, but queueing it asks for a whole <i>Hot spare step</i>
+    of agents there and then, so it starts on whichever of them comes up first and the builds behind
+    it find the rest already waiting.</p>
+</div>

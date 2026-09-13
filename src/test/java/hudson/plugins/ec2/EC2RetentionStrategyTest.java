@@ -60,6 +60,8 @@ import software.amazon.awssdk.services.ec2.model.InstanceType;
 class EC2RetentionStrategyTest {
 
     private final AtomicBoolean idleTimeoutCalled = new AtomicBoolean(false);
+    private final AtomicBoolean graceTimeoutCalled = new AtomicBoolean(false);
+    private final AtomicBoolean launchTimeoutCalled = new AtomicBoolean(false);
     private final AtomicBoolean terminateCalled = new AtomicBoolean(false);
     private static final ZoneId zoneId = ZoneId.systemDefault();
 
@@ -107,6 +109,7 @@ class EC2RetentionStrategyTest {
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
         EC2RetentionStrategy.HEAVY_WORK_EXECUTOR = originalExecutor;
+        MinimumInstanceChecker.clock = Clock.systemDefaultZone();
     }
 
     @Test
@@ -410,7 +413,43 @@ class EC2RetentionStrategyTest {
     private EC2Computer computerWithUpTime(
             final int minutes, final int seconds, final Boolean isOffline, final Boolean isConnecting)
             throws Exception {
+        return computerWithUpTime(minutes, seconds, isOffline, isConnecting, 0L);
+    }
+
+    /*
+     * As above, but additionally fixes the epoch-millis at which the agent came online. Pass 0 to model
+     * an agent that has never connected.
+     */
+    private EC2Computer computerWithUpTime(
+            final int minutes,
+            final int seconds,
+            final Boolean isOffline,
+            final Boolean isConnecting,
+            final long onlineSinceMillis)
+            throws Exception {
+        return computerWithUpTime(
+                minutes, seconds, isOffline, isConnecting, onlineSinceMillis, 0L, Integer.MAX_VALUE, null);
+    }
+
+    /*
+     * As above, but additionally fixes the epoch-millis at which provisioning was requested, the node's
+     * launch timeout in seconds, and the template the computer reports. Pass 0 for
+     * provisionRequestedAtMillis to model a node whose timestamp was lost, and null for the template to
+     * get the default one.
+     */
+    private EC2Computer computerWithUpTime(
+            final int minutes,
+            final int seconds,
+            final Boolean isOffline,
+            final Boolean isConnecting,
+            final long onlineSinceMillis,
+            final long provisionRequestedAtMillis,
+            final int launchTimeoutSeconds,
+            final SlaveTemplate slaveTemplate)
+            throws Exception {
         idleTimeoutCalled.set(false);
+        graceTimeoutCalled.set(false);
+        launchTimeoutCalled.set(false);
         final EC2AbstractSlave slave =
                 new EC2AbstractSlave(
                         "name",
@@ -432,7 +471,7 @@ class EC2RetentionStrategyTest {
                         "idle",
                         null,
                         "cloud",
-                        Integer.MAX_VALUE,
+                        launchTimeoutSeconds,
                         null,
                         ConnectionStrategy.PRIVATE_IP,
                         -1,
@@ -456,6 +495,16 @@ class EC2RetentionStrategyTest {
                     void idleTimeout() {
                         idleTimeoutCalled.set(true);
                     }
+
+                    @Override
+                    void graceTimeout() {
+                        graceTimeoutCalled.set(true);
+                    }
+
+                    @Override
+                    void launchTimeout() {
+                        launchTimeoutCalled.set(true);
+                    }
                 };
         EC2Computer computer = new EC2Computer(slave) {
             private final Instant launchedAt = Instant.now().minus(Duration.ofSeconds(minutes * 60L + seconds));
@@ -476,6 +525,18 @@ class EC2RetentionStrategyTest {
             }
 
             @Override
+            public long getOnlineSinceMillis() {
+                return onlineSinceMillis;
+            }
+
+            @Override
+            public long getProvisionRequestedAtMillis() {
+                return provisionRequestedAtMillis == 0
+                        ? super.getProvisionRequestedAtMillis()
+                        : provisionRequestedAtMillis;
+            }
+
+            @Override
             public boolean isOffline() {
                 return isOffline == null ? super.isOffline() : isOffline;
             }
@@ -487,52 +548,7 @@ class EC2RetentionStrategyTest {
 
             @Override
             public SlaveTemplate getSlaveTemplate() {
-                return new SlaveTemplate(
-                        "ami-123",
-                        EC2AbstractSlave.TEST_ZONE,
-                        null,
-                        "default",
-                        "foo",
-                        InstanceType.M1_LARGE.toString(),
-                        false,
-                        "ttt",
-                        Node.Mode.NORMAL,
-                        "AMI description",
-                        "bar",
-                        "bbb",
-                        "aaa",
-                        "10",
-                        "fff",
-                        null,
-                        EC2AbstractSlave.DEFAULT_JAVA_PATH,
-                        "-Xmx1g",
-                        false,
-                        "subnet-123 subnet-456",
-                        null,
-                        null,
-                        0,
-                        0,
-                        null,
-                        "",
-                        false,
-                        false,
-                        "",
-                        false,
-                        "",
-                        false,
-                        false,
-                        false,
-                        ConnectionStrategy.PRIVATE_DNS,
-                        -1,
-                        Collections.emptyList(),
-                        null,
-                        Tenancy.Default,
-                        EbsEncryptRootVolume.DEFAULT,
-                        EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
-                        EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
-                        EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
-                        EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
-                        EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+                return slaveTemplate == null ? templateWithIdleTermination(null) : slaveTemplate;
             }
 
             @Override
@@ -543,6 +559,70 @@ class EC2RetentionStrategyTest {
         assertTrue(computer.isIdle());
         assertTrue(isOffline == null || computer.isOffline() == isOffline);
         return computer;
+    }
+
+    /*
+     * The template the mock computers report. Pass null for idleTerminationMinutes to leave it unset,
+     * as a template saved without an explicit idle termination time would be.
+     */
+    private static SlaveTemplate templateWithIdleTermination(String idleTerminationMinutes) {
+        return templateWithIdleTermination(idleTerminationMinutes, "ttt");
+    }
+
+    private static SlaveTemplate templateWithIdleTermination(String idleTerminationMinutes, String labels) {
+        return new SlaveTemplate(
+                "ami-123",
+                EC2AbstractSlave.TEST_ZONE,
+                null,
+                "default",
+                "foo",
+                InstanceType.M1_LARGE.toString(),
+                false,
+                labels,
+                Node.Mode.NORMAL,
+                "AMI description",
+                "bar",
+                "bbb",
+                "aaa",
+                "10",
+                "fff",
+                null,
+                EC2AbstractSlave.DEFAULT_JAVA_PATH,
+                "-Xmx1g",
+                false,
+                "subnet-123 subnet-456",
+                null,
+                idleTerminationMinutes,
+                0,
+                0,
+                null,
+                "",
+                false,
+                false,
+                "",
+                false,
+                "",
+                false,
+                false,
+                false,
+                ConnectionStrategy.PRIVATE_DNS,
+                -1,
+                Collections.emptyList(),
+                null,
+                Tenancy.Default,
+                EbsEncryptRootVolume.DEFAULT,
+                EC2AbstractSlave.DEFAULT_METADATA_ENDPOINT_ENABLED,
+                EC2AbstractSlave.DEFAULT_METADATA_TOKENS_REQUIRED,
+                EC2AbstractSlave.DEFAULT_METADATA_HOPS_LIMIT,
+                EC2AbstractSlave.DEFAULT_METADATA_SUPPORTED,
+                EC2AbstractSlave.DEFAULT_ENCLAVE_ENABLED);
+    }
+
+    private static SlaveTemplate templateWithGracePeriod(int gracePeriodMinutes, boolean discardAfterGracePeriod) {
+        SlaveTemplate template = templateWithIdleTermination(null);
+        template.setGracePeriodMinutes(gracePeriodMinutes);
+        template.setDiscardAfterGracePeriod(discardAfterGracePeriod);
+        return template;
     }
 
     @Test
@@ -781,6 +861,455 @@ class EC2RetentionStrategyTest {
                 hasItem(
                         containsString(
                                 "offline but not connecting, will check if it should be terminated because of the idle time configured")));
+    }
+
+    /**
+     * Idle time must be counted from the moment the agent became usable, not from when the EC2
+     * instance was launched. An instance that spent a long time running a user data or init script
+     * would otherwise arrive with part of its idle budget already spent.
+     * <p>
+     * As explained on {@link #testDoNotTerminateInstancesJustBooted()}, the mock computer always
+     * reports its creation time as the idle start time, so the readiness timestamp is placed in the
+     * future to model an agent whose idle clock started before it finished coming online.
+     */
+    @Test
+    @Issue("JENKINS-23792")
+    void testIdleTimeoutMeasuredFromAgentReadyNotInstanceLaunch() throws Exception {
+        final int COMPUTER_UPTIME_MINUTES = 20;
+        final int BOOT_MINUTES = 5;
+        final int RETENTION_MINUTES = 5;
+        // Late enough that the launch time baseline would terminate, early enough that the
+        // readiness baseline leaves a minute of the idle budget.
+        final int CHECK_TIME_MINUTES = BOOT_MINUTES + RETENTION_MINUTES - 1;
+        final Instant readyAt = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES));
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(CHECK_TIME_MINUTES));
+
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(checkTime.plusSeconds(1), zoneId),
+                        checkTime.toEpochMilli())
+                .check(computerWithUpTime(COMPUTER_UPTIME_MINUTES, 0, false, false, readyAt.toEpochMilli()));
+
+        assertThat(
+                "The computer was idle-terminated using the EC2 launch time rather than the time it became ready",
+                idleTimeoutCalled.get(),
+                equalTo(false));
+    }
+
+    /**
+     * The counterpart to the above: once the agent really has been idle past the timeout, measured
+     * from when it came online, it must still be terminated.
+     */
+    @Test
+    @Issue("JENKINS-23792")
+    void testIdleTimeoutStillFiresOnceReadyAgentExceedsTimeout() throws Exception {
+        final int COMPUTER_UPTIME_MINUTES = 20;
+        final int BOOT_MINUTES = 5;
+        final int RETENTION_MINUTES = 5;
+        final int CHECK_TIME_MINUTES = BOOT_MINUTES + RETENTION_MINUTES + 1;
+        final Instant readyAt = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES));
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(CHECK_TIME_MINUTES));
+
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(checkTime.plusSeconds(1), zoneId),
+                        checkTime.toEpochMilli())
+                .check(computerWithUpTime(COMPUTER_UPTIME_MINUTES, 0, false, false, readyAt.toEpochMilli()));
+
+        assertThat("The computer is not terminated, but should be", idleTimeoutCalled.get(), equalTo(true));
+    }
+
+    /**
+     * A spare the label's target is still counting on outlives its idle timeout. Reclaiming it
+     * would pay for the same capacity twice, once for the instance thrown away and again for the
+     * one the very next pass provisions in its place, and leave a build waiting for the boot in
+     * between.
+     */
+    @Test
+    void testAnIdleSpareTheTargetStillWantsIsNotReclaimed() throws Exception {
+        final int RETENTION_MINUTES = 5;
+        HotSpareConfigByLabel rule = new HotSpareConfigByLabel("ttt");
+        rule.setScalingFactor(5);
+        rule.setIdleTimeoutMinutes(RETENTION_MINUTES);
+        // The mock agents report cloudName "cloud", which is how the strategy finds the rule.
+        EC2Cloud cloud =
+                new EC2Cloud("cloud", true, "abc", "us-east-1", null, "ghi", "20", Collections.emptyList(), null, null);
+        cloud.setHotSpareConfigsByLabel(List.of(rule));
+        r.jenkins.clouds.add(cloud);
+        HotSpareDemand.reset();
+        assertThat(HotSpareDemand.of(cloud, "ttt").updateTarget(rule, 0, 0, 5, 0), equalTo(5));
+
+        final int BOOT_MINUTES = 5;
+        final Instant readyAt = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES));
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES + RETENTION_MINUTES + 1));
+
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(checkTime.plusSeconds(1), zoneId),
+                        checkTime.toEpochMilli())
+                .check(computerWithUpTime(20, 0, false, false, readyAt.toEpochMilli()));
+
+        assertThat(
+                "the spare should have been kept for the label that is still counting on it",
+                idleTimeoutCalled.get(),
+                equalTo(false));
+        assertThat(
+                "keeping a wanted spare should not move the target",
+                HotSpareDemand.of(cloud, "ttt").getTarget(),
+                equalTo(5));
+    }
+
+    /**
+     * Once the target has faded below the number of spares on hand, the extras are exactly what the
+     * idle timeout is for. This is what lets a label scale to nothing: the target reaches its base
+     * count and every spare above it is released.
+     */
+    @Test
+    void testAnIdleSpareTheTargetHasGivenUpOnIsReclaimed() throws Exception {
+        final int RETENTION_MINUTES = 5;
+        HotSpareConfigByLabel rule = new HotSpareConfigByLabel("ttt");
+        rule.setScalingFactor(5);
+        rule.setIdleTimeoutMinutes(RETENTION_MINUTES);
+        EC2Cloud cloud =
+                new EC2Cloud("cloud", true, "abc", "us-east-1", null, "ghi", "20", Collections.emptyList(), null, null);
+        cloud.setHotSpareConfigsByLabel(List.of(rule));
+        r.jenkins.clouds.add(cloud);
+        HotSpareDemand.reset();
+        // Quiet label, base count of zero: the prediction wants nothing kept warm.
+        assertThat(HotSpareDemand.of(cloud, "ttt").updateTarget(rule, 1, 0, 0, 0), equalTo(0));
+
+        final int BOOT_MINUTES = 5;
+        final Instant readyAt = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES));
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES + RETENTION_MINUTES + 1));
+
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(checkTime.plusSeconds(1), zoneId),
+                        checkTime.toEpochMilli())
+                .check(computerWithUpTime(20, 0, false, false, readyAt.toEpochMilli()));
+
+        assertThat("the surplus spare should have been reclaimed", idleTimeoutCalled.get(), equalTo(true));
+    }
+
+    /**
+     * A template carrying several labels can be covered by a rule for each of them, and they will
+     * not agree about how many spares are wanted. The agent is kept while any of them is still
+     * counting on it, so a small rule cannot take away what a bigger one is holding.
+     */
+    @Test
+    void testASpareOneRuleStillWantsIsKeptFromARuleThatHasGivenUp() throws Exception {
+        final int RETENTION_MINUTES = 5;
+        // Listed first, so the rule that has given up is also the one the idle timeout comes from.
+        HotSpareConfigByLabel small = hotSpareRule("other", RETENTION_MINUTES);
+        HotSpareConfigByLabel big = hotSpareRule("ttt", RETENTION_MINUTES);
+        EC2Cloud cloud = cloudWithHotSpareRules(List.of(small, big));
+        assertThat(HotSpareDemand.of(cloud, "other").updateTarget(small, 1, 0, 0, 0), equalTo(0));
+        assertThat(HotSpareDemand.of(cloud, "ttt").updateTarget(big, 0, 0, 5, 0), equalTo(5));
+
+        checkASpare(RETENTION_MINUTES, templateWithIdleTermination(null, "ttt other"));
+
+        assertThat(
+                "the label still counting on the spare should have kept it", idleTimeoutCalled.get(), equalTo(false));
+    }
+
+    /**
+     * The other side of that: being covered by several rules is not itself a reason to keep an
+     * agent, so once every one of them has given up it goes.
+     */
+    @Test
+    void testASpareIsReclaimedOnceEveryRuleCoveringItHasGivenUp() throws Exception {
+        final int RETENTION_MINUTES = 5;
+        HotSpareConfigByLabel small = hotSpareRule("other", RETENTION_MINUTES);
+        HotSpareConfigByLabel big = hotSpareRule("ttt", RETENTION_MINUTES);
+        EC2Cloud cloud = cloudWithHotSpareRules(List.of(small, big));
+        assertThat(HotSpareDemand.of(cloud, "other").updateTarget(small, 1, 0, 0, 0), equalTo(0));
+        assertThat(HotSpareDemand.of(cloud, "ttt").updateTarget(big, 1, 0, 0, 0), equalTo(0));
+
+        checkASpare(RETENTION_MINUTES, templateWithIdleTermination(null, "ttt other"));
+
+        assertThat("no rule wants the spare any more", idleTimeoutCalled.get(), equalTo(true));
+    }
+
+    private static HotSpareConfigByLabel hotSpareRule(String label, int idleTimeoutMinutes) {
+        HotSpareConfigByLabel rule = new HotSpareConfigByLabel(label);
+        rule.setScalingFactor(5);
+        rule.setIdleTimeoutMinutes(idleTimeoutMinutes);
+        return rule;
+    }
+
+    /** The mock agents report cloudName "cloud", which is how the strategy finds the rules. */
+    private EC2Cloud cloudWithHotSpareRules(List<HotSpareConfigByLabel> rules) {
+        EC2Cloud cloud =
+                new EC2Cloud("cloud", true, "abc", "us-east-1", null, "ghi", "20", Collections.emptyList(), null, null);
+        cloud.setHotSpareConfigsByLabel(rules);
+        r.jenkins.clouds.add(cloud);
+        HotSpareDemand.reset();
+        return cloud;
+    }
+
+    /** Runs a retention check on an agent that has been idle well past its termination time. */
+    private void checkASpare(int retentionMinutes, SlaveTemplate template) throws Exception {
+        final int BOOT_MINUTES = 5;
+        final Instant readyAt = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES));
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES + retentionMinutes + 1));
+
+        new EC2RetentionStrategy(
+                        String.format("%d", retentionMinutes),
+                        Clock.fixed(checkTime.plusSeconds(1), zoneId),
+                        checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        20, 0, false, false, readyAt.toEpochMilli(), 0L, Integer.MAX_VALUE, template));
+    }
+
+    /**
+     * A template that only keeps instances during a time range stops being warm capacity outside
+     * it, whatever the label's target says. Otherwise a rule would hold the agent around the clock
+     * and undo the schedule the admin configured to avoid paying for it.
+     */
+    @Test
+    void testAnIdleSpareIsReclaimedOnceItsTemplateScheduleCloses() throws Exception {
+        final int RETENTION_MINUTES = 5;
+        HotSpareConfigByLabel rule = new HotSpareConfigByLabel("ttt");
+        rule.setScalingFactor(5);
+        rule.setIdleTimeoutMinutes(RETENTION_MINUTES);
+        EC2Cloud cloud =
+                new EC2Cloud("cloud", true, "abc", "us-east-1", null, "ghi", "20", Collections.emptyList(), null, null);
+        cloud.setHotSpareConfigsByLabel(List.of(rule));
+        r.jenkins.clouds.add(cloud);
+        HotSpareDemand.reset();
+        assertThat(
+                "the label wants spares", HotSpareDemand.of(cloud, "ttt").updateTarget(rule, 0, 0, 5, 0), equalTo(5));
+
+        MinimumNumberOfInstancesTimeRangeConfig window = new MinimumNumberOfInstancesTimeRangeConfig();
+        window.setMinimumNoInstancesActiveTimeRangeFrom("11:00");
+        window.setMinimumNoInstancesActiveTimeRangeTo("15:00");
+        window.setTuesday(true);
+        SlaveTemplate template = templateWithIdleTermination(null);
+        template.setMinimumNumberOfInstancesTimeRangeConfig(window);
+        // Tuesday evening: the template is past the hours it keeps instances for.
+        LocalDateTime outsideTheWindow = LocalDateTime.of(2019, Month.SEPTEMBER, 24, 18, 0);
+        MinimumInstanceChecker.clock =
+                Clock.fixed(outsideTheWindow.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+
+        final int BOOT_MINUTES = 5;
+        final Instant readyAt = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES));
+        final Instant checkTime = Instant.now().plus(Duration.ofMinutes(BOOT_MINUTES + RETENTION_MINUTES + 1));
+
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(checkTime.plusSeconds(1), zoneId),
+                        checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        20, 0, false, false, readyAt.toEpochMilli(), 0L, Integer.MAX_VALUE, template));
+
+        assertThat(
+                "the spare should have been reclaimed once its template went off schedule",
+                idleTimeoutCalled.get(),
+                equalTo(true));
+    }
+
+    /**
+     * An agent that has not connected yet is left alone until its grace period expires.
+     */
+    @Test
+    void testGracePeriodNotExpiredLeavesOfflineAgentAlone() throws Exception {
+        final int GRACE_MINUTES = 10;
+        final Instant provisionedAt = Instant.now();
+        final Instant checkTime = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES - 5));
+
+        new EC2RetentionStrategy("30", Clock.fixed(checkTime.plusSeconds(1), zoneId), checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        5,
+                        0,
+                        true,
+                        false,
+                        0L,
+                        provisionedAt.toEpochMilli(),
+                        Integer.MAX_VALUE,
+                        templateWithGracePeriod(GRACE_MINUTES, true)));
+
+        assertThat("The agent was discarded inside its grace period", graceTimeoutCalled.get(), equalTo(false));
+        assertThat("The agent was idle-terminated inside its grace period", idleTimeoutCalled.get(), equalTo(false));
+    }
+
+    /**
+     * Grace period expired with discarding enabled: the instance goes away, and the log names the
+     * grace period rather than the launch timeout as the reason.
+     */
+    @Test
+    void testGracePeriodExpiredDiscardsAgentThatNeverCameOnline() throws Exception {
+        final int GRACE_MINUTES = 10;
+        final Instant provisionedAt = Instant.now();
+        final Instant checkTime = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES + 1));
+
+        new EC2RetentionStrategy("30", Clock.fixed(checkTime.plusSeconds(1), zoneId), checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        GRACE_MINUTES + 1,
+                        0,
+                        true,
+                        false,
+                        0L,
+                        provisionedAt.toEpochMilli(),
+                        Integer.MAX_VALUE,
+                        templateWithGracePeriod(GRACE_MINUTES, true)));
+
+        assertThat(
+                "The agent never came online and was not discarded at the grace deadline",
+                graceTimeoutCalled.get(),
+                equalTo(true));
+    }
+
+    /**
+     * Grace period expired with discarding disabled: the idle clock starts at the grace deadline,
+     * so the agent survives until the idle termination time has also elapsed.
+     */
+    @Test
+    void testGracePeriodExpiredWithoutDiscardStartsIdleClock() throws Exception {
+        final int GRACE_MINUTES = 10;
+        final int RETENTION_MINUTES = 5;
+        final Instant provisionedAt = Instant.now();
+
+        final Instant beforeIdleTimeout = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES + 1));
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(beforeIdleTimeout.plusSeconds(1), zoneId),
+                        beforeIdleTimeout.toEpochMilli())
+                .check(computerWithUpTime(
+                        GRACE_MINUTES + 1,
+                        0,
+                        true,
+                        false,
+                        0L,
+                        provisionedAt.toEpochMilli(),
+                        Integer.MAX_VALUE,
+                        templateWithGracePeriod(GRACE_MINUTES, false)));
+        assertThat("The agent was discarded although discarding is disabled", graceTimeoutCalled.get(), equalTo(false));
+        assertThat("The idle clock did not restart at the grace deadline", idleTimeoutCalled.get(), equalTo(false));
+
+        final Instant afterIdleTimeout = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES + RETENTION_MINUTES + 1));
+        new EC2RetentionStrategy(
+                        String.format("%d", RETENTION_MINUTES),
+                        Clock.fixed(afterIdleTimeout.plusSeconds(1), zoneId),
+                        afterIdleTimeout.toEpochMilli())
+                .check(computerWithUpTime(
+                        GRACE_MINUTES + RETENTION_MINUTES + 1,
+                        0,
+                        true,
+                        false,
+                        0L,
+                        provisionedAt.toEpochMilli(),
+                        Integer.MAX_VALUE,
+                        templateWithGracePeriod(GRACE_MINUTES, false)));
+        assertThat(
+                "The agent was not idle-terminated after the grace period plus the idle timeout",
+                idleTimeoutCalled.get(),
+                equalTo(true));
+    }
+
+    /**
+     * Regression guard for the relocated early return: a template configured never to idle-terminate
+     * must still have its grace period enforced.
+     */
+    @Test
+    void testGracePeriodEnforcedWhenIdleTerminationIsDisabled() throws Exception {
+        final int GRACE_MINUTES = 10;
+        final Instant provisionedAt = Instant.now();
+        final Instant checkTime = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES + 1));
+
+        new EC2RetentionStrategy("0", Clock.fixed(checkTime.plusSeconds(1), zoneId), checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        GRACE_MINUTES + 1,
+                        0,
+                        true,
+                        false,
+                        0L,
+                        provisionedAt.toEpochMilli(),
+                        Integer.MAX_VALUE,
+                        templateWithGracePeriod(GRACE_MINUTES, true)));
+
+        assertThat(
+                "Idle termination being disabled suppressed the grace period", graceTimeoutCalled.get(), equalTo(true));
+    }
+
+    /**
+     * The grace period and the launch timeout run independently, and the shorter one wins: a still
+     * connecting agent whose launch timeout has expired is terminated even though its longer grace
+     * period has not.
+     */
+    @Test
+    void testShorterLaunchTimeoutWinsOverGracePeriod() throws Exception {
+        final int GRACE_MINUTES = 10;
+        final int LAUNCH_TIMEOUT_SECONDS = 60;
+        final Instant provisionedAt = Instant.now();
+        final Instant checkTime = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES - 5));
+
+        new EC2RetentionStrategy("30", Clock.fixed(checkTime.plusSeconds(1), zoneId), checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        5,
+                        0,
+                        true,
+                        true,
+                        0L,
+                        provisionedAt.toEpochMilli(),
+                        LAUNCH_TIMEOUT_SECONDS,
+                        templateWithGracePeriod(GRACE_MINUTES, true)));
+
+        assertThat("The grace period suppressed the shorter launch timeout", launchTimeoutCalled.get(), equalTo(true));
+        assertThat("The grace period expired early", graceTimeoutCalled.get(), equalTo(false));
+    }
+
+    /**
+     * A node reloaded from disk loses its transient timestamps, but {@code EC2Computer} falls back to
+     * {@code Computer#getConnectTime()} for an agent whose channel is already up. Such an agent must
+     * not be discarded no matter how long ago it was provisioned.
+     */
+    @Test
+    void testAgentReportedOnlineIsNotDiscardedAfterGracePeriod() throws Exception {
+        final int GRACE_MINUTES = 10;
+        final Instant provisionedAt = Instant.now().minus(Duration.ofHours(3));
+        final Instant checkTime = Instant.now();
+
+        new EC2RetentionStrategy("0", Clock.fixed(checkTime.plusSeconds(1), zoneId), checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        180,
+                        0,
+                        true,
+                        false,
+                        checkTime.minus(Duration.ofMinutes(1)).toEpochMilli(),
+                        provisionedAt.toEpochMilli(),
+                        Integer.MAX_VALUE,
+                        templateWithGracePeriod(GRACE_MINUTES, true)));
+
+        assertThat(
+                "An agent whose channel is up was discarded by the grace period",
+                graceTimeoutCalled.get(),
+                equalTo(false));
+    }
+
+    /**
+     * A cloud-level hot spare rule supplies the grace period for the labels it covers, even when
+     * the template itself configures none.
+     */
+    @Test
+    void testLabelRuleGracePeriodIsEnforcedWithoutTemplateConfiguration() throws Exception {
+        final int GRACE_MINUTES = 10;
+        HotSpareConfigByLabel rule = new HotSpareConfigByLabel("ttt");
+        rule.setGracePeriodMinutes(GRACE_MINUTES);
+        rule.setDiscardAfterGracePeriod(true);
+        // The mock agents report cloudName "cloud", which is how the strategy finds the rule.
+        EC2Cloud cloud =
+                new EC2Cloud("cloud", true, "abc", "us-east-1", null, "ghi", "20", Collections.emptyList(), null, null);
+        cloud.setHotSpareConfigsByLabel(List.of(rule));
+        r.jenkins.clouds.add(cloud);
+
+        final Instant provisionedAt = Instant.now();
+        final Instant checkTime = provisionedAt.plus(Duration.ofMinutes(GRACE_MINUTES + 1));
+
+        new EC2RetentionStrategy("0", Clock.fixed(checkTime.plusSeconds(1), zoneId), checkTime.toEpochMilli())
+                .check(computerWithUpTime(
+                        GRACE_MINUTES + 1, 0, true, false, 0L, provisionedAt.toEpochMilli(), Integer.MAX_VALUE, null));
+
+        assertThat("the label rule's grace period was not applied", graceTimeoutCalled.get(), equalTo(true));
     }
 
     @Test

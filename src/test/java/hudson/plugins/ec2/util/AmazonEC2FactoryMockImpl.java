@@ -228,42 +228,47 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
     }
 
     private static void mockRunInstances(Ec2Client mock) {
-        Mockito.doAnswer(invocationOnMock -> {
-                    RunInstancesRequest request = invocationOnMock.getArgument(0);
-                    List<Tag> tags = request.tagSpecifications().stream()
-                            .map(TagSpecification::tags)
-                            .flatMap(List::stream)
-                            .collect(Collectors.toList());
-
-                    List<Instance> localInstances = new ArrayList<>();
-
-                    for (int i = 0; i < request.maxCount(); i++) {
-                        Instance instance = Instance.builder()
-                                .instanceId(String.valueOf(Math.random()))
-                                .instanceType(request.instanceType())
-                                .imageId(request.imageId())
-                                .tags(tags)
-                                .state(InstanceState.builder()
-                                        .name(InstanceStateName.RUNNING)
-                                        .build())
-                                .launchTime(Instant.now())
-                                .build();
-
-                        localInstances.add(instance);
-                    }
-
-                    instances.addAll(localInstances);
-
-                    return RunInstancesResponse.builder()
-                            .reservationId(Reservation.builder()
-                                    .instances(localInstances)
-                                    .build()
-                                    .reservationId())
-                            .instances(localInstances)
-                            .build();
-                })
+        Mockito.doAnswer(invocationOnMock -> launchInstances(invocationOnMock.getArgument(0)))
                 .when(mock)
                 .runInstances(Mockito.any(RunInstancesRequest.class));
+    }
+
+    /**
+     * The default launch behaviour: every instance the request asked for, recorded in
+     * {@link #instances}. Exposed so a test narrowing {@code runInstances} for one instance type
+     * can still launch through it, for instance with a reduced count to stand in for a spot pool
+     * that can only part-fill a request.
+     */
+    public static RunInstancesResponse launchInstances(RunInstancesRequest request) {
+        List<Tag> tags = request.tagSpecifications().stream()
+                .map(TagSpecification::tags)
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+
+        List<Instance> localInstances = new ArrayList<>();
+
+        for (int i = 0; i < request.maxCount(); i++) {
+            Instance instance = Instance.builder()
+                    .instanceId(String.valueOf(Math.random()))
+                    .instanceType(request.instanceType())
+                    .imageId(request.imageId())
+                    .tags(tags)
+                    .state(InstanceState.builder()
+                            .name(InstanceStateName.RUNNING)
+                            .build())
+                    .launchTime(Instant.now())
+                    .build();
+
+            localInstances.add(instance);
+        }
+
+        instances.addAll(localInstances);
+
+        return RunInstancesResponse.builder()
+                .reservationId(
+                        Reservation.builder().instances(localInstances).build().reservationId())
+                .instances(localInstances)
+                .build();
     }
 
     private static void mockTerminateInstances(Ec2Client mock) {

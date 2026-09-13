@@ -158,6 +158,18 @@ THE SOFTWARE.
       <f:textbox />
     </f:entry>
 
+    <f:entry title="${%Hot spare weight}" field="hotSpareWeight">
+      <f:textbox default="1" />
+    </f:entry>
+
+    <f:entry title="${%Provisioning grace period (minutes)}" field="gracePeriodMinutes">
+      <f:textbox default="0" />
+    </f:entry>
+
+    <f:entry title="${%Discard agents that never come online}" field="discardAfterGracePeriod">
+      <f:checkbox default="true" />
+    </f:entry>
+
     <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
                      title="${%Only apply minimum number of instances during specific time range}" checked="${instance.minimumNumberOfInstancesTimeRangeConfig != null}"
         help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >

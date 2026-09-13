@@ -1,0 +1,35 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        name: "hotSpares"
+        useInstanceProfileForCredentials: true
+        sshKeysCredentialsId: "random credentials id"
+        roundRobinTemplatesByLabel: true
+        saturateHighestWeightFirst: true
+        hotSpareConfigsByLabel:
+          - label: "linux"
+            baseHotSpares: 2
+            scalingFactor: 3
+            maxHotSpares: 6
+            idleTimeoutMinutes: 20
+            gracePeriodMinutes: 7
+            discardAfterGracePeriod: false
+            allowTemplateIdleTimeoutOverride: true
+            allowTemplateGracePeriodOverride: true
+        templates:
+          - description: "spot"
+            ami: "ami-12345"
+            labelString: "linux ubuntu"
+            type: "t2.micro"
+            remoteFS: "/home/ec2-user"
+            mode: "NORMAL"
+            hotSpareWeight: 3
+            gracePeriodMinutes: 4
+            discardAfterGracePeriod: false
+          - description: "ondemand"
+            ami: "ami-67890"
+            labelString: "linux ubuntu"
+            type: "t2.small"
+            remoteFS: "/home/ec2-user"
+            mode: "NORMAL"

@@ -1,0 +1,14 @@
+<div>
+    <p>Minutes an agent of this label is given to come online, counted from the moment provisioning
+    was requested rather than from the moment EC2 reported the instance as launched.</p>
+
+    <p>0 disables the grace period, which is how configurations behaved before this setting
+    existed. When the period expires with the agent still offline, <i>Discard agents that never come
+    online</i> decides whether the instance is terminated at once or kept with the idle termination
+    clock started from the grace deadline.</p>
+
+    <p>This wins over the <i>Provisioning grace period</i> of the templates the rule matches unless
+    <i>Let a template override the grace period</i> is ticked. It is also independent of the launch
+    timeout: whichever of the two expires first wins, so a grace period longer than the launch
+    timeout does not keep the instance alive past it.</p>
+</div>

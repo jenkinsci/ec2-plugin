@@ -157,6 +157,20 @@ public abstract class EC2AbstractSlave extends Slave {
 
     private transient Instant createdTime;
 
+    /**
+     * Epoch millis when this node object was created, i.e. when provisioning was requested. This is
+     * earlier than the EC2 instance launch time and is available even if the instance never starts,
+     * which is what makes it a usable baseline for the provisioning grace period.
+     */
+    private transient volatile long provisionRequestedAtMillis;
+
+    /**
+     * Epoch millis when the agent channel first came up, or {@code 0} if it never has. Idle time is
+     * measured from this rather than from the EC2 launch time so that slow user data or init
+     * scripts do not consume the idle budget.
+     */
+    private transient volatile long onlineSinceMillis;
+
     public static final String TEST_ZONE = "testZone";
 
     public EC2AbstractSlave(
@@ -546,7 +560,30 @@ public abstract class EC2AbstractSlave extends Slave {
             o.terminateScheduled = new ResettableCountDownLatch(1, false);
         }
 
+        /*
+         * Transient, so this is zero both for a freshly constructed node (this method is called at the
+         * end of the constructor) and for one deserialized from disk. In either case "now" is the best
+         * available approximation of when provisioning was requested.
+         */
+        if (o.provisionRequestedAtMillis == 0) {
+            o.provisionRequestedAtMillis = System.currentTimeMillis();
+        }
+
         return o;
+    }
+
+    /**
+     * @return epoch millis when provisioning was requested for this node.
+     */
+    public long getProvisionRequestedAtMillis() {
+        return provisionRequestedAtMillis;
+    }
+
+    /**
+     * @return epoch millis when the agent channel first came up, or {@code 0} if it never has.
+     */
+    public long getOnlineSinceMillis() {
+        return onlineSinceMillis;
     }
 
     public EC2Cloud getCloud() {
@@ -831,6 +868,11 @@ public abstract class EC2AbstractSlave extends Slave {
         terminate();
     }
 
+    void graceTimeout() {
+        LOGGER.info("EC2 instance never came online within the grace period: " + getInstanceId());
+        terminate();
+    }
+
     public long getLaunchTimeoutInMillis() {
         // this should be fine as long as launchTimeout remains an int type
         return launchTimeout * 1000L;
@@ -898,6 +940,9 @@ public abstract class EC2AbstractSlave extends Slave {
      */
     public void onConnected() {
         isConnected = true;
+        if (onlineSinceMillis == 0) {
+            onlineSinceMillis = System.currentTimeMillis();
+        }
     }
 
     protected boolean isAlive(boolean force) {

@@ -1,0 +1,24 @@
+<div>
+    <p>Controls how a template is picked when several AMI configurations in this cloud match the
+    same label.</p>
+
+    <p>Unticked (the default), the templates are tried in the order they are configured, which is
+    the historical behaviour. If the first one cannot provision, the next one is tried for that
+    request, but the next request starts from the first template again.</p>
+
+    <p>Ticked, all templates matching a label are treated as interchangeable hardware &mdash; the
+    admin gave them the same label, so any of them can run that work &mdash; and Jenkins rotates
+    between them. The rotation honours each template's <i>Hot spare weight</i>, so a spot template
+    with weight 3 is attempted three times as often as an equivalent on-demand template with
+    weight 1, while still falling back to on-demand immediately when spot capacity is
+    unavailable.</p>
+
+    <p>With rotation enabled, a template that reports insufficient capacity is also demoted for a
+    few minutes so subsequent requests for that label go straight to a template that can supply
+    the instance type. This demotion never applies to a label served by a single template, which
+    keeps retrying across its own availability zones.</p>
+
+    <p>Weights are shares of the requests, so every weight keeps receiving some of the work. If
+    they should instead rank the templates, so that a lower weight is only used once the higher
+    one is exhausted, see <i>Saturate the highest weight before using a lower one</i>.</p>
+</div>

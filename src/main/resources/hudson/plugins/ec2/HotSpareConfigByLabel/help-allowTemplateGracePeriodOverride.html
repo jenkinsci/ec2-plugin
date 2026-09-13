@@ -1,0 +1,8 @@
+<div>
+    <p>By default this rule owns the provisioning grace period of every AMI it matches.</p>
+
+    <p>Tick this to give precedence back to an AMI that configures a grace period of its own. An AMI
+    that leaves its grace period at 0 still follows the rule, so this only affects the AMIs where a
+    grace period was set deliberately &mdash; useful when one instance type in the group is known to
+    boot much more slowly than the rest.</p>
+</div>

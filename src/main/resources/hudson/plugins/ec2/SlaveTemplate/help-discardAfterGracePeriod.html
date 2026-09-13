@@ -1,0 +1,13 @@
+<div>
+    <p>What to do with an agent that is still offline when the provisioning grace period expires.</p>
+
+    <p>When checked (the default), the instance is terminated straight away and the reason is
+    logged distinctly from a launch timeout.</p>
+
+    <p>When unchecked, the instance is kept and the idle termination clock starts from the grace
+    deadline instead, so the agent is only terminated once the idle termination time has also
+    passed. Use this when agents legitimately take a long time to connect and you would rather
+    pay for the extra idle window than lose the instance.</p>
+
+    <p>This setting has no effect unless a grace period is configured.</p>
+</div>
