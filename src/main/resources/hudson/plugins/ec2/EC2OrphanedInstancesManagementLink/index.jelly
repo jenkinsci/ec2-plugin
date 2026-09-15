@@ -1,0 +1,94 @@
+<!--
+The MIT License
+
+Copyright (c) 2026, CloudBees, Inc., and a number of other of contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:f="/lib/form">
+  <l:layout title="${%EC2 orphaned instances}" permission="${app.ADMINISTER}">
+    <l:main-panel>
+      <h1>${%EC2 orphaned instances}</h1>
+      <p>${%blurb}</p>
+
+      <j:forEach var="cloud" items="${it.cloudOrphans}">
+        <h2>${cloud.cloudName}</h2>
+
+        <j:choose>
+          <j:when test="${cloud.failed}">
+            <div class="jenkins-alert jenkins-alert-danger">
+              ${%Could not list instances:} ${cloud.error}
+            </div>
+          </j:when>
+
+          <j:when test="${empty(cloud.orphans)}">
+            <div class="jenkins-alert jenkins-alert-success">${%No orphaned instances.}</div>
+          </j:when>
+
+          <j:otherwise>
+            <table class="jenkins-table">
+              <thead>
+                <tr>
+                  <th>${%Instance}</th>
+                  <th>${%Type}</th>
+                  <th>${%State}</th>
+                  <th>${%Zone}</th>
+                  <th>${%Subnet}</th>
+                  <th>${%Age}</th>
+                  <th>${%Template}</th>
+                  <th>${%Adoptable}</th>
+                  <th>${%Why}</th>
+                  <th/>
+                </tr>
+              </thead>
+              <tbody>
+                <j:forEach var="orphan" items="${cloud.orphans}">
+                  <tr>
+                    <td><code>${orphan.instanceId}</code></td>
+                    <td>${orphan.instanceType}</td>
+                    <td>${orphan.state}</td>
+                    <td>${orphan.availabilityZone}</td>
+                    <td>${orphan.subnetId}</td>
+                    <td>${orphan.age}</td>
+                    <td>${orphan.templateDescription}</td>
+                    <td>
+                      <j:choose>
+                        <j:when test="${orphan.adoptable}">${%Yes}</j:when>
+                        <j:otherwise>${%No}</j:otherwise>
+                      </j:choose>
+                    </td>
+                    <td>${orphan.reason}</td>
+                    <td>
+                      <f:form method="post" action="terminate" name="terminate-${orphan.instanceId}">
+                        <input type="hidden" name="cloudName" value="${cloud.cloudName}"/>
+                        <input type="hidden" name="instanceId" value="${orphan.instanceId}"/>
+                        <f:submit value="${%Terminate}"/>
+                      </f:form>
+                    </td>
+                  </tr>
+                </j:forEach>
+              </tbody>
+            </table>
+          </j:otherwise>
+        </j:choose>
+      </j:forEach>
+    </l:main-panel>
+  </l:layout>
+</j:jelly>

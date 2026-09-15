@@ -67,6 +67,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -85,7 +86,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -187,11 +191,63 @@ public class EC2Cloud extends Cloud {
     private transient ConcurrentHashMap<String, InFlightInstance> inFlightInstances = new ConcurrentHashMap<>();
     private transient volatile Set<String> lastCountedInstanceIds = Collections.emptySet();
 
+    private transient Set<CapacityReservation> capacityReservations = ConcurrentHashMap.newKeySet();
+
+    private transient Set<ProvisioningWalk> walksInProgress = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Instances a walk has launched and not yet attached an agent to, by instance id and the time
+     * the launch reported them.
+     *
+     * <p>Between the launch and the agent being attached an instance carries no agent, which is
+     * also what an instance nobody wants looks like. Holding the ones a launch is still working on
+     * keeps a request running alongside from taking them over.
+     */
+    private transient ConcurrentHashMap<String, Long> unattachedLaunches = new ConcurrentHashMap<>();
+
+    /**
+     * How long a planned node may stay unresolved before its capacity is handed back.
+     *
+     * <p>Long enough that a launch spreading a wide request over its zones is not cut off partway,
+     * short enough that a launch which has stopped making progress does not go on standing for
+     * demand it will never meet.
+     */
+    private static final long PLANNED_NODE_TIMEOUT_MS =
+            Long.getLong("jenkins.ec2.plannedNodeTimeoutMs", TimeUnit.MINUTES.toMillis(2));
+
+    /**
+     * How long a call that counts instances may take, retries included, before it is abandoned.
+     *
+     * <p>The retry policy in {@link #createClientOverrideConfiguration()} allows sixteen attempts,
+     * and the SDK backs off up to twenty seconds between them once EC2 starts throttling, which is
+     * minutes of sleeping inside one call. The counting calls cannot afford that: they run while
+     * {@link #slaveCountingLock} is held, so a throttled describe stops every template in the cloud
+     * from checking its cap and looks from the outside as though provisioning has stopped. Giving
+     * up and letting the next pass try again restores service far sooner than waiting out the
+     * backoff, and a count is safe to abandon because it changes nothing.
+     *
+     * <p>Applied per request rather than to the client, so it never reaches a launch. Abandoning
+     * {@code RunInstances} would strand whatever EC2 had already started.
+     */
+    private static final Duration COUNT_API_CALL_TIMEOUT =
+            Duration.ofMillis(Long.getLong("jenkins.ec2.countApiCallTimeoutMs", TimeUnit.SECONDS.toMillis(60)));
+
     private static final ExecutorService PROVISIONING_EXECUTOR = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "EC2Cloud-provisioning");
         t.setDaemon(true);
         return t;
     });
+
+    /**
+     * How long a launch has to turn into an agent that is online before its node is taken away.
+     *
+     * <p>Matched to the grace orphan cleanup allows an instance to attach, so a node dropped here
+     * leaves behind an instance that cleanup is already willing to reclaim.
+     */
+    private static final long LAUNCH_DEADLINE_MS =
+            Long.getLong("jenkins.ec2.launchDeadlineMs", TimeUnit.MINUTES.toMillis(10));
+
+    private static final long ONLINE_POLL_INTERVAL_MS = 5000;
 
     private static final long SCHEDULE_MAINTENANCE_DELAY_MS =
             Long.getLong("jenkins.ec2.scheduleMaintenanceDelayMs", 1000);
@@ -714,6 +770,15 @@ public class EC2Cloud extends Cloud {
         if (this.lastCountedInstanceIds == null) {
             this.lastCountedInstanceIds = Collections.emptySet();
         }
+        if (this.capacityReservations == null) {
+            this.capacityReservations = ConcurrentHashMap.newKeySet();
+        }
+        if (this.walksInProgress == null) {
+            this.walksInProgress = ConcurrentHashMap.newKeySet();
+        }
+        if (this.unattachedLaunches == null) {
+            this.unattachedLaunches = new ConcurrentHashMap<>();
+        }
         if (this.hotSpareConfigsByLabel == null) {
             this.hotSpareConfigsByLabel = new ArrayList<>();
         }
@@ -983,24 +1048,41 @@ public class EC2Cloud extends Cloud {
         int n = 0;
         Set<String> instanceIds = new HashSet<>();
         String description = template != null ? template.description : null;
+        Set<String> attachedInstanceIds = EC2OrphanedInstanceInventory.attachedInstanceIds(this);
 
         List<Filter> filters = getGenericFilters(jenkinsServerUrl, template);
         filters.add(Filter.builder()
                 .name("instance-state-name")
                 .values("running", "pending", "stopping")
                 .build());
-        DescribeInstancesRequest dir =
-                DescribeInstancesRequest.builder().filters(filters).build();
+        DescribeInstancesRequest dir = DescribeInstancesRequest.builder()
+                .filters(filters)
+                .overrideConfiguration(o -> o.apiCallTimeout(COUNT_API_CALL_TIMEOUT))
+                .build();
         DescribeInstancesResponse result = null;
         do {
             result = connect().describeInstances(dir);
             dir = DescribeInstancesRequest.builder()
                     .filters(filters)
                     .nextToken(result.nextToken())
+                    .overrideConfiguration(o -> o.apiCallTimeout(COUNT_API_CALL_TIMEOUT))
                     .build();
             for (Reservation r : result.reservations()) {
                 for (Instance i : r.instances()) {
                     if (isEc2ProvisionedAmiSlave(i.tags(), description)) {
+                        /*
+                         * An orphan nothing will ever adopt is not capacity. It holds no agent, it
+                         * is too old to still be attaching, and no launch will take it over, so
+                         * counting it would reserve room for work that can never run on it and
+                         * would block provisioning until the cleanup pass gets round to it.
+                         */
+                        if (EC2OrphanedInstanceInventory.isUnusableOrphan(this, i, attachedInstanceIds)) {
+                            LOGGER.log(
+                                    Level.FINE,
+                                    "Ignoring unusable orphaned instance for cap purposes: " + i.instanceId() + " AMI: "
+                                            + i.imageId() + " Jenkins Server: " + jenkinsServerUrl);
+                            continue;
+                        }
                         LOGGER.log(
                                 Level.FINE,
                                 "Existing instance found: " + i.instanceId() + " AMI: " + i.imageId()
@@ -1042,6 +1124,7 @@ public class EC2Cloud extends Cloud {
         DescribeSpotInstanceRequestsRequest dsir = DescribeSpotInstanceRequestsRequest.builder()
                 .filters(filters)
                 .maxResults(100)
+                .overrideConfiguration(o -> o.apiCallTimeout(COUNT_API_CALL_TIMEOUT))
                 .build();
         Set<SpotInstanceRequest> sirSet = new HashSet<>();
         DescribeSpotInstanceRequestsResponse sirResp = null;
@@ -1053,6 +1136,7 @@ public class EC2Cloud extends Cloud {
                     .filters(filters)
                     .maxResults(100)
                     .nextToken(sirResp.nextToken())
+                    .overrideConfiguration(o -> o.apiCallTimeout(COUNT_API_CALL_TIMEOUT))
                     .build();
 
             if (sirs != null) {
@@ -1267,8 +1351,8 @@ public class EC2Cloud extends Cloud {
 
     /**
      * Records instances that have just been launched so they count against the caps until EC2
-     * reports them. Called while the counting lock is held, so the next request to reach the cap
-     * check already sees them.
+     * reports them. Called before the reservation covering the launch is released, so the next
+     * request to reach the cap check sees them without a gap in between.
      *
      * <p>An instance the last count already reported is not recorded: reusing an orphaned or
      * stopped instance is not a new launch, and counting it twice would understate the headroom.
@@ -1303,19 +1387,91 @@ public class EC2Cloud extends Cloud {
 
     /**
      * @param templateKey the template to count for, or {@code null} for every template.
-     * @return how many launched instances EC2 has not reported yet. Records older than
-     *     {@link #IN_FLIGHT_INSTANCE_TTL_MS} are discarded: by then the instance is either counted
-     *     by EC2 or gone, and holding on to it would understate the headroom forever.
+     * @return how many launched instances EC2 has not reported yet, plus the slots claimed by
+     *     launches still in progress. Records older than {@link #IN_FLIGHT_INSTANCE_TTL_MS} are
+     *     discarded: by then the instance is either counted by EC2 or gone, and holding on to it
+     *     would understate the headroom forever. Reservations are swept on the same deadline, which
+     *     only matters if the thread holding one died, since a launch releases its own.
      */
     private int countInFlight(@CheckForNull String templateKey) {
         long cutoff = System.currentTimeMillis() - IN_FLIGHT_INSTANCE_TTL_MS;
         inFlightInstances.values().removeIf(inFlight -> inFlight.launchedAtMillis < cutoff);
+        capacityReservations.removeIf(reservation -> reservation.reservedAtMillis < cutoff);
         if (templateKey == null) {
-            return inFlightInstances.size();
+            return inFlightInstances.size()
+                    + capacityReservations.stream()
+                            .mapToInt(reservation -> reservation.count)
+                            .sum();
         }
         return (int) inFlightInstances.values().stream()
-                .filter(inFlight -> templateKey.equals(inFlight.templateId))
-                .count();
+                        .filter(inFlight -> templateKey.equals(inFlight.templateId))
+                        .count()
+                + capacityReservations.stream()
+                        .filter(reservation -> templateKey.equals(reservation.templateId))
+                        .mapToInt(reservation -> reservation.count)
+                        .sum();
+    }
+
+    /**
+     * Claims up to {@code number} of a template's remaining capacity for a launch that is about to
+     * start.
+     *
+     * <p>The claim is what allows the launch itself to run without {@link #slaveCountingLock} held.
+     * A launch is not a quick operation: it walks the subnets of the template, and each attempt is
+     * an EC2 API call that may be retried. Holding the lock across all of that stops every other
+     * template in the cloud from so much as checking its cap, so one slow launch stalls the rest.
+     * Counting the claim against the caps from the moment it is made preserves what the lock was
+     * there for, which is that two requests cannot both spend the same headroom.
+     *
+     * @return the reservation, which the caller must pass to {@link #releaseCapacity}, or
+     *     {@code null} if the template has no capacity left.
+     */
+    @CheckForNull
+    private CapacityReservation reserveCapacity(SlaveTemplate template, int number) throws SdkException {
+        slaveCountingLock.lock();
+        try {
+            int possibleSlavesCount = getPossibleNewSlavesCount(template);
+            if (possibleSlavesCount <= 0) {
+                /*
+                 * Out of capacity is the point at which orphans stop being merely wasteful and
+                 * start being the reason work is not scheduled, so sweep now rather than waiting
+                 * for the hourly pass. Returns immediately; the sweep runs off this thread because
+                 * this one holds the counting lock.
+                 */
+                EC2CleanupOrphanedNodes.requestCleanup(this);
+                return null;
+            }
+            CapacityReservation reservation = new CapacityReservation(
+                    templateCountKey(template), Math.min(number, possibleSlavesCount), System.currentTimeMillis());
+            capacityReservations.add(reservation);
+            return reservation;
+        } finally {
+            slaveCountingLock.unlock();
+        }
+    }
+
+    /**
+     * @return whether this cloud has a launch it cannot yet see the result of: an instance EC2 has
+     *     not reported, capacity claimed by a launch still running, or agents on order for a label
+     *     by a walk that has not finished. Lets orphan cleanup tell a cloud that is genuinely idle
+     *     from one that is midway through provisioning.
+     */
+    @Restricted(NoExternalUse.class)
+    public boolean hasLaunchesInProgress() {
+        expireStaleWalks();
+        return countInFlight(null) > 0 || !walksInProgress.isEmpty();
+    }
+
+    /**
+     * Drops a claim once the launch it covered has finished.
+     *
+     * <p>The instances the launch produced are recorded as in flight before this is called, so the
+     * capacity stays accounted for throughout. The two overlap briefly, which overstates the load
+     * rather than understating it, and that is the right way round: the alternative is a window
+     * where a concurrent request sees headroom that is already spent.
+     */
+    private void releaseCapacity(@NonNull CapacityReservation reservation) {
+        capacityReservations.remove(reservation);
     }
 
     private static final class InFlightInstance {
@@ -1331,10 +1487,38 @@ public class EC2Cloud extends Cloud {
         }
     }
 
+    /** Capacity spoken for by a launch that has started but not yet reported its instances. */
+    private static final class CapacityReservation {
+
+        /** The description and AMI of the template launching, from {@link #templateCountKey}. */
+        private final String templateId;
+
+        private final int count;
+
+        private final long reservedAtMillis;
+
+        CapacityReservation(String templateId, int count, long reservedAtMillis) {
+            this.templateId = templateId;
+            this.count = count;
+            this.reservedAtMillis = reservedAtMillis;
+        }
+    }
+
     private void invalidateInstanceCountCache() {
         instanceCountCacheTimestamp = 0;
         cachedTotalSlaves = -1;
         cachedTemplateSlaves.clear();
+    }
+
+    /**
+     * Drops the cached instance count for a single template, leaving the other templates warm.
+     *
+     * <p>The cloud-wide total is deliberately left in place. Instances this cloud has just launched
+     * are carried by {@link #countInFlight} until EC2 reports them, so the cloud cap stays honest
+     * without re-reading every template's count after each attempt.
+     */
+    private void invalidateInstanceCountCache(@NonNull SlaveTemplate template) {
+        cachedTemplateSlaves.remove(templateCountKey(template));
     }
 
     /**
@@ -1359,14 +1543,12 @@ public class EC2Cloud extends Cloud {
      */
     private List<EC2AbstractSlave> getNewOrExistingAvailableSlave(SlaveTemplate t, int number, boolean forceCreateNew)
             throws IOException {
+        CapacityReservation reservation = reserveCapacity(t, number);
+        if (reservation == null) {
+            LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances", t);
+            return null;
+        }
         try {
-            slaveCountingLock.lock();
-            int possibleSlavesCount = getPossibleNewSlavesCount(t);
-            if (possibleSlavesCount <= 0) {
-                LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity for instances: " + possibleSlavesCount, t);
-                return null;
-            }
-
             EnumSet<SlaveTemplate.ProvisionOptions> provisionOptions;
             if (forceCreateNew) {
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.FORCE_CREATE);
@@ -1374,28 +1556,26 @@ public class EC2Cloud extends Cloud {
                 provisionOptions = EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE);
             }
 
-            if (number > possibleSlavesCount) {
+            if (reservation.count != number) {
                 LOGGER.log(
                         Level.INFO,
                         String.format(
                                 "%d nodes were requested for the template %s, "
                                         + "but because of instance cap only %d can be provisioned",
-                                number, t, possibleSlavesCount));
-                number = possibleSlavesCount;
+                                number, t, reservation.count));
             }
 
-            List<EC2AbstractSlave> slaves = t.provision(number, provisionOptions);
+            List<EC2AbstractSlave> slaves = t.provision(reservation.count, provisionOptions);
             recordInFlight(t, slaves);
             return slaves;
         } finally {
-            slaveCountingLock.unlock();
+            releaseCapacity(reservation);
         }
     }
 
     @Override
     public Collection<PlannedNode> provision(final Label label, int excessWorkload) {
         final Collection<SlaveTemplate> matchingTemplates = getTemplates(label);
-        List<PlannedNode> plannedNodes = new ArrayList<>();
 
         Jenkins jenkinsInstance = Jenkins.get();
         if (jenkinsInstance.isQuietingDown()) {
@@ -1414,74 +1594,219 @@ public class EC2Cloud extends Cloud {
          */
         final List<SlaveTemplate> ordered = orderTemplatesForLabel(label, matchingTemplates);
 
-        for (int candidateIndex = 0; candidateIndex < ordered.size(); candidateIndex++) {
-            final SlaveTemplate t = ordered.get(candidateIndex);
-            LOGGER.log(
-                    Level.INFO,
-                    "{0}. Attempting to provision agent needed by excess workload of " + excessWorkload + " units",
-                    t);
-            final int requestedNumber = Math.max(excessWorkload / t.getNumExecutors(), 1);
+        if (ordered.isEmpty()) {
+            return Collections.emptyList();
+        }
 
-            // Check capacity before attempting to provision
-            int actualNumber;
+        final int executorsPerAgent = Math.max(1, ordered.get(0).getNumExecutors());
+        // Round up: a workload that does not fill an agent still needs one.
+        final int wanted = (excessWorkload + executorsPerAgent - 1) / executorsPerAgent;
+        if (wanted <= 0) {
+            return Collections.emptyList();
+        }
+
+        LOGGER.log(
+                Level.INFO,
+                "Attempting to provision {0} agent(s) for {1}, needed by an excess workload of {2} unit(s)",
+                new Object[] {wanted, label, excessWorkload});
+
+        /*
+         * Recorded before the walk is handed off rather than inside it, so that a cloud which has
+         * just been asked for agents does not look idle to orphan cleanup during the moment
+         * between accepting the request and the thread picking it up.
+         */
+        final ProvisioningWalk walk = new ProvisioningWalk(System.currentTimeMillis());
+        walksInProgress.add(walk);
+
+        /*
+         * One slot per agent asked for, handed to the provisioner as planned nodes so the request
+         * is visible as pending work straight away rather than only once EC2 has answered. Each is
+         * filled by the walk as it obtains an agent, and any the walk does not reach is closed
+         * empty, so a request the group cannot meet gives its capacity back instead of standing as
+         * demand that is already met.
+         */
+        final List<CompletableFuture<Node>> slots = new ArrayList<>(wanted);
+        for (int i = 0; i < wanted; i++) {
+            slots.add(new CompletableFuture<>());
+        }
+        final AtomicInteger nextSlot = new AtomicInteger();
+
+        PROVISIONING_EXECUTOR.execute(() -> {
             try {
-                slaveCountingLock.lock();
-                int possibleSlavesCount = getPossibleNewSlavesCount(t);
-                if (possibleSlavesCount <= 0) {
-                    LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity, trying next template", t);
-                    continue; // Try next template
-                }
-                actualNumber = Math.min(requestedNumber, possibleSlavesCount);
-            } catch (SdkException e) {
-                LOGGER.log(Level.WARNING, t + ". Exception checking capacity, trying next template", e);
-                continue;
+                provisionAndAttach(ordered, wanted, slave -> {
+                    int index = nextSlot.getAndIncrement();
+                    if (index < slots.size()) {
+                        slots.get(index).complete(slave);
+                    }
+                });
             } finally {
-                slaveCountingLock.unlock();
+                walksInProgress.remove(walk);
+                slots.forEach(slot -> slot.complete(null));
             }
+        });
 
-            final int number = actualNumber;
-            final int startIndex = candidateIndex;
+        /*
+         * The backstop for a walk that neither finishes nor fails. Without it such a walk would
+         * leave its slots open, and a planned node that never resolves tells the provisioner the
+         * demand behind it is being met, which is how a single wedged launch used to hold up a
+         * whole label for as long as it ran.
+         */
+        Timer.get()
+                .schedule(
+                        () -> slots.forEach(slot -> slot.complete(null)),
+                        PLANNED_NODE_TIMEOUT_MS,
+                        TimeUnit.MILLISECONDS);
 
-            // Defer runInstances to background; return PlannedNodes immediately for fast NodeProvisioner response
-            CompletableFuture<List<EC2AbstractSlave>> provisionFuture = CompletableFuture.supplyAsync(
-                    () -> provisionFromGroup(ordered, startIndex, number), PROVISIONING_EXECUTOR);
+        List<PlannedNode> planned = new ArrayList<>(wanted);
+        String displayName = ordered.get(0).getDisplayName();
+        for (CompletableFuture<Node> slot : slots) {
+            planned.add(new PlannedNode(displayName, slot, executorsPerAgent));
+        }
+        return planned;
+    }
 
-            provisionFuture.whenComplete((slaves, ex) -> {
-                if (slaves != null && !slaves.isEmpty()) {
-                    invalidateInstanceCountCache();
+    /**
+     * Forgets walks older than the TTL.
+     *
+     * <p>A walk removes its own record, so one still listed past the TTL belongs to a thread that
+     * died or is wedged in a retry. Dropping it is what keeps such a walk from making the cloud
+     * look permanently busy to the idle check.
+     */
+    private void expireStaleWalks() {
+        long cutoff = System.currentTimeMillis() - IN_FLIGHT_INSTANCE_TTL_MS;
+        walksInProgress.removeIf(walk -> walk.startedAtMillis < cutoff);
+    }
+
+    /** A pass over a label's templates that has started asking EC2 for agents and not yet finished. */
+    private static final class ProvisioningWalk {
+
+        private final long startedAtMillis;
+
+        ProvisioningWalk(long startedAtMillis) {
+            this.startedAtMillis = startedAtMillis;
+        }
+    }
+
+    /**
+     * Walks the label group for {@code number} agents, attaching each one as EC2 grants it.
+     *
+     * <p>Attaching per template rather than once at the end matters when the request spans several
+     * instance types: the agents the first template supplied can start builds while the templates
+     * behind it are still being asked for the remainder.
+     */
+    private void provisionAndAttach(
+            @NonNull List<SlaveTemplate> ordered, int number, @NonNull Consumer<EC2AbstractSlave> onAttached) {
+        try {
+            List<EC2AbstractSlave> provisioned = provisionFromGroup(
+                    ordered, 0, number, (template, slaves) -> attachAndConnect(template, slaves, onAttached));
+            int obtained = provisioned == null ? 0 : provisioned.size();
+            if (obtained < number) {
+                LOGGER.log(
+                        Level.INFO,
+                        "The template group supplied {0} of the {1} agent(s) asked for; the rest will be re-requested on the next provisioning cycle",
+                        new Object[] {obtained, number});
+            }
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.WARNING, "Exception provisioning from template group", e);
+        }
+    }
+
+    /**
+     * Adds agents to Jenkins straight away and brings them online in the background.
+     *
+     * <p>The node appears before the instance is RUNNING on purpose: it is real capacity that has
+     * been paid for, the queue can be matched against it, and a node that never comes online is
+     * visible rather than hidden inside a pending launch. An instance that dies on the way up takes
+     * its node with it.
+     */
+    private void attachAndConnect(
+            @NonNull SlaveTemplate t,
+            @NonNull List<EC2AbstractSlave> slaves,
+            @NonNull Consumer<EC2AbstractSlave> onAttached) {
+        Jenkins jenkinsInstance = Jenkins.get();
+        for (EC2AbstractSlave slave : slaves) {
+            if (slave == null) {
+                continue;
+            }
+            try {
+                jenkinsInstance.addNode(slave);
+                // The node now shows the instance is spoken for, so the launch's claim can go.
+                releaseLaunched(slave.getInstanceId());
+                /*
+                 * Reported against a planned node only once it is a node. The provisioner adds
+                 * whatever a slot resolves to, and adding a node it already holds is a no-op, so
+                 * this hands back the same instance rather than a second copy of it.
+                 */
+                onAttached.accept(slave);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to attach " + slave.getNodeName(), e);
+                continue;
+            }
+            // The group is homogeneous, but the agent may have come from a later template than the
+            // one planned, so log against its own template.
+            waitForRunningAndConnectAsync(templateOf(slave, t), slave).thenAccept(node -> {
+                if (node == null) {
+                    removeFailedNode(jenkinsInstance, slave);
                 }
-                scheduleQueueMaintenance();
-            });
-
-            for (int i = 0; i < number; i++) {
-                final int index = i;
-                CompletableFuture<Node> nodeFuture = provisionFuture
-                        .thenApplyAsync(
-                                slaves -> slaves != null && index < slaves.size() ? slaves.get(index) : null,
-                                PROVISIONING_EXECUTOR)
-                        .thenComposeAsync(
-                                slave -> slave != null
-                                        // The group is homogeneous, but the agent may have come from
-                                        // a later template than the one planned, so log against its
-                                        // own template.
-                                        ? waitForRunningAndConnectAsync(templateOf(slave, t), slave)
-                                        : CompletableFuture.completedFuture(null),
-                                Computer.threadPoolForRemoting);
-
-                plannedNodes.add(new PlannedNode(t.getDisplayName(), nodeFuture, t.getNumExecutors()));
-            }
-
-            excessWorkload -= number * t.getNumExecutors();
-            if (excessWorkload <= 0) {
-                break;
-            }
-
-            LOGGER.log(Level.INFO, "{0}. Provision scheduled for {1} nodes", new Object[] {t, number});
-            LOGGER.log(Level.INFO, "We have now {0} computers, waiting for {1} more", new Object[] {
-                jenkinsInstance.getComputers().length, plannedNodes.size()
             });
         }
-        return plannedNodes;
+        invalidateInstanceCountCache(t);
+        scheduleQueueMaintenance();
+    }
+
+    /** Claims instances a launch has just been given, until it has attached agents to them. */
+    void recordLaunched(@NonNull Collection<Instance> instances) {
+        long now = System.currentTimeMillis();
+        for (Instance instance : instances) {
+            String instanceId = instance.instanceId();
+            if (instanceId != null && !instanceId.isBlank()) {
+                unattachedLaunches.put(instanceId, now);
+            }
+        }
+    }
+
+    /**
+     * Releases an instance once its agent is attached, from which point the agent itself is what
+     * shows the instance is spoken for.
+     */
+    void releaseLaunched(@CheckForNull String instanceId) {
+        if (instanceId != null) {
+            unattachedLaunches.remove(instanceId);
+        }
+    }
+
+    /**
+     * @return whether a launch is still expected to attach an agent to this instance. A claim older
+     *     than the grace belongs to a launch that died on the way, and holding it any longer would
+     *     keep an instance nothing is coming back for out of reach for good.
+     */
+    boolean isClaimedByRecentLaunch(@CheckForNull String instanceId) {
+        if (instanceId == null) {
+            return false;
+        }
+        long cutoff = System.currentTimeMillis() - EC2OrphanedInstanceInventory.ATTACH_GRACE_MILLIS;
+        unattachedLaunches.values().removeIf(claimedAt -> claimedAt < cutoff);
+        return unattachedLaunches.containsKey(instanceId);
+    }
+
+    /** Drops an agent whose instance never reached RUNNING, so the queue stops counting on it. */
+    private static void removeFailedNode(Jenkins jenkinsInstance, EC2AbstractSlave slave) {
+        /*
+         * Marked before the node goes, while the instance can still be identified. The instance
+         * outlives the node, and having been tried and failed is the whole difference between
+         * capacity worth taking back and an instance that would swallow request after request.
+         */
+        String instanceId = slave.getInstanceId();
+        EC2Cloud cloud = slave.getCloud();
+        if (cloud != null && instanceId != null && !instanceId.isEmpty()) {
+            EC2AgentConnectedTagger.markUsed(cloud, instanceId, EC2Tag.TAG_NAME_JENKINS_AGENT_ATTEMPTED);
+        }
+        try {
+            jenkinsInstance.removeNode(slave);
+            LOGGER.log(Level.INFO, "Removed {0}, whose instance never came up", slave.getNodeName());
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Failed to remove " + slave.getNodeName(), e);
+        }
     }
 
     /**
@@ -1523,9 +1848,15 @@ public class EC2Cloud extends Cloud {
      * it can rather than refusing a request it can only partly fill, and an instance type is a
      * single spot pool, so a wide request routinely needs more than one of them.
      *
+     * @param onProvisioned notified with each template's agents as soon as that template supplies
+     *     them, so a caller can put them to work without waiting for the rest of the walk.
      * @return the provisioned agents, or {@code null} if no template in the group could provide any.
      */
-    private List<EC2AbstractSlave> provisionFromGroup(List<SlaveTemplate> ordered, int startIndex, int number) {
+    private List<EC2AbstractSlave> provisionFromGroup(
+            List<SlaveTemplate> ordered,
+            int startIndex,
+            int number,
+            BiConsumer<SlaveTemplate, List<EC2AbstractSlave>> onProvisioned) {
         final List<EC2AbstractSlave> provisioned = new ArrayList<>();
         for (int i = startIndex; i < ordered.size(); i++) {
             final SlaveTemplate t = ordered.get(i);
@@ -1534,6 +1865,7 @@ public class EC2Cloud extends Cloud {
                 List<EC2AbstractSlave> slaves = provisionFromTemplate(t, remaining);
                 if (slaves != null && !slaves.isEmpty()) {
                     provisioned.addAll(slaves);
+                    onProvisioned.accept(t, slaves);
                     if (provisioned.size() >= number) {
                         return provisioned;
                     }
@@ -1569,11 +1901,12 @@ public class EC2Cloud extends Cloud {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning, trying next template", e);
             }
             /*
-             * The next candidate must see current instance counts rather than the ones cached
-             * before this attempt, otherwise the cloud-wide cap could be overshot while walking
-             * down the group.
+             * Only this template's count is now stale. Wiping the whole cache here made every
+             * candidate behind it re-read the cloud from EC2, which on a large template list is
+             * hundreds of DescribeInstances calls per request and throttling severe enough to wedge
+             * the launches it was meant to protect.
              */
-            invalidateInstanceCountCache();
+            invalidateInstanceCountCache(t);
         }
         return provisioned.isEmpty() ? null : provisioned;
     }
@@ -1601,63 +1934,65 @@ public class EC2Cloud extends Cloud {
             return 0;
         }
 
-        List<EC2AbstractSlave> slaves = provisionFromGroup(ordered, 0, number);
-        if (slaves == null || slaves.isEmpty()) {
-            return 0;
-        }
-
-        int attached = 0;
-        for (EC2AbstractSlave slave : slaves) {
-            if (slave == null) {
-                continue;
+        /*
+         * Attached as each template supplies them, not once the walk is over. Until an instance has
+         * a node, nothing on the Jenkins side points at it, so the templates still to be asked see
+         * the ones already launched as orphans and adopt them to meet their own share of the
+         * request. The walk then reports instances it never launched and stops short of the number
+         * asked for.
+         */
+        AtomicInteger attached = new AtomicInteger();
+        provisionFromGroup(ordered, 0, number, (template, slaves) -> {
+            for (EC2AbstractSlave slave : slaves) {
+                if (slave == null) {
+                    continue;
+                }
+                try {
+                    attachSlavesToJenkins(
+                            jenkinsInstance, Collections.singletonList(slave), templateOf(slave, template));
+                    attached.incrementAndGet();
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Failed to attach " + slave.getNodeName(), e);
+                }
             }
-            try {
-                attachSlavesToJenkins(
-                        jenkinsInstance, Collections.singletonList(slave), templateOf(slave, ordered.get(0)));
-                attached++;
-            } catch (IOException e) {
-                LOGGER.log(Level.WARNING, "Failed to attach " + slave.getNodeName(), e);
-            }
-        }
-        invalidateInstanceCountCache();
-        return attached;
+            invalidateInstanceCountCache(template);
+        });
+        return attached.get();
     }
 
     /**
      * Provisions up to {@code number} instances from a single template, respecting its instance cap.
      *
-     * <p>A launch is recorded as in flight while the counting lock is still held, so a request that
-     * arrives moments later counts it against the cap even though neither the cached count nor EC2
-     * itself reports it yet. Two concurrent requests would otherwise both pass the same cap.
+     * <p>The capacity is claimed under the counting lock and the launch then runs without it, so a
+     * request that arrives moments later counts the claim against the cap even though neither the
+     * cached count nor EC2 itself reports the instances yet. Two concurrent requests would
+     * otherwise both pass the same cap.
      *
      * @return the provisioned agents, or {@code null} if the template is at its cap.
      * @see <a href="https://github.com/jenkinsci/ec2-plugin/issues/2030">ec2-plugin issue 2030</a>
      */
     private List<EC2AbstractSlave> provisionFromTemplate(SlaveTemplate t, int number) throws IOException {
-        slaveCountingLock.lock();
+        CapacityReservation reservation = reserveCapacity(t, number);
+        if (reservation == null) {
+            LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity", t);
+            return null;
+        }
         try {
-            int possibleSlavesCount = getPossibleNewSlavesCount(t);
-            if (possibleSlavesCount <= 0) {
-                LOGGER.log(Level.INFO, "{0}. Cannot provision - no capacity", t);
-                return null;
-            }
-
-            int provisionCount = Math.min(number, possibleSlavesCount);
-            if (provisionCount != number) {
+            if (reservation.count != number) {
                 LOGGER.log(
                         Level.INFO,
                         String.format(
                                 "%d nodes were requested for the template %s, "
                                         + "but because of instance cap only %d can be provisioned",
-                                number, t, provisionCount));
+                                number, t, reservation.count));
             }
 
             List<EC2AbstractSlave> slaves =
-                    t.provision(provisionCount, EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE));
+                    t.provision(reservation.count, EnumSet.of(SlaveTemplate.ProvisionOptions.ALLOW_CREATE));
             recordInFlight(t, slaves);
             return slaves;
         } finally {
-            slaveCountingLock.unlock();
+            releaseCapacity(reservation);
         }
     }
 
@@ -1670,7 +2005,23 @@ public class EC2Cloud extends Cloud {
                 () -> {
                     int retryCount = 0;
                     final int describeLimit = 2;
+                    final long deadline = System.currentTimeMillis() + LAUNCH_DEADLINE_MS;
                     while (true) {
+                        /*
+                         * An instance that stays PENDING is not an error any of the checks below
+                         * recognise, so without a deadline this waits on it for as long as Jenkins
+                         * runs, and its node sits in Jenkins the whole time being counted as
+                         * capacity on the way that never arrives.
+                         */
+                        if (System.currentTimeMillis() >= deadline) {
+                            LOGGER.log(
+                                    Level.WARNING,
+                                    "{0} Gave up waiting for {1} to come up after {2} minute(s)",
+                                    new Object[] {
+                                        t, slave.getNodeName(), TimeUnit.MILLISECONDS.toMinutes(LAUNCH_DEADLINE_MS)
+                                    });
+                            return null;
+                        }
                         String instanceId = slave.getInstanceId();
                         if (slave instanceof EC2SpotSlave) {
                             if (((EC2SpotSlave) slave).isSpotRequestDead()) {
@@ -1703,15 +2054,32 @@ public class EC2Cloud extends Cloud {
 
                             InstanceStateName state = instance.state().name();
                             if (state.equals(InstanceStateName.RUNNING)) {
-                                Computer c = slave.toComputer();
-                                if (c != null) {
-                                    c.connect(false);
-                                }
                                 long secondsSinceStart = Instant.now().until(instance.launchTime(), ChronoUnit.SECONDS);
                                 LOGGER.log(
                                         Level.INFO,
                                         "{0} Node {1} moved to RUNNING state in {2} seconds and is ready to be connected by Jenkins",
                                         new Object[] {t, slave.getNodeName(), secondsSinceStart});
+                                Computer c = slave.toComputer();
+                                if (c == null) {
+                                    return null;
+                                }
+                                c.connect(false);
+                                /*
+                                 * Running is not the same as usable. Reporting success at the point
+                                 * the instance boots leaves a node that failed to connect attached
+                                 * and counted as capacity on the way, which holds demand down for
+                                 * as long as it sits there and is how a label ends up with a crowd
+                                 * of agents that are forever launching. Failing instead lets the
+                                 * caller take the node away and put the instance back within reach
+                                 * of cleanup.
+                                 */
+                                if (!awaitOnline(c, deadline)) {
+                                    LOGGER.log(
+                                            Level.WARNING,
+                                            "{0} Node {1} reached RUNNING but never came online; giving up on it",
+                                            new Object[] {t, slave.getNodeName()});
+                                    return null;
+                                }
                                 scheduleQueueMaintenance();
                                 return slave;
                             }
@@ -1744,6 +2112,19 @@ public class EC2Cloud extends Cloud {
                 Computer.threadPoolForRemoting);
     }
 
+    /**
+     * @return whether the computer came online before the deadline passed.
+     */
+    private static boolean awaitOnline(Computer c, long deadlineMillis) throws InterruptedException {
+        while (!c.isOnline()) {
+            if (System.currentTimeMillis() >= deadlineMillis) {
+                return false;
+            }
+            Thread.sleep(ONLINE_POLL_INTERVAL_MS);
+        }
+        return true;
+    }
+
     private static void attachSlavesToJenkins(Jenkins jenkins, List<EC2AbstractSlave> slaves, SlaveTemplate t)
             throws IOException {
         for (final EC2AbstractSlave slave : slaves) {
@@ -1763,6 +2144,10 @@ public class EC2Cloud extends Cloud {
                 });
             }
             jenkins.addNode(slave);
+            // The node now shows the instance is spoken for, so the launch's claim can go.
+            if (t.getParent() != null) {
+                t.getParent().releaseLaunched(slave.getInstanceId());
+            }
         }
     }
 
@@ -1950,6 +2335,13 @@ public class EC2Cloud extends Cloud {
     public static ClientOverrideConfiguration createClientOverrideConfiguration() {
         // Default retry limit (3) is low and often cause problems. Raise it a bit.
         // See: https://issues.jenkins-ci.org/browse/JENKINS-26800
+        //
+        // No timeout is set here on purpose. It would apply to RunInstances and
+        // RequestSpotInstances as well, and those are not safe to abandon or repeat: the plugin
+        // sends no client token, so a retried launch is a second launch, and a launch abandoned
+        // after EC2 accepted it leaves an instance running that no agent will ever claim. The
+        // read-only counting calls are the ones that need a ceiling, and they set one per request.
+        // See COUNT_API_CALL_TIMEOUT.
         ClientOverrideConfiguration config = ClientOverrideConfiguration.builder()
                 .putAdvancedOption(SdkAdvancedClientOption.SIGNER, Aws4Signer.create())
                 .retryPolicy(RetryPolicy.builder().numRetries(16).build())

@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.init.InitMilestone;
 import hudson.model.PeriodicWork;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -35,7 +36,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -43,11 +48,7 @@ import jenkins.model.Jenkins;
 import jenkins.model.JenkinsLocationConfiguration;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
-import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
-import software.amazon.awssdk.services.ec2.model.Filter;
 import software.amazon.awssdk.services.ec2.model.Instance;
-import software.amazon.awssdk.services.ec2.model.Reservation;
 import software.amazon.awssdk.services.ec2.model.Tag;
 
 @Extension
@@ -63,9 +64,59 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
     private static final int LOST_MULTIPLIER =
             Integer.parseInt(System.getProperty(EC2CleanupOrphanedNodes.class.getName() + ".lostMultiplier", "3"));
 
+    /**
+     * Shortest gap between cleanups asked for by a cap check, per cloud.
+     *
+     * <p>A cloud at its cap says so on every provisioning attempt, and a burst of queued builds
+     * produces a great many of those in a few seconds. Without a gap each one would start its own
+     * sweep, and a sweep is several EC2 calls, so the response to being out of capacity would be to
+     * spend the API budget that provisioning needs to recover.
+     */
+    private static final long REQUESTED_CLEANUP_COOLDOWN = Long.parseLong(System.getProperty(
+            EC2CleanupOrphanedNodes.class.getName() + ".requestedCleanupCooldown", String.valueOf(5 * MIN)));
+
+    private static final Map<String, Long> LAST_REQUESTED_CLEANUP = new ConcurrentHashMap<>();
+
+    private static final ExecutorService CLEANUP_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "EC2CleanupOrphanedNodes-requested");
+        t.setDaemon(true);
+        return t;
+    });
+
     @Override
     public long getRecurrencePeriod() {
         return RECURRENCE_PERIOD;
+    }
+
+    /**
+     * Sweeps a cloud that has just found itself with no capacity, rather than leaving it to wait
+     * for the next scheduled pass.
+     *
+     * <p>Being at the cap is the moment orphans matter: until then they are only wasted money, but
+     * now they are the reason work is not being scheduled. An hour is a long time to leave a queue
+     * standing for instances that are never coming back.
+     *
+     * <p>Returns immediately. Callers ask for this while holding the instance counting lock, and a
+     * sweep makes EC2 calls, which is the combination that stalls provisioning in the first place.
+     */
+    static void requestCleanup(@NonNull EC2Cloud cloud) {
+        if (!cloud.isCleanUpOrphanedNodes()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long previous = LAST_REQUESTED_CLEANUP.get(cloud.getDisplayName());
+        if (previous != null && now - previous < REQUESTED_CLEANUP_COOLDOWN) {
+            return;
+        }
+        LAST_REQUESTED_CLEANUP.put(cloud.getDisplayName(), now);
+        CLEANUP_EXECUTOR.submit(() -> {
+            try {
+                new EC2CleanupOrphanedNodes().cleanCloud(cloud);
+            } catch (RuntimeException e) {
+                Logger.getLogger(EC2CleanupOrphanedNodes.class.getName())
+                        .log(Level.WARNING, "Requested orphan cleanup failed for " + cloud.getDisplayName(), e);
+            }
+        });
     }
 
     @Override
@@ -98,11 +149,33 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         Set<String> updatedInstances =
                 updateLocalInstancesTag(connection, localConnectedEC2Instances, remoteInstancesIds, cloud);
 
+        boolean cloudIdle = isCloudIdle(cloud, localConnectedEC2Instances);
+        if (cloudIdle) {
+            LOGGER.fine(() -> "Cloud " + cloud.getDisplayName() + " holds no agents and has no launches on the way, "
+                    + "so its instances past the attach grace period are orphans regardless of their expiry tag");
+        }
+
         remoteInstances.stream()
                 // exclude instances that just got updated
                 .filter(remote -> !updatedInstances.contains(remote.instanceId()))
-                .filter(this::isOrphaned)
+                .filter(remote ->
+                        isOrphaned(remote) || (cloudIdle && EC2OrphanedInstanceInventory.isPastAttachGrace(remote)))
                 .forEach(remote -> terminateInstance(remote.instanceId(), connection));
+    }
+
+    /**
+     * @return whether the cloud has nothing running and nothing on the way. Every instance EC2
+     *     still reports for such a cloud is an orphan by definition: no agent holds one and no
+     *     launch is in a position to claim one, so waiting out the expiry tag only pays for
+     *     hardware that is already known to be lost.
+     *     <p>Answered only once Jenkins has finished starting. Agents are restored from disk during
+     *     startup, so a cloud inspected before that looks idle when it is not, and acting on the
+     *     answer would terminate the instances of the agents about to come back.
+     */
+    private boolean isCloudIdle(@NonNull EC2Cloud cloud, @NonNull Set<String> connectedInstanceIds) {
+        return connectedInstanceIds.isEmpty()
+                && Jenkins.get().getInitLevel() == InitMilestone.COMPLETED
+                && !cloud.hasLaunchesInProgress();
     }
 
     private List<EC2Cloud> getClouds() {
@@ -115,61 +188,25 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
      * These are all the instances that are created by the EC2 plugin of this controller and this cloud.
      */
     private Set<Instance> getAllRemoteInstance(Ec2Client connection, EC2Cloud cloud) throws SdkException {
-        Set<Instance> instanceIds = new HashSet<>();
-
-        String nextToken = null;
-        JenkinsLocationConfiguration jenkinsLocation = JenkinsLocationConfiguration.get();
-        if (jenkinsLocation.getUrl() == null) {
+        if (JenkinsLocationConfiguration.get().getUrl() == null) {
             LOGGER.warning(
                     "Jenkins server URL is not set in JenkinsLocationConfiguration.Returning empty remote instance list for cloud: "
                             + cloud.getDisplayName());
-            return instanceIds;
+            return Set.of();
         }
 
-        do {
-            DescribeInstancesRequest.Builder requestBuilder = DescribeInstancesRequest.builder()
-                    .maxResults(500)
-                    .filters(
-                            Filter.builder()
-                                    .name("instance-state-name")
-                                    .values(
-                                            InstanceState.RUNNING.getCode(),
-                                            InstanceState.PENDING.getCode(),
-                                            InstanceState.STOPPING.getCode())
-                                    .build(),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_SERVER_URL, jenkinsLocation.getUrl()),
-                            tagFilter(EC2Tag.TAG_NAME_JENKINS_CLOUD_NAME, cloud.getDisplayName()));
-
-            requestBuilder.nextToken(nextToken);
-            DescribeInstancesResponse result = connection.describeInstances(requestBuilder.build());
-
-            for (Reservation r : result.reservations()) {
-                instanceIds.addAll(new HashSet<>(r.instances()));
-            }
-
-            nextToken = result.nextToken();
-        } while (nextToken != null);
-
-        LOGGER.fine(() -> "Found " + instanceIds.size() + " remote instance ID(s) for cloud: " + cloud.getDisplayName()
+        Set<Instance> instances = EC2OrphanedInstanceInventory.remoteInstances(connection, cloud);
+        LOGGER.fine(() -> "Found " + instances.size() + " remote instance ID(s) for cloud: " + cloud.getDisplayName()
                 + ". Instance IDs: "
-                + instanceIds.stream().map(Instance::instanceId).collect(Collectors.joining(", ")));
-        return instanceIds;
+                + instances.stream().map(Instance::instanceId).collect(Collectors.joining(", ")));
+        return instances;
     }
 
     /**
      * Returns a list of EC2 agent instance IDs connected to Jenkins.
      */
     private Set<String> getConnectedAgentInstanceIds(EC2Cloud cloud) {
-        return Jenkins.get().getNodes().stream()
-                .filter(EC2AbstractSlave.class::isInstance)
-                .map(EC2AbstractSlave.class::cast)
-                .filter(node -> cloud.equals(node.getCloud()))
-                .map(node -> {
-                    LOGGER.fine(
-                            () -> "Connected agent: " + node.getNodeName() + ", Instance ID: " + node.getInstanceId());
-                    return node.getInstanceId();
-                })
-                .collect(Collectors.toSet());
+        return EC2OrphanedInstanceInventory.attachedInstanceIds(cloud);
     }
 
     /**
@@ -275,9 +312,5 @@ public class EC2CleanupOrphanedNodes extends PeriodicWork {
         } catch (SdkException ex) {
             LOGGER.log(Level.WARNING, "Error terminating remote instance " + instanceId, ex);
         }
-    }
-
-    private Filter tagFilter(String tagName, String tagValue) {
-        return Filter.builder().name("tag:" + tagName).values(tagValue).build();
     }
 }

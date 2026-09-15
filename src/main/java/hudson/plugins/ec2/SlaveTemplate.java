@@ -68,7 +68,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -177,6 +180,18 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     private static final Set<String> INSUFFICIENT_CAPACITY_ERROR_CODES =
             Set.of("InsufficientInstanceCapacity", "InsufficientHostCapacity", "InsufficientReservedInstancesCapacity");
+
+    /**
+     * Carries the per-zone requests of a single launch, so a request spread over the zones costs
+     * one round trip rather than one per zone. Unbounded and cached: the threads are only ever
+     * waiting on EC2, there are at most as many at a time as a template has zones, and they are
+     * wanted precisely during the bursts that a fixed pool would queue up.
+     */
+    private static final ExecutorService SUBNET_LAUNCH_EXECUTOR = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "EC2-subnet-launch");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * Maps a subnet id to the epoch-millis timestamp until which the subnet should be
@@ -1816,6 +1831,19 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS).length;
     }
 
+    /**
+     * @return every subnet this template may launch into, in configuration order, or empty if it is
+     *     not restricted to any.
+     */
+    List<String> getAllSubnetIds() {
+        if (subnetId == null || subnetId.isBlank()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(getSubnetId().split(EC2_RESOURCE_ID_DELIMETERS))
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toList());
+    }
+
     private synchronized ConcurrentHashMap<String, Long> getSubnetCapacityCooldownMap() {
         if (subnetCapacityCooldownUntil == null) {
             subnetCapacityCooldownUntil = new ConcurrentHashMap<>();
@@ -2313,6 +2341,16 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 return false;
             }
         }
+        /*
+         * Having no agent yet is not enough on its own. A launch attaches its agent some time after
+         * EC2 reports the instance, and in that window the instance looks exactly like one nobody
+         * wants. Adopting it would let requests running side by side take over each other's new
+         * instances, so a burst of them would come away with a fraction of what it asked for.
+         */
+        if (getParent() != null && getParent().isClaimedByRecentLaunch(instance.instanceId())) {
+            logInstanceCheck(instance, ". false - a launch in progress is still waiting to attach it");
+            return false;
+        }
         logInstanceCheck(instance, " true - Instance is not connected to Jenkins");
         return true;
     }
@@ -2570,28 +2608,42 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         RunInstancesRequest riRequest = entry.getKey();
         List<Filter> diFilters = entry.getValue();
 
-        DescribeInstancesRequest diRequest =
-                DescribeInstancesRequest.builder().filters(diFilters).build();
+        DescribeInstancesRequest diRequest = DescribeInstancesRequest.builder()
+                .filters(subnetFilterWidenedToTemplate(diFilters))
+                .build();
 
         logProvisionInfo("Looking for existing instances with describe-instance: " + diRequest);
 
         DescribeInstancesResponse diResult = ec2.describeInstances(diRequest);
-        List<Instance> orphansOrStopped = new ArrayList<>();
-        if (!avoidUsingOrphanedNodes) {
-            orphansOrStopped = findOrphansOrStopped(diResult, number);
+        List<Instance> orphansOrStopped = findOrphansOrStopped(diResult, number);
+        if (avoidUsingOrphanedNodes) {
+            /*
+             * The setting is about not re-using an instance that has already served an agent: such
+             * an instance may have run its build and, with single-use agents, be on its way down,
+             * so meeting a request with it produces an agent that dies instead of one that works.
+             *
+             * It is not a reason to leave behind an instance that was launched and never claimed.
+             * That one is capacity this cloud has already paid for and never used, and relaunching
+             * rather than taking it over means paying twice and holding two places in the caps for
+             * one agent.
+             */
+            orphansOrStopped = orphansOrStopped.stream()
+                    .filter(SlaveTemplate::hasNeverCarriedAnAgent)
+                    .collect(Collectors.toList());
+        }
 
-            if (orphansOrStopped.isEmpty()
-                    && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
-                    && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
-                logProvisionInfo("No existing instance found - but cannot create new instance");
-                return null;
-            }
+        if (orphansOrStopped.isEmpty()
+                && !provisionOptions.contains(ProvisionOptions.FORCE_CREATE)
+                && !provisionOptions.contains(ProvisionOptions.ALLOW_CREATE)) {
+            logProvisionInfo("No existing instance found - but cannot create new instance");
+            return null;
+        }
 
-            wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
+        wakeOrphansOrStoppedUp(ec2, orphansOrStopped);
 
-            if (orphansOrStopped.size() == number) {
-                return toSlaves(orphansOrStopped);
-            }
+        if (orphansOrStopped.size() == number) {
+            logProvisionInfo("Adopted " + orphansOrStopped.size() + " existing instance(s) without launching");
+            return toSlaves(orphansOrStopped);
         }
 
         int countToCreate = number - orphansOrStopped.size();
@@ -2602,13 +2654,12 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             InstanceMarketOptionsRequest marketOptions = spotMarketOptions();
             riRequestBuilder.instanceMarketOptions(marketOptions);
             try {
-                newInstances =
-                        runInstancesWithSubnetFailover(ec2, image, countToCreate, riRequestBuilder, marketOptions);
+                newInstances = runInstancesWithSubnetFailover(ec2, countToCreate, riRequestBuilder);
             } catch (Ec2Exception e) {
                 newInstances = launchOndemandInstead(ec2, image, countToCreate, fallbackSpotToOndemand, e);
             }
         } else {
-            newInstances = runInstancesWithSubnetFailover(ec2, image, countToCreate, riRequestBuilder, null);
+            newInstances = runInstancesWithSubnetFailover(ec2, countToCreate, riRequestBuilder);
         }
         // Have to create a new instance
 
@@ -2618,7 +2669,9 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         newInstances.addAll(orphansOrStopped);
 
-        return toSlaves(newInstances);
+        // Adopted instances need the same claim as launched ones: until an agent is on them they
+        // still look unwanted, and a request running alongside would take them a second time.
+        return toSlaves(claim(newInstances));
     }
 
     /**
@@ -2642,79 +2695,215 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      *     quietly become an on-demand one on its second subnet.
      */
     private List<Instance> runInstancesWithSubnetFailover(
-            Ec2Client ec2,
-            Image image,
-            int countToCreate,
-            RunInstancesRequest.Builder initialBuilder,
-            @CheckForNull InstanceMarketOptionsRequest marketOptions)
-            throws IOException {
-        int subnetCount = getSubnetCount();
-        int maxAttempts = Math.max(1, subnetCount);
-        RunInstancesRequest.Builder builder = initialBuilder;
-        List<Instance> launched = new ArrayList<>();
-        Ec2Exception lastCapacityException = null;
-
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            String attemptedSubnet = getCurrentSubnetId();
-            boolean canTryAnotherSubnet = subnetCount > 1 && attempt < maxAttempts - 1;
-            try {
-                int before = launched.size();
-                launched.addAll(ec2.runInstances(builder.build()).instances());
-                /*
-                 * A subnet that launched nothing at all, without saying why, is not a part-filled
-                 * pool to carry a remainder from: EC2 reports a pool it cannot draw on as an
-                 * error rather than as an empty success, so there is nothing here to react to.
-                 */
-                boolean partlyFilled = launched.size() > before;
-                if (launched.size() >= countToCreate || !partlyFilled || !canTryAnotherSubnet) {
-                    return launched;
-                }
-                logProvisionInfo(String.format(
-                        "Subnet %s supplied %d of the %d instance(s) asked for; trying the next subnet for the rest",
-                        attemptedSubnet, launched.size(), countToCreate));
-            } catch (Ec2Exception e) {
-                String errorCode =
-                        e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
-                if (!isInsufficientCapacityError(errorCode) || !canTryAnotherSubnet) {
-                    if (!launched.isEmpty()) {
-                        // Part of the request is in hand; let the caller place the remainder.
-                        return launched;
-                    }
-                    logProvisionInfo(
-                            "Jenkins attempted to reserve " + builder.build().maxCount()
-                                    + " instances and received this EC2 exception: " + e.getMessage());
-                    throw e;
-                }
-
-                markSubnetUnavailable(attemptedSubnet);
-                lastCapacityException = e;
-                logProvisionInfo(String.format(
-                        "Subnet %s has insufficient capacity for instance type %s (%s); trying next subnet",
-                        attemptedSubnet, type, errorCode));
-            }
-
-            // Rebuild the request against the next subnet for what is still wanted. This
-            // re-selects the subnet (skipping cooled-down ones) and re-resolves the VPC
-            // security groups.
-            int remaining = countToCreate - launched.size();
-            builder = makeRunInstancesRequest(image, remaining, ec2);
-            if (builder == null) {
-                break;
-            }
-            if (marketOptions != null) {
-                builder.instanceMarketOptions(marketOptions);
-            }
-
-            // If rotation could only offer the same subnet, there is nothing left to try.
-            if (Objects.equals(attemptedSubnet, getCurrentSubnetId())) {
-                break;
-            }
+            Ec2Client ec2, int countToCreate, RunInstancesRequest.Builder initialBuilder) {
+        List<String> subnets = getAllSubnetIds();
+        RunInstancesRequest base = initialBuilder.build();
+        if (subnets.size() < 2) {
+            return claim(new ArrayList<>(ec2.runInstances(base).instances()));
         }
 
-        if (launched.isEmpty() && lastCapacityException != null) {
-            throw lastCapacityException;
+        List<Instance> launched = new ArrayList<>();
+        Set<String> spent = new HashSet<>();
+        SdkException lastCapacityFailure = null;
+        SdkException lastOtherFailure = null;
+
+        while (launched.size() < countToCreate) {
+            List<String> usable = subnets.stream()
+                    .filter(subnet -> !spent.contains(subnet))
+                    .filter(subnet -> !isSubnetInCooldown(subnet))
+                    .collect(Collectors.toList());
+            if (usable.isEmpty()) {
+                /*
+                 * Every zone is either spent for this request or cooling down. A cooldown records
+                 * what a zone said minutes ago, not what it would say now, so the zones that have
+                 * not yet answered this request are asked once regardless rather than the whole
+                 * template being passed over on the strength of a stale refusal.
+                 */
+                usable = subnets.stream()
+                        .filter(subnet -> !spent.contains(subnet))
+                        .collect(Collectors.toList());
+                if (usable.isEmpty()) {
+                    break;
+                }
+                logProvisionInfo(String.format(
+                        "Every zone of instance type %s is cooling down; asking them anyway rather than passing the template over",
+                        type));
+            }
+
+            List<SubnetLaunch> round = shareOutAcrossSubnets(base, countToCreate - launched.size(), usable);
+            if (round.isEmpty()) {
+                break;
+            }
+            runTogether(ec2, round);
+
+            for (SubnetLaunch attempt : round) {
+                if (attempt.failure != null) {
+                    spent.add(attempt.subnetId);
+                    String errorCode = attempt.failure instanceof AwsServiceException awsFailure
+                                    && awsFailure.awsErrorDetails() != null
+                            ? awsFailure.awsErrorDetails().errorCode()
+                            : null;
+                    if (isInsufficientCapacityError(errorCode)) {
+                        markSubnetUnavailable(attempt.subnetId);
+                        lastCapacityFailure = attempt.failure;
+                        logProvisionInfo(String.format(
+                                "Subnet %s has insufficient capacity for instance type %s (%s); its share moves to the zones still answering",
+                                attempt.subnetId, type, errorCode));
+                    } else {
+                        lastOtherFailure = attempt.failure;
+                        logProvisionInfo(String.format(
+                                "Subnet %s refused its share of %d instance(s): %s",
+                                attempt.subnetId, attempt.requested, attempt.failure.getMessage()));
+                    }
+                    continue;
+                }
+
+                launched.addAll(attempt.instances);
+                if (attempt.instances.size() < attempt.requested) {
+                    /*
+                     * A pool that part-filled has given what it has, so it is not worth another
+                     * share of this request, but it has not refused either and does not belong in
+                     * the cooldown that later requests skip.
+                     */
+                    spent.add(attempt.subnetId);
+                    logProvisionInfo(String.format(
+                            "Subnet %s supplied %d of the %d instance(s) it was asked for",
+                            attempt.subnetId, attempt.instances.size(), attempt.requested));
+                }
+            }
+
+            /*
+             * No exit on a round that launched nothing. When less is left than there are zones,
+             * the shares do not reach every zone, so a round where each zone asked refused still
+             * leaves zones that have not been asked at all. Every round either launches something
+             * or marks each zone it asked as spent, so the list of zones worth asking strictly
+             * shrinks and the loop ends either way.
+             */
+        }
+
+        if (launched.isEmpty()) {
+            if (lastCapacityFailure != null) {
+                throw lastCapacityFailure;
+            }
+            if (lastOtherFailure != null) {
+                throw lastOtherFailure;
+            }
+        }
+        if (launched.size() < countToCreate) {
+            logProvisionInfo(String.format(
+                    "The zones of this template supplied %d of the %d instance(s) asked for",
+                    launched.size(), countToCreate));
+        }
+        return claim(launched);
+    }
+
+    /**
+     * Marks instances as belonging to this launch until it has attached agents to them.
+     *
+     * @return the same instances, so this can wrap the value being returned.
+     */
+    private List<Instance> claim(List<Instance> launched) {
+        EC2Cloud cloud = getParent();
+        if (cloud != null) {
+            cloud.recordLaunched(launched);
         }
         return launched;
+    }
+
+    /**
+     * Divides what is still wanted evenly between the zones still worth asking and builds a request
+     * for each.
+     *
+     * <p>A share of zero is not requested: when there is less left than there are zones, the
+     * remainder is spread one instance per zone over as many as it covers rather than padded out.
+     */
+    private List<SubnetLaunch> shareOutAcrossSubnets(RunInstancesRequest base, int remaining, List<String> usable) {
+        List<SubnetLaunch> round = new ArrayList<>();
+        int even = remaining / usable.size();
+        int extra = remaining % usable.size();
+        for (int i = 0; i < usable.size(); i++) {
+            int share = even + (i < extra ? 1 : 0);
+            if (share <= 0) {
+                continue;
+            }
+            round.add(new SubnetLaunch(usable.get(i), movedToSubnet(base, usable.get(i), share), share));
+        }
+        if (!round.isEmpty()) {
+            logProvisionInfo(String.format(
+                    "Spreading a request for %d instance(s) of type %s across %d zone(s): %s",
+                    remaining,
+                    type,
+                    round.size(),
+                    round.stream()
+                            .map(attempt -> attempt.subnetId + "=" + attempt.requested)
+                            .collect(Collectors.joining(", "))));
+        }
+        return round;
+    }
+
+    /**
+     * @return a copy of a request aimed at a different zone.
+     *     <p>A copy rather than a freshly built request because building one resolves the key pair
+     *     and the security groups from EC2, and neither depends on the zone. Building one per zone
+     *     put a dozen uncached describe calls in front of every launch, and did so while holding
+     *     this template's monitor, which is long enough for a burst to look like a hang.
+     */
+    private static RunInstancesRequest movedToSubnet(RunInstancesRequest base, String subnet, int count) {
+        RunInstancesRequest.Builder builder = base.toBuilder().maxCount(count);
+        List<InstanceNetworkInterfaceSpecification> interfaces = base.networkInterfaces();
+        if (interfaces == null || interfaces.isEmpty()) {
+            return builder.subnetId(subnet).build();
+        }
+        List<InstanceNetworkInterfaceSpecification> moved = new ArrayList<>(interfaces);
+        moved.set(0, moved.get(0).toBuilder().subnetId(subnet).build());
+        return builder.networkInterfaces(moved).build();
+    }
+
+    /**
+     * Sends a round of requests to EC2 at the same time and waits for all of them.
+     *
+     * <p>Together rather than one after another because the zones are independent pools and the
+     * point of splitting a burst between them is that it costs one round trip instead of one per
+     * zone. Run in sequence, a wide request would take as long as the slowest zone multiplied by
+     * how many there are, which is the delay this is meant to remove.
+     */
+    private void runTogether(Ec2Client ec2, List<SubnetLaunch> round) {
+        if (round.size() == 1) {
+            round.get(0).run(ec2);
+            return;
+        }
+        CompletableFuture.allOf(round.stream()
+                        .map(attempt -> CompletableFuture.runAsync(() -> attempt.run(ec2), SUBNET_LAUNCH_EXECUTOR))
+                        .toArray(CompletableFuture[]::new))
+                .join();
+    }
+
+    /** One zone's share of a request, and what came back from it. */
+    private static final class SubnetLaunch {
+
+        private final String subnetId;
+
+        private final RunInstancesRequest request;
+
+        private final int requested;
+
+        private List<Instance> instances = Collections.emptyList();
+
+        private SdkException failure;
+
+        SubnetLaunch(String subnetId, RunInstancesRequest request, int requested) {
+            this.subnetId = subnetId;
+            this.request = request;
+            this.requested = requested;
+        }
+
+        void run(Ec2Client ec2) {
+            try {
+                instances = new ArrayList<>(ec2.runInstances(request).instances());
+            } catch (SdkException e) {
+                failure = e;
+            }
+        }
     }
 
     /**
@@ -2741,7 +2930,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         logProvisionInfo(
                 "No subnet has spot capacity available matching your request, falling back to on-demand instances.");
-        return runInstancesWithSubnetFailover(ec2, image, countToCreate, ondemandBuilder, null);
+        return runInstancesWithSubnetFailover(ec2, countToCreate, ondemandBuilder);
     }
 
     /**
@@ -2803,6 +2992,44 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             throw new AssertionError(e); // we should have discovered all
             // configuration issues upfront
         }
+    }
+
+    /**
+     * Broadens the subnet of the launch filters to every subnet this template may launch into.
+     *
+     * <p>The filters describe the launch that is about to happen, which goes to the one subnet the
+     * rotation picked. An instance this template left behind in any of its other subnets is still
+     * one it could adopt, and is still costing money until something claims or terminates it.
+     * Searching only the subnet in hand leaves the rest to be found by coincidence, which on a
+     * template spanning an availability zone per subnet means mostly not at all.
+     *
+     * @return the filters unchanged when the template has at most one subnet, since there is then
+     *     nothing to broaden.
+     */
+    private List<Filter> subnetFilterWidenedToTemplate(List<Filter> diFilters) {
+        List<String> subnets = getAllSubnetIds();
+        if (subnets.size() <= 1) {
+            return diFilters;
+        }
+        List<Filter> widened = new ArrayList<>(diFilters.size());
+        for (Filter filter : diFilters) {
+            if ("subnet-id".equals(filter.name())) {
+                widened.add(Filter.builder().name("subnet-id").values(subnets).build());
+            } else {
+                widened.add(filter);
+            }
+        }
+        return widened;
+    }
+
+    /**
+     * @return whether no agent has ever run on this instance, which makes it capacity that was
+     *     launched and never claimed rather than an instance that has been used.
+     * @see EC2Tag#TAG_NAME_JENKINS_AGENT_CONNECTED
+     */
+    static boolean hasNeverCarriedAnAgent(@NonNull Instance instance) {
+        return EC2OrphanedInstanceInventory.tagValue(instance, EC2Tag.TAG_NAME_JENKINS_AGENT_CONNECTED) == null
+                && EC2OrphanedInstanceInventory.tagValue(instance, EC2Tag.TAG_NAME_JENKINS_AGENT_ATTEMPTED) == null;
     }
 
     List<Instance> findOrphansOrStopped(DescribeInstancesResponse diResult, int number) {

@@ -61,7 +61,7 @@ class EC2CloudProvisionFailoverTest {
         SlaveTemplate second = template("second", SECOND_TYPE);
         EC2Cloud cloud = cloud(true, first, second);
 
-        assertFalse(cloud.provision(Label.get(LABEL), 1).isEmpty(), "a node should have been planned");
+        cloud.provision(Label.get(LABEL), 1);
 
         awaitInstanceOfType(SECOND_TYPE);
         assertThat(
@@ -83,7 +83,7 @@ class EC2CloudProvisionFailoverTest {
         SlaveTemplate second = template("second", SECOND_TYPE);
         EC2Cloud cloud = cloud(false, first, second);
 
-        assertFalse(cloud.provision(Label.get(LABEL), 1).isEmpty(), "a node should have been planned");
+        cloud.provision(Label.get(LABEL), 1);
 
         awaitInstanceOfType(SECOND_TYPE);
         assertFalse(
@@ -132,7 +132,7 @@ class EC2CloudProvisionFailoverTest {
         SlaveTemplate second = template("second", SECOND_TYPE);
         EC2Cloud cloud = cloud(true, first, second);
 
-        assertFalse(cloud.provision(Label.get(LABEL), 1).isEmpty(), "a node should have been planned");
+        cloud.provision(Label.get(LABEL), 1);
 
         awaitInstanceOfType(SECOND_TYPE);
         assertFalse(

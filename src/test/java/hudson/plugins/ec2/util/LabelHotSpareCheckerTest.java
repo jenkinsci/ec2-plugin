@@ -19,6 +19,7 @@ import hudson.plugins.ec2.EC2AbstractSlave;
 import hudson.plugins.ec2.EC2Cloud;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.EC2RetentionStrategy;
+import hudson.plugins.ec2.EC2Tag;
 import hudson.plugins.ec2.EbsEncryptRootVolume;
 import hudson.plugins.ec2.HotSpareConfigByLabel;
 import hudson.plugins.ec2.HotSpareDemand;
@@ -40,6 +41,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -49,7 +51,9 @@ import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
+import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.ec2.model.Tag;
 
 /**
  * Hot spare scaling driven by a label rule rather than by a single template.
@@ -457,7 +461,11 @@ class LabelHotSpareCheckerTest {
         MinimumInstanceChecker.checkForMinimumInstances();
         assertThat(countAgents(), equalTo(5));
 
-        // The builds take all five, so the label holds nothing warm again.
+        // The builds take all five, so the label holds nothing warm again. They are marked as
+        // having carried an agent first, which is what the real tagger does when one comes online
+        // and what makes avoidUsingOrphanedNodes apply to them: an instance that never carried an
+        // agent stays adoptable whatever that setting says, since nothing has used what it cost.
+        markInstancesAsHavingCarriedAnAgent();
         removeAllAgents();
         MinimumInstanceChecker.checkForMinimumInstances();
 
@@ -716,6 +724,23 @@ class LabelHotSpareCheckerTest {
         job.setDefinition(new CpsFlowDefinition(script.toString(), true));
         job.scheduleBuild2(0);
         waitForBuildableItems(branches);
+    }
+
+    /** Stands in for {@link hudson.plugins.ec2.EC2AgentConnectedTagger}, which needs a real launch. */
+    private static void markInstancesAsHavingCarriedAnAgent() {
+        List<Instance> tagged = AmazonEC2FactoryMockImpl.instances.stream()
+                .map(instance -> instance.toBuilder()
+                        .tags(Stream.concat(
+                                        instance.tags().stream(),
+                                        Stream.of(Tag.builder()
+                                                .key(EC2Tag.TAG_NAME_JENKINS_AGENT_CONNECTED)
+                                                .value(Instant.now().toString())
+                                                .build()))
+                                .toList())
+                        .build())
+                .toList();
+        AmazonEC2FactoryMockImpl.instances.clear();
+        AmazonEC2FactoryMockImpl.instances.addAll(tagged);
     }
 
     private void removeAllAgents() throws Exception {
