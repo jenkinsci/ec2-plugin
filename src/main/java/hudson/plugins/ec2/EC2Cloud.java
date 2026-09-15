@@ -2052,6 +2052,10 @@ public class EC2Cloud extends Cloud {
                                 return null;
                             }
 
+                            // Free while we hold a description: whether this is a spot instance
+                            // decides whether it is worth watching for a reclamation notice.
+                            slave.noteLifecycle(instance);
+
                             InstanceStateName state = instance.state().name();
                             if (state.equals(InstanceStateName.RUNNING)) {
                                 long secondsSinceStart = Instant.now().until(instance.launchTime(), ChronoUnit.SECONDS);

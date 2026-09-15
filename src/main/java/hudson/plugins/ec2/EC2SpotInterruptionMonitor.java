@@ -99,6 +99,12 @@ public class EC2SpotInterruptionMonitor extends PeriodicWork {
             if (computer.isOffline() || computer.getChannel() == null) {
                 continue;
             }
+            // Only an instance known not to be spot is passed over. One whose lifecycle nobody has
+            // established yet is asked anyway, since the cost of asking needlessly is a round trip
+            // and the cost of not asking is a build sent to an instance that is already going.
+            if (Boolean.FALSE.equals(node.getSpotLifecycle())) {
+                continue;
+            }
             // Each agent is asked on its own thread: the question goes over that agent's channel,
             // and one agent that has stopped answering should not hold up the rest.
             Computer.threadPoolForRemoting.submit(() -> check(computer, node, instanceId));

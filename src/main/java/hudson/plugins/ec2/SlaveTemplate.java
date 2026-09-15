@@ -2984,7 +2984,10 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         try {
             List<EC2AbstractSlave> slaves = new ArrayList<>(newInstances.size());
             for (Instance instance : newInstances) {
-                slaves.add(newOndemandSlave(instance));
+                EC2AbstractSlave slave = newOndemandSlave(instance);
+                // The agent type says nothing about the lifecycle here, so take it off the description
+                slave.noteLifecycle(instance);
+                slaves.add(slave);
                 logProvisionInfo("Return instance: " + instance);
             }
             return slaves;
