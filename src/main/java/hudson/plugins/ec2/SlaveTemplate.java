@@ -200,6 +200,26 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     private transient ConcurrentHashMap<String, Long> subnetCapacityCooldownUntil;
 
+    /**
+     * How long this template's image and the ids behind its security group names are reused before
+     * being read from EC2 again. Configurable via the system property
+     * {@code hudson.plugins.ec2.SlaveTemplate.launchPrerequisiteCacheTtlMillis}.
+     */
+    private static final long LAUNCH_PREREQUISITE_CACHE_TTL_MILLIS = SystemProperties.getLong(
+            SlaveTemplate.class.getName() + ".launchPrerequisiteCacheTtlMillis", TimeUnit.MINUTES.toMillis(5));
+
+    /**
+     * The image this template launches. Transient: it is read back from EC2 after a restart, and is
+     * only held to keep a describe-images off the front of every launch.
+     */
+    private transient ExpiringValue<Image> imageCache;
+
+    /**
+     * The security group ids this template launches with, by the subnet they were resolved for.
+     * Which groups are usable depends on the subnet, so a zone may not borrow another zone's answer.
+     */
+    private transient ConcurrentHashMap<String, ExpiringValue<List<String>>> securityGroupIdCache;
+
     /** Clock used for cooldown bookkeeping. Overridable in tests via {@link #setClock(Clock)}. */
     private transient Clock clock;
 
@@ -1851,6 +1871,39 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         return subnetCapacityCooldownUntil;
     }
 
+    private synchronized ExpiringValue<Image> getImageCache() {
+        if (imageCache == null) {
+            imageCache = new ExpiringValue<>(LAUNCH_PREREQUISITE_CACHE_TTL_MILLIS);
+        }
+        return imageCache;
+    }
+
+    private synchronized ConcurrentHashMap<String, ExpiringValue<List<String>>> getSecurityGroupIdCache() {
+        if (securityGroupIdCache == null) {
+            securityGroupIdCache = new ConcurrentHashMap<>();
+        }
+        return securityGroupIdCache;
+    }
+
+    /**
+     * @return the cache of security group ids resolved against one subnet, or against no subnet at
+     *     all for a template that names none.
+     */
+    private ExpiringValue<List<String>> securityGroupIdsFor(@CheckForNull String subnet) {
+        return getSecurityGroupIdCache()
+                .computeIfAbsent(
+                        subnet == null ? "" : subnet, key -> new ExpiringValue<>(LAUNCH_PREREQUISITE_CACHE_TTL_MILLIS));
+    }
+
+    /**
+     * Drops everything read from EC2 that is held against this template, so the next launch reads
+     * it again. For tests, and for a template whose configuration has just changed.
+     */
+    void clearLaunchPrerequisiteCache() {
+        getImageCache().clear();
+        getSecurityGroupIdCache().clear();
+    }
+
     private synchronized Clock getClock() {
         if (clock == null) {
             clock = Clock.systemUTC();
@@ -2473,7 +2526,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
              * If we have a subnet ID then we can only use VPC security groups
              */
             if (!getSecurityGroupSet().isEmpty()) {
-                List<String> groupIds = getEc2SecurityGroups(ec2);
+                List<String> groupIds = getCachedEc2SecurityGroups(ec2);
 
                 if (!groupIds.isEmpty()) {
                     netBuilder.groups(groupIds);
@@ -2485,9 +2538,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                 }
             }
         } else {
-            List<String> groupIds = getSecurityGroupsBy("group-name", securityGroupSet, ec2).securityGroups().stream()
-                    .map(SecurityGroup::groupId)
-                    .collect(Collectors.toList());
+            List<String> groupIds = getCachedSecurityGroupIdsByName(ec2);
             netBuilder.groups(groupIds);
 
             if (!groupIds.isEmpty()) {
@@ -3181,6 +3232,11 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
     @NonNull
     private Image getImage() throws SdkException {
+        Image cached = getImageCache().get();
+        if (cached != null) {
+            return cached;
+        }
+
         DescribeImagesRequest request = makeDescribeImagesRequest();
 
         LOGGER.info("Getting image for request " + request);
@@ -3194,7 +3250,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
 
         // Sort in reverse by creation date to get latest image
         images.sort(Comparator.comparing(Image::creationDate).reversed());
-        return images.get(0);
+        return getImageCache().put(images.get(0));
     }
 
     private void setupCustomDeviceMapping(List<BlockDeviceMapping> deviceMappings) {
@@ -3533,13 +3589,7 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
      */
     @CheckForNull
     private KeyPair getKeyPair(Ec2Client ec2) throws IOException, SdkException {
-        EC2PrivateKey ec2PrivateKey = getParent().resolvePrivateKey();
-        if (ec2PrivateKey == null) {
-            throw SdkException.builder()
-                    .message("No keypair credential found. Please configure a credential in the Jenkins configuration.")
-                    .build();
-        }
-        KeyPair keyPair = ec2PrivateKey.find(ec2);
+        KeyPair keyPair = getParent().resolveKeyPair(ec2);
         if (keyPair == null) {
             throw SdkException.builder()
                     .message("No matching keypair found on EC2. Is the EC2 private key a valid one?")
@@ -3604,6 +3654,32 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
                             + e.awsErrorDetails().errorMessage(),
                     e);
         }
+    }
+
+    /**
+     * As {@link #getEc2SecurityGroups}, reusing the answer given for the same subnet recently. The
+     * groups a template launches with are configuration, so resolving them again per launch only
+     * puts another describe in front of it.
+     */
+    private List<String> getCachedEc2SecurityGroups(Ec2Client ec2) throws SdkException {
+        ExpiringValue<List<String>> cache = securityGroupIdsFor(getCurrentSubnetId());
+        List<String> cached = cache.get();
+        return cached != null ? cached : cache.put(getEc2SecurityGroups(ec2));
+    }
+
+    /**
+     * As above for a template that names no subnet, where the group names are resolved to ids
+     * directly rather than against a VPC.
+     */
+    private List<String> getCachedSecurityGroupIdsByName(Ec2Client ec2) throws SdkException {
+        ExpiringValue<List<String>> cache = securityGroupIdsFor(null);
+        List<String> cached = cache.get();
+        if (cached != null) {
+            return cached;
+        }
+        return cache.put(getSecurityGroupsBy("group-name", securityGroupSet, ec2).securityGroups().stream()
+                .map(SecurityGroup::groupId)
+                .collect(Collectors.toList()));
     }
 
     /**

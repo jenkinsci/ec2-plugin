@@ -86,6 +86,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
@@ -122,6 +123,9 @@ import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.core.retry.RetryPolicyContext;
+import software.amazon.awssdk.core.retry.conditions.AndRetryCondition;
+import software.amazon.awssdk.core.retry.conditions.RetryCondition;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -214,6 +218,31 @@ public class EC2Cloud extends Cloud {
      */
     private static final long PLANNED_NODE_TIMEOUT_MS =
             Long.getLong("jenkins.ec2.plannedNodeTimeoutMs", TimeUnit.MINUTES.toMillis(2));
+
+    /**
+     * How long a no-delay request may keep walking its template group for the agents it is still
+     * missing.
+     *
+     * <p>Tied to {@link #PLANNED_NODE_TIMEOUT_MS} because the planned nodes standing for those
+     * agents are given up at that point: past it the provisioner has already taken the demand back
+     * and is free to ask again, so a walk still running is launching instances nothing is waiting
+     * for any more.
+     */
+    private static final long NO_DELAY_FALLBACK_BUDGET_MS =
+            Long.getLong("jenkins.ec2.noDelayFallbackBudgetMs", PLANNED_NODE_TIMEOUT_MS);
+
+    /**
+     * How long the key pair resolved for this cloud is reused before being matched against EC2
+     * again. Configurable via {@code jenkins.ec2.keyPairCacheTtlMs}.
+     */
+    private static final long KEY_PAIR_CACHE_TTL_MILLIS =
+            Long.getLong("jenkins.ec2.keyPairCacheTtlMs", TimeUnit.MINUTES.toMillis(5));
+
+    /**
+     * The key pair every template here launches with. Transient: it is matched against EC2 again
+     * after a restart, and is only held to keep a describe-key-pairs off the front of every launch.
+     */
+    private transient ExpiringValue<KeyPair> keyPairCache;
 
     /**
      * How long a call that counts instances may take, retries included, before it is abandoned.
@@ -414,6 +443,40 @@ public class EC2Cloud extends Cloud {
                 templates,
                 roleArn,
                 roleSessionName);
+    }
+
+    /**
+     * Resolves the key pair every template in this cloud launches with, reusing the answer given
+     * recently.
+     *
+     * <p>Held per cloud rather than per template because the key is the cloud's: a request spread
+     * over a group of templates was otherwise matching the same private key against
+     * describe-key-pairs once per template, decoding the PEM twice each time, all of it in front of
+     * the launches.
+     *
+     * @return the matching key pair, or {@code null} if EC2 holds no key with this fingerprint.
+     */
+    @CheckForNull
+    KeyPair resolveKeyPair(Ec2Client ec2) throws IOException, SdkException {
+        KeyPair cached = getKeyPairCache().get();
+        if (cached != null) {
+            return cached;
+        }
+        EC2PrivateKey ec2PrivateKey = resolvePrivateKey();
+        if (ec2PrivateKey == null) {
+            throw SdkException.builder()
+                    .message("No keypair credential found. Please configure a credential in the Jenkins configuration.")
+                    .build();
+        }
+        KeyPair keyPair = ec2PrivateKey.find(ec2);
+        return keyPair == null ? null : getKeyPairCache().put(keyPair);
+    }
+
+    private synchronized ExpiringValue<KeyPair> getKeyPairCache() {
+        if (keyPairCache == null) {
+            keyPairCache = new ExpiringValue<>(KEY_PAIR_CACHE_TTL_MILLIS);
+        }
+        return keyPairCache;
     }
 
     @CheckForNull
@@ -1097,7 +1160,7 @@ public class EC2Cloud extends Cloud {
 
         n += countCurrentEC2SpotSlaves(template, jenkinsServerUrl, instanceIds);
 
-        observeCountedInstances(instanceIds, template == null);
+        observeCountedInstances(instanceIds, template == null ? null : templateCountKey(template), template == null);
 
         return n;
     }
@@ -1374,15 +1437,35 @@ public class EC2Cloud extends Cloud {
     /**
      * Drops the in-flight records EC2 has caught up with, so they are not counted twice.
      *
+     * <p>A count refreshes the cloud-wide total and at most one template's, so an instance is only
+     * let go once the count that reported it was for its own template. A cloud-wide count reports
+     * instances of every template, but it only writes back the count of the one it was asked about;
+     * releasing the rest would leave them counted by neither their template's cached count nor this
+     * map, and the next request would read that template as emptier than it is and launch past its
+     * cap.
+     *
      * @param countedInstanceIds the instances the count just returned.
+     * @param countedTemplateKey the template whose cached count this refreshes, or {@code null} for
+     *     a count that was not for a single template.
      * @param wasCloudWideCount whether the count covered every template, which is the only case
      *     where the absence of an instance means EC2 really has not reported it yet.
      */
-    private void observeCountedInstances(Set<String> countedInstanceIds, boolean wasCloudWideCount) {
+    private void observeCountedInstances(
+            Set<String> countedInstanceIds, @CheckForNull String countedTemplateKey, boolean wasCloudWideCount) {
         if (wasCloudWideCount) {
             lastCountedInstanceIds = Set.copyOf(countedInstanceIds);
         }
-        inFlightInstances.keySet().removeAll(countedInstanceIds);
+        for (String countedInstanceId : countedInstanceIds) {
+            InFlightInstance inFlight = inFlightInstances.get(countedInstanceId);
+            if (inFlight == null) {
+                continue;
+            }
+            if (inFlight.templateId.equals(countedTemplateKey)) {
+                inFlightInstances.remove(countedInstanceId);
+            } else if (wasCloudWideCount) {
+                inFlight.countedCloudWide = true;
+            }
+        }
     }
 
     /**
@@ -1398,7 +1481,9 @@ public class EC2Cloud extends Cloud {
         inFlightInstances.values().removeIf(inFlight -> inFlight.launchedAtMillis < cutoff);
         capacityReservations.removeIf(reservation -> reservation.reservedAtMillis < cutoff);
         if (templateKey == null) {
-            return inFlightInstances.size()
+            return (int) inFlightInstances.values().stream()
+                            .filter(inFlight -> !inFlight.countedCloudWide)
+                            .count()
                     + capacityReservations.stream()
                             .mapToInt(reservation -> reservation.count)
                             .sum();
@@ -1481,6 +1566,14 @@ public class EC2Cloud extends Cloud {
 
         private final long launchedAtMillis;
 
+        /**
+         * Whether the cloud-wide count has reported it, which happens before its own template's
+         * count does when the launch that follows is for a different template. Until that template
+         * is counted too the instance is still held here on its behalf, so it has to stop counting
+         * against the cloud-wide cap on its own or it would be counted there twice.
+         */
+        private volatile boolean countedCloudWide;
+
         InFlightInstance(String templateId, long launchedAtMillis) {
             this.templateId = templateId;
             this.launchedAtMillis = launchedAtMillis;
@@ -1508,17 +1601,6 @@ public class EC2Cloud extends Cloud {
         instanceCountCacheTimestamp = 0;
         cachedTotalSlaves = -1;
         cachedTemplateSlaves.clear();
-    }
-
-    /**
-     * Drops the cached instance count for a single template, leaving the other templates warm.
-     *
-     * <p>The cloud-wide total is deliberately left in place. Instances this cloud has just launched
-     * are carried by {@link #countInFlight} until EC2 reports them, so the cloud cap stays honest
-     * without re-reading every template's count after each attempt.
-     */
-    private void invalidateInstanceCountCache(@NonNull SlaveTemplate template) {
-        cachedTemplateSlaves.remove(templateCountKey(template));
     }
 
     /**
@@ -1631,9 +1713,10 @@ public class EC2Cloud extends Cloud {
         }
         final AtomicInteger nextSlot = new AtomicInteger();
 
+        final long requestedAtMillis = System.currentTimeMillis();
         PROVISIONING_EXECUTOR.execute(() -> {
             try {
-                provisionAndAttach(ordered, wanted, slave -> {
+                provisionAndAttach(ordered, wanted, requestedAtMillis, slave -> {
                     int index = nextSlot.getAndIncrement();
                     if (index < slots.size()) {
                         slots.get(index).complete(slave);
@@ -1695,11 +1778,31 @@ public class EC2Cloud extends Cloud {
      * behind it are still being asked for the remainder.
      */
     private void provisionAndAttach(
-            @NonNull List<SlaveTemplate> ordered, int number, @NonNull Consumer<EC2AbstractSlave> onAttached) {
+            @NonNull List<SlaveTemplate> ordered,
+            int number,
+            long requestedAtMillis,
+            @NonNull Consumer<EC2AbstractSlave> onAttached) {
+        /*
+         * Timed from when the request arrived rather than from here, so the figure covers the wait
+         * for a provisioning thread as well as the calls to EC2. What it does not cover is the wait
+         * for the request itself: Jenkins only runs a provisioning cycle every
+         * hudson.model.LoadStatistics.clock milliseconds, ten seconds by default, and a queued
+         * build waits through that before this cloud is asked for anything.
+         */
+        AtomicBoolean firstReported = new AtomicBoolean();
         try {
-            List<EC2AbstractSlave> provisioned = provisionFromGroup(
-                    ordered, 0, number, (template, slaves) -> attachAndConnect(template, slaves, onAttached));
+            List<EC2AbstractSlave> provisioned = provisionFromGroup(ordered, 0, number, (template, slaves) -> {
+                if (firstReported.compareAndSet(false, true)) {
+                    LOGGER.log(Level.INFO, "First of {0} agent(s) launched {1}ms after the request", new Object[] {
+                        number, System.currentTimeMillis() - requestedAtMillis
+                    });
+                }
+                attachAndConnect(template, slaves, onAttached);
+            });
             int obtained = provisioned == null ? 0 : provisioned.size();
+            LOGGER.log(Level.INFO, "Launched {0} of the {1} agent(s) asked for in {2}ms", new Object[] {
+                obtained, number, System.currentTimeMillis() - requestedAtMillis
+            });
             if (obtained < number) {
                 LOGGER.log(
                         Level.INFO,
@@ -1750,7 +1853,6 @@ public class EC2Cloud extends Cloud {
                 }
             });
         }
-        invalidateInstanceCountCache(t);
         scheduleQueueMaintenance();
     }
 
@@ -1848,6 +1950,14 @@ public class EC2Cloud extends Cloud {
      * it can rather than refusing a request it can only partly fill, and an instance type is a
      * single spot pool, so a wide request routinely needs more than one of them.
      *
+     * <p>Under {@link #isNoDelayProvisioning()} the group is walked again for whatever is still
+     * missing, for as long as the walks keep delivering. Spot capacity is granted in pieces, and
+     * one pass only offers each pool a single share of the request, so a burst that one pass leaves
+     * short is otherwise short until the next provisioning cycle. That option already says this
+     * cloud values getting the agents over what they cost, which is the trade being made here: the
+     * extra passes are more calls to EC2, spent on the instance types and zones the earlier passes
+     * did not get everything from.
+     *
      * @param onProvisioned notified with each template's agents as soon as that template supplies
      *     them, so a caller can put them to work without waiting for the rest of the walk.
      * @return the provisioned agents, or {@code null} if no template in the group could provide any.
@@ -1858,6 +1968,60 @@ public class EC2Cloud extends Cloud {
             int number,
             BiConsumer<SlaveTemplate, List<EC2AbstractSlave>> onProvisioned) {
         final List<EC2AbstractSlave> provisioned = new ArrayList<>();
+        final long deadline = System.currentTimeMillis() + NO_DELAY_FALLBACK_BUDGET_MS;
+        int obtainedBeforePass;
+        do {
+            obtainedBeforePass = provisioned.size();
+            provisionOnePass(ordered, startIndex, number, onProvisioned, provisioned);
+        } while (shouldWalkGroupAgain(provisioned.size(), obtainedBeforePass, number, deadline));
+        return provisioned.isEmpty() ? null : provisioned;
+    }
+
+    /**
+     * Decides whether the group is worth another walk for the rest of a request.
+     *
+     * <p>A pass that added nothing is the signal to stop. Every template has just been asked and
+     * none of them had anything, so asking the same group again in the same moment would only add
+     * calls to an EC2 that is already saying no, and risk the throttling that would slow down the
+     * launches that do succeed. The request keeps whatever it obtained and the provisioner asks
+     * again on its next cycle.
+     *
+     * @param obtained how many agents the walks have delivered so far.
+     * @param obtainedBeforePass how many had been delivered before the pass that just finished.
+     * @param deadline when to stop regardless, so a group that keeps yielding one agent at a time
+     *     cannot hold a request open indefinitely.
+     */
+    private boolean shouldWalkGroupAgain(int obtained, int obtainedBeforePass, int number, long deadline) {
+        if (obtained >= number || !isNoDelayProvisioning()) {
+            return false;
+        }
+        if (obtained == obtainedBeforePass) {
+            return false;
+        }
+        if (System.currentTimeMillis() >= deadline) {
+            LOGGER.log(
+                    Level.INFO,
+                    "Stopping after {0} of the {1} agent(s) asked for: the group is still delivering but has run out of time for this request",
+                    new Object[] {obtained, number});
+            return false;
+        }
+        LOGGER.log(
+                Level.INFO,
+                "Walking the group again for the remaining {0} agent(s) of {1}, as no-delay provisioning is enabled",
+                new Object[] {number - obtained, number});
+        return true;
+    }
+
+    /**
+     * Asks each template in turn for what the request is still missing, adding what they supply to
+     * {@code provisioned}.
+     */
+    private void provisionOnePass(
+            List<SlaveTemplate> ordered,
+            int startIndex,
+            int number,
+            BiConsumer<SlaveTemplate, List<EC2AbstractSlave>> onProvisioned,
+            List<EC2AbstractSlave> provisioned) {
         for (int i = startIndex; i < ordered.size(); i++) {
             final SlaveTemplate t = ordered.get(i);
             final int remaining = number - provisioned.size();
@@ -1867,7 +2031,7 @@ public class EC2Cloud extends Cloud {
                     provisioned.addAll(slaves);
                     onProvisioned.accept(t, slaves);
                     if (provisioned.size() >= number) {
-                        return provisioned;
+                        return;
                     }
                     LOGGER.log(
                             Level.INFO,
@@ -1900,15 +2064,7 @@ public class EC2Cloud extends Cloud {
             } catch (SdkException | IOException e) {
                 LOGGER.log(Level.WARNING, t + ". Exception during provisioning, trying next template", e);
             }
-            /*
-             * Only this template's count is now stale. Wiping the whole cache here made every
-             * candidate behind it re-read the cloud from EC2, which on a large template list is
-             * hundreds of DescribeInstances calls per request and throttling severe enough to wedge
-             * the launches it was meant to protect.
-             */
-            invalidateInstanceCountCache(t);
         }
-        return provisioned.isEmpty() ? null : provisioned;
     }
 
     /**
@@ -1955,7 +2111,6 @@ public class EC2Cloud extends Cloud {
                     LOGGER.log(Level.WARNING, "Failed to attach " + slave.getNodeName(), e);
                 }
             }
-            invalidateInstanceCountCache(template);
         });
         return attached.get();
     }
@@ -2348,9 +2503,33 @@ public class EC2Cloud extends Cloud {
         // See COUNT_API_CALL_TIMEOUT.
         ClientOverrideConfiguration config = ClientOverrideConfiguration.builder()
                 .putAdvancedOption(SdkAdvancedClientOption.SIGNER, Aws4Signer.create())
-                .retryPolicy(RetryPolicy.builder().numRetries(16).build())
+                .retryPolicy(RetryPolicy.builder()
+                        .numRetries(16)
+                        .retryCondition(AndRetryCondition.create(
+                                RetryCondition.defaultRetryCondition(), EC2Cloud::isWorthRetrying))
+                        .build())
                 .build();
         return config;
+    }
+
+    /**
+     * @return whether a failed call is worth sending again, which for a zone that has run out of
+     *     capacity it is not.
+     *     <p>EC2 reports insufficient capacity as a 500, so the SDK counts it as the server having
+     *     a bad moment and sends the request again, sixteen times, backing off up to twenty seconds
+     *     between attempts. A launch into an exhausted zone therefore sat in the SDK for around two
+     *     minutes before the plugin was told what EC2 had said in the first second, and the request
+     *     could not move to the zone next door until it was. It is not a transient failure: the
+     *     answer is about that instance type in that zone right now, repeating the question does
+     *     not change it, and nothing was launched, so there is nothing to strand by giving up.
+     */
+    private static boolean isWorthRetrying(RetryPolicyContext context) {
+        Throwable exception = context.exception();
+        if (exception instanceof AwsServiceException awsFailure && awsFailure.awsErrorDetails() != null) {
+            return !SlaveTemplate.isInsufficientCapacityError(
+                    awsFailure.awsErrorDetails().errorCode());
+        }
+        return true;
     }
 
     /* Parse a url or return a sensible error */

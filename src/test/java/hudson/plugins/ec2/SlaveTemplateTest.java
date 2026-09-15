@@ -963,6 +963,8 @@ class SlaveTemplateTest {
         when(mockedPrivateKey.find(mockedEC2)).thenReturn(mockedKeyPair);
         when(mockedCloud.connect()).thenReturn(mockedEC2);
         when(mockedCloud.resolvePrivateKey()).thenReturn(mockedPrivateKey);
+        // The cloud resolves and caches the key pair, and this one is a mock, so it has to answer.
+        when(mockedCloud.resolveKeyPair(mockedEC2)).thenReturn(mockedKeyPair);
 
         template.parent = mockedCloud;
 
