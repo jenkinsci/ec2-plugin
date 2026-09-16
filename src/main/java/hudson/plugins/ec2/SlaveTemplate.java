@@ -3122,7 +3122,6 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
             return;
         }
 
-        // get the root device (only one expected in the blockmappings)
         if (deviceMappings.isEmpty()) {
             LOGGER.warning("AMI missing block devices");
             return;
@@ -3131,32 +3130,21 @@ public class SlaveTemplate implements Describable<SlaveTemplate> {
         LOGGER.info("AMI had " + rootMapping.deviceName());
         LOGGER.info(rootMapping.ebs().toString());
 
-        // Create a new AMI mapping as a copy of the existing one
         BlockDeviceMapping.Builder newRootMappingBuilder = rootMapping.toBuilder();
         EbsBlockDevice.Builder newRootDeviceBuilder = rootMapping.ebs().toBuilder();
 
         if (deleteRootOnTermination) {
             newRootDeviceBuilder.deleteOnTermination(Boolean.TRUE);
-            // Check if the root device is already in the mapping and update it
-            for (final BlockDeviceMapping mapping : image.blockDeviceMappings()) {
-                LOGGER.info("Request had " + mapping.deviceName());
-                if (rootMapping.deviceName().equals(mapping.deviceName())) {
-                    // Existing mapping found, replace with the copy
-                    newRootMappingBuilder.ebs(newRootDeviceBuilder.build());
-                    deviceMappings.remove(0);
-                    deviceMappings.add(0, newRootMappingBuilder.build());
-                }
-            }
         }
 
-        // New existing mapping found, add a new one as the root
         newRootDeviceBuilder.encrypted(ebsEncryptRootVolume.getValue());
         String message = String.format(
                 "EBS default encryption value set to: %s (%s)",
                 ebsEncryptRootVolume.getDisplayText(), ebsEncryptRootVolume.getValue());
         logProvisionInfo(message);
+
         newRootMappingBuilder.ebs(newRootDeviceBuilder.build());
-        deviceMappings.add(0, newRootMappingBuilder.build());
+        deviceMappings.set(0, newRootMappingBuilder.build());
     }
 
     private List<BlockDeviceMapping> getNewEphemeralDeviceMapping(Image image) {
