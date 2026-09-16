@@ -25,8 +25,13 @@ package hudson.plugins.ec2;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Extension;
+import hudson.ExtensionList;
 import hudson.model.Computer;
+import hudson.model.Executor;
 import hudson.model.PeriodicWork;
+import hudson.model.Queue;
+import hudson.model.Run;
+import hudson.model.queue.Executables;
 import hudson.remoting.VirtualChannel;
 import java.io.IOException;
 import java.io.InputStream;
@@ -139,12 +144,50 @@ public class EC2SpotInterruptionMonitor extends PeriodicWork {
             computer.getListener().getLogger().println(message);
         }
         /*
+         * Said in the build's own log as well as the agent's. Whoever has to explain the failure
+         * is usually a developer with the build log and nothing else, and an agent that vanishes
+         * mid-build otherwise reads as Jenkins being unreliable.
+         */
+        tellBuildsUnderWay(computer, message);
+        /*
          * Offline before anything else, so that the executors are shut to the queue for whatever
          * time is left. Terminating an idle agent is the tidy end of the same act; one that is busy
          * is left to finish, and a later pass takes it once it goes idle.
          */
         computer.setTemporarilyOffline(true, new EC2OfflineCause(message));
+        // Remembered by name, because a build that loses this agent has only the name to ask about.
+        EC2SpotInterruptions.note(computer.getName());
         terminateIfIdle(computer, node, instanceId);
+    }
+
+    static void tellBuildsUnderWay(Computer computer, String message) {
+        for (Executor executor : computer.getExecutors()) {
+            Queue.Executable executable = executor.getCurrentExecutable();
+            if (executable == null) {
+                continue;
+            }
+            Run<?, ?> run = runOf(executable);
+            if (run == null) {
+                continue;
+            }
+            for (EC2BuildLogReporter reporter : ExtensionList.lookup(EC2BuildLogReporter.class)) {
+                reporter.report(run, message);
+            }
+        }
+    }
+
+    /**
+     * @return the build the executable belongs to, whether it is the build itself or something a
+     *     build is running on its behalf on this agent, or {@code null} for work that belongs to no
+     *     build.
+     */
+    @CheckForNull
+    private static Run<?, ?> runOf(Queue.Executable executable) {
+        if (executable instanceof Run<?, ?> run) {
+            return run;
+        }
+        Queue.Executable owner = Executables.getParentOf(executable).getOwnerExecutable();
+        return owner instanceof Run<?, ?> run ? run : null;
     }
 
     private void terminateIfIdle(EC2Computer computer, EC2AbstractSlave node, String instanceId) {
