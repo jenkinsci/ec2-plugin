@@ -27,6 +27,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -962,6 +963,8 @@ class SlaveTemplateTest {
         when(mockedPrivateKey.find(mockedEC2)).thenReturn(mockedKeyPair);
         when(mockedCloud.connect()).thenReturn(mockedEC2);
         when(mockedCloud.resolvePrivateKey()).thenReturn(mockedPrivateKey);
+        // The cloud resolves and caches the key pair, and this one is a mock, so it has to answer.
+        when(mockedCloud.resolveKeyPair(mockedEC2)).thenReturn(mockedKeyPair);
 
         template.parent = mockedCloud;
 
@@ -1298,11 +1301,14 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertNull(metadataOptionsRequest);
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
+            assertNull(metadataOptionsRequest);
+        }
     }
 
     @Test
@@ -1359,13 +1365,16 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
-        assertEquals(HttpTokensState.OPTIONAL, metadataOptionsRequest.httpTokens());
-        assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(2));
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
+            assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
+            assertEquals(HttpTokensState.OPTIONAL, metadataOptionsRequest.httpTokens());
+            assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(2));
+        }
     }
 
     @Test
@@ -1422,13 +1431,16 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
-        assertEquals(HttpTokensState.REQUIRED, metadataOptionsRequest.httpTokens());
-        assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(2));
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
+            assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
+            assertEquals(HttpTokensState.REQUIRED, metadataOptionsRequest.httpTokens());
+            assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(2));
+        }
     }
 
     @Test
@@ -1485,13 +1497,16 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
-        assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
-        assertEquals(HttpTokensState.REQUIRED, metadataOptionsRequest.httpTokens());
-        assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(1));
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            InstanceMetadataOptionsRequest metadataOptionsRequest = actualRequest.metadataOptions();
+            assertEquals(InstanceMetadataEndpointState.ENABLED, metadataOptionsRequest.httpEndpoint());
+            assertEquals(HttpTokensState.REQUIRED, metadataOptionsRequest.httpTokens());
+            assertEquals(metadataOptionsRequest.httpPutResponseHopLimit(), Integer.valueOf(1));
+        }
     }
 
     @Test
@@ -1604,11 +1619,14 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        EnclaveOptionsRequest enclaveOptionsRequest = actualRequest.enclaveOptions();
-        assertEquals(Boolean.TRUE, enclaveOptionsRequest.enabled());
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            EnclaveOptionsRequest enclaveOptionsRequest = actualRequest.enclaveOptions();
+            assertEquals(Boolean.TRUE, enclaveOptionsRequest.enabled());
+        }
     }
 
     @Test
@@ -1666,13 +1684,16 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        assertNotNull(actualRequest.cpuOptions());
-        assertEquals(
-                NestedVirtualizationSpecification.ENABLED,
-                actualRequest.cpuOptions().nestedVirtualization());
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            assertNotNull(actualRequest.cpuOptions());
+            assertEquals(
+                    NestedVirtualizationSpecification.ENABLED,
+                    actualRequest.cpuOptions().nestedVirtualization());
+        }
     }
 
     @Test
@@ -1729,10 +1750,13 @@ class SlaveTemplateTest {
         ArgumentCaptor<RunInstancesRequest> riRequestCaptor = ArgumentCaptor.forClass(RunInstancesRequest.class);
 
         template.provision(2, EnumSet.noneOf(ProvisionOptions.class));
-        verify(mockedEC2).runInstances(riRequestCaptor.capture());
+        // One request per zone: a launch is spread across the subnets of the template, so every
+        // request it produces has to carry these options and not merely the last of them.
+        verify(mockedEC2, atLeastOnce()).runInstances(riRequestCaptor.capture());
 
-        RunInstancesRequest actualRequest = riRequestCaptor.getValue();
-        assertNull(actualRequest.cpuOptions());
+        for (RunInstancesRequest actualRequest : riRequestCaptor.getAllValues()) {
+            assertNull(actualRequest.cpuOptions());
+        }
     }
 
     @Test

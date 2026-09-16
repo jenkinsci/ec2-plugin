@@ -23,6 +23,7 @@
  */
 package hudson.plugins.ec2;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.Util;
 import hudson.model.Computer;
 import hudson.model.Descriptor;
@@ -125,6 +126,19 @@ public abstract class EC2AbstractSlave extends Slave {
 
     /* The last instance data to be fetched for the agent */
     protected transient Instance lastFetchInstance = null;
+
+    /**
+     * Whether EC2 calls this instance a spot instance, or {@code null} while nothing has described
+     * it yet.
+     *
+     * <p>Not derivable from the type of this agent: an instance launched through RunInstances with
+     * market options is a spot instance carried by an on-demand agent, which is the usual way of
+     * asking for one. It cannot change over an instance's life, so one look answers for good, and
+     * the describe that every launch already does before connecting is where that look comes from.
+     */
+    private transient Boolean spotLifecycle = null;
+
+    private static final String SPOT_LIFECYCLE = "spot";
 
     /* The time at which we fetched the last instance data */
     protected transient long lastFetchTime;
@@ -998,6 +1012,31 @@ public abstract class EC2AbstractSlave extends Slave {
         updateFromFetchedInstance(i);
     }
 
+    /** Takes down whether EC2 calls this a spot instance, from a description already in hand. */
+    void noteLifecycle(@CheckForNull Instance i) {
+        if (i != null) {
+            spotLifecycle = SPOT_LIFECYCLE.equalsIgnoreCase(i.instanceLifecycleAsString());
+        }
+    }
+
+    /**
+     * @return whether this is a spot instance, or {@code null} where nothing has described the
+     *     instance yet and so the answer is not known. Callers should treat the unknown case as
+     *     possibly spot: it is what every agent looks like after a restart of the controller, since
+     *     the description is not carried across one.
+     */
+    @CheckForNull
+    public Boolean getSpotLifecycle() {
+        if (spotLifecycle == null) {
+            if (this instanceof EC2SpotSlave) {
+                spotLifecycle = Boolean.TRUE;
+            } else {
+                noteLifecycle(lastFetchInstance);
+            }
+        }
+        return spotLifecycle;
+    }
+
     /**
      * Updates instance data from a pre-fetched Instance. Used by batch operations (e.g. EC2SlaveMonitor)
      * to avoid per-node EC2 API calls.
@@ -1006,6 +1045,7 @@ public abstract class EC2AbstractSlave extends Slave {
         long now = System.currentTimeMillis();
         lastFetchTime = now;
         lastFetchInstance = i;
+        noteLifecycle(i);
         publicDNS = i.publicDnsName();
         privateDNS = i.privateIpAddress();
         createdTime = i.launchTime();

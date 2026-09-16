@@ -25,6 +25,8 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.Mockito;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
+import software.amazon.awssdk.services.ec2.model.DescribeImagesRequest;
+import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsRequest;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 import software.amazon.awssdk.services.ec2.model.RunInstancesRequest;
@@ -346,6 +348,65 @@ class EC2CloudBatchProvisionTest {
     }
 
     /**
+     * A pool that hands out a few instances at a time fills a burst only if it is asked more than
+     * once. No-delay provisioning is the admin saying the agents matter more than what they cost,
+     * so the request goes round the group again for the rest instead of waiting for the next
+     * provisioning cycle.
+     */
+    @Test
+    void testNoDelayWalksTheGroupAgainForWhatOnePassLeftShort() throws Exception {
+        limitRunInstancesFor(InstanceType.M1_LARGE, 2);
+        EC2Cloud cloud = cloud(
+                null,
+                configured -> configured.setNoDelayProvisioning(true),
+                template("thin-pool", 30, spotBiddingTheOndemandPrice()));
+
+        cloud.provision(Label.get(LABEL), 5);
+
+        awaitInstanceCount(5);
+        assertThat(instanceCount(), equalTo(5));
+    }
+
+    /**
+     * Without it the request is served by a single pass and keeps what that pass supplied, leaving
+     * the rest to the next provisioning cycle. Walking again costs calls to EC2, which is only
+     * worth spending where the admin has asked for speed over cost.
+     */
+    @Test
+    void testWithoutNoDelayTheRequestKeepsWhatOnePassSupplied() throws Exception {
+        limitRunInstancesFor(InstanceType.M1_LARGE, 2);
+        EC2Cloud cloud = cloud(template("thin-pool", 30, spotBiddingTheOndemandPrice()));
+
+        cloud.provision(Label.get(LABEL), 5);
+
+        awaitInstanceCount(2);
+        assertNoFurtherInstancesThan(2);
+    }
+
+    /**
+     * What a template needs before it can launch is configuration, and reading it from EC2 again
+     * per request puts serial round trips in front of every queued build. A second request moments
+     * later has to go almost straight to the launch.
+     */
+    @Test
+    void testASecondRequestDoesNotReReadWhatTheTemplateLaunchesWith() throws Exception {
+        EC2Cloud cloud = cloud(template("warm", 30, spotBiddingTheOndemandPrice()));
+
+        cloud.provision(Label.get(LABEL), 2);
+        awaitInstanceCount(2);
+        Mockito.verify(AmazonEC2FactoryMockImpl.mock, Mockito.times(1))
+                .describeImages(Mockito.<DescribeImagesRequest>any());
+
+        cloud.provision(Label.get(LABEL), 2);
+        awaitInstanceCount(4);
+
+        Mockito.verify(AmazonEC2FactoryMockImpl.mock, Mockito.times(1))
+                .describeImages(Mockito.<DescribeImagesRequest>any());
+        Mockito.verify(AmazonEC2FactoryMockImpl.mock, Mockito.times(1))
+                .describeSecurityGroups(Mockito.<DescribeSecurityGroupsRequest>any());
+    }
+
+    /**
      * Stubs the factory so one instance type launches at most {@code limit} instances per request,
      * which is how EC2 answers a request for more than a pool can supply.
      */
@@ -438,6 +499,18 @@ class EC2CloudBatchProvisionTest {
                 .filter(EC2AbstractSlave.class::isInstance)
                 .map(EC2AbstractSlave.class::cast)
                 .collect(Collectors.groupingBy(node -> node.templateDescription, Collectors.counting()));
+    }
+
+    /**
+     * Fails if the walk launches anything further, which is how another pass over the group shows
+     * up. Long enough to cover one: a pass against the mocked EC2 is immediate.
+     */
+    private static void assertNoFurtherInstancesThan(int expected) throws InterruptedException {
+        long until = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3);
+        while (System.currentTimeMillis() < until) {
+            assertThat(instanceCount(), equalTo(expected));
+            Thread.sleep(100);
+        }
     }
 
     private static void awaitInstanceCount(int expected) throws InterruptedException {

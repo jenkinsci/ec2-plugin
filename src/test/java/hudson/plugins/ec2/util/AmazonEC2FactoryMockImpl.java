@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.mockito.Mockito;
@@ -66,8 +67,10 @@ public class AmazonEC2FactoryMockImpl implements AmazonEC2Factory {
      * @return mocked AmazonEC2
      */
     public static Ec2Client createAmazonEC2Mock() {
-        instances = new ArrayList<>(); // Reset for each new mock. In the real world, the client is stateless, but this
-        // is convenient for testing.
+        // Reset for each new mock. In the real world, the client is stateless, but this is
+        // convenient for testing. Copy-on-write because a template spreads one request over its
+        // zones concurrently, so several launches land here at once.
+        instances = new CopyOnWriteArrayList<>();
         return createAmazonEC2Mock(null);
     }
 

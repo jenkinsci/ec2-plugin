@@ -45,6 +45,27 @@ public class EC2Tag extends AbstractDescribableImpl<EC2Tag> {
 
     public static final String TAG_NAME_JENKINS_CLOUD_NAME = "jenkins_cloud_name";
 
+    /**
+     * Written the first time an agent comes online on an instance, and never removed.
+     *
+     * <p>This is what separates an instance that has served an agent from one that has only ever
+     * been launched. The distinction matters because the two kinds of orphan are not alike: an
+     * instance whose agent came and went may have run a build already and, where agents are
+     * single-use, be on its way down, whereas one that never connected is simply capacity that was
+     * paid for and never claimed.
+     */
+    public static final String TAG_NAME_JENKINS_AGENT_CONNECTED = "jenkins_agent_connected";
+
+    /**
+     * Written when Jenkins gave up on an agent that never came online.
+     *
+     * <p>Such an instance never connected, so without this it reads as capacity nobody has touched
+     * and stays adoptable no matter what the template says about re-using instances. A request
+     * would then take it back, fail to raise an agent on it again, and go on doing so, meeting
+     * demand with an instance that has already proved it cannot serve it.
+     */
+    public static final String TAG_NAME_JENKINS_AGENT_ATTEMPTED = "jenkins_agent_attempted";
+
     @DataBoundConstructor
     public EC2Tag(String name, String value) {
         this.name = name;
