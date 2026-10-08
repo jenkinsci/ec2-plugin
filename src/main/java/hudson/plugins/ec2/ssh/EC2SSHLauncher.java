@@ -452,6 +452,11 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
     protected static String getEC2HostAddress(EC2Computer computer, SlaveTemplate template)
             throws SdkException, InterruptedException {
         Instance instance = computer.updateInstanceDescription();
+        if (instance == null) {
+            throw SdkException.builder()
+                    .message("No EC2 instance description available for " + computer.getName())
+                    .build();
+        }
         if (instance.state().name() == InstanceStateName.TERMINATED) {
             throw SdkException.builder()
                     .message("Instance " + instance.instanceId() + " is already terminated")

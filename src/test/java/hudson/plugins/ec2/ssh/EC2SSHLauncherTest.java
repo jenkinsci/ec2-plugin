@@ -1,8 +1,12 @@
 package hudson.plugins.ec2.ssh;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import hudson.model.TaskListener;
+import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.HostKeyVerificationStrategyEnum;
 import hudson.plugins.ec2.MockEC2Computer;
 import java.nio.file.Files;
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
+import software.amazon.awssdk.core.exception.SdkException;
 
 @WithJenkins
 class EC2SSHLauncherTest {
@@ -62,5 +67,15 @@ class EC2SSHLauncherTest {
 
             r.jenkins.removeNode(computer.getNode());
         }
+    }
+
+    @Test
+    void testGetEC2HostAddressFailsClearlyWhenInstanceDescriptionMissing() throws Exception {
+        EC2Computer computer = mock(EC2Computer.class);
+        when(computer.updateInstanceDescription()).thenReturn(null);
+
+        // The template is not used before the instance check, so null is enough here
+        SdkException e = assertThrows(SdkException.class, () -> EC2SSHLauncher.getEC2HostAddress(computer, null));
+        assertTrue(e.getMessage().contains("No EC2 instance description available"));
     }
 }
