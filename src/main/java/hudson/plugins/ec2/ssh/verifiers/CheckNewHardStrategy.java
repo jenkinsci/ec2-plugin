@@ -43,6 +43,9 @@ import java.util.logging.Logger;
 public class CheckNewHardStrategy extends SshHostKeyVerificationStrategy {
     private static final Logger LOGGER = Logger.getLogger(CheckNewHardStrategy.class.getName());
 
+    // How long after boot to keep retrying while the host key is missing from the instance console
+    private static final long CONSOLE_KEY_WAIT_SECONDS = 120;
+
     @Override
     public boolean verify(EC2Computer computer, HostKey hostKey, TaskListener listener) throws IOException {
         HostKey existingHostKey = HostKeyHelper.getInstance().getHostKey(computer);
@@ -77,14 +80,23 @@ public class CheckNewHardStrategy extends SshHostKeyVerificationStrategy {
                                 "The SSH key (%s %s) presented by the instance has not been found on the instance console. Cannot check the key. The connection to %s is not allowed",
                                 hostKey.getAlgorithm(), hostKey.getFingerprint(), computer.getName()));
                 // it is the difference with the soft strategy, the key is not accepted
-                boolean stop = false;
+                long uptimeMillis = -1;
                 try {
-                    // Keep trying for at least 2 minutes
-                    stop = computer.getUptime() > TimeUnit.SECONDS.toMillis(120);
+                    uptimeMillis = computer.getUptime();
                 } catch (Exception ignored) {
 
                 }
-                if (stop) {
+                if (uptimeMillis > TimeUnit.SECONDS.toMillis(CONSOLE_KEY_WAIT_SECONDS)) {
+                    EC2Cloud.log(
+                            LOGGER,
+                            Level.WARNING,
+                            computer.getListener(),
+                            String.format(
+                                    "The instance console of %s still has no SSH key for %s after %d s of uptime (limit %d s). No key was found to compare against, so this is not a key mismatch. The agent is taken offline",
+                                    computer.getName(),
+                                    hostKey.getAlgorithm(),
+                                    TimeUnit.MILLISECONDS.toSeconds(uptimeMillis),
+                                    CONSOLE_KEY_WAIT_SECONDS));
                     computer.setTemporarilyOffline(
                             true, OfflineCause.create(Messages._OfflineCause_SSHKeyCheckFailed())); // avoid next try
                 }

@@ -39,6 +39,7 @@ import java.security.PublicKey;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import jenkins.model.Jenkins;
 
 /**
@@ -49,6 +50,18 @@ import jenkins.model.Jenkins;
  * @since TODO
  */
 public abstract class SshHostKeyVerificationStrategy implements Describable<SshHostKeyVerificationStrategy> {
+
+    static final String KEYS_BEGIN = "-----BEGIN SSH HOST KEY KEYS-----";
+    static final String KEYS_END = "-----END SSH HOST KEY KEYS-----";
+
+    // A getty on the serial console resets the terminal while cloud-init prints the keys, so the console can carry
+    // CSI and OSC sequences and other C0 bytes in and around the KEYS block. Tab and newline are kept. An OSC whose
+    // terminator was lost stops at the newline, so it cannot swallow the lines after it.
+    private static final Pattern CONTROL_SEQUENCES = Pattern.compile(
+            "\u001B\\[[0-?]*[ -/]*[@-~]" // CSI
+                    + "|\u001B\\][^\u0007\u001B\n]*(?:\u0007|\u001B\\\\)?" // OSC, ended by BEL or ST
+                    + "|\u001B[@-_]" // other two-byte escapes
+                    + "|[\u0000-\u0008\u000B-\u001F\u007F]");
 
     @Override
     public SshHostKeyVerificationStrategyDescriptor getDescriptor() {
@@ -135,7 +148,6 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
             @NonNull final Logger logger,
             @NonNull final EC2Computer computer,
             @NonNull final String serverHostKeyAlgorithm) {
-        String line = null;
         String console = computer.getDecodedConsoleOutput();
         if (console == null) {
             // The instance is running and the console is blank
@@ -148,25 +160,53 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
             return null;
         }
 
-        try {
-            int start = console.indexOf(serverHostKeyAlgorithm);
-            if (start > -1) {
-                int end = console.indexOf('\n', start);
-                line = console.substring(start, end);
-            } else {
-                // The instance printed on the console but the key was not printed with the expected format
-                EC2Cloud.log(
-                        logger,
-                        Level.INFO,
-                        computer.getListener(),
-                        String.format(
-                                "The instance %s didn't print the host key. Expected a line starting with: \"%s\"",
-                                computer.getName(), serverHostKeyAlgorithm));
-                return "";
-            }
-        } catch (IllegalArgumentException ignored) {
+        String text = stripControlSequences(console);
+        boolean hasKeysBlock = text.contains(KEYS_BEGIN);
+        String line = findKeyLine(text, serverHostKeyAlgorithm);
+        if (line == null) {
+            EC2Cloud.log(
+                    logger,
+                    Level.INFO,
+                    computer.getListener(),
+                    String.format(
+                            "The instance %s didn't print the host key. Expected a line starting with: \"%s\". %s",
+                            computer.getName(),
+                            serverHostKeyAlgorithm,
+                            hasKeysBlock
+                                    ? "The console has a \"" + KEYS_BEGIN
+                                            + "\" block but no key for this algorithm in it"
+                                    : "The console has no \"" + KEYS_BEGIN + "\" block"));
+            return "";
         }
         return line;
+    }
+
+    @NonNull
+    static String stripControlSequences(@NonNull final String console) {
+        return CONTROL_SEQUENCES.matcher(console).replaceAll("");
+    }
+
+    /**
+     * Find the line holding the key for an algorithm in a console that has already had its control sequences
+     * removed. When the console has a KEYS block, only that block is searched, so a mention of the algorithm
+     * elsewhere in the boot log cannot be taken for the key. Without a block the whole console is searched.
+     * @return the line from the algorithm name to the end of the line, or null if the algorithm is not found.
+     */
+    @CheckForNull
+    static String findKeyLine(@NonNull final String console, @NonNull final String serverHostKeyAlgorithm) {
+        String text = console;
+        int begin = text.indexOf(KEYS_BEGIN);
+        if (begin > -1) {
+            int end = text.indexOf(KEYS_END, begin);
+            text = text.substring(begin + KEYS_BEGIN.length(), end > -1 ? end : text.length());
+        }
+
+        int start = text.indexOf(serverHostKeyAlgorithm);
+        if (start < 0) {
+            return null;
+        }
+        int end = text.indexOf('\n', start);
+        return text.substring(start, end > -1 ? end : text.length()).trim();
     }
 
     @CheckForNull
