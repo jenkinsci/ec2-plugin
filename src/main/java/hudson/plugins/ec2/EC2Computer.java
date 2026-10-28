@@ -212,7 +212,13 @@ public class EC2Computer extends SlaveComputer {
      * Uses a short TTL cache to avoid repeated EC2 API calls during SSH verification retries.
      */
     public InstanceState getState() throws SdkException, InterruptedException {
-        return InstanceState.find(describeInstance().state().name().toString());
+        Instance instance = describeInstance();
+        if (instance == null) {
+            throw SdkException.builder()
+                    .message("No EC2 instance description available for " + getName())
+                    .build();
+        }
+        return InstanceState.find(instance.state().name().toString());
     }
 
     /**

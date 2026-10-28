@@ -378,7 +378,8 @@ public class EC2SpotSlave extends EC2AbstractSlave implements EC2Readiness {
 
     @Override
     public boolean isReady() {
-        return getInstanceId() != null;
+        String id = getInstanceId();
+        return id != null && !id.isEmpty();
     }
 
     @Override

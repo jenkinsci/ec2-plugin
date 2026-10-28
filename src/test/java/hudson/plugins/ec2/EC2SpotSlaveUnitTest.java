@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.CreateTagsRequest;
 import software.amazon.awssdk.services.ec2.model.CreateTagsResponse;
@@ -222,6 +223,57 @@ class EC2SpotSlaveUnitTest {
         assertEquals("i-already-set", instanceId);
         verify(ec2, never()).describeSpotInstanceRequests(any(DescribeSpotInstanceRequestsRequest.class));
         verify(ec2, never()).createTags(any(CreateTagsRequest.class));
+    }
+
+    @Test
+    void testIsReadyOnlyOnceSpotRequestHasInstanceId() throws Exception {
+        Ec2Client ec2 = mock(Ec2Client.class);
+        EC2Cloud cloud = mock(EC2Cloud.class);
+        when(cloud.connect()).thenReturn(ec2);
+
+        SpotInstanceRequest pendingRequest =
+                SpotInstanceRequest.builder().spotInstanceRequestId("sir-12345").build();
+        SpotInstanceRequest fulfilledRequest = SpotInstanceRequest.builder()
+                .spotInstanceRequestId("sir-12345")
+                .instanceId("i-abcdef")
+                .build();
+        when(ec2.describeSpotInstanceRequests(any(DescribeSpotInstanceRequestsRequest.class)))
+                .thenReturn(DescribeSpotInstanceRequestsResponse.builder()
+                        .spotInstanceRequests(pendingRequest)
+                        .build())
+                .thenReturn(DescribeSpotInstanceRequestsResponse.builder()
+                        .spotInstanceRequests(fulfilledRequest)
+                        .build());
+
+        EC2SpotSlave slave = spy(createSpotSlave("sir-12345", Collections.emptyList()));
+        doReturn(cloud).when(slave).getCloud();
+
+        // Spot request still open: no instance id yet, the launcher must keep waiting
+        assertFalse(slave.isReady());
+        // Spot request fulfilled: the instance id is known and the agent is ready
+        assertTrue(slave.isReady());
+    }
+
+    @Test
+    void testGetStateFailsClearlyWhileSpotRequestHasNoInstance() throws Exception {
+        Ec2Client ec2 = mock(Ec2Client.class);
+        EC2Cloud cloud = mock(EC2Cloud.class);
+        when(cloud.connect()).thenReturn(ec2);
+
+        SpotInstanceRequest pendingRequest =
+                SpotInstanceRequest.builder().spotInstanceRequestId("sir-12345").build();
+        when(ec2.describeSpotInstanceRequests(any(DescribeSpotInstanceRequestsRequest.class)))
+                .thenReturn(DescribeSpotInstanceRequestsResponse.builder()
+                        .spotInstanceRequests(pendingRequest)
+                        .build());
+
+        EC2SpotSlave slave = spy(createSpotSlave("sir-12345", Collections.emptyList()));
+        doReturn(cloud).when(slave).getCloud();
+
+        EC2Computer computer = new EC2Computer(slave);
+
+        SdkException e = assertThrows(SdkException.class, computer::getState);
+        assertTrue(e.getMessage().contains("No EC2 instance description available"));
     }
 
     static class TestHandler extends Handler {
