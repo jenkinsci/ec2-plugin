@@ -24,11 +24,13 @@
 package hudson.plugins.ec2;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl;
+import com.cloudbees.jenkins.plugins.awscredentials.AmazonWebServicesCredentials;
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
@@ -51,7 +53,11 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.Mockito;
 import org.xml.sax.SAXException;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -148,6 +154,69 @@ class EC2CloudTest {
                         CredentialsScope.GLOBAL, "global_id", "global_ak", "global_sk", "global_desc"));
         m = descriptor.doFillCredentialsIdItems(Jenkins.get());
         assertThat(m.size(), is(3));
+    }
+
+    @Test
+    @Issue("JENKINS-2011")
+    void testCreateCredentialsProviderAutoRefreshesRoleBasedCredential() {
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.SYSTEM,
+                        "role_based_id",
+                        "base_ak",
+                        "base_sk",
+                        "role based credential",
+                        "arn:aws:iam::123456789012:role/example-role",
+                        null));
+
+        AwsCredentialsProvider provider = EC2Cloud.createCredentialsProvider(false, "role_based_id");
+        // Must not be a StaticCredentialsProvider: those freeze the STS session credentials resolved from the
+        // role-based Jenkins credential, causing "Request has expired" errors once the session expires.
+        assertThat(provider, instanceOf(StsAssumeRoleCredentialsProvider.class));
+    }
+
+    @Test
+    void testCreateCredentialsProviderStaticForNonRoleCredential() {
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.SYSTEM, "static_id", "static_ak", "static_sk", "static credential"));
+
+        AwsCredentialsProvider provider = EC2Cloud.createCredentialsProvider(false, "static_id");
+        assertThat(provider, instanceOf(StaticCredentialsProvider.class));
+    }
+
+    @Test
+    @Issue("JENKINS-2011")
+    void testCreateCredentialsProviderRoleBasedCredentialDelegatesToInstanceProfileAndHonorsExternalId() {
+        // No access/secret key: the credential itself relies on the instance profile to assume the role, and
+        // also specifies an external ID - covers branches the role-based test above doesn't reach.
+        SystemCredentialsProvider.getInstance()
+                .getCredentials()
+                .add(new AWSCredentialsImpl(
+                        CredentialsScope.SYSTEM,
+                        "role_based_instance_profile_id",
+                        "",
+                        "",
+                        "role based credential delegating to instance profile",
+                        "arn:aws:iam::123456789012:role/example-role",
+                        null,
+                        "example-external-id"));
+
+        AwsCredentialsProvider provider = EC2Cloud.createCredentialsProvider(false, "role_based_instance_profile_id");
+        assertThat(provider, instanceOf(StsAssumeRoleCredentialsProvider.class));
+    }
+
+    @Test
+    void testCreateCredentialsProviderStaticForNonAWSCredentialsImplCredential() {
+        AmazonWebServicesCredentials mockCredentials = Mockito.mock(AmazonWebServicesCredentials.class);
+        Mockito.when(mockCredentials.getId()).thenReturn("mock_credentials_id");
+        Mockito.when(mockCredentials.resolveCredentials()).thenReturn(AwsBasicCredentials.create("mock_ak", "mock_sk"));
+        SystemCredentialsProvider.getInstance().getCredentials().add(mockCredentials);
+
+        AwsCredentialsProvider provider = EC2Cloud.createCredentialsProvider(false, "mock_credentials_id");
+        assertThat(provider, instanceOf(StaticCredentialsProvider.class));
     }
 
     @Test
