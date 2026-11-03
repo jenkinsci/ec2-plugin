@@ -51,7 +51,7 @@ import software.amazon.awssdk.services.ec2.model.Instance;
 import software.amazon.awssdk.services.ec2.model.InstanceType;
 
 /**
- * {@link ComputerLauncher} that connects to a Unix agent on EC2 by using SSH.
+ * {@link ComputerLauncher} that connects to a Mac agent on EC2 by using SSH.
  *
  * @author Kohsuke Kawaguchi
  */
