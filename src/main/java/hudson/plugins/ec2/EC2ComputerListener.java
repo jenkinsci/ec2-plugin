@@ -7,6 +7,7 @@ import hudson.model.Computer;
 import hudson.model.TaskListener;
 import hudson.slaves.ComputerListener;
 import hudson.slaves.OfflineCause;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +31,10 @@ public class EC2ComputerListener extends ComputerListener {
             Long.getLong("jenkins.ec2.terminationReasonTimeoutMs", TimeUnit.MINUTES.toMillis(3));
 
     private static final long REASON_POLL_INTERVAL_MS = 10_000;
+
+    /** What EC2 calls it in {@code stateReason} when it takes a spot instance back. */
+    private static final Set<String> SPOT_RECLAMATION_CODES =
+            Set.of("Server.SpotInstanceTermination", "Server.SpotInstanceShutdown");
 
     @Override
     public void onOnline(Computer c, TaskListener listener) {
@@ -82,6 +87,9 @@ public class EC2ComputerListener extends ComputerListener {
                 Instance instance = CloudHelper.getInstance(instanceId, cloud);
                 String reason = terminalReason(instance);
                 if (reason != null) {
+                    if (isSpotReclamation(instance)) {
+                        EC2SpotInterruptions.note(computer.getName());
+                    }
                     report(computer, instanceId, reason);
                     return;
                 }
@@ -132,6 +140,18 @@ public class EC2ComputerListener extends ComputerListener {
             return transition;
         }
         return "its instance is " + state;
+    }
+
+    /**
+     * @return whether EC2 says it took the instance back to satisfy spot capacity elsewhere, as
+     *     opposed to the instance ending for any of the other reasons an agent can lose its host.
+     *     That is the case worth retrying somewhere else, because nothing about the build caused it.
+     */
+    private static boolean isSpotReclamation(@CheckForNull Instance instance) {
+        if (instance == null || instance.stateReason() == null) {
+            return false;
+        }
+        return SPOT_RECLAMATION_CODES.contains(instance.stateReason().code());
     }
 
     private static void report(EC2Computer computer, String instanceId, String reason) {

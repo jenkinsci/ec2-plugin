@@ -178,7 +178,29 @@ THE SOFTWARE.
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
+      <artifactId>workflow-api</artifactId>
+      <!--
+        For the retry condition that spots an agent lost to a spot interruption. Optional so a
+        controller without Pipeline installed still loads the plugin; the condition is the only
+        thing that needs it, and its extension is optional to match.
+      -->
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins.workflow</groupId>
+      <artifactId>workflow-durable-task-step</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.jenkins-ci.plugins.workflow</groupId>
       <artifactId>workflow-step-api</artifactId>
+    </dependency>
+    <dependency>
+      <!-- To use the retry conditions, which upstream still marks beta. -->
+      <groupId>org.kohsuke</groupId>
+      <artifactId>access-modifier-suppressions</artifactId>
+      <version>1.35</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.jenkins</groupId>
@@ -191,8 +213,9 @@ THE SOFTWARE.
       <scope>test</scope>
     </dependency>
     <dependency>
+      <!-- Supplies the retry step the spot interruption condition is written for. -->
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
-      <artifactId>workflow-api</artifactId>
+      <artifactId>workflow-basic-steps</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -202,12 +225,13 @@ THE SOFTWARE.
     </dependency>
     <dependency>
       <groupId>org.jenkins-ci.plugins.workflow</groupId>
-      <artifactId>workflow-durable-task-step</artifactId>
+      <artifactId>workflow-job</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.jenkins-ci.plugins.workflow</groupId>
-      <artifactId>workflow-job</artifactId>
+      <!-- Proves the condition is usable from a Declarative stage option, not just scripted retry. -->
+      <groupId>org.jenkinsci.plugins</groupId>
+      <artifactId>pipeline-model-definition</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
