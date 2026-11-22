@@ -1,14 +1,18 @@
 package hudson.plugins.ec2.ssh;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import hudson.ProxyConfiguration;
 import hudson.model.TaskListener;
 import hudson.plugins.ec2.EC2Computer;
 import hudson.plugins.ec2.HostKeyVerificationStrategyEnum;
 import hudson.plugins.ec2.MockEC2Computer;
+import hudson.util.Secret;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -27,6 +31,22 @@ class EC2SSHLauncherTest {
     @BeforeEach
     void setUp(JenkinsRule rule) {
         r = rule;
+    }
+
+    @Test
+    void testProxyWithoutPassword() {
+        ProxyConfiguration proxyConfig = mock(ProxyConfiguration.class);
+        when(proxyConfig.getSecretPassword()).thenReturn(null);
+
+        assertNull(EC2SSHLauncher.getProxyPassword(proxyConfig));
+    }
+
+    @Test
+    void testProxyWithPassword() {
+        ProxyConfiguration proxyConfig = mock(ProxyConfiguration.class);
+        when(proxyConfig.getSecretPassword()).thenReturn(Secret.fromString("test-password"));
+
+        assertEquals("test-password", EC2SSHLauncher.getProxyPassword(proxyConfig));
     }
 
     @Test
