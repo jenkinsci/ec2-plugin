@@ -24,6 +24,7 @@ import hudson.plugins.ec2.util.SSHClientManager;
 import hudson.remoting.Channel;
 import hudson.remoting.Channel.Listener;
 import hudson.slaves.ComputerLauncher;
+import hudson.util.Secret;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -379,7 +380,7 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                 Proxy proxy = proxyConfig == null ? Proxy.NO_PROXY : proxyConfig.createProxy(host);
                 if (!proxy.equals(Proxy.NO_PROXY) && proxy.address() instanceof InetSocketAddress address) {
                     String username = proxyConfig.getUserName();
-                    String password = proxyConfig.getSecretPassword().getPlainText();
+                    String password = getProxyPassword(proxyConfig);
 
                     client.setClientProxyConnector(new ProxyCONNECTListener(host, port, username, password));
 
@@ -414,6 +415,11 @@ public abstract class EC2SSHLauncher extends EC2ComputerLauncher {
                 }
             }
         }
+    }
+
+    static String getProxyPassword(ProxyConfiguration proxyConfig) {
+        Secret password = proxyConfig.getSecretPassword();
+        return password == null ? null : password.getPlainText();
     }
 
     @Restricted(NoExternalUse.class)
